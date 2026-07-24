@@ -42,6 +42,53 @@ func TestApprovalService_AllowOnceResumesExactlyOneCoalescedInvocation(t *testin
 	require.Equal(t, permissions.GrantConsumed, grants[0].Status)
 }
 
+func TestApprovalService_GetGrantResolvesRequestIDsAndEffectiveExpiry(t *testing.T) {
+	now := time.Date(2026, 7, 24, 12, 0, 0, 0, time.UTC)
+	service, store := newApprovalService(t, permissions.ApprovalOptions{Now: func() time.Time { return now }})
+	ctx := context.Background()
+	request := permissions.ApprovalRequest{
+		ID: "approval_lookup", Fingerprint: "fingerprint", Status: permissions.ApprovalPending,
+		CreatedAt: now.Add(-time.Hour), ExpiresAt: now.Add(time.Hour),
+	}
+	_, _, err := store.CreateApprovalRequest(ctx, request)
+	require.NoError(t, err)
+	_, err = store.ResolveApprovalRequest(
+		ctx, request.ID, permissions.ApprovalApproved, permissions.GrantSession, now.Add(-time.Hour),
+	)
+	require.NoError(t, err)
+	grant := permissions.ApprovalGrant{
+		ID: "grant_lookup", RequestID: request.ID, Fingerprint: request.Fingerprint,
+		Scope: permissions.GrantSession, Status: permissions.GrantActive,
+		CreatedAt: now.Add(-time.Hour), ExpiresAt: now.Add(-time.Minute),
+	}
+	_, err = store.CreateApprovalGrant(ctx, grant)
+	require.NoError(t, err)
+
+	loaded, ok, err := service.GetGrant(ctx, "  "+request.ID+"  ")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, grant.ID, loaded.ID)
+	require.Equal(t, permissions.GrantExpired, loaded.Status)
+
+	listed, err := service.ListGrants(ctx, permissions.GrantQuery{})
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	require.Equal(t, permissions.GrantExpired, listed[0].Status)
+
+	loaded, ok, err = service.GetGrant(ctx, "  "+grant.ID+"  ")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, grant.ID, loaded.ID)
+
+	_, ok, err = service.GetGrant(ctx, "approval_missing")
+	require.NoError(t, err)
+	require.False(t, ok)
+
+	var unavailable *permissions.ApprovalService
+	_, _, err = unavailable.GetGrant(ctx, grant.ID)
+	require.EqualError(t, err, "approval service is required")
+}
+
 func TestApprovalService_AuthorizeBatchBindsOperationOrder(t *testing.T) {
 	service, store := newApprovalService(t, permissions.ApprovalOptions{RequestTTL: time.Second})
 	ctx := approvalContext(context.Background(), "session-a")

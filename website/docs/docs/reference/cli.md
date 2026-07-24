@@ -240,6 +240,7 @@ and [Gateway Routes](./gateway-routes).
 | `permissions list` | `morph permissions list [--status …] [--limit N] [--offset N]` | All approval requests |
 | `permissions pending` | `morph permissions pending [--limit N] [--offset N]` | Requests awaiting a decision |
 | `permissions grants` | `morph permissions grants [--status …] [--limit N] [--offset N]` | Approval grants |
+| `permissions inspect` | `morph permissions inspect <approval-or-grant-id>` | Full approval grant details |
 | `permissions approve` | `morph permissions approve <request-id> [--scope once\|session\|always]` | Approve a pending request (default scope `once`) |
 | `permissions deny` | `morph permissions deny <request-id>` | Deny a pending request |
 | `permissions revoke` | `morph permissions revoke <approval-or-grant-id>` | Revoke an active grant |
@@ -249,8 +250,15 @@ and [Gateway Routes](./gateway-routes).
 | `permissions preset` | `morph permissions preset [ask\|approve\|full-access\|custom] [--yes]` | Show or set the profile preset; `--yes` required to set `full-access` |
 
 `status` filters accept `pending`, `approved`, `denied`, `expired`, `cancelled`, or `failed` for requests, and
-`active`, `consumed`, `expired`, or `revoked` for grants. `list`, `pending`, `grants`, `approve`, `deny`, `revoke`,
-`delete`, `explain`, and `prune` talk to the daemon over RPC, like `session`, so they need a reachable daemon.
+`active`, `consumed`, `expired`, or `revoked` for grants. The grants table shows an operation count to remain compact;
+use `permissions inspect <approval-or-grant-id>` to see the complete operation list and grant metadata. An approval
+request ID resolves to its linked grant.
+
+Grant status filters match the persisted status before pagination. A grant past its expiry may therefore still match
+`--status active` until its stored status is swept, while the returned row displays its effective status as `expired`.
+
+`list`, `pending`, `grants`, `inspect`, `approve`, `deny`, `revoke`, `delete`, `explain`, and `prune` talk to the daemon
+over RPC, like `session`, so they need a reachable daemon.
 `preset` does not: it reads and writes only `permissions.preset` in the profile's `config.yaml`, preserving configured
 rules, so it works even when no daemon is running. The command labels `ask` and `approve` as `(customized)` when rules
 are present. Concept and rule schema: [Permissions](../concepts/permissions). Config keys:

@@ -24,7 +24,8 @@ func TestPermissionService_ListsInspectsResolvesAndRevokes(t *testing.T) {
 	require.NoError(t, err)
 	now := time.Date(2026, 7, 14, 12, 0, 0, 0, time.UTC)
 	request := permissions.ApprovalRequest{
-		ID: "approval_rpc", Fingerprint: "fingerprint", Actor: permissions.Actor{Kind: permissions.ActorLocalOwner},
+		ID: "approval_rpc", Fingerprint: "fingerprint",
+		Actor:   permissions.Actor{Kind: permissions.ActorLocalOwner, ID: "owner_rpc"},
 		Surface: permissions.SurfaceTUI, SurfaceKind: permissions.SurfaceKindLocal,
 		Tool: "run_command", Resource: permissions.ResourceProcess, Action: permissions.ActionExecute,
 		Effects: []permissions.Effect{permissions.EffectExecution}, Summary: "run command",
@@ -54,11 +55,25 @@ func TestPermissionService_ListsInspectsResolvesAndRevokes(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, grants.GetGrants(), 1)
 	require.Equal(t, request.Operations, grants.GetGrants()[0].GetOperations())
+	require.Empty(t, grants.GetGrants()[0].GetActorId())
+	require.Empty(t, grants.GetGrants()[0].GetFingerprint())
+	inspected, err := service.GetGrant(operatorCtx, &morphpb.GetPermissionGrantRequest{
+		Id: grants.GetGrants()[0].GetId(),
+	})
+	require.NoError(t, err)
+	require.Equal(t, "owner_rpc", inspected.GetGrant().GetActorId())
+	require.Equal(t, request.Fingerprint, inspected.GetGrant().GetFingerprint())
+	require.Equal(t, request.Operations, inspected.GetGrant().GetOperations())
+	inspected, err = service.GetGrant(operatorCtx, &morphpb.GetPermissionGrantRequest{Id: request.ID})
+	require.NoError(t, err)
+	require.Equal(t, grants.GetGrants()[0].GetId(), inspected.GetGrant().GetId())
 	revoked, err := service.RevokeGrant(operatorCtx, &morphpb.RevokePermissionGrantRequest{
 		Id: grants.GetGrants()[0].GetId(),
 	})
 	require.NoError(t, err)
 	require.Equal(t, "revoked", revoked.GetGrant().GetStatus())
+	require.Empty(t, revoked.GetGrant().GetActorId())
+	require.Empty(t, revoked.GetGrant().GetFingerprint())
 	preview, err := service.Prune(operatorCtx, &morphpb.PrunePermissionApprovalsRequest{DryRun: true})
 	require.NoError(t, err)
 	require.True(t, preview.GetDryRun())
@@ -84,6 +99,8 @@ func TestPermissionService_FailsClosedWhenUnavailableOrInvalid(t *testing.T) {
 	operatorCtx := permissionOperatorContext("cli", "127.0.0.1")
 	_, err = service.GetRequest(context.Background(), &morphpb.GetPermissionRequestRequest{Id: "missing"})
 	require.Equal(t, codes.NotFound, status.Code(err))
+	_, err = service.GetGrant(operatorCtx, &morphpb.GetPermissionGrantRequest{Id: "missing"})
+	require.Equal(t, codes.NotFound, status.Code(err))
 	_, err = service.ResolveRequest(operatorCtx, &morphpb.ResolvePermissionRequestRequest{
 		Id: "missing", Approved: true, Scope: "once",
 	})
@@ -95,6 +112,8 @@ func TestPermissionService_FailsClosedWhenUnavailableOrInvalid(t *testing.T) {
 	_, err = service.ResolveRequest(context.Background(), &morphpb.ResolvePermissionRequestRequest{})
 	require.Equal(t, codes.PermissionDenied, status.Code(err))
 	_, err = service.RevokeGrant(context.Background(), &morphpb.RevokePermissionGrantRequest{})
+	require.Equal(t, codes.PermissionDenied, status.Code(err))
+	_, err = service.GetGrant(context.Background(), &morphpb.GetPermissionGrantRequest{})
 	require.Equal(t, codes.PermissionDenied, status.Code(err))
 	_, err = service.DeleteRecord(context.Background(), &morphpb.DeletePermissionRecordRequest{})
 	require.Equal(t, codes.PermissionDenied, status.Code(err))

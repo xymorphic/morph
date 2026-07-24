@@ -249,6 +249,22 @@ func (s *Store) FindApprovalGrant(
 	return grant, err == nil, err
 }
 
+func (s *Store) GetApprovalGrant(
+	ctx context.Context,
+	id string,
+) (permissions.ApprovalGrant, bool, error) {
+	var model approvalGrantModel
+	err := s.db.WithContext(ctx).First(&model, "id = ?", id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return permissions.ApprovalGrant{}, false, nil
+	}
+	if err != nil {
+		return permissions.ApprovalGrant{}, false, err
+	}
+	grant, err := approvalGrantFromModel(model)
+	return grant, err == nil, err
+}
+
 func (s *Store) ConsumeApprovalGrant(
 	ctx context.Context,
 	id string,

@@ -3,6 +3,9 @@ package client
 import (
 	"context"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/wandxy/morph/internal/permissions"
 	morphpb "github.com/wandxy/morph/internal/rpc/proto"
 )
@@ -31,6 +34,9 @@ func (s *PermissionService) GetApprovalRequest(
 ) (permissions.ApprovalRequest, bool, error) {
 	response, err := s.client.GetRequest(ctx, &morphpb.GetPermissionRequestRequest{Id: id})
 	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return permissions.ApprovalRequest{}, false, nil
+		}
 		return permissions.ApprovalRequest{}, false, err
 	}
 	if response.GetRequest() == nil {
@@ -70,6 +76,23 @@ func (s *PermissionService) ListApprovalGrants(
 	}
 
 	return result, nil
+}
+
+func (s *PermissionService) GetApprovalGrant(
+	ctx context.Context,
+	id string,
+) (permissions.ApprovalGrant, bool, error) {
+	response, err := s.client.GetGrant(ctx, &morphpb.GetPermissionGrantRequest{Id: id})
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return permissions.ApprovalGrant{}, false, nil
+		}
+		return permissions.ApprovalGrant{}, false, err
+	}
+	if response.GetGrant() == nil {
+		return permissions.ApprovalGrant{}, false, nil
+	}
+	return approvalGrantFromProto(response.GetGrant()), true, nil
 }
 
 func (s *PermissionService) PruneApprovals(
@@ -141,7 +164,10 @@ func approvalGrantFromProto(value *morphpb.PermissionGrant) permissions.Approval
 	}
 
 	return permissions.ApprovalGrant{
-		ID: value.GetId(), RequestID: value.GetRequestId(), Actor: permissions.Actor{Kind: permissions.ActorKind(value.GetActorKind())},
+		ID: value.GetId(), RequestID: value.GetRequestId(), Fingerprint: value.GetFingerprint(), Actor: permissions.Actor{
+			Kind: permissions.ActorKind(value.GetActorKind()),
+			ID:   value.GetActorId(),
+		},
 		Profile: value.GetProfile(), SessionID: value.GetSessionId(), Scope: permissions.GrantScope(value.GetScope()),
 		Status: permissions.GrantStatus(value.GetStatus()), CreatedAt: protoTimestampToTime(value.GetCreatedAt()),
 		ExpiresAt: protoTimestampToTime(value.GetExpiresAt()), ConsumedAt: protoTimestampToTime(value.GetConsumedAt()),

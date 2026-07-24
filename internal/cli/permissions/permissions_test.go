@@ -33,7 +33,11 @@ func TestWriteRequestsAndGrants_RendersSafeStructuredFields(t *testing.T) {
 			Effects: []permissiondomain.Effect{permissiondomain.EffectExecution}, ExpiresAt: now,
 		},
 	}))
-	require.NoError(t, writeGrants([]permissiondomain.ApprovalGrant{
+	require.Contains(t, buffer.String(), "approval_1")
+	require.Contains(t, buffer.String(), "execution")
+
+	buffer.Reset()
+	grants := []permissiondomain.ApprovalGrant{
 		{
 			ID: "grant_1", Status: permissiondomain.GrantActive, Scope: permissiondomain.GrantSession,
 			Operations: []string{"run_command · execute process", "run_command · read file workspace"},
@@ -42,16 +46,28 @@ func TestWriteRequestsAndGrants_RendersSafeStructuredFields(t *testing.T) {
 		{
 			ID: "grant_always", Status: permissiondomain.GrantActive, Scope: permissiondomain.GrantAlways,
 		},
-	}))
-	require.Contains(t, buffer.String(), "approval_1")
-	require.Contains(t, buffer.String(), "execution")
+	}
+	require.NoError(t, writeGrants(grants))
 	require.Contains(t, buffer.String(), "grant_1")
-	require.Contains(t, buffer.String(), "run_command · execute process; run_command · read file workspace")
+	require.Contains(t, buffer.String(), "OPS")
+	require.NotContains(t, buffer.String(), "run_command · execute process")
 	require.Contains(t, buffer.String(), "grant_always")
 	require.Contains(t, buffer.String(), "never")
 	require.Contains(t, buffer.String(), "2026-07-14 13:00 WAT")
 	require.NotContains(t, buffer.String(), "2026-07-14 12:00 UTC")
 	require.NotContains(t, buffer.String(), "fingerprint")
+
+	buffer.Reset()
+	grants[0].Actor = permissiondomain.Actor{Kind: permissiondomain.ActorLocalOwner, ID: "owner_1"}
+	grants[0].Fingerprint = "fingerprint_1"
+	require.NoError(t, writeGrant(grants[0]))
+	require.Contains(t, buffer.String(), "Actor:")
+	require.Contains(t, buffer.String(), "local_owner · owner_1")
+	require.Contains(t, buffer.String(), "Fingerprint:")
+	require.Contains(t, buffer.String(), "fingerprint_1")
+	require.Contains(t, buffer.String(), "Operations (2)")
+	require.Contains(t, buffer.String(), "1. run_command · execute process")
+	require.Contains(t, buffer.String(), "2. run_command · read file workspace")
 }
 
 func TestWriteRequestsAndGrants_ReportsEmptyState(t *testing.T) {
@@ -91,6 +107,7 @@ func TestPermissionCommands_RunApprovalLifecycle(t *testing.T) {
 		{"permissions", "list"},
 		{"permissions", "pending"},
 		{"permissions", "grants"},
+		{"permissions", "inspect", "grant_1"},
 		{"permissions", "prune", "--dry-run"},
 		{"permissions", "approve", "--scope", "session", "approval_1"},
 		{"permissions", "deny", "approval_1"},
@@ -98,9 +115,7 @@ func TestPermissionCommands_RunApprovalLifecycle(t *testing.T) {
 		{"permissions", "delete", "approval_1"},
 		{"permissions", "explain", "approval_1"},
 	} {
-		command := &cli.Command{Name: "permissions", Commands: []*cli.Command{
-			NewListCommand(), NewPendingCommand(), NewGrantsCommand(), NewPruneCommand(), NewApproveCommand(), NewDenyCommand(), NewRevokeCommand(), NewDeleteCommand(), NewExplainCommand(),
-		}}
+		command := newPermissionTestCommand()
 		require.NoError(t, command.Run(context.Background(), args), args)
 	}
 	require.True(t, client.closed)
@@ -116,9 +131,10 @@ func TestPermissionCommands_RunApprovalLifecycle(t *testing.T) {
 }
 
 func TestPermissionCommands_ValidateIDsAndPropagateClientFailure(t *testing.T) {
-	for _, name := range []string{"approve", "deny", "revoke", "delete", "explain"} {
+	for _, name := range []string{"approve", "deny", "revoke", "delete", "explain", "inspect"} {
 		command := &cli.Command{Name: "permissions", Commands: []*cli.Command{
 			NewApproveCommand(), NewDenyCommand(), NewRevokeCommand(), NewDeleteCommand(), NewExplainCommand(),
+			NewInspectCommand(),
 		}}
 		err := command.Run(context.Background(), []string{"permissions", name})
 		require.EqualError(t, err, "approval or grant id is required")
@@ -131,6 +147,7 @@ func TestPermissionCommands_ValidateIDsAndPropagateClientFailure(t *testing.T) {
 		{"permissions", "list"},
 		{"permissions", "pending"},
 		{"permissions", "grants"},
+		{"permissions", "inspect", "grant"},
 		{"permissions", "prune"},
 		{"permissions", "approve", "approval"},
 		{"permissions", "deny", "approval"},
@@ -187,6 +204,47 @@ func TestPermissionListCommands_ApplyFiltersAndPagination(t *testing.T) {
 	}, api.grantQuery)
 }
 
+func TestInspectCommand_ShowsDetailedGrant(t *testing.T) {
+	api := &permissionCommandAPIStub{grants: []permissiondomain.ApprovalGrant{{
+		ID:         "grant_1",
+		RequestID:  "approval_1",
+		Actor:      permissiondomain.Actor{Kind: permissiondomain.ActorAutomation, ID: "auto_1"},
+		Profile:    "default",
+		Status:     permissiondomain.GrantActive,
+		Scope:      permissiondomain.GrantSession,
+		Operations: []string{"run_command · read file", "run_command · execute process printf"},
+		SessionID:  "session",
+		ExpiresAt:  time.Now().Add(time.Hour),
+	}}}
+	previousClient := getPermissionClient
+	getPermissionClient = func(context.Context, *cli.Command) (permissionClient, error) {
+		return &permissionCommandClientStub{api: api}, nil
+	}
+	t.Cleanup(func() { getPermissionClient = previousClient })
+
+	var buffer bytes.Buffer
+	previousOutput := SetOutput(&buffer)
+	t.Cleanup(func() { SetOutput(previousOutput) })
+
+	require.NoError(t, newPermissionTestCommand().Run(context.Background(), []string{
+		"permissions", "grants",
+	}))
+	require.Contains(t, buffer.String(), "OPS")
+	require.NotContains(t, buffer.String(), "execute process printf")
+
+	buffer.Reset()
+	require.NoError(t, newPermissionTestCommand().Run(context.Background(), []string{
+		"permissions", "inspect", "grant_1",
+	}))
+	require.Contains(t, buffer.String(), "Request:")
+	require.Contains(t, buffer.String(), "approval_1")
+	require.Contains(t, buffer.String(), "Actor:")
+	require.Contains(t, buffer.String(), "automation · auto_1")
+	require.Contains(t, buffer.String(), "Operations (2)")
+	require.Contains(t, buffer.String(), "1. run_command · read file")
+	require.Contains(t, buffer.String(), "2. run_command · execute process printf")
+}
+
 func TestPermissionListCommands_RejectInvalidPaginationAndFilters(t *testing.T) {
 	for _, args := range [][]string{
 		{"permissions", "list", "--status", "unknown"},
@@ -194,6 +252,7 @@ func TestPermissionListCommands_RejectInvalidPaginationAndFilters(t *testing.T) 
 		{"permissions", "list", "--limit", "0"},
 		{"permissions", "grants", "--limit", "501"},
 		{"permissions", "pending", "--offset", "-1"},
+		{"permissions", "grants", "--verbose"},
 	} {
 		err := newPermissionTestCommand().Run(context.Background(), args)
 		require.Error(t, err, args)
@@ -209,6 +268,7 @@ func TestPermissionCommands_PropagateAPIFailures(t *testing.T) {
 	}{
 		{name: "list requests", args: []string{"permissions", "list"}, api: &permissionCommandAPIStub{requestErr: expected}},
 		{name: "grants", args: []string{"permissions", "grants"}, api: &permissionCommandAPIStub{grantErr: expected}},
+		{name: "inspect", args: []string{"permissions", "inspect", "grant"}, api: &permissionCommandAPIStub{getGrantErr: expected}},
 		{name: "prune", args: []string{"permissions", "prune"}, api: &permissionCommandAPIStub{pruneErr: expected}},
 		{name: "pending", args: []string{"permissions", "pending"}, api: &permissionCommandAPIStub{requestErr: expected}},
 		{name: "approve", args: []string{"permissions", "approve", "approval"}, api: &permissionCommandAPIStub{resolveErr: expected}},
@@ -239,6 +299,8 @@ func TestPermissionCommands_ReportMissingRequestAndOutputFailure(t *testing.T) {
 
 	err := newPermissionTestCommand().Run(context.Background(), []string{"permissions", "explain", "missing"})
 	require.EqualError(t, err, "approval request not found")
+	err = newPermissionTestCommand().Run(context.Background(), []string{"permissions", "inspect", "missing"})
+	require.EqualError(t, err, "approval grant not found")
 
 	api.found = nil
 	api.requests = []permissiondomain.ApprovalRequest{{ID: "approval", Status: permissiondomain.ApprovalPending}}
@@ -485,6 +547,7 @@ type permissionCommandAPIStub struct {
 	deletedID     string
 	requestErr    error
 	grantErr      error
+	getGrantErr   error
 	pruneErr      error
 	resolveErr    error
 	revokeErr     error
@@ -561,6 +624,19 @@ func (s *permissionCommandAPIStub) ListApprovalGrants(
 	return s.grants, nil
 }
 
+func (s *permissionCommandAPIStub) GetApprovalGrant(
+	_ context.Context,
+	_ string,
+) (permissiondomain.ApprovalGrant, bool, error) {
+	if s.getGrantErr != nil {
+		return permissiondomain.ApprovalGrant{}, false, s.getGrantErr
+	}
+	if len(s.grants) == 0 {
+		return permissiondomain.ApprovalGrant{}, false, nil
+	}
+	return s.grants[0], true, nil
+}
+
 func (s *permissionCommandAPIStub) RevokeApprovalGrant(
 	_ context.Context,
 	id string,
@@ -600,7 +676,8 @@ func (s *permissionCommandAPIStub) PruneApprovals(
 
 func newPermissionTestCommand() *cli.Command {
 	return &cli.Command{Name: "permissions", Commands: []*cli.Command{
-		NewListCommand(), NewPendingCommand(), NewGrantsCommand(), NewPruneCommand(), NewApproveCommand(), NewDenyCommand(), NewRevokeCommand(), NewDeleteCommand(), NewExplainCommand(),
+		NewListCommand(), NewPendingCommand(), NewGrantsCommand(), NewInspectCommand(), NewPruneCommand(),
+		NewApproveCommand(), NewDenyCommand(), NewRevokeCommand(), NewDeleteCommand(), NewExplainCommand(),
 	}}
 }
 

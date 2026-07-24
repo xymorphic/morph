@@ -146,16 +146,19 @@ Model and workflow: [Automation](../concepts/automation). Full field reference: 
 | `GetRequest` | Fetch a single approval request by ID |
 | `ResolveRequest`* | Approve (with a grant scope) or deny a pending request |
 | `ListGrants` | List approval grants (optional status filter, pagination) |
+| `GetGrant`* | Fetch complete metadata and operations by grant ID or linked approval request ID |
 | `RevokeGrant`* | Revoke an active grant by request or grant ID |
 | `DeleteRecord`* | Delete a terminal request or grant |
 | `Prune`* | Delete terminal history outside the configured retention window |
 
-\* `ResolveRequest`, `RevokeGrant`, `DeleteRecord`, and `Prune` require an interactive local owner (the same
+\* `ResolveRequest`, `GetGrant`, `RevokeGrant`, `DeleteRecord`, and `Prune` require an interactive local owner (the same
 loopback + `cli`/`tui` check described below) and reject any other caller with `PERMISSION_DENIED`. Any RPC caller
 that can reach `ListRequests`, `GetRequest`, or `ListGrants` can read
 request metadata (actor kind, surface, profile, session, tool, resource, action, effects, reason, status, and
-timestamps) and grant metadata (request link, actor kind, profile, session, scope, status, and timestamps), regardless
-of surface or loopback status. Neither response includes the actor ID or normalized operation target.
+timestamps) and grant metadata (request link, actor kind, profile, session, scope, status, operation summaries, and
+timestamps), regardless of surface or loopback status. Those list/read responses exclude actor IDs and grant
+fingerprints. `GetGrant` adds the actor ID and fingerprint and resolves an approval request ID to its linked grant for
+local-owner inspection.
 
 CLI: [CLI Reference: permissions](./cli#permissions-approvals-and-grants). Model, presets, and decision precedence:
 [Permissions](../concepts/permissions).

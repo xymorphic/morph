@@ -124,6 +124,34 @@ func NewGrantsCommand() *cli.Command {
 		}}
 }
 
+func NewInspectCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "inspect",
+		Usage:     "Inspect an approval grant",
+		ArgsUsage: "[approval-or-grant-id]",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			id, err := getRequiredID(cmd)
+			if err != nil {
+				return err
+			}
+			client, err := getPermissionClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = client.Close() }()
+
+			grant, ok, err := client.PermissionAPI().GetApprovalGrant(permissionContext(ctx), id)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				return errors.New("approval grant not found")
+			}
+			return writeGrant(grant)
+		},
+	}
+}
+
 func NewPruneCommand() *cli.Command {
 	return &cli.Command{
 		Name: "prune", Usage: "Delete terminal approval history outside its retention window",
@@ -454,13 +482,50 @@ func writeGrants(grants []permissions.ApprovalGrant) error {
 	}
 
 	w := tabwriter.NewWriter(permissionOutput, 0, 4, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "GRANT\tSTATUS\tSCOPE\tOPERATION\tSESSION\tEXPIRES")
+	_, _ = fmt.Fprintln(w, "GRANT\tSTATUS\tSCOPE\tOPS\tSESSION\tEXPIRES")
 	for _, grant := range grants {
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", grant.ID, grant.Status, grant.Scope,
-			strings.Join(grant.Operations, "; "), grant.SessionID, getGrantExpiryText(grant))
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%s\n", grant.ID, grant.Status, grant.Scope,
+			len(grant.Operations), grant.SessionID, getGrantExpiryText(grant))
 	}
 
 	return w.Flush()
+}
+
+func writeGrant(grant permissions.ApprovalGrant) error {
+	w := tabwriter.NewWriter(permissionOutput, 0, 4, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "Grant")
+	_, _ = fmt.Fprintf(w, "  ID:\t%s\n", grant.ID)
+	_, _ = fmt.Fprintf(w, "  Status:\t%s\n", grant.Status)
+	_, _ = fmt.Fprintf(w, "  Scope:\t%s\n", grant.Scope)
+	_, _ = fmt.Fprintf(w, "  Request:\t%s\n", permissionValue(grant.RequestID))
+	_, _ = fmt.Fprintf(w, "  Fingerprint:\t%s\n", permissionValue(grant.Fingerprint))
+	_, _ = fmt.Fprintf(w, "  Actor:\t%s\n", getGrantActorText(grant.Actor))
+	_, _ = fmt.Fprintf(w, "  Profile:\t%s\n", permissionValue(grant.Profile))
+	_, _ = fmt.Fprintf(w, "  Session:\t%s\n", permissionValue(grant.SessionID))
+	_, _ = fmt.Fprintf(w, "  Created:\t%s\n", formatGrantTime(grant.CreatedAt))
+	_, _ = fmt.Fprintf(w, "  Expires:\t%s\n", getGrantDetailedExpiryText(grant))
+	_, _ = fmt.Fprintf(w, "  Consumed:\t%s\n", formatGrantTime(grant.ConsumedAt))
+	_, _ = fmt.Fprintf(w, "  Revoked:\t%s\n", formatGrantTime(grant.RevokedAt))
+	_, _ = fmt.Fprintf(w, "\nOperations (%d)\n", len(grant.Operations))
+	if len(grant.Operations) == 0 {
+		_, _ = fmt.Fprintln(w, "  None")
+		return w.Flush()
+	}
+	for index, operation := range grant.Operations {
+		_, _ = fmt.Fprintf(w, "  %d. %s\n", index+1, operation)
+	}
+	return w.Flush()
+}
+
+func getGrantActorText(actor permissions.Actor) string {
+	switch {
+	case actor.Kind == "":
+		return permissionValue(actor.ID)
+	case actor.ID == "":
+		return string(actor.Kind)
+	default:
+		return string(actor.Kind) + " · " + actor.ID
+	}
 }
 
 func getGrantExpiryText(grant permissions.ApprovalGrant) string {
@@ -469,6 +534,27 @@ func getGrantExpiryText(grant permissions.ApprovalGrant) string {
 	}
 
 	return formatPermissionTime(grant.ExpiresAt, "2006-01-02 15:04 MST")
+}
+
+func getGrantDetailedExpiryText(grant permissions.ApprovalGrant) string {
+	if grant.Scope == permissions.GrantAlways {
+		return "never"
+	}
+	return formatGrantTime(grant.ExpiresAt)
+}
+
+func formatGrantTime(value time.Time) string {
+	if value.IsZero() {
+		return "-"
+	}
+	return formatPermissionTime(value, "2006-01-02 15:04:05 MST")
+}
+
+func permissionValue(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "-"
+	}
+	return value
 }
 
 func formatPermissionTime(value time.Time, layout string) string {

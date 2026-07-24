@@ -14,7 +14,7 @@ func TestNewCommand_ExposesApprovalLifecycleCommands(t *testing.T) {
 		names[index] = child.Name
 	}
 	require.ElementsMatch(t, []string{
-		"list", "pending", "grants", "preset", "prune", "approve", "deny", "revoke", "delete", "explain",
+		"list", "pending", "grants", "inspect", "preset", "prune", "approve", "deny", "revoke", "delete", "explain",
 	}, names)
 	require.NoError(t, command.Run(context.Background(), []string{"permissions"}))
 }

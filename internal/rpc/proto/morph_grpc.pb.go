@@ -1562,6 +1562,7 @@ const (
 	PermissionService_GetRequest_FullMethodName     = "/morph.v1.PermissionService/GetRequest"
 	PermissionService_ResolveRequest_FullMethodName = "/morph.v1.PermissionService/ResolveRequest"
 	PermissionService_ListGrants_FullMethodName     = "/morph.v1.PermissionService/ListGrants"
+	PermissionService_GetGrant_FullMethodName       = "/morph.v1.PermissionService/GetGrant"
 	PermissionService_RevokeGrant_FullMethodName    = "/morph.v1.PermissionService/RevokeGrant"
 	PermissionService_DeleteRecord_FullMethodName   = "/morph.v1.PermissionService/DeleteRecord"
 	PermissionService_Prune_FullMethodName          = "/morph.v1.PermissionService/Prune"
@@ -1575,6 +1576,7 @@ type PermissionServiceClient interface {
 	GetRequest(ctx context.Context, in *GetPermissionRequestRequest, opts ...grpc.CallOption) (*GetPermissionRequestResponse, error)
 	ResolveRequest(ctx context.Context, in *ResolvePermissionRequestRequest, opts ...grpc.CallOption) (*ResolvePermissionRequestResponse, error)
 	ListGrants(ctx context.Context, in *ListPermissionGrantsRequest, opts ...grpc.CallOption) (*ListPermissionGrantsResponse, error)
+	GetGrant(ctx context.Context, in *GetPermissionGrantRequest, opts ...grpc.CallOption) (*GetPermissionGrantResponse, error)
 	RevokeGrant(ctx context.Context, in *RevokePermissionGrantRequest, opts ...grpc.CallOption) (*RevokePermissionGrantResponse, error)
 	DeleteRecord(ctx context.Context, in *DeletePermissionRecordRequest, opts ...grpc.CallOption) (*DeletePermissionRecordResponse, error)
 	Prune(ctx context.Context, in *PrunePermissionApprovalsRequest, opts ...grpc.CallOption) (*PrunePermissionApprovalsResponse, error)
@@ -1628,6 +1630,16 @@ func (c *permissionServiceClient) ListGrants(ctx context.Context, in *ListPermis
 	return out, nil
 }
 
+func (c *permissionServiceClient) GetGrant(ctx context.Context, in *GetPermissionGrantRequest, opts ...grpc.CallOption) (*GetPermissionGrantResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPermissionGrantResponse)
+	err := c.cc.Invoke(ctx, PermissionService_GetGrant_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *permissionServiceClient) RevokeGrant(ctx context.Context, in *RevokePermissionGrantRequest, opts ...grpc.CallOption) (*RevokePermissionGrantResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RevokePermissionGrantResponse)
@@ -1666,6 +1678,7 @@ type PermissionServiceServer interface {
 	GetRequest(context.Context, *GetPermissionRequestRequest) (*GetPermissionRequestResponse, error)
 	ResolveRequest(context.Context, *ResolvePermissionRequestRequest) (*ResolvePermissionRequestResponse, error)
 	ListGrants(context.Context, *ListPermissionGrantsRequest) (*ListPermissionGrantsResponse, error)
+	GetGrant(context.Context, *GetPermissionGrantRequest) (*GetPermissionGrantResponse, error)
 	RevokeGrant(context.Context, *RevokePermissionGrantRequest) (*RevokePermissionGrantResponse, error)
 	DeleteRecord(context.Context, *DeletePermissionRecordRequest) (*DeletePermissionRecordResponse, error)
 	Prune(context.Context, *PrunePermissionApprovalsRequest) (*PrunePermissionApprovalsResponse, error)
@@ -1690,6 +1703,9 @@ func (UnimplementedPermissionServiceServer) ResolveRequest(context.Context, *Res
 }
 func (UnimplementedPermissionServiceServer) ListGrants(context.Context, *ListPermissionGrantsRequest) (*ListPermissionGrantsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListGrants not implemented")
+}
+func (UnimplementedPermissionServiceServer) GetGrant(context.Context, *GetPermissionGrantRequest) (*GetPermissionGrantResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetGrant not implemented")
 }
 func (UnimplementedPermissionServiceServer) RevokeGrant(context.Context, *RevokePermissionGrantRequest) (*RevokePermissionGrantResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RevokeGrant not implemented")
@@ -1793,6 +1809,24 @@ func _PermissionService_ListGrants_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PermissionService_GetGrant_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPermissionGrantRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PermissionServiceServer).GetGrant(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PermissionService_GetGrant_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PermissionServiceServer).GetGrant(ctx, req.(*GetPermissionGrantRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PermissionService_RevokeGrant_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RevokePermissionGrantRequest)
 	if err := dec(in); err != nil {
@@ -1869,6 +1903,10 @@ var PermissionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListGrants",
 			Handler:    _PermissionService_ListGrants_Handler,
+		},
+		{
+			MethodName: "GetGrant",
+			Handler:    _PermissionService_GetGrant_Handler,
 		},
 		{
 			MethodName: "RevokeGrant",

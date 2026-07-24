@@ -218,6 +218,7 @@ type PermissionAPI interface {
 	GetApprovalRequest(context.Context, string) (permissions.ApprovalRequest, bool, error)
 	ResolveApprovalRequest(context.Context, string, bool, permissions.GrantScope) (permissions.ApprovalRequest, error)
 	ListApprovalGrants(context.Context, permissions.GrantQuery) ([]permissions.ApprovalGrant, error)
+	GetApprovalGrant(context.Context, string) (permissions.ApprovalGrant, bool, error)
 	RevokeApprovalGrant(context.Context, string) (permissions.ApprovalGrant, error)
 	DeleteApprovalRecord(context.Context, string) (permissions.ApprovalDeleteResult, error)
 	PruneApprovals(context.Context, bool) (permissions.ApprovalPruneResult, error)

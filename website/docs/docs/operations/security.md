@@ -131,11 +131,12 @@ Morph opens two TCP listeners when fully enabled: **RPC** (gRPC, default `127.0.
 
 The RPC interface is **local-only by default** and uses **plaintext gRPC without application-level authentication**.
 Any process that can reach the bound address can invoke daemon RPC, including session control, gateway pairing
-approval, and model configuration via `ModelService`. `PermissionService.ResolveRequest`, `RevokeGrant`,
+approval, and model configuration via `ModelService`. `PermissionService.ResolveRequest`, `GetGrant`, `RevokeGrant`,
 `DeleteRecord`, and `Prune` additionally require an interactive local-owner caller (loopback plus `cli`/`tui`
 surface); its read methods (`ListRequests`, `GetRequest`, `ListGrants`) do not, and expose approval/grant metadata to
-any caller that can reach the port. The responses include actor kind and session information but not actor IDs or
-normalized operation targets. See
+any caller that can reach the port. The responses include actor kind, session information, and grant operation
+summaries but not actor IDs, grant fingerprints, or normalized operation targets. The protected `GetGrant` method
+adds the actor ID and fingerprint for one exact grant. See
 [RPC Reference: PermissionService](../reference/rpc#permissionservice).
 
 | Setting | Default | Risk if widened |

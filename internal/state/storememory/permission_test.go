@@ -136,6 +136,15 @@ func TestPermissionStore_ApprovalGrantLifecycle(t *testing.T) {
 	require.Equal(t, grant.ID, store.approvalRequests[approved.ID].GrantID)
 	created.Operations[0] = "changed"
 	require.Equal(t, grant.Operations, store.approvalGrants[grant.ID].Operations)
+	loaded, ok, err := store.GetApprovalGrant(ctx, grant.ID)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, grant, loaded)
+	loaded.Operations[0] = "changed"
+	require.Equal(t, grant.Operations, store.approvalGrants[grant.ID].Operations)
+	_, ok, err = store.GetApprovalGrant(ctx, "missing")
+	require.NoError(t, err)
+	require.False(t, ok)
 	_, err = store.CreateApprovalGrant(ctx, grant)
 	require.EqualError(t, err, "approval grant already exists")
 	_, err = store.CreateApprovalGrant(ctx, permissions.ApprovalGrant{ID: "missing", RequestID: "missing"})

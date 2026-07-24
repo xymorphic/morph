@@ -156,6 +156,7 @@ type ApprovalStore interface {
 	ResolveApprovalRequest(context.Context, string, ApprovalStatus, GrantScope, time.Time) (ApprovalRequest, error)
 	CancelPendingApprovals(context.Context, time.Time) (int64, error)
 	CreateApprovalGrant(context.Context, ApprovalGrant) (ApprovalGrant, error)
+	GetApprovalGrant(context.Context, string) (ApprovalGrant, bool, error)
 	FindApprovalGrant(context.Context, string, Actor, string, string, time.Time) (ApprovalGrant, bool, error)
 	ConsumeApprovalGrant(context.Context, string, time.Time) (ApprovalGrant, error)
 	ListApprovalGrants(context.Context, GrantQuery) ([]ApprovalGrant, error)
@@ -654,7 +655,45 @@ func (s *ApprovalService) List(ctx context.Context, query ApprovalQuery) ([]Appr
 }
 
 func (s *ApprovalService) ListGrants(ctx context.Context, query GrantQuery) ([]ApprovalGrant, error) {
-	return s.store.ListApprovalGrants(ctx, query)
+	grants, err := s.store.ListApprovalGrants(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	now := s.opts.Now()
+	for index := range grants {
+		grants[index] = getEffectiveApprovalGrant(grants[index], now)
+	}
+	return grants, nil
+}
+
+func (s *ApprovalService) GetGrant(ctx context.Context, id string) (ApprovalGrant, bool, error) {
+	if s == nil || s.store == nil {
+		return ApprovalGrant{}, false, errors.New("approval service is required")
+	}
+
+	id = strings.TrimSpace(id)
+	if strings.HasPrefix(id, ApprovalRequestIDPrefix) {
+		request, ok, err := s.store.GetApprovalRequest(ctx, id)
+		if err != nil || !ok {
+			return ApprovalGrant{}, false, err
+		}
+		if request.GrantID == "" {
+			return ApprovalGrant{}, false, nil
+		}
+		id = request.GrantID
+	}
+	grant, ok, err := s.store.GetApprovalGrant(ctx, id)
+	if err != nil || !ok {
+		return ApprovalGrant{}, ok, err
+	}
+	return getEffectiveApprovalGrant(grant, s.opts.Now()), true, nil
+}
+
+func getEffectiveApprovalGrant(grant ApprovalGrant, now time.Time) ApprovalGrant {
+	if grant.Status == GrantActive && grant.IsExpiredAt(now) {
+		grant.Status = GrantExpired
+	}
+	return grant
 }
 
 func (s *ApprovalService) Revoke(ctx context.Context, id string) (ApprovalGrant, error) {

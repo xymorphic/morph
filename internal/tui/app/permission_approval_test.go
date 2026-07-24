@@ -369,6 +369,9 @@ func (*permissionAPIStub) GetApprovalRequest(context.Context, string) (permissio
 func (*permissionAPIStub) ListApprovalGrants(context.Context, permissions.GrantQuery) ([]permissions.ApprovalGrant, error) {
 	return nil, nil
 }
+func (*permissionAPIStub) GetApprovalGrant(context.Context, string) (permissions.ApprovalGrant, bool, error) {
+	return permissions.ApprovalGrant{}, false, nil
+}
 func (*permissionAPIStub) RevokeApprovalGrant(context.Context, string) (permissions.ApprovalGrant, error) {
 	return permissions.ApprovalGrant{}, nil
 }

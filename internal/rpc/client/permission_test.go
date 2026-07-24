@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/wandxy/morph/internal/permissions"
@@ -24,7 +26,8 @@ func TestPermissionService_TranslatesApprovalLifecycle(t *testing.T) {
 			Status:     "pending", CreatedAt: timestamppb.New(now), ExpiresAt: timestamppb.New(now.Add(time.Minute)),
 		},
 		grant: &morphpb.PermissionGrant{
-			Id: "grant_1", RequestId: "approval_1", Scope: "session", Status: "active",
+			Id: "grant_1", RequestId: "approval_1", ActorKind: "automation", ActorId: "auto_1",
+			Scope: "session", Status: "active", Fingerprint: "fingerprint_1",
 			Operations: []string{"run_command · execute process"},
 			CreatedAt:  timestamppb.New(now), ExpiresAt: timestamppb.New(now.Add(time.Hour)),
 		},
@@ -50,6 +53,12 @@ func TestPermissionService_TranslatesApprovalLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, grants, 1)
 	require.Equal(t, []string{"run_command · execute process"}, grants[0].Operations)
+	inspected, ok, err := service.GetApprovalGrant(context.Background(), "grant_1")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, permissions.Actor{Kind: permissions.ActorAutomation, ID: "auto_1"}, inspected.Actor)
+	require.Equal(t, "fingerprint_1", inspected.Fingerprint)
+	require.Equal(t, "grant_1", stub.getGrantRequest.GetId())
 	grant, err := service.RevokeApprovalGrant(context.Background(), "grant_1")
 	require.NoError(t, err)
 	require.Equal(t, "grant_1", grant.ID)
@@ -77,6 +86,8 @@ func TestPermissionService_PropagatesRPCFailuresAndMissingValues(t *testing.T) {
 	require.ErrorIs(t, err, expected)
 	_, err = service.ListApprovalGrants(context.Background(), permissions.GrantQuery{})
 	require.ErrorIs(t, err, expected)
+	_, _, err = service.GetApprovalGrant(context.Background(), "id")
+	require.ErrorIs(t, err, expected)
 	_, err = service.RevokeApprovalGrant(context.Background(), "id")
 	require.ErrorIs(t, err, expected)
 	_, err = service.DeleteApprovalRecord(context.Background(), "id")
@@ -84,21 +95,38 @@ func TestPermissionService_PropagatesRPCFailuresAndMissingValues(t *testing.T) {
 	_, err = service.PruneApprovals(context.Background(), true)
 	require.ErrorIs(t, err, expected)
 
-	service = NewPermissionService(&permissionServiceClientStub{})
+	service = NewPermissionService(&permissionServiceClientStub{
+		err: status.Error(codes.NotFound, "not found"),
+	})
 	request, ok, err := service.GetApprovalRequest(context.Background(), "id")
 	require.NoError(t, err)
 	require.False(t, ok)
 	require.Empty(t, request.ID)
+	grant, ok, err := service.GetApprovalGrant(context.Background(), "id")
+	require.NoError(t, err)
+	require.False(t, ok)
+	require.Empty(t, grant.ID)
+
+	service = NewPermissionService(&permissionServiceClientStub{})
+	request, ok, err = service.GetApprovalRequest(context.Background(), "id")
+	require.NoError(t, err)
+	require.False(t, ok)
+	require.Empty(t, request.ID)
+	grant, ok, err = service.GetApprovalGrant(context.Background(), "id")
+	require.NoError(t, err)
+	require.False(t, ok)
+	require.Empty(t, grant.ID)
 }
 
 type permissionServiceClientStub struct {
-	request        *morphpb.PermissionApprovalRequest
-	grant          *morphpb.PermissionGrant
-	err            error
-	listRequest    *morphpb.ListPermissionRequestsRequest
-	resolveRequest *morphpb.ResolvePermissionRequestRequest
-	revokeRequest  *morphpb.RevokePermissionGrantRequest
-	deleteRequest  *morphpb.DeletePermissionRecordRequest
+	request         *morphpb.PermissionApprovalRequest
+	grant           *morphpb.PermissionGrant
+	err             error
+	listRequest     *morphpb.ListPermissionRequestsRequest
+	resolveRequest  *morphpb.ResolvePermissionRequestRequest
+	getGrantRequest *morphpb.GetPermissionGrantRequest
+	revokeRequest   *morphpb.RevokePermissionGrantRequest
+	deleteRequest   *morphpb.DeletePermissionRecordRequest
 }
 
 func (s *permissionServiceClientStub) ListRequests(
@@ -147,6 +175,19 @@ func (s *permissionServiceClientStub) ListGrants(
 	}
 
 	return &morphpb.ListPermissionGrantsResponse{Grants: []*morphpb.PermissionGrant{s.grant}}, nil
+}
+
+func (s *permissionServiceClientStub) GetGrant(
+	_ context.Context,
+	req *morphpb.GetPermissionGrantRequest,
+	_ ...grpc.CallOption,
+) (*morphpb.GetPermissionGrantResponse, error) {
+	s.getGrantRequest = req
+	if s.err != nil {
+		return nil, s.err
+	}
+
+	return &morphpb.GetPermissionGrantResponse{Grant: s.grant}, nil
 }
 
 func (s *permissionServiceClientStub) RevokeGrant(

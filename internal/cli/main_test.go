@@ -1570,6 +1570,13 @@ func (s *mainActionPermissionAPIStub) ListApprovalGrants(
 	return nil, s.err
 }
 
+func (s *mainActionPermissionAPIStub) GetApprovalGrant(
+	context.Context,
+	string,
+) (permissions.ApprovalGrant, bool, error) {
+	return permissions.ApprovalGrant{}, false, s.err
+}
+
 func (s *mainActionPermissionAPIStub) RevokeApprovalGrant(
 	context.Context,
 	string,

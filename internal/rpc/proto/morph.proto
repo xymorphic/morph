@@ -58,6 +58,7 @@ service PermissionService {
   rpc GetRequest(GetPermissionRequestRequest) returns (GetPermissionRequestResponse);
   rpc ResolveRequest(ResolvePermissionRequestRequest) returns (ResolvePermissionRequestResponse);
   rpc ListGrants(ListPermissionGrantsRequest) returns (ListPermissionGrantsResponse);
+  rpc GetGrant(GetPermissionGrantRequest) returns (GetPermissionGrantResponse);
   rpc RevokeGrant(RevokePermissionGrantRequest) returns (RevokePermissionGrantResponse);
   rpc DeleteRecord(DeletePermissionRecordRequest) returns (DeletePermissionRecordResponse);
   rpc Prune(PrunePermissionApprovalsRequest) returns (PrunePermissionApprovalsResponse);
@@ -657,6 +658,8 @@ message PermissionGrant {
   google.protobuf.Timestamp consumed_at = 10;
   google.protobuf.Timestamp revoked_at = 11;
   repeated string operations = 12;
+  string actor_id = 13;
+  string fingerprint = 14;
 }
 
 message ListPermissionRequestsRequest {
@@ -786,3 +789,6 @@ message GetBrowserEffectiveConfigResponse {
   string permission_preset = 5;
   bool executable_configured = 6;
 }
+
+message GetPermissionGrantRequest { string id = 1; }
+message GetPermissionGrantResponse { PermissionGrant grant = 1; }

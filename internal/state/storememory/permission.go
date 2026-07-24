@@ -171,6 +171,17 @@ func (s *Store) FindApprovalGrant(
 	return permissions.ApprovalGrant{}, false, nil
 }
 
+func (s *Store) GetApprovalGrant(
+	_ context.Context,
+	id string,
+) (permissions.ApprovalGrant, bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	grant, ok := s.approvalGrants[id]
+	return cloneApprovalGrant(grant), ok, nil
+}
+
 func (s *Store) ConsumeApprovalGrant(
 	_ context.Context,
 	id string,

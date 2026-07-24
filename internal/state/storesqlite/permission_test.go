@@ -73,6 +73,13 @@ func TestPermissionStore_PersistsApprovalLifecycle(t *testing.T) {
 	}
 	_, err = store.CreateApprovalGrant(ctx, grant)
 	require.NoError(t, err)
+	loaded, ok, err := store.GetApprovalGrant(ctx, grant.ID)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, grant, loaded)
+	_, ok, err = store.GetApprovalGrant(ctx, "missing")
+	require.NoError(t, err)
+	require.False(t, ok)
 	found, ok, err := store.FindApprovalGrant(ctx, request.Fingerprint, request.Actor, request.Profile, request.SessionID, now)
 	require.NoError(t, err)
 	require.True(t, ok)
@@ -137,6 +144,10 @@ func TestPermissionStore_PersistsCompositeOperationsAcrossReopen(t *testing.T) {
 	loadedGrant, ok, err := reopened.FindApprovalGrant(
 		ctx, request.Fingerprint, request.Actor, request.Profile, request.SessionID, now,
 	)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, operations, loadedGrant.Operations)
+	loadedGrant, ok, err = reopened.GetApprovalGrant(ctx, "grant_composite")
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, operations, loadedGrant.Operations)

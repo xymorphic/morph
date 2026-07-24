@@ -21,6 +21,7 @@ func NewCommand() *cli.Command {
 			permissionscli.NewListCommand(),
 			permissionscli.NewPendingCommand(),
 			permissionscli.NewGrantsCommand(),
+			permissionscli.NewInspectCommand(),
 			permissionscli.NewPresetCommand(),
 			permissionscli.NewPruneCommand(),
 			permissionscli.NewApproveCommand(),

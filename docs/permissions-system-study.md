@@ -1498,6 +1498,7 @@ Available commands:
 morph permissions list
 morph permissions pending
 morph permissions grants
+morph permissions inspect grant_123
 morph permissions approve --scope once approval_123
 morph permissions approve --scope session approval_123
 morph permissions approve --scope always approval_123
@@ -1515,16 +1516,20 @@ The listing commands intentionally separate the two record types:
 
 - `list` shows approval requests of every status;
 - `pending` shows only unresolved approval requests;
-- `grants` shows grants independently of requests.
+- `grants` shows grants independently of requests using a compact operation count;
+- `inspect` accepts a grant ID or its linked approval request ID and shows the grant's complete operation list, actor
+  identity, fingerprint, scope, session, and lifecycle timestamps.
 
-All three return newest records first, default to 50 rows, and accept `--limit` and `--offset`. The limit must be between
-1 and 500. `list` accepts request statuses `pending`, `approved`, `denied`, `expired`, `cancelled`, and `failed`.
-`grants` accepts grant statuses `active`, `consumed`, `expired`, and `revoked`. For example:
+The `list`, `pending`, and `grants` commands return newest records first, default to 50 rows, and accept `--limit` and
+`--offset`. The limit must be between 1 and 500. `list` accepts request statuses `pending`, `approved`, `denied`,
+`expired`, `cancelled`, and `failed`. `grants` accepts grant statuses `active`, `consumed`, `expired`, and `revoked`.
+For example:
 
 ```bash
 morph permissions list --status denied --limit 25
 morph permissions pending --limit 10 --offset 10
 morph permissions grants --status active
+morph permissions inspect grant_123
 ```
 
 `revoke` accepts either identifier. For an `approval_...` ID, the service loads the request and follows its persisted

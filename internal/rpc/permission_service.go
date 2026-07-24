@@ -106,6 +106,28 @@ func (s *PermissionService) ListGrants(
 	return result, nil
 }
 
+func (s *PermissionService) GetGrant(
+	ctx context.Context,
+	req *morphpb.GetPermissionGrantRequest,
+) (*morphpb.GetPermissionGrantResponse, error) {
+	if err := checkInteractivePermissionOperator(ctx); err != nil {
+		return nil, err
+	}
+
+	service, err := s.getService()
+	if err != nil {
+		return nil, err
+	}
+	grant, ok, err := service.GetGrant(ctx, req.GetId())
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if !ok {
+		return nil, status.Error(codes.NotFound, "approval grant not found")
+	}
+	return &morphpb.GetPermissionGrantResponse{Grant: approvalGrantDetailsToProto(grant)}, nil
+}
+
 func (s *PermissionService) Prune(
 	ctx context.Context,
 	req *morphpb.PrunePermissionApprovalsRequest,
@@ -211,6 +233,13 @@ func approvalGrantToProto(grant permissions.ApprovalGrant) *morphpb.PermissionGr
 		ConsumedAt: permissionTimestampOrNil(grant.ConsumedAt), RevokedAt: permissionTimestampOrNil(grant.RevokedAt),
 		Operations: append([]string(nil), grant.Operations...),
 	}
+}
+
+func approvalGrantDetailsToProto(grant permissions.ApprovalGrant) *morphpb.PermissionGrant {
+	result := approvalGrantToProto(grant)
+	result.ActorId = grant.Actor.ID
+	result.Fingerprint = grant.Fingerprint
+	return result
 }
 
 func permissionTimestampOrNil(value time.Time) *timestamppb.Timestamp {
