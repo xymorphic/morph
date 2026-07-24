@@ -170,6 +170,7 @@ func TestCommandPermissionInputs_DescribesInvocationsRedirectsAndDebuggerAccess(
 	require.Equal(t, permissions.ResourceProcess, inputs[1].Operation.Resource)
 	require.NotNil(t, inputs[1].Operation.Command)
 	require.Equal(t, "printf", inputs[1].Operation.Command.Executable)
+	require.Empty(t, inputs[1].ApprovalReason)
 
 	require.Equal(t, permissions.ResourceProcess, inputs[2].Operation.Resource)
 	require.Contains(t, inputs[2].Operation.Effects, permissions.EffectIndirectExecution)
@@ -186,6 +187,13 @@ func TestCommandPermissionInputs_DescribesInvocationsRedirectsAndDebuggerAccess(
 	require.Equal(t, permissions.ResourceBrowser, debugger.Operation.Resource)
 	require.Equal(t, permissions.ActionConnect, debugger.Operation.Action)
 	require.Contains(t, debugger.ApprovalReason, "managed browser")
+	reasons := make([]string, 0, len(inputs))
+	for _, input := range inputs {
+		if input.ApprovalReason != "" {
+			reasons = append(reasons, input.ApprovalReason)
+		}
+	}
+	require.Equal(t, []string{"This command attempts to attach to Morph's managed browser."}, reasons)
 }
 
 func TestCheckCommandPlan_AppliesGuardrailsAndAuthorizedApproval(t *testing.T) {

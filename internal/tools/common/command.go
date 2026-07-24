@@ -209,6 +209,9 @@ func applyCommandGuardrail(
 	case guardrails.CommandDenied:
 		inputs[index].HardDenyReason = evaluation.Reason
 	case guardrails.CommandApprovalRequired:
+		if plan.DebuggerAttach {
+			return
+		}
 		inputs[index].ApprovalReason = evaluation.Reason
 		if evaluation.Rule != "" {
 			inputs[index].ApprovalReason = "Command matches approval rule: " + evaluation.Rule
