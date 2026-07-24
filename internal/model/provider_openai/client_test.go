@@ -24,6 +24,7 @@ import (
 	models "github.com/wandxy/morph/internal/model"
 	modelprovider "github.com/wandxy/morph/internal/model/provider"
 	browsertool "github.com/wandxy/morph/internal/tools/browser"
+	runcommandtool "github.com/wandxy/morph/internal/tools/runcommand"
 	morphmsg "github.com/wandxy/morph/pkg/agent/message"
 	"github.com/wandxy/morph/pkg/logutils"
 )
@@ -1350,6 +1351,25 @@ func TestBuildResponsesTools_NormalizesBrowserSchemaWithoutRootUnion(t *testing.
 	properties := parameters["properties"].(map[string]any)
 	require.NotEmpty(t, properties["action"].(map[string]any)["enum"])
 	require.Equal(t, []any{"string", "null"}, properties["session_id"].(map[string]any)["type"])
+}
+
+func TestBuildResponsesTools_PreservesRunCommandEnvironment(t *testing.T) {
+	definition := runcommandtool.Definition(nil)
+	tools := buildResponsesTools([]ToolDefinition{{
+		Name: definition.Name, Description: definition.Description, InputSchema: definition.InputSchema,
+	}})
+
+	parameters := tools[0].OfFunction.Parameters
+	properties := parameters["properties"].(map[string]any)
+	environment := properties["env"].(map[string]any)
+	require.Equal(t, []any{"array", "null"}, environment["type"])
+
+	items := environment["items"].(map[string]any)
+	require.Equal(t, "object", items["type"])
+	require.False(t, items["additionalProperties"].(bool))
+	require.ElementsMatch(t, []string{"name", "value"}, items["required"])
+	require.Contains(t, items["properties"].(map[string]any), "name")
+	require.Contains(t, items["properties"].(map[string]any), "value")
 }
 
 func TestNormalizeStrictJSONSchema_RecursesWithoutMutatingInput(t *testing.T) {

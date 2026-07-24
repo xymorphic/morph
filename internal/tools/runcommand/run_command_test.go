@@ -495,7 +495,7 @@ func TestRunCommand_ToolPassesEnvironmentVariables(t *testing.T) {
 
 	result, err := registry.Invoke(context.Background(), tools.Call{
 		Name:  "run_command",
-		Input: `{"mode":"posix_shell","command":"printf %s \"$MORPH_TEST_VAR\"","env":{"MORPH_TEST_VAR":"visible"}}`,
+		Input: `{"mode":"posix_shell","command":"printf %s \"$MORPH_TEST_VAR\"","env":[{"name":"MORPH_TEST_VAR","value":"visible"}]}`,
 	})
 
 	require.NoError(t, err)
@@ -507,6 +507,22 @@ func TestRunCommand_ToolPassesEnvironmentVariables(t *testing.T) {
 	require.Equal(t, 30, payload.TimeoutSeconds)
 	require.GreaterOrEqual(t, payload.ElapsedSeconds, 0.0)
 	require.GreaterOrEqual(t, payload.RemainingSeconds, 0.0)
+}
+
+func TestRunCommand_ToolRejectsDuplicateEnvironmentVariables(t *testing.T) {
+	root := t.TempDir()
+	registry := nativemocks.RegisterRuntime(t, root, guardrails.CommandPolicy{}, Definition)
+
+	result, err := registry.Invoke(context.Background(), tools.Call{
+		Name:  "run_command",
+		Input: `{"command":"printf","env":[{"name":"KEY","value":"one"},{"name":" KEY ","value":"two"}]}`,
+	})
+
+	require.NoError(t, err)
+	var toolErr tools.Error
+	require.NoError(t, json.Unmarshal([]byte(result.Error), &toolErr))
+	require.Equal(t, "invalid_input", toolErr.Code)
+	require.Equal(t, "command environment contains duplicate variable names", toolErr.Message)
 }
 
 func TestRunCommand_ToolReturnsNonZeroExitCode(t *testing.T) {

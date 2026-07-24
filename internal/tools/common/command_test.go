@@ -20,6 +20,30 @@ func TestCommandErrorCode_ClassifiesContextAndInputFailures(t *testing.T) {
 	require.Equal(t, "invalid_input", CommandErrorCode(errors.New("invalid")))
 }
 
+func TestEnvironmentVariablesToMap_ConvertsEntries(t *testing.T) {
+	environment, err := EnvironmentVariablesToMap([]EnvironmentVariable{
+		{Name: " FIRST ", Value: "one"},
+		{Name: "SECOND", Value: "two"},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"FIRST": "one", "SECOND": "two"}, environment)
+
+	environment, err = EnvironmentVariablesToMap(nil)
+	require.NoError(t, err)
+	require.Nil(t, environment)
+}
+
+func TestEnvironmentVariablesToMap_RejectsDuplicateNames(t *testing.T) {
+	environment, err := EnvironmentVariablesToMap([]EnvironmentVariable{
+		{Name: "KEY", Value: "one"},
+		{Name: " KEY ", Value: "two"},
+	})
+
+	require.Nil(t, environment)
+	require.EqualError(t, err, "command environment contains duplicate variable names")
+}
+
 func TestAnalyzeCommand_UsesRuntimeExecutionContext(t *testing.T) {
 	root := t.TempDir()
 	runtime := &toolmocks.Runtime{

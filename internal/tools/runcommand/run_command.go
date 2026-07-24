@@ -18,12 +18,12 @@ import (
 )
 
 type input struct {
-	Mode           commandplan.Mode  `json:"mode"`
-	Command        string            `json:"command"`
-	Args           []string          `json:"args"`
-	Cwd            string            `json:"cwd"`
-	Env            map[string]string `json:"env"`
-	TimeoutSeconds int               `json:"timeout_seconds"`
+	Mode           commandplan.Mode             `json:"mode"`
+	Command        string                       `json:"command"`
+	Args           []string                     `json:"args"`
+	Cwd            string                       `json:"cwd"`
+	Env            []common.EnvironmentVariable `json:"env"`
+	TimeoutSeconds int                          `json:"timeout_seconds"`
 }
 
 var (
@@ -68,13 +68,7 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 				},
 			},
 			"cwd": common.StringSchema("Absolute working directory or path relative to the configured workspace root."),
-			"env": map[string]any{
-				"type":        "object",
-				"description": "Environment variable overrides.",
-				"additionalProperties": map[string]any{
-					"type": "string",
-				},
-			},
+			"env": common.EnvironmentVariablesSchema("Environment variable overrides as name/value entries."),
 			"timeout_seconds": common.IntegerSchema(common.JoinStrings(
 				"Timeout in seconds. Default 30. Max 120.",
 				"Terminates the command/processes when reached.",
@@ -85,7 +79,11 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 			if result := common.DecodeInput(call, &req); result.Error != "" {
 				return result, nil
 			}
-			plan, err := getCommandPlan(ctx, runtime, call, req)
+			environment, err := common.EnvironmentVariablesToMap(req.Env)
+			if err != nil {
+				return common.ToolError("invalid_input", err.Error()), nil
+			}
+			plan, err := getCommandPlan(ctx, runtime, call, req, environment)
 			if err != nil {
 				return common.ToolError(common.CommandErrorCode(err), err.Error()), nil
 			}
@@ -252,6 +250,10 @@ func preparePermission(runtime envtypes.Runtime) tools.PermissionPreparer {
 		if err := json.Unmarshal([]byte(call.Input), &req); err != nil {
 			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError("invalid_input", "invalid tool input")
 		}
+		environment, err := common.EnvironmentVariablesToMap(req.Env)
+		if err != nil {
+			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError("invalid_input", err.Error())
+		}
 		plan, err := common.AnalyzeCommand(
 			ctx,
 			runtime,
@@ -259,7 +261,7 @@ func preparePermission(runtime envtypes.Runtime) tools.PermissionPreparer {
 			req.Command,
 			req.Args,
 			req.Cwd,
-			req.Env,
+			environment,
 		)
 		if err != nil {
 			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(common.CommandErrorCode(err), err.Error())
@@ -282,6 +284,7 @@ func getCommandPlan(
 	runtime envtypes.Runtime,
 	call tools.Call,
 	req input,
+	environment map[string]string,
 ) (commandplan.Plan, error) {
 	if prepared, ok := tools.GetPreparedCall(ctx, call); ok {
 		if plan, planOK := prepared.(commandplan.Plan); planOK {
@@ -289,7 +292,7 @@ func getCommandPlan(
 		}
 		return commandplan.Plan{}, errors.New("prepared command plan is invalid")
 	}
-	return common.AnalyzeCommand(ctx, runtime, req.Mode, req.Command, req.Args, req.Cwd, req.Env)
+	return common.AnalyzeCommand(ctx, runtime, req.Mode, req.Command, req.Args, req.Cwd, environment)
 }
 
 func buildRunCommandOutput(exitCode int, stdout, stderr string, timedOut bool, timeoutSeconds int, elapsedSeconds float64) map[string]any {

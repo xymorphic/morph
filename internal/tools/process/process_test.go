@@ -282,7 +282,7 @@ func TestProcess_ToolStartDelegatesToRuntime(t *testing.T) {
 	}
 	result, err := Definition(runtime).Handler.Invoke(tools.WithSessionID(context.Background(), "session-1"), tools.Call{
 		Name:  "process",
-		Input: `{"action":"start","command":" printf ","args":["hello"],"cwd":".","env":{"KEY":"value"},"label":" printer ","output_buffer_bytes":32}`,
+		Input: `{"action":"start","command":" printf ","args":["hello"],"cwd":".","env":[{"name":"KEY","value":"value"}],"label":" printer ","output_buffer_bytes":32}`,
 	})
 
 	require.NoError(t, err)

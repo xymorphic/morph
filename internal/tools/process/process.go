@@ -21,19 +21,19 @@ import (
 var processLog = logutils.Module("tool.process")
 
 type input struct {
-	Action       string            `json:"action"`
-	Mode         commandplan.Mode  `json:"mode"`
-	Command      string            `json:"command"`
-	Args         []string          `json:"args"`
-	Cwd          string            `json:"cwd"`
-	Env          map[string]string `json:"env"`
-	Label        string            `json:"label"`
-	OutputBytes  *int              `json:"output_buffer_bytes"`
-	ProcessID    string            `json:"process_id"`
-	StdoutCursor *int              `json:"stdout_cursor"`
-	StderrCursor *int              `json:"stderr_cursor"`
-	StdoutBytes  *int              `json:"stdout_bytes"`
-	StderrBytes  *int              `json:"stderr_bytes"`
+	Action       string                       `json:"action"`
+	Mode         commandplan.Mode             `json:"mode"`
+	Command      string                       `json:"command"`
+	Args         []string                     `json:"args"`
+	Cwd          string                       `json:"cwd"`
+	Env          []common.EnvironmentVariable `json:"env"`
+	Label        string                       `json:"label"`
+	OutputBytes  *int                         `json:"output_buffer_bytes"`
+	ProcessID    string                       `json:"process_id"`
+	StdoutCursor *int                         `json:"stdout_cursor"`
+	StderrCursor *int                         `json:"stderr_cursor"`
+	StdoutBytes  *int                         `json:"stdout_bytes"`
+	StderrBytes  *int                         `json:"stderr_bytes"`
 }
 
 // Definition returns the model-visible tool definition.
@@ -69,13 +69,9 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 				"items":       common.StringSchema("Command argument."),
 			},
 			"cwd": common.StringSchema("Optional working directory for action=start."),
-			"env": map[string]any{
-				"type":        "object",
-				"description": "Optional environment variable overrides for action=start.",
-				"additionalProperties": map[string]any{
-					"type": "string",
-				},
-			},
+			"env": common.EnvironmentVariablesSchema(
+				"Optional environment variable overrides as name/value entries for action=start.",
+			),
 			"label": common.StringSchema(
 				"Optional human-friendly label for action=start. The tool still returns a canonical process id; status, read, and stop can use either the returned id or this label.",
 			),
@@ -176,6 +172,10 @@ func preparePermission(runtime envtypes.Runtime) tools.PermissionPreparer {
 
 		switch action {
 		case "start":
+			environment, err := common.EnvironmentVariablesToMap(req.Env)
+			if err != nil {
+				return tools.PermissionPreparation{}, tools.NewPermissionResolutionError("invalid_input", err.Error())
+			}
 			plan, err := common.AnalyzeCommand(
 				ctx,
 				runtime,
@@ -183,7 +183,7 @@ func preparePermission(runtime envtypes.Runtime) tools.PermissionPreparer {
 				req.Command,
 				req.Args,
 				req.Cwd,
-				req.Env,
+				environment,
 			)
 			if err != nil {
 				return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(common.CommandErrorCode(err), err.Error())
@@ -304,13 +304,17 @@ func getStartPlan(
 	call tools.Call,
 	req input,
 ) (commandplan.Plan, error) {
+	environment, err := common.EnvironmentVariablesToMap(req.Env)
+	if err != nil {
+		return commandplan.Plan{}, err
+	}
 	if prepared, ok := tools.GetPreparedCall(ctx, call); ok {
 		if plan, planOK := prepared.(commandplan.Plan); planOK {
 			return plan, nil
 		}
 		return commandplan.Plan{}, fmt.Errorf("prepared command plan is invalid")
 	}
-	return common.AnalyzeCommand(ctx, runtime, req.Mode, req.Command, req.Args, req.Cwd, req.Env)
+	return common.AnalyzeCommand(ctx, runtime, req.Mode, req.Command, req.Args, req.Cwd, environment)
 }
 
 func handleStatus(ctx context.Context, runtime envtypes.Runtime, action string, req input, logEvent anyLogEvent) tools.Result {

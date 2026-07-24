@@ -13,11 +13,44 @@ import (
 	"github.com/wandxy/morph/internal/permissions"
 )
 
+type EnvironmentVariable struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 func CommandErrorCode(err error) string {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return "command_failed"
 	}
 	return "invalid_input"
+}
+
+func EnvironmentVariablesSchema(description string) map[string]any {
+	return map[string]any{
+		"type":        "array",
+		"description": description,
+		"items": ObjectSchema(map[string]any{
+			"name":  StringSchema("Environment variable name."),
+			"value": StringSchema("Environment variable value."),
+		}, "name", "value"),
+	}
+}
+
+func EnvironmentVariablesToMap(entries []EnvironmentVariable) (map[string]string, error) {
+	if len(entries) == 0 {
+		return nil, nil
+	}
+
+	environment := make(map[string]string, len(entries))
+	for _, entry := range entries {
+		name := strings.TrimSpace(entry.Name)
+		if _, exists := environment[name]; exists {
+			return nil, errors.New("command environment contains duplicate variable names")
+		}
+		environment[name] = entry.Value
+	}
+
+	return environment, nil
 }
 
 func AnalyzeCommand(
