@@ -586,6 +586,7 @@ func TestService_RespondStreamsPermissionApprovalTraceEvents(t *testing.T) {
 				"effects":           []any{"write"},
 				"operation_summary": "write_file · update file",
 				"reason":            "testing approval",
+				"operations":        []any{"write_file · update file"},
 				"expires_at":        expiresAt.Format(time.RFC3339),
 				"target":            "secret/path.txt",
 				"fingerprint":       "secret-fingerprint",
@@ -610,6 +611,7 @@ func TestService_RespondStreamsPermissionApprovalTraceEvents(t *testing.T) {
 		"effects":["write"],
 		"operation_summary":"write_file · update file",
 		"reason":"testing approval",
+		"operations":["write_file · update file"],
 		"expires_at":"2026-05-16T12:02:00Z"
 	}`, stream.events[0].GetTracePayloadJson())
 	require.NotContains(t, stream.events[0].GetTracePayloadJson(), "secret/path.txt")

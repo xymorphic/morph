@@ -1,7 +1,7 @@
 package tui
 
 import (
-	"strconv"
+	"fmt"
 	"strings"
 	"time"
 
@@ -336,76 +336,30 @@ func permissionApprovalText(message permissionApprovalMsg) string {
 		return text + " — " + message.Summary
 	}
 
-	reason, operations := splitBatchApprovalReason(message.Reason)
-	parts := []string{"Permission approval required", "Operation: " + message.Summary}
-	if len(message.Effects) > 0 {
-		parts = append(parts, "Effects: "+strings.Join(message.Effects, ", "))
+	prompt := permissions.GetApprovalPrompt(
+		message.Summary,
+		message.Effects,
+		message.Reason,
+		message.Operations,
+		message.ExpiresAt,
+	)
+	parts := []string{"Permission approval required", "Operation: " + prompt.Summary}
+	if len(prompt.Effects) > 0 {
+		parts = append(parts, "Effects: "+strings.Join(prompt.Effects, ", "))
 	}
-	if reason != "" {
-		parts = append(parts, "Reason: "+reason)
+	if prompt.Reason != "" {
+		parts = append(parts, "Reason: "+prompt.Reason)
 	}
-	if len(operations) > 0 {
+	if len(prompt.Operations) > 0 {
 		parts = append(parts, "Operations:")
-		for index, operation := range operations {
-			parts = append(parts, strconv.Itoa(index+1)+". "+operation)
+		for index, operation := range prompt.Operations {
+			parts = append(parts, fmt.Sprintf("%d. %s", index+1, operation))
 		}
 	}
-	if !message.ExpiresAt.IsZero() {
-		parts = append(parts, "Expires: "+formatApprovalTimeToGo(message.ExpiresAt, currentTime()))
+	if expiry := permissions.GetApprovalExpiryText(prompt.ExpiresAt, currentTime()); expiry != "" {
+		parts = append(parts, "Expires: "+expiry)
 	}
 	return strings.Join(parts, "\n")
-}
-
-func formatApprovalTimeToGo(expiresAt time.Time, now time.Time) string {
-	if now.IsZero() {
-		now = currentTime()
-	}
-	remaining := expiresAt.Sub(now)
-	if remaining <= 0 {
-		return "expired"
-	}
-
-	minutes := (remaining + time.Minute - time.Nanosecond) / time.Minute
-	return strconv.FormatInt(int64(minutes), 10) + "m"
-}
-
-func splitBatchApprovalReason(reason string) (string, []string) {
-	const (
-		batchPrefix = "Approve all "
-		separator   = " operations: "
-	)
-
-	reason = strings.TrimSpace(reason)
-	start := strings.LastIndex(reason, batchPrefix)
-	if start < 0 {
-		return reason, nil
-	}
-	batch := reason[start:]
-	separatorIndex := strings.Index(batch, separator)
-	if separatorIndex < len(batchPrefix) {
-		return reason, nil
-	}
-	if _, err := strconv.Atoi(batch[len(batchPrefix):separatorIndex]); err != nil {
-		return reason, nil
-	}
-	operationText := strings.TrimSpace(batch[separatorIndex+len(separator):])
-	if operationText == "" {
-		return reason, nil
-	}
-
-	return strings.TrimSpace(reason[:start]), strings.Split(operationText, "; ")
-}
-
-func isAlwaysApprovalAvailable(effects []string) bool {
-	for _, effect := range effects {
-		switch permissions.Effect(effect) {
-		case permissions.EffectDestructive, permissions.EffectCredentialBearing, permissions.EffectPrivilegeChanging,
-			permissions.EffectExecution, permissions.EffectNetwork, permissions.EffectExternalSystem:
-			return false
-		}
-	}
-
-	return true
 }
 
 func (m *model) addTranscriptMessage(msg any) {

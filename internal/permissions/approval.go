@@ -960,12 +960,20 @@ func getSafeNetworkApprovalTarget(target NetworkTarget) string {
 
 func isAlwaysApprovalAvailable(effects []Effect) bool {
 	for _, effect := range effects {
-		switch effect {
-		case EffectDestructive, EffectCredentialBearing, EffectPrivilegeChanging,
-			EffectExecution, EffectNetwork, EffectExternalSystem:
+		if !isAlwaysApprovalEffectAllowed(effect) {
 			return false
 		}
 	}
 
 	return true
+}
+
+func isAlwaysApprovalEffectAllowed(effect Effect) bool {
+	switch effect {
+	case EffectDestructive, EffectCredentialBearing, EffectPrivilegeChanging,
+		EffectExecution, EffectNetwork, EffectExternalSystem:
+		return false
+	default:
+		return true
+	}
 }

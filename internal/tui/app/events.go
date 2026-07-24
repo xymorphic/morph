@@ -67,24 +67,26 @@ type manualCompactionMsg struct {
 }
 
 type permissionApprovalMsg struct {
-	RequestID string
-	Status    string
-	Scope     string
-	Summary   string
-	Reason    string
-	Effects   []string
-	ExpiresAt time.Time
+	RequestID  string
+	Status     string
+	Scope      string
+	Summary    string
+	Reason     string
+	Effects    []string
+	Operations []string
+	ExpiresAt  time.Time
 }
 
 type permissionResolutionCompletedMsg struct {
-	RequestID string
-	Status    string
-	Scope     string
-	Summary   string
-	Reason    string
-	Effects   []string
-	ExpiresAt time.Time
-	Err       error
+	RequestID  string
+	Status     string
+	Scope      string
+	Summary    string
+	Reason     string
+	Effects    []string
+	Operations []string
+	ExpiresAt  time.Time
+	Err        error
 }
 
 func agentEventToTUIMessage(event agent.Event) (any, bool) {
@@ -186,13 +188,14 @@ func traceEventToTUIMessage(event trace.Event) (any, bool) {
 		payload, ok := typedPayload.(trace.PermissionApprovalPayload)
 		if payloadOK && ok && payload.RequestID != "" {
 			return permissionApprovalMsg{
-				RequestID: payload.RequestID,
-				Status:    payload.Status,
-				Scope:     payload.Scope,
-				Summary:   payload.Summary,
-				Reason:    payload.Reason,
-				Effects:   append([]string(nil), payload.Effects...),
-				ExpiresAt: payload.ExpiresAt,
+				RequestID:  payload.RequestID,
+				Status:     payload.Status,
+				Scope:      payload.Scope,
+				Summary:    payload.Summary,
+				Reason:     payload.Reason,
+				Effects:    append([]string(nil), payload.Effects...),
+				Operations: append([]string(nil), payload.Operations...),
+				ExpiresAt:  payload.ExpiresAt,
 			}, true
 		}
 	}

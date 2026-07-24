@@ -400,16 +400,17 @@ func getRPCTracePayload(eventType string, payload any) (any, bool) {
 			return nil, false
 		}
 		result := rpcPermissionApprovalPayload{
-			RequestID: str.String(approvalPayload.RequestID).Trim(),
-			Status:    str.String(approvalPayload.Status).Trim(),
-			Scope:     str.String(approvalPayload.Scope).Trim(),
-			Tool:      str.String(approvalPayload.Tool).Trim(),
-			Resource:  str.String(approvalPayload.Resource).Trim(),
-			Action:    str.String(approvalPayload.Action).Trim(),
-			Effects:   append([]string(nil), approvalPayload.Effects...),
-			Summary:   str.String(approvalPayload.Summary).Trim(),
-			Reason:    str.String(approvalPayload.Reason).Trim(),
-			ExpiresAt: approvalPayload.ExpiresAt,
+			RequestID:  str.String(approvalPayload.RequestID).Trim(),
+			Status:     str.String(approvalPayload.Status).Trim(),
+			Scope:      str.String(approvalPayload.Scope).Trim(),
+			Tool:       str.String(approvalPayload.Tool).Trim(),
+			Resource:   str.String(approvalPayload.Resource).Trim(),
+			Action:     str.String(approvalPayload.Action).Trim(),
+			Effects:    append([]string(nil), approvalPayload.Effects...),
+			Summary:    str.String(approvalPayload.Summary).Trim(),
+			Reason:     str.String(approvalPayload.Reason).Trim(),
+			Operations: append([]string(nil), approvalPayload.Operations...),
+			ExpiresAt:  approvalPayload.ExpiresAt,
 		}
 		return result, result.RequestID != "" && result.Status != ""
 	case trace.EvtInputSafetyBlocked,
@@ -568,16 +569,17 @@ func (p rpcToolInvocationCompletedPayload) hasData() bool {
 }
 
 type rpcPermissionApprovalPayload struct {
-	RequestID string    `json:"request_id,omitempty"`
-	Status    string    `json:"status,omitempty"`
-	Scope     string    `json:"scope,omitempty"`
-	Tool      string    `json:"tool,omitempty"`
-	Resource  string    `json:"resource,omitempty"`
-	Action    string    `json:"action,omitempty"`
-	Effects   []string  `json:"effects,omitempty"`
-	Summary   string    `json:"operation_summary,omitempty"`
-	Reason    string    `json:"reason,omitempty"`
-	ExpiresAt time.Time `json:"expires_at,omitempty"`
+	RequestID  string    `json:"request_id,omitempty"`
+	Status     string    `json:"status,omitempty"`
+	Scope      string    `json:"scope,omitempty"`
+	Tool       string    `json:"tool,omitempty"`
+	Resource   string    `json:"resource,omitempty"`
+	Action     string    `json:"action,omitempty"`
+	Effects    []string  `json:"effects,omitempty"`
+	Summary    string    `json:"operation_summary,omitempty"`
+	Reason     string    `json:"reason,omitempty"`
+	Operations []string  `json:"operations,omitempty"`
+	ExpiresAt  time.Time `json:"expires_at,omitempty"`
 }
 
 type rpcSafetyEventPayload struct {

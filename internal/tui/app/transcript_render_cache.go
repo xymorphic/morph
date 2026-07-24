@@ -196,7 +196,7 @@ func getTranscriptCellDynamicRenderValue(cell transcriptCell, ctx transcriptRend
 	switch value := cell.(type) {
 	case permissionApprovalTranscriptCell:
 		if value.message.Status == string(permissions.ApprovalPending) {
-			return formatApprovalTimeToGo(value.message.ExpiresAt, ctx.Now)
+			return permissions.GetApprovalExpiryText(value.message.ExpiresAt, ctx.Now)
 		}
 	}
 

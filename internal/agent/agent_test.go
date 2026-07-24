@@ -1297,6 +1297,27 @@ func TestSanitizeToolOutputForModelRecordsSafety(t *testing.T) {
 	recordToolOutputSafety(context.Background(), "web", "secret", guardrails.UntrustedContentSafetyResult{Redacted: true})
 }
 
+func TestPermissionApprovalAuditor_RecordsStructuredOperations(t *testing.T) {
+	recorder := &mocks.TraceSessionStub{}
+	ctx := morphtools.WithTraceRecorder(context.Background(), recorder)
+
+	permissionApprovalAuditor{}.ApprovalChanged(ctx, permissions.ApprovalRequest{
+		ID:         "approval_1",
+		Status:     permissions.ApprovalPending,
+		Summary:    "run_command · approve 2 operations",
+		Reason:     "command structure requires approval",
+		Effects:    []permissions.Effect{permissions.EffectExecution},
+		Operations: []string{"run_command · read file", "run_command · execute process git"},
+	})
+
+	require.Len(t, recorder.Events, 1)
+	payload := recorder.Events[0].Payload.(trace.PermissionApprovalPayload)
+	require.Equal(t, []string{
+		"run_command · read file",
+		"run_command · execute process git",
+	}, payload.Operations)
+}
+
 func TestAgent_ListModelsReturnsCurrentProviderModels(t *testing.T) {
 	cfg := config.NewDefaultConfig()
 	cfg.Name = "test"

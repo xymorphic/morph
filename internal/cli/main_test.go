@@ -489,8 +489,8 @@ func TestNewMainAction_ResolvesPermissionApprovalFromInteractiveRootChat(t *test
 	require.True(t, api.approved)
 	require.Equal(t, permissions.GrantOnce, api.scope)
 	require.Contains(t, output.String(), "Permission approval required")
-	require.Contains(t, output.String(), "[y] allow once")
-	require.Contains(t, output.String(), "[a] always")
+	require.Contains(t, output.String(), "[y] Allow once")
+	require.Contains(t, output.String(), "[a] Always allow")
 	require.Contains(t, output.String(), "Permission approved (once)")
 	require.Contains(t, output.String(), "file updated")
 }
@@ -561,18 +561,14 @@ func TestRootChatApprovalHandler_DeniesAndHidesUnsafeAlwaysApproval(t *testing.T
 	require.Equal(t, "approval_1", api.requestID)
 	require.False(t, api.approved)
 	require.Empty(t, api.scope)
-	require.NotContains(t, output.String(), "[a] always")
+	require.NotContains(t, output.String(), "[a]")
 	require.Contains(t, output.String(), "Choose y, s, n")
 	require.Contains(t, output.String(), "Permission denied")
 }
 
-func TestRootChatApprovalHandler_DisplaysExpiryInLocalTimezone(t *testing.T) {
-	local := time.FixedZone("WAT", 60*60)
-	previous := time.Local
-	time.Local = local
-	t.Cleanup(func() { time.Local = previous })
-
-	expiresAt := time.Now().UTC().Add(time.Minute)
+func TestRootChatApprovalHandler_DisplaysRelativeExpiry(t *testing.T) {
+	now := time.Now()
+	expiresAt := now.Add(2*time.Minute + time.Second)
 	var output bytes.Buffer
 	handler := newRootChatApprovalHandler(
 		strings.NewReader("n\n"),
@@ -580,6 +576,7 @@ func TestRootChatApprovalHandler_DisplaysExpiryInLocalTimezone(t *testing.T) {
 		&mainActionPermissionAPIStub{},
 		true,
 	)
+	handler.now = func() time.Time { return now }
 	traceEvent := trace.Event{
 		Type: trace.EvtPermissionApprovalChanged,
 		Payload: trace.PermissionApprovalPayload{
@@ -597,7 +594,47 @@ func TestRootChatApprovalHandler_DisplaysExpiryInLocalTimezone(t *testing.T) {
 
 	require.NoError(t, err)
 	require.True(t, handled)
-	require.Contains(t, output.String(), "Expires: "+expiresAt.In(local).Format("15:04:05 MST"))
+	require.Contains(t, output.String(), "  Expires    3m")
+}
+
+func TestRootChatApprovalHandler_DisplaysStructuredBatchOperations(t *testing.T) {
+	var output bytes.Buffer
+	handler := newRootChatApprovalHandler(
+		strings.NewReader("y\n"),
+		&output,
+		&mainActionPermissionAPIStub{},
+		true,
+	)
+	handler.width = 55
+	traceEvent := trace.Event{
+		Type: trace.EvtPermissionApprovalChanged,
+		Payload: trace.PermissionApprovalPayload{
+			RequestID: "approval_1",
+			Status:    string(permissions.ApprovalPending),
+			Summary:   "run_command · approve 3 operations",
+			Reason: "command structure is incomplete and requires explicit approval. " +
+				"Approve all 3 operations: legacy details",
+			Operations: []string{
+				"run_command · read file",
+				"run_command · execute process export",
+				"run_command · execute process printf",
+			},
+		},
+	}
+
+	handled, err := handler.Handle(context.Background(), rpcclient.Event{
+		Kind:       agent.EventKindTrace,
+		TraceEvent: &traceEvent,
+	})
+
+	require.NoError(t, err)
+	require.True(t, handled)
+	require.Contains(t, output.String(), "  Reason     command structure is incomplete and\n")
+	require.Contains(t, output.String(), "             requires explicit approval.")
+	require.Contains(t, output.String(), "  Operations\n")
+	require.Contains(t, output.String(), "    1. run_command · read file\n")
+	require.Contains(t, output.String(), "    3. run_command · execute process printf\n")
+	require.Contains(t, output.String(), "[s] Allow for session")
 }
 
 func TestRootChatApprovalHandler_ReturnsResolutionFailure(t *testing.T) {

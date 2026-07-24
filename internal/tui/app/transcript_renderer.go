@@ -66,26 +66,32 @@ func renderPermissionApprovalTranscriptCell(cell permissionApprovalTranscriptCel
 		return renderResolvedPermissionApproval(message, width)
 	}
 
-	reason, operations := splitBatchApprovalReason(message.Reason)
+	prompt := permissions.GetApprovalPrompt(
+		message.Summary,
+		message.Effects,
+		message.Reason,
+		message.Operations,
+		message.ExpiresAt,
+	)
 	title := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color(defaultTUITheme.NoticeForeground)).
 		Render(permissionStatusIcon + " Permission approval required")
 	lines := []string{title}
-	lines = append(lines, renderPermissionApprovalField("Operation", message.Summary, width)...)
-	if len(message.Effects) > 0 {
-		lines = append(lines, renderPermissionApprovalField("Effects", strings.Join(message.Effects, ", "), width)...)
+	lines = append(lines, renderPermissionApprovalField("Operation", prompt.Summary, width)...)
+	if len(prompt.Effects) > 0 {
+		lines = append(lines, renderPermissionApprovalField("Effects", strings.Join(prompt.Effects, ", "), width)...)
 	}
-	if reason != "" {
-		lines = append(lines, renderPermissionApprovalField("Reason", reason, width)...)
+	if prompt.Reason != "" {
+		lines = append(lines, renderPermissionApprovalField("Reason", prompt.Reason, width)...)
 	}
-	if len(operations) > 0 {
-		lines = append(lines, renderPermissionApprovalOperations(operations, width)...)
+	if len(prompt.Operations) > 0 {
+		lines = append(lines, renderPermissionApprovalOperations(prompt.Operations, width)...)
 	}
-	if !message.ExpiresAt.IsZero() {
+	if expiry := permissions.GetApprovalExpiryText(prompt.ExpiresAt, now); expiry != "" {
 		lines = append(lines, renderPermissionApprovalField(
 			"Expires",
-			formatApprovalTimeToGo(message.ExpiresAt, now),
+			expiry,
 			width,
 		)...)
 	}

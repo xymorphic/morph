@@ -9,6 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/x/term"
+	"github.com/muesli/reflow/wordwrap"
+
 	"github.com/wandxy/morph/internal/permissions"
 	rpcclient "github.com/wandxy/morph/internal/rpc/client"
 	"github.com/wandxy/morph/internal/rpc/rpcmeta"
@@ -34,6 +37,8 @@ type rootChatApprovalHandler struct {
 	output      io.Writer
 	permissions rpcclient.PermissionAPI
 	interactive bool
+	now         func() time.Time
+	width       int
 }
 
 func newRootChatApprovalHandler(
@@ -52,6 +57,8 @@ func newRootChatApprovalHandler(
 		output:      output,
 		permissions: permissionAPI,
 		interactive: interactive,
+		now:         time.Now,
+		width:       getRootChatApprovalWidth(output),
 	}
 }
 
@@ -110,38 +117,66 @@ func (h *rootChatApprovalHandler) prompt(
 	ctx context.Context,
 	payload trace.PermissionApprovalPayload,
 ) (bool, permissions.GrantScope, error) {
-	if _, err := fmt.Fprintf(h.output, "\nPermission approval required\n%s\n", payload.Summary); err != nil {
+	prompt := permissions.GetApprovalPrompt(
+		payload.Summary,
+		payload.Effects,
+		payload.Reason,
+		payload.Operations,
+		payload.ExpiresAt,
+	)
+	if _, err := fmt.Fprintln(h.output, "\nPermission approval required"); err != nil {
 		return false, "", err
 	}
+	if err := writeRootChatApprovalField(h.output, "Operation", prompt.Summary, h.width); err != nil {
+		return false, "", err
+	}
+	if len(prompt.Effects) > 0 {
+		if err := writeRootChatApprovalField(
+			h.output,
+			"Effects",
+			strings.Join(prompt.Effects, ", "),
+			h.width,
+		); err != nil {
+			return false, "", err
+		}
+	}
+	if prompt.Reason != "" {
+		if err := writeRootChatApprovalField(h.output, "Reason", prompt.Reason, h.width); err != nil {
+			return false, "", err
+		}
+	}
+	if len(prompt.Operations) > 0 {
+		if _, err := fmt.Fprintln(h.output, "  Operations"); err != nil {
+			return false, "", err
+		}
+		for index, operation := range prompt.Operations {
+			if err := writeRootChatApprovalOperation(h.output, index+1, operation, h.width); err != nil {
+				return false, "", err
+			}
+		}
+	}
+	if expiry := permissions.GetApprovalExpiryText(prompt.ExpiresAt, h.now()); expiry != "" {
+		if err := writeRootChatApprovalField(h.output, "Expires", expiry, h.width); err != nil {
+			return false, "", err
+		}
+	}
 
-	if len(payload.Effects) > 0 {
-		if _, err := fmt.Fprintf(h.output, "Effects: %s\n", strings.Join(payload.Effects, ", ")); err != nil {
+	choices := permissions.GetApprovalChoices(prompt.Effects)
+	if _, err := fmt.Fprintln(h.output); err != nil {
+		return false, "", err
+	}
+	for _, choice := range choices {
+		if _, err := fmt.Fprintf(h.output, "[%c] %-18s %s\n", choice.Key, choice.Label, choice.Detail); err != nil {
 			return false, "", err
 		}
 	}
-	if str.String(payload.Reason).Trim() != "" {
-		if _, err := fmt.Fprintf(h.output, "Reason: %s\n", payload.Reason); err != nil {
-			return false, "", err
-		}
-	}
-	if !payload.ExpiresAt.IsZero() {
-		if _, err := fmt.Fprintf(h.output, "Expires: %s\n", payload.ExpiresAt.In(time.Local).Format("15:04:05 MST")); err != nil {
-			return false, "", err
-		}
-	}
-
-	alwaysAvailable := isRootChatAlwaysApprovalAvailable(payload.Effects)
-	choices := "[y] allow once  [s] session  [n] deny"
-	if alwaysAvailable {
-		choices = "[y] allow once  [s] session  [a] always  [n] deny"
-	}
-	if _, err := fmt.Fprintf(h.output, "%s\n> ", choices); err != nil {
+	if _, err := fmt.Fprint(h.output, "> "); err != nil {
 		return false, "", err
 	}
 
 	result := make(chan rootChatApprovalChoice, 1)
 	go func() {
-		approved, scope, err := h.readChoice(alwaysAvailable)
+		approved, scope, err := h.readChoice(choices)
 		result <- rootChatApprovalChoice{approved: approved, scope: scope, err: err}
 	}()
 
@@ -170,47 +205,96 @@ type rootChatApprovalChoice struct {
 }
 
 func (h *rootChatApprovalHandler) readChoice(
-	alwaysAvailable bool,
+	choices []permissions.ApprovalChoice,
 ) (bool, permissions.GrantScope, error) {
 	for {
 		value, readErr := h.input.ReadString('\n')
-		switch strings.ToLower(strings.TrimSpace(value)) {
-		case "y", "yes":
-			return true, permissions.GrantOnce, nil
-		case "s", "session":
-			return true, permissions.GrantSession, nil
-		case "a", "always":
-			if alwaysAvailable {
-				return true, permissions.GrantAlways, nil
-			}
-		case "n", "no", "deny":
-			return false, "", nil
+		if choice, ok := getRootChatApprovalChoice(choices, value); ok {
+			return choice.Approved, choice.Scope, nil
 		}
 		if readErr != nil {
 			return false, "", fmt.Errorf("read permission approval: %w", readErr)
 		}
-		if _, err := fmt.Fprint(h.output, "Choose y, s, n"); err != nil {
-			return false, "", err
-		}
-		if alwaysAvailable {
-			if _, err := fmt.Fprint(h.output, ", or a"); err != nil {
-				return false, "", err
-			}
-		}
-		if _, err := fmt.Fprint(h.output, ": "); err != nil {
+		if _, err := fmt.Fprintf(h.output, "Choose %s: ", getRootChatApprovalKeys(choices)); err != nil {
 			return false, "", err
 		}
 	}
 }
 
-func isRootChatAlwaysApprovalAvailable(effects []string) bool {
-	for _, effect := range effects {
-		switch permissions.Effect(effect) {
-		case permissions.EffectDestructive, permissions.EffectCredentialBearing, permissions.EffectPrivilegeChanging,
-			permissions.EffectExecution, permissions.EffectNetwork, permissions.EffectExternalSystem:
-			return false
+func writeRootChatApprovalField(output io.Writer, label string, value string, width int) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+
+	prefix := fmt.Sprintf("  %-9s  ", label)
+	return writeRootChatWrappedValue(output, prefix, value, width)
+}
+
+func writeRootChatApprovalOperation(output io.Writer, index int, value string, width int) error {
+	return writeRootChatWrappedValue(output, fmt.Sprintf("    %d. ", index), value, width)
+}
+
+func writeRootChatWrappedValue(output io.Writer, prefix string, value string, width int) error {
+	wrapWidth := max(width-len(prefix), 1)
+	for index, line := range strings.Split(wordwrap.String(value, wrapWidth), "\n") {
+		if index == 0 {
+			if _, err := fmt.Fprintln(output, prefix+line); err != nil {
+				return err
+			}
+			continue
+		}
+		if _, err := fmt.Fprintln(output, strings.Repeat(" ", len(prefix))+line); err != nil {
+			return err
 		}
 	}
 
-	return true
+	return nil
+}
+
+func getRootChatApprovalChoice(
+	choices []permissions.ApprovalChoice,
+	value string,
+) (permissions.ApprovalChoice, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "yes":
+		value = "y"
+	case "session":
+		value = "s"
+	case "always":
+		value = "a"
+	case "no", "deny":
+		value = "n"
+	default:
+		value = strings.ToLower(strings.TrimSpace(value))
+	}
+	if len(value) != 1 {
+		return permissions.ApprovalChoice{}, false
+	}
+
+	return permissions.GetApprovalChoiceByKey(choices, rune(value[0]))
+}
+
+func getRootChatApprovalKeys(choices []permissions.ApprovalChoice) string {
+	keys := make([]string, len(choices))
+	for index, choice := range choices {
+		keys[index] = string(choice.Key)
+	}
+
+	return strings.Join(keys, ", ")
+}
+
+func getRootChatApprovalWidth(output io.Writer) int {
+	const fallbackWidth = 100
+
+	file, ok := output.(interface{ Fd() uintptr })
+	if !ok {
+		return fallbackWidth
+	}
+	width, _, err := term.GetSize(file.Fd())
+	if err != nil || width <= 0 {
+		return fallbackWidth
+	}
+
+	return width
 }

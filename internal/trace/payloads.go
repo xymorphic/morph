@@ -66,16 +66,17 @@ type PermissionCommandTargetPayload struct {
 }
 
 type PermissionApprovalPayload struct {
-	RequestID string    `json:"request_id,omitempty"`
-	Status    string    `json:"status,omitempty"`
-	Scope     string    `json:"scope,omitempty"`
-	Tool      string    `json:"tool,omitempty"`
-	Resource  string    `json:"resource,omitempty"`
-	Action    string    `json:"action,omitempty"`
-	Effects   []string  `json:"effects,omitempty"`
-	Summary   string    `json:"operation_summary,omitempty"`
-	Reason    string    `json:"reason,omitempty"`
-	ExpiresAt time.Time `json:"expires_at,omitempty"`
+	RequestID  string    `json:"request_id,omitempty"`
+	Status     string    `json:"status,omitempty"`
+	Scope      string    `json:"scope,omitempty"`
+	Tool       string    `json:"tool,omitempty"`
+	Resource   string    `json:"resource,omitempty"`
+	Action     string    `json:"action,omitempty"`
+	Effects    []string  `json:"effects,omitempty"`
+	Summary    string    `json:"operation_summary,omitempty"`
+	Reason     string    `json:"reason,omitempty"`
+	Operations []string  `json:"operations,omitempty"`
+	ExpiresAt  time.Time `json:"expires_at,omitempty"`
 }
 
 // UserMessageAcceptedPayload is the trace payload for user message accepted.

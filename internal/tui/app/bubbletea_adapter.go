@@ -195,7 +195,7 @@ func (m model) handleAsyncMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		}
 		next, cmd := m.handleAppEvent(applyTUIMessageEvent{Message: permissionApprovalMsg{
 			RequestID: msg.RequestID, Status: msg.Status, Scope: msg.Scope, Summary: msg.Summary,
-			Reason: msg.Reason, Effects: msg.Effects, ExpiresAt: msg.ExpiresAt,
+			Reason: msg.Reason, Effects: msg.Effects, Operations: msg.Operations, ExpiresAt: msg.ExpiresAt,
 		}})
 		return next, cmd, true
 	case permissionPresetPersistedMsg:
@@ -488,14 +488,15 @@ func (m model) resolvePermissionApproval(approved bool, scope permissions.GrantS
 		ctx = rpcmeta.WithOutgoingPermissionSurface(ctx, permissions.SurfaceTUI)
 		request, err := client.ResolveApprovalRequest(ctx, requestID, approved, scope)
 		return permissionResolutionCompletedMsg{
-			RequestID: requestID,
-			Status:    string(request.Status),
-			Scope:     string(request.Scope),
-			Summary:   request.Summary,
-			Reason:    request.Reason,
-			Effects:   effectsToStrings(request.Effects),
-			ExpiresAt: request.ExpiresAt,
-			Err:       err,
+			RequestID:  requestID,
+			Status:     string(request.Status),
+			Scope:      string(request.Scope),
+			Summary:    request.Summary,
+			Reason:     request.Reason,
+			Effects:    effectsToStrings(request.Effects),
+			Operations: append([]string(nil), request.Operations...),
+			ExpiresAt:  request.ExpiresAt,
+			Err:        err,
 		}
 	}
 }

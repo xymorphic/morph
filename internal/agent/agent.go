@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	agentsummary "github.com/wandxy/morph/internal/agent/context/summary"
@@ -199,16 +200,17 @@ func (permissionApprovalAuditor) ApprovalChanged(ctx context.Context, request pe
 		effects[index] = string(effect)
 	}
 	recorder.Record(trace.EvtPermissionApprovalChanged, trace.PermissionApprovalPayload{
-		RequestID: request.ID,
-		Status:    string(request.Status),
-		Scope:     string(request.Scope),
-		Tool:      request.Tool,
-		Resource:  string(request.Resource),
-		Action:    string(request.Action),
-		Effects:   effects,
-		Summary:   request.Summary,
-		Reason:    request.Reason,
-		ExpiresAt: request.ExpiresAt,
+		RequestID:  request.ID,
+		Status:     string(request.Status),
+		Scope:      string(request.Scope),
+		Tool:       request.Tool,
+		Resource:   string(request.Resource),
+		Action:     string(request.Action),
+		Effects:    effects,
+		Summary:    request.Summary,
+		Reason:     request.Reason,
+		Operations: slices.Clone(request.Operations),
+		ExpiresAt:  request.ExpiresAt,
 	})
 }
 

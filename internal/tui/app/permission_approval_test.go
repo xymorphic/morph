@@ -131,15 +131,6 @@ func TestPermissionApprovalText_DisplaysExpiryTimeToGo(t *testing.T) {
 	require.Contains(t, text, "Expires: 3m")
 }
 
-func TestFormatApprovalTimeToGo_RoundsUpToWholeMinutes(t *testing.T) {
-	now := time.Date(2026, 7, 14, 12, 0, 0, 0, time.UTC)
-
-	require.Equal(t, "3m", formatApprovalTimeToGo(now.Add(3*time.Minute), now))
-	require.Equal(t, "3m", formatApprovalTimeToGo(now.Add(2*time.Minute+time.Second), now))
-	require.Equal(t, "1m", formatApprovalTimeToGo(now.Add(time.Second), now))
-	require.Equal(t, "expired", formatApprovalTimeToGo(now, now))
-}
-
 func TestPermissionApprovalText_DisplaysPersonalBrowserWarning(t *testing.T) {
 	text := permissionApprovalText(permissionApprovalMsg{
 		Status:  string(permissions.ApprovalPending),
@@ -336,11 +327,13 @@ func TestTraceEventToTUIMessage_DecodesPermissionApprovalLifecycle(t *testing.T)
 		Type: trace.EvtPermissionApprovalChanged,
 		Payload: map[string]any{
 			"request_id": "approval_1", "status": "pending", "operation_summary": "run_command · execute process",
-			"effects": []string{"execution"},
+			"effects": []string{"execution"}, "operations": []string{"run_command · execute process git"},
 		},
 	})
 	require.True(t, ok)
-	require.Equal(t, "approval_1", message.(permissionApprovalMsg).RequestID)
+	approval := message.(permissionApprovalMsg)
+	require.Equal(t, "approval_1", approval.RequestID)
+	require.Equal(t, []string{"run_command · execute process git"}, approval.Operations)
 }
 
 type permissionAPIStub struct {

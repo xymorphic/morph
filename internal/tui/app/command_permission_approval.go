@@ -8,14 +8,6 @@ import (
 	"github.com/wandxy/morph/internal/permissions"
 )
 
-type permissionApprovalOption struct {
-	label    string
-	detail   string
-	key      rune
-	approved bool
-	scope    permissions.GrantScope
-}
-
 func (m *model) showPermissionApprovalCommandView(message permissionApprovalMsg) {
 	options := getPermissionApprovalOptions(message)
 	m.showCommandView(commandViewPayload{
@@ -31,10 +23,10 @@ func (m *model) showPermissionApprovalCommandView(message permissionApprovalMsg)
 	m.commandViewOffset = 0
 }
 
-func getPermissionApprovalCommandHint(options []permissionApprovalOption) string {
+func getPermissionApprovalCommandHint(options []permissions.ApprovalChoice) string {
 	keys := make([]string, len(options))
 	for index, option := range options {
-		keys[index] = string(option.key)
+		keys[index] = string(option.Key)
 	}
 
 	return "↑/↓ select · enter · " + strings.Join(keys, "/")
@@ -58,8 +50,8 @@ func (m model) renderPermissionApprovalCommandViewContent(content commandViewCon
 	for index := offset; index < end; index++ {
 		option := options[index]
 		rows = append(rows, renderCommandListEntryRow(
-			option.label,
-			option.detail,
+			option.Label,
+			string(option.Key)+" · "+option.Detail,
 			content.Width,
 			max(content.Width-2, 1),
 			index == m.commandViewItemSelected,
@@ -82,8 +74,8 @@ func (m *model) updatePermissionApprovalCommandView(msg tea.Msg) (tea.Model, tea
 	selection := m.commandViewItemSelected
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		if option, found := getPermissionApprovalOptionByKey(options, msg.Key().Code); found {
-			return *m, m.resolvePermissionApproval(option.approved, option.scope)
+		if option, found := permissions.GetApprovalChoiceByKey(options, msg.Key().Code); found {
+			return *m, m.resolvePermissionApproval(option.Approved, option.Scope)
 		}
 		if msg.Key().Code == 'a' {
 			return *m, m.setStatus("always approval is unavailable for these effects")
@@ -138,41 +130,13 @@ func (m *model) updatePermissionApprovalCommandView(msg tea.Msg) (tea.Model, tea
 	return *m, nil
 }
 
-func (m *model) selectPermissionApprovalOption(options []permissionApprovalOption) (tea.Model, tea.Cmd) {
+func (m *model) selectPermissionApprovalOption(options []permissions.ApprovalChoice) (tea.Model, tea.Cmd) {
 	index := min(max(m.commandViewItemSelected, 0), len(options)-1)
 	option := options[index]
 
-	return *m, m.resolvePermissionApproval(option.approved, option.scope)
+	return *m, m.resolvePermissionApproval(option.Approved, option.Scope)
 }
 
-func getPermissionApprovalOptions(message permissionApprovalMsg) []permissionApprovalOption {
-	options := []permissionApprovalOption{
-		{
-			label: "Allow once", detail: "y · approve this request only", key: 'y',
-			approved: true, scope: permissions.GrantOnce,
-		},
-		{
-			label: "Allow for session", detail: "s · remember this approval for this session", key: 's',
-			approved: true, scope: permissions.GrantSession,
-		},
-	}
-	if isAlwaysApprovalAvailable(message.Effects) {
-		options = append(options, permissionApprovalOption{
-			label: "Always allow", detail: "a · remember this approval until revoked",
-			key: 'a', approved: true, scope: permissions.GrantAlways,
-		})
-	}
-	return append(options, permissionApprovalOption{
-		label: "Deny", detail: "n · deny this request only", key: 'n',
-	})
-}
-
-func getPermissionApprovalOptionByKey(options []permissionApprovalOption, key rune) (permissionApprovalOption, bool) {
-	for _, option := range options {
-		if option.key == key {
-			return option, true
-		}
-	}
-
-	return permissionApprovalOption{}, false
+func getPermissionApprovalOptions(message permissionApprovalMsg) []permissions.ApprovalChoice {
+	return permissions.GetApprovalChoices(message.Effects)
 }
