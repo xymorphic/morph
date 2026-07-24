@@ -1921,6 +1921,30 @@ func TestEnvironment_SetBrowserServiceInitializesRuntime(t *testing.T) {
 	require.Same(t, service, got)
 }
 
+func TestEnvironment_SetCommandIdentityKeyInitializesRuntime(t *testing.T) {
+	var nilEnvironment *environment
+	nilEnvironment.SetCommandIdentityKey(nil)
+
+	key := []byte("profile-owner-credential")
+	left := &environment{cfg: &config.Config{}}
+	right := &environment{cfg: &config.Config{}}
+	left.SetCommandIdentityKey(key)
+	right.SetCommandIdentityKey(key)
+
+	require.NotNil(t, left.runtime)
+	require.Equal(t, left.runtime.CommandIdentityKey(), right.runtime.CommandIdentityKey())
+	require.NotEqual(t, key, left.runtime.CommandIdentityKey())
+}
+
+func TestEnvironment_CommandShellReadsConfiguredValue(t *testing.T) {
+	var nilEnvironment *environment
+	require.Empty(t, nilEnvironment.commandShell())
+	require.Empty(t, (&environment{}).commandShell())
+	require.Equal(t, "/bin/sh", (&environment{
+		cfg: &config.Config{Exec: config.ExecConfig{Shell: "/bin/sh"}},
+	}).commandShell())
+}
+
 func TestEnvironment_CurrentPlanAndHydratePlanUseRuntimeStore(t *testing.T) {
 	env := &environment{runtime: NewRuntime([]string{t.TempDir()}, guardrails.CommandPolicy{}, nil)}
 

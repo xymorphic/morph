@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	commandplan "github.com/wandxy/morph/internal/command"
 	"github.com/wandxy/morph/pkg/str"
 )
 
@@ -15,6 +16,7 @@ type PermissionScope struct {
 	Effects        []Effect
 	TargetPrefixes []string
 	Network        []NetworkSelector
+	Commands       []commandplan.Selector
 }
 
 func (s PermissionScope) Normalize() (PermissionScope, error) {
@@ -41,10 +43,16 @@ func (s PermissionScope) Normalize() (PermissionScope, error) {
 			return PermissionScope{}, err
 		}
 	}
+	if len(s.Commands) > 0 {
+		var err error
+		s.Commands, err = commandplan.NormalizeSelectors(s.Commands)
+		if err != nil {
+			return PermissionScope{}, err
+		}
+	}
 	if len(s.Network) > 0 && len(s.TargetPrefixes) > 0 {
 		return PermissionScope{}, errors.New("permission scope cannot combine network selectors and target prefixes")
 	}
-
 	for _, resource := range s.Resources {
 		if !isValidResource(resource, false) {
 			return PermissionScope{}, errors.New("permission scope contains an invalid resource")
@@ -60,8 +68,8 @@ func (s PermissionScope) Normalize() (PermissionScope, error) {
 			return PermissionScope{}, errors.New("permission scope contains an invalid effect")
 		}
 	}
-	if !s.Restricted && (len(s.Resources) > 0 || len(s.Actions) > 0 || len(s.Effects) > 0 || len(s.TargetPrefixes) > 0 ||
-		len(s.Network) > 0) {
+	if !s.Restricted && (len(s.Resources) > 0 || len(s.Actions) > 0 || len(s.Effects) > 0 ||
+		len(s.TargetPrefixes) > 0 || len(s.Network) > 0 || len(s.Commands) > 0) {
 		return PermissionScope{}, errors.New("permission scope constraints require restricted mode")
 	}
 
@@ -93,7 +101,11 @@ func (s PermissionScope) Allows(operation Operation) bool {
 	}
 
 	if operation.Network != nil {
-		return len(s.TargetPrefixes) == 0 && len(s.Network) > 0 && matchesNetworkSelectors(s.Network, operation.Network)
+		return len(s.TargetPrefixes) == 0 && len(s.Network) > 0 &&
+			matchesNetworkSelectors(s.Network, operation.Network)
+	}
+	if operation.Command != nil {
+		return len(s.Commands) > 0 && commandplan.MatchSelectors(s.Commands, *operation.Command)
 	}
 
 	return len(s.Network) == 0 && matchesTargetPrefix(s.TargetPrefixes, operation.Target)
@@ -122,7 +134,15 @@ func IntersectScopes(parent PermissionScope, delegated PermissionScope) (Permiss
 		Effects:        intersectValues(parent.Effects, delegated.Effects),
 		TargetPrefixes: intersectTargetPrefixes(parent.TargetPrefixes, delegated.TargetPrefixes),
 		Network:        intersectNetworkSelectors(parent.Network, delegated.Network),
+		Commands:       intersectCommandSelectors(parent.Commands, delegated.Commands),
 	}, nil
+}
+
+func intersectCommandSelectors(left []commandplan.Selector, right []commandplan.Selector) []commandplan.Selector {
+	if len(left) == 0 || len(right) == 0 {
+		return nil
+	}
+	return commandplan.IntersectSelectors(left, right)
 }
 
 func intersectNetworkSelectors(left []NetworkSelector, right []NetworkSelector) []NetworkSelector {

@@ -2,9 +2,13 @@ package environment
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/wandxy/morph/internal/agent/runcontext"
 	"github.com/wandxy/morph/internal/environment/planstore"
@@ -24,6 +28,8 @@ var getwd = os.Getwd
 type Runtime struct {
 	filePolicy    guardrails.FilesystemPolicy
 	commandPolicy guardrails.CommandPolicy
+	commandShell  string
+	commandKey    []byte
 	processMgr    process.Manager
 	plans         planstore.Store
 	stateMgr      *statemanager.Manager
@@ -42,13 +48,18 @@ func NewRuntime(roots []string, policy guardrails.CommandPolicy, stateMgr *state
 		roots = []string{filepath.Clean(cwd)}
 	}
 
-	return &Runtime{
+	runtime := &Runtime{
 		filePolicy:    guardrails.FilesystemPolicy{Roots: guardrails.NormalizeRoots(roots)},
 		commandPolicy: policy.Normalize(),
 		processMgr:    &process.DefaultManager{},
 		plans:         &planstore.MemoryPlanStore{},
 		stateMgr:      stateMgr,
 	}
+	runtime.commandKey = make([]byte, 32)
+	if _, err := rand.Read(runtime.commandKey); err != nil {
+		panic(err)
+	}
+	return runtime
 }
 
 func (r *Runtime) FilePolicy() guardrails.FilesystemPolicy {
@@ -65,6 +76,29 @@ func (r *Runtime) CommandPolicy() guardrails.CommandPolicy {
 	}
 
 	return r.commandPolicy
+}
+
+func (r *Runtime) CommandShell() string {
+	if r == nil {
+		return ""
+	}
+	return r.commandShell
+}
+
+func (r *Runtime) CommandIdentityKey() []byte {
+	if r == nil {
+		return nil
+	}
+	return slices.Clone(r.commandKey)
+}
+
+func (r *Runtime) setCommandIdentityKey(key []byte) {
+	if r == nil || len(key) == 0 {
+		return
+	}
+	digest := hmac.New(sha256.New, key)
+	_, _ = digest.Write([]byte("morph/command-identity/v1"))
+	r.commandKey = digest.Sum(nil)
 }
 
 func (r *Runtime) StartProcess(

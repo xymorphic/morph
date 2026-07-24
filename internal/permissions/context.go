@@ -3,6 +3,8 @@ package permissions
 import (
 	"context"
 	"slices"
+
+	"github.com/wandxy/morph/internal/command"
 )
 
 type authorizationContextKey struct{}
@@ -138,7 +140,8 @@ func IsOperationAuthorized(ctx context.Context, operation Operation) bool {
 			candidate.Action == operation.Action &&
 			candidate.Target == operation.Target &&
 			candidate.TargetScope == operation.TargetScope &&
-			isSameNetworkTarget(candidate.Network, operation.Network) {
+			isSameNetworkTarget(candidate.Network, operation.Network) &&
+			isSameCommandTarget(candidate.Command, operation.Command) {
 			return true
 		}
 	}
@@ -165,6 +168,7 @@ func IsExactOperationAuthorized(ctx context.Context, operation Operation) bool {
 			candidate.Target == operation.Target &&
 			candidate.TargetScope == operation.TargetScope &&
 			isSameNetworkTarget(candidate.Network, operation.Network) &&
+			isSameCommandTarget(candidate.Command, operation.Command) &&
 			candidate.OwnerID == operation.OwnerID &&
 			candidate.OwnerRequired == operation.OwnerRequired {
 			return true
@@ -172,4 +176,11 @@ func IsExactOperationAuthorized(ctx context.Context, operation Operation) bool {
 	}
 
 	return false
+}
+
+func isSameCommandTarget(left *command.Target, right *command.Target) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return left.Equal(*right)
 }

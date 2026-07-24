@@ -20,6 +20,8 @@ type Runtime interface {
 	// Policy management
 	FilePolicy() guardrails.FilesystemPolicy
 	CommandPolicy() guardrails.CommandPolicy
+	CommandShell() string
+	CommandIdentityKey() []byte
 
 	// Process management
 	StartProcess(ctx context.Context, sessionID string, req process.StartRequest) (process.Info, error)

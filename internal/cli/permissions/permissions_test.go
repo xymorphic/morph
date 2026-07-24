@@ -36,7 +36,8 @@ func TestWriteRequestsAndGrants_RendersSafeStructuredFields(t *testing.T) {
 	require.NoError(t, writeGrants([]permissiondomain.ApprovalGrant{
 		{
 			ID: "grant_1", Status: permissiondomain.GrantActive, Scope: permissiondomain.GrantSession,
-			SessionID: "session", ExpiresAt: now,
+			Operations: []string{"run_command · execute process", "run_command · read file workspace"},
+			SessionID:  "session", ExpiresAt: now,
 		},
 		{
 			ID: "grant_always", Status: permissiondomain.GrantActive, Scope: permissiondomain.GrantAlways,
@@ -45,6 +46,7 @@ func TestWriteRequestsAndGrants_RendersSafeStructuredFields(t *testing.T) {
 	require.Contains(t, buffer.String(), "approval_1")
 	require.Contains(t, buffer.String(), "execution")
 	require.Contains(t, buffer.String(), "grant_1")
+	require.Contains(t, buffer.String(), "run_command · execute process; run_command · read file workspace")
 	require.Contains(t, buffer.String(), "grant_always")
 	require.Contains(t, buffer.String(), "never")
 	require.Contains(t, buffer.String(), "2026-07-14 13:00 WAT")

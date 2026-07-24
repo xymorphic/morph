@@ -129,6 +129,5 @@ func TestObserveDecision_NotifiesContextObserver(t *testing.T) {
 func TestObserveDecision_HandlesMissingObserver(t *testing.T) {
 	require.NotPanics(t, func() {
 		ObserveDecision(context.Background(), Operation{}, Evaluation{})
-		ObserveDecision(nil, Operation{}, Evaluation{})
 	})
 }

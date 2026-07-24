@@ -3,12 +3,14 @@ package permissions_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
+	commandplan "github.com/wandxy/morph/internal/command"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/state/storememory"
 )
@@ -40,7 +42,7 @@ func TestApprovalService_AllowOnceResumesExactlyOneCoalescedInvocation(t *testin
 	require.Equal(t, permissions.GrantConsumed, grants[0].Status)
 }
 
-func TestApprovalService_AuthorizeBatchCreatesOrderIndependentCompositeGrant(t *testing.T) {
+func TestApprovalService_AuthorizeBatchBindsOperationOrder(t *testing.T) {
 	service, store := newApprovalService(t, permissions.ApprovalOptions{RequestTTL: time.Second})
 	ctx := approvalContext(context.Background(), "session-a")
 	network, err := permissions.NetworkTargetFromURL(
@@ -74,10 +76,16 @@ func TestApprovalService_AuthorizeBatchCreatesOrderIndependentCompositeGrant(t *
 	require.NoError(t, <-result)
 
 	reversed := []permissions.EvaluationInput{inputs[1], inputs[0]}
-	require.NoError(t, service.AuthorizeBatch(ctx, reversed))
+	reversedResult := make(chan error, 1)
+	go func() { reversedResult <- service.AuthorizeBatch(ctx, reversed) }()
+	reversedRequest := waitForPendingApproval(t, store)
+	require.NotEqual(t, request.Fingerprint, reversedRequest.Fingerprint)
+	_, err = service.Resolve(context.Background(), reversedRequest.ID, true, permissions.GrantSession)
+	require.NoError(t, err)
+	require.NoError(t, <-reversedResult)
 	requests, err := service.List(context.Background(), permissions.ApprovalQuery{})
 	require.NoError(t, err)
-	require.Len(t, requests, 1)
+	require.Len(t, requests, 2)
 }
 
 func TestApprovalService_SingleNetworkApprovalSummaryIncludesSafeTarget(t *testing.T) {
@@ -107,6 +115,29 @@ func TestApprovalService_SingleNetworkApprovalSummaryIncludesSafeTarget(t *testi
 	require.NoError(t, <-result)
 }
 
+func TestApprovalService_SingleCommandApprovalSummaryUsesExecutableBasename(t *testing.T) {
+	service, store := newApprovalService(t, permissions.ApprovalOptions{RequestTTL: time.Second})
+	ctx := approvalContext(context.Background(), "session-a")
+	target := commandplan.Target{
+		Mode: commandplan.ModeDirect, Executable: "/private/secret/tool",
+		ResolvedPath: "/private/secret/tool", PlanDigest: "plan", Complete: true,
+	}
+	result := make(chan error, 1)
+	go func() {
+		result <- service.Authorize(ctx, permissions.EvaluationInput{Operation: permissions.Operation{
+			Tool: "run_command", Resource: permissions.ResourceProcess, Action: permissions.ActionExecute,
+			Effects: []permissions.Effect{permissions.EffectExecution}, Command: &target,
+		}})
+	}()
+
+	request := waitForPendingApproval(t, store)
+	require.Equal(t, "run_command · execute process tool", request.Summary)
+	require.NotContains(t, request.Summary, "/private/secret")
+	_, err := service.Resolve(context.Background(), request.ID, true, permissions.GrantOnce)
+	require.NoError(t, err)
+	require.NoError(t, <-result)
+}
+
 func TestApprovalService_PrepareBatchConsumesOnceGrantOnlyOnCommit(t *testing.T) {
 	service, store := newApprovalService(t, permissions.ApprovalOptions{RequestTTL: time.Second})
 	ctx := approvalContext(context.Background(), "session-a")
@@ -128,6 +159,10 @@ func TestApprovalService_PrepareBatchConsumesOnceGrantOnlyOnCommit(t *testing.T)
 		errorsResult <- err
 	}()
 	request := waitForPendingApproval(t, store)
+	require.Equal(t, []string{
+		"browser · update browser",
+		"browser · read network",
+	}, request.Operations)
 	_, err := service.Resolve(context.Background(), request.ID, true, permissions.GrantOnce)
 	require.NoError(t, err)
 	prepared := <-result
@@ -135,12 +170,141 @@ func TestApprovalService_PrepareBatchConsumesOnceGrantOnlyOnCommit(t *testing.T)
 	grants, err := service.ListGrants(context.Background(), permissions.GrantQuery{})
 	require.NoError(t, err)
 	require.Equal(t, permissions.GrantActive, grants[0].Status)
+	require.Equal(t, request.Operations, grants[0].Operations)
 
 	require.NoError(t, prepared.Commit(ctx))
 	require.NoError(t, prepared.Commit(ctx))
 	grants, err = service.ListGrants(context.Background(), permissions.GrantQuery{})
 	require.NoError(t, err)
 	require.Equal(t, permissions.GrantConsumed, grants[0].Status)
+}
+
+func TestApprovalService_PrepareBatchPersistsEveryOperationWhileBoundingPromptText(t *testing.T) {
+	service, store := newApprovalService(t, permissions.ApprovalOptions{RequestTTL: time.Second})
+	ctx := approvalContext(context.Background(), "session-a")
+	inputs := make([]permissions.EvaluationInput, 10)
+	for index := range inputs {
+		inputs[index] = permissions.EvaluationInput{Operation: permissions.Operation{
+			Tool: "browser", Resource: permissions.ResourceBrowser, Action: permissions.ActionUpdate,
+			Effects: []permissions.Effect{permissions.EffectWrite}, Target: fmt.Sprintf("tab=%d", index),
+		}}
+	}
+
+	result := make(chan error, 1)
+	go func() {
+		prepared, err := service.PrepareBatch(ctx, inputs)
+		if err == nil {
+			err = prepared.Commit(ctx)
+		}
+		result <- err
+	}()
+
+	request := waitForPendingApproval(t, store)
+	require.Len(t, request.Operations, len(inputs))
+	require.Contains(t, request.Reason, "2 more operations")
+	require.NotContains(t, request.Operations, "2 more operations")
+
+	_, err := service.Resolve(context.Background(), request.ID, true, permissions.GrantOnce)
+	require.NoError(t, err)
+	require.NoError(t, <-result)
+	grants, err := service.ListGrants(context.Background(), permissions.GrantQuery{})
+	require.NoError(t, err)
+	require.Equal(t, request.Operations, grants[0].Operations)
+}
+
+func TestApprovalService_PrepareOperationBatchRejectsApprovalOutsideCompleteBatch(t *testing.T) {
+	service, _ := newApprovalService(t, permissions.ApprovalOptions{RequestTTL: time.Second})
+	ctx := approvalContext(context.Background(), "session-a")
+	asked := []permissions.EvaluationInput{{Operation: permissions.Operation{
+		Tool: "browser", Resource: permissions.ResourceNetwork, Action: permissions.ActionRead,
+		Target: "host=unexpected.example",
+	}}}
+	complete := []permissions.EvaluationInput{{Operation: permissions.Operation{
+		Tool: "browser", Resource: permissions.ResourceBrowser, Action: permissions.ActionUpdate,
+		Target: "tab=one",
+	}}}
+
+	_, err := service.PrepareOperationBatch(ctx, asked, complete)
+
+	require.EqualError(t, err, "approval operation is not part of the complete batch")
+}
+
+func TestApprovalService_PrepareOperationBatchValidatesInputsAndAuthorization(t *testing.T) {
+	service, _ := newApprovalService(t, permissions.ApprovalOptions{RequestTTL: time.Second})
+	valid := approvalInput("printf one")
+	invalid := permissions.EvaluationInput{Operation: permissions.Operation{
+		Resource: permissions.ResourceProcess,
+		Action:   "invalid",
+	}}
+
+	_, err := service.PrepareOperationBatch(context.Background(), nil, []permissions.EvaluationInput{valid})
+	require.EqualError(t, err, "approval batch requires at least one operation")
+	_, err = service.PrepareOperationBatch(
+		context.Background(),
+		[]permissions.EvaluationInput{valid},
+		[]permissions.EvaluationInput{valid},
+	)
+	require.EqualError(t, err, "authorization context is required")
+
+	ctx := approvalContext(context.Background(), "session-a")
+	_, err = service.PrepareOperationBatch(
+		ctx,
+		[]permissions.EvaluationInput{valid},
+		[]permissions.EvaluationInput{invalid},
+	)
+	require.EqualError(t, err, "permission action is invalid")
+	_, err = service.PrepareOperationBatch(
+		ctx,
+		[]permissions.EvaluationInput{invalid},
+		[]permissions.EvaluationInput{valid},
+	)
+	require.EqualError(t, err, "permission action is invalid")
+
+	canceledCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	_, err = service.PrepareOperationBatch(
+		canceledCtx,
+		[]permissions.EvaluationInput{valid},
+		[]permissions.EvaluationInput{valid},
+	)
+	require.ErrorIs(t, err, context.Canceled)
+	_, err = service.PrepareOperationBatch(
+		canceledCtx,
+		[]permissions.EvaluationInput{valid},
+		[]permissions.EvaluationInput{
+			valid,
+			{Operation: permissions.Operation{
+				Tool: "run_command", Resource: permissions.ResourceFile,
+				Action: permissions.ActionRead, Target: "workspace",
+			}},
+		},
+	)
+	require.ErrorIs(t, err, context.Canceled)
+	require.ErrorIs(t, service.AuthorizeBatch(canceledCtx, []permissions.EvaluationInput{valid}), context.Canceled)
+}
+
+func TestApprovalService_PrepareOperationBatchSupportsSingleOperation(t *testing.T) {
+	service, store := newApprovalService(t, permissions.ApprovalOptions{RequestTTL: time.Second})
+	ctx := approvalContext(context.Background(), "session-a")
+	input := approvalInput("printf one")
+	result := make(chan permissions.BatchApproval, 1)
+	errorsResult := make(chan error, 1)
+	go func() {
+		prepared, err := service.PrepareOperationBatch(
+			ctx,
+			[]permissions.EvaluationInput{input},
+			[]permissions.EvaluationInput{input},
+		)
+		result <- prepared
+		errorsResult <- err
+	}()
+
+	request := waitForPendingApproval(t, store)
+	_, err := service.Resolve(context.Background(), request.ID, true, permissions.GrantSession)
+	require.NoError(t, err)
+	prepared := <-result
+	require.NoError(t, <-errorsResult)
+	require.NoError(t, prepared.Commit(ctx))
 }
 
 func TestApprovalService_RateLimitsInteractivePromptsAndReportsMetrics(t *testing.T) {
@@ -953,6 +1117,51 @@ func TestFingerprint_ChangesWithMaterialTargetButNotEffectOrder(t *testing.T) {
 	right, err = right.Normalize()
 	require.NoError(t, err)
 	require.Equal(t, permissions.Fingerprint(authorization, left), permissions.Fingerprint(authorization, right))
+}
+
+func TestFingerprint_BindsTypedCommandPlanIdentity(t *testing.T) {
+	authorization, err := (permissions.AuthorizationContext{
+		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner, ID: "owner"}, Surface: permissions.SurfaceTUI,
+	}).Normalize()
+	require.NoError(t, err)
+	target := commandplan.Target{
+		Mode: commandplan.ModeDirect, Executable: "git", ResolvedPath: "/usr/bin/git",
+		Arguments: []string{"status"}, PlanDigest: "plan-a", CWDIdentity: "workspace:.",
+		EnvironmentDigest: "environment-a", Complete: true, InvocationCount: 1,
+	}
+	operation := permissions.Operation{
+		Tool: "run_command", Resource: permissions.ResourceProcess, Action: permissions.ActionExecute,
+		Effects: []permissions.Effect{permissions.EffectExecution}, Command: &target,
+	}
+	original := permissions.Fingerprint(authorization, operation)
+
+	changed := target
+	changed.PlanDigest = "plan-b"
+	operation.Command = &changed
+	require.NotEqual(t, original, permissions.Fingerprint(authorization, operation))
+
+	changed = target
+	changed.CWDIdentity = "workspace:subdir"
+	operation.Command = &changed
+	require.NotEqual(t, original, permissions.Fingerprint(authorization, operation))
+
+	changed = target
+	changed.EnvironmentDigest = "environment-b"
+	operation.Command = &changed
+	require.NotEqual(t, original, permissions.Fingerprint(authorization, operation))
+
+	operation.Command = &target
+	scoped := authorization
+	scoped.Scope = permissions.PermissionScope{
+		Restricted: true,
+		Resources:  []permissions.Resource{permissions.ResourceProcess},
+		Actions:    []permissions.Action{permissions.ActionExecute},
+		Effects:    []permissions.Effect{permissions.EffectExecution},
+		Commands:   []commandplan.Selector{{Executable: "git", ExactArguments: []string{"status"}}},
+	}
+	scoped, err = scoped.Normalize()
+	require.NoError(t, err)
+	require.NotEqual(t, original, permissions.Fingerprint(scoped, operation))
 }
 
 func newApprovalService(

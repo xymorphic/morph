@@ -64,17 +64,21 @@ passwords; PII redaction covers emails, phone numbers, payment numbers, and simi
 
 When the agent acts rather than reads, a different set of guardrails applies (these are detailed under [Tools](./tools)):
 
-- **Command policy.** Every `run_command` call passes through two independent checks, both of which must clear:
+- **Command policy.** Every `run_command` and `process start` call is analyzed before either check runs. Direct mode
+  executes one resolved executable with literal arguments. `posix_shell` mode parses the command into ordered
+  invocations and file redirections. Every discovered operation must clear both checks:
 
   | Layer | What it does |
   | --- | --- |
-  | `exec.allow` / `exec.ask` / `exec.deny` + built-in dangerous-pattern detection (recursive deletes, disk writes, fork bombs, piping remote scripts to a shell) | Can **deny** the command outright, or mark it **approval-required** |
-  | Permission policy, evaluated on the command's `execution` effect | Applies regardless of the row above: under the default `ask` preset, this alone requires approval even for a command that matched nothing in `exec.*` |
+  | Typed `exec.*Commands` selectors and structural dangerous-command checks | Classifies static invocations; a deny or approval requirement applies to the complete plan |
+  | Permission policy, evaluated once per process and file operation | Uses typed command selectors and the operation effects, including `indirect_execution` for launchers such as `make` |
 
-  A denial from either layer comes back to the model as a structured error. An approval-required command prompts
-  interactively on surfaces that can wait for a human (CLI `--chat`, TUI); unattended surfaces get an immediate
-  structured error instead, since they can't display a prompt. `permissions.preset: full_access` skips both layers.
-  See [Permissions](./permissions) for the full actor and decision model.
+  A later denied invocation or redirect denies the whole plan before Morph prompts or starts a process. A complete
+  multi-operation plan produces one atomic approval. Dynamic executables, glob-dependent arguments, shell state
+  changes, mutable scripts, and other incomplete structures require interactive local-owner approval. Unattended
+  surfaces deny incomplete plans. `permissions.preset: full_access` skips both decision layers while retaining input,
+  syntax, size, NUL-byte, and process-construction validation. See [Permissions](./permissions) for the full actor and
+  decision model.
 
 - **Filesystem roots.** File tools classify paths against the profile's workspace roots (`fs.roots`):
 

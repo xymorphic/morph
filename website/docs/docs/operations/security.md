@@ -279,13 +279,17 @@ See [Tools: Guardrails](../concepts/tools#guardrails-around-tool-calls).
 
 ### Command policy (`exec`)
 
-`exec.allow`, `exec.ask`, and `exec.deny` pattern-match shell commands. Built-in dangerous-pattern checks apply except
-under the `full_access` permission preset, which bypasses them along with everything else in policy. A denied
-command returns a structured `command_denied` error. A command marked approval-required prompts interactively on
-surfaces that can wait for a human (CLI `--chat`, TUI); unattended surfaces get an immediate `approval_required`
-error instead. See [Permissions](../concepts/permissions) for the full model.
+Morph analyzes direct commands and POSIX shell programs before policy evaluation. Use `exec.allowCommands`,
+`exec.askCommands`, and `exec.denyCommands` for typed matching by executable, resolved path, exact arguments or
+argument prefix, and execution mode. Compound shell input is checked as a complete plan, so every invocation and
+redirection must pass before any process starts.
 
-For restrictive hosts, populate `exec.deny` broadly and use `exec.allow` for a short allowlist. See
+The legacy `exec.allow`, `exec.ask`, and `exec.deny` string lists are not supported. Configuration containing them
+fails validation with an error directing you to the typed selector lists.
+
+Built-in structural checks apply except under the `full_access` permission preset. A denied command returns
+`command_denied`. An approval-required command prompts on CLI chat and TUI; unattended surfaces return
+`approval_required` immediately. See [Permissions](../concepts/permissions) and
 [Safety and Guardrails: Execution](../concepts/safety-and-guardrails#execution-and-filesystem-limits).
 
 ### Safety toggles (`safety`)

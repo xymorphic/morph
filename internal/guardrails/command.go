@@ -1,17 +1,22 @@
 package guardrails
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
-	"github.com/wandxy/morph/pkg/str"
+	commandplan "github.com/wandxy/morph/internal/command"
 )
 
 // CommandPolicy defines command policy settings.
 type CommandPolicy struct {
-	Allow []string
-	Ask   []string
-	Deny  []string
+	AllowCommands []commandplan.Selector
+	AskCommands   []commandplan.Selector
+	DenyCommands  []commandplan.Selector
+	invalid       bool
 }
 
 // CommandDecision is the result of evaluating a shell command against policy.
@@ -88,14 +93,6 @@ var builtInApprovalPatterns = []dangerousCommandPattern{
 		pattern: regexp.MustCompile(`\bTRUNCATE TABLE\b`),
 	},
 	{
-		reason:  "system config overwrite command",
-		pattern: regexp.MustCompile(`> /etc/`),
-	},
-	{
-		reason:  "block device overwrite command",
-		pattern: regexp.MustCompile(`> /dev/sd`),
-	},
-	{
 		reason:  "system service disable command",
 		pattern: regexp.MustCompile(`^(?:sudo )?systemctl(?: --[^ ]+)* (stop|disable|mask)( |$)`),
 	},
@@ -110,14 +107,6 @@ var builtInApprovalPatterns = []dangerousCommandPattern{
 	{
 		reason: "fork bomb command",
 		match:  isForkBombCommand,
-	},
-	{
-		reason:  "download and execute chain",
-		pattern: regexp.MustCompile(`\b(curl|wget)\b.*\|.*\b(sh|bash)\b`),
-	},
-	{
-		reason:  "execute remote script via process substitution",
-		pattern: regexp.MustCompile(`\b(bash|sh|zsh|ksh)\b\s+<\s*\(\s*(curl|wget)\b`),
 	},
 	{
 		reason:  "overwrite system file via tee",
@@ -160,135 +149,254 @@ var (
 )
 
 func (p CommandPolicy) Normalize() CommandPolicy {
-	p.Allow = normalizeCommandRules(p.Allow)
-	p.Ask = normalizeCommandRules(p.Ask)
-	p.Deny = normalizeCommandRules(p.Deny)
+	var err error
+	if p.AllowCommands, err = commandplan.NormalizeSelectors(p.AllowCommands); err != nil {
+		p.invalid = true
+	}
+	if p.AskCommands, err = commandplan.NormalizeSelectors(p.AskCommands); err != nil {
+		p.invalid = true
+	}
+	if p.DenyCommands, err = commandplan.NormalizeDenySelectors(p.DenyCommands); err != nil {
+		p.invalid = true
+	}
 	return p
 }
 
-// EvaluateCommand classifies a shell command against the command safety policy.
-func EvaluateCommand(policy CommandPolicy, command string, args []string) CommandEvaluation {
+func EvaluateCommandPlan(policy CommandPolicy, plan commandplan.Plan) CommandEvaluation {
 	policy = policy.Normalize()
-	tokens := getCommandTokens(command, args)
-	if len(tokens) == 0 {
-		return CommandEvaluation{Decision: CommandDenied, Reason: "empty command"}
+	if policy.invalid {
+		return CommandEvaluation{Decision: CommandDenied, Reason: "command policy contains an invalid typed selector"}
+	}
+	if len(plan.Invocations) == 0 {
+		return CommandEvaluation{Decision: CommandDenied, Reason: "command plan has no executable invocation"}
 	}
 
-	if rule := matchCommandRule(policy.Deny, tokens); rule != "" {
-		return CommandEvaluation{Decision: CommandDenied, Rule: rule, Reason: "matched deny rule"}
+	for _, invocation := range plan.Invocations {
+		if rule := matchCommandSelector(policy.DenyCommands, plan.Target(invocation)); rule != "" {
+			return CommandEvaluation{Decision: CommandDenied, Rule: rule, Reason: "matched typed deny rule"}
+		}
 	}
-
-	if reason := builtInApprovalRequired(tokens); reason != "" {
+	if reason := getStructuralApprovalReason(plan); reason != "" {
 		return CommandEvaluation{Decision: CommandApprovalRequired, Reason: reason}
 	}
-
-	if rule := matchCommandRule(policy.Ask, tokens); rule != "" {
-		return CommandEvaluation{Decision: CommandApprovalRequired, Rule: rule, Reason: "matched approval rule"}
+	for _, invocation := range plan.Invocations {
+		if rule := matchCommandSelector(policy.AskCommands, plan.Target(invocation)); rule != "" {
+			return CommandEvaluation{
+				Decision: CommandApprovalRequired,
+				Rule:     rule,
+				Reason:   "matched typed approval rule",
+			}
+		}
 	}
-
-	if rule := matchCommandRule(policy.Allow, tokens); rule != "" {
+	if rule, ok := matchAllCommandSelectors(policy.AllowCommands, plan); ok {
 		return CommandEvaluation{Decision: CommandAllowed, Rule: rule}
 	}
 
 	return CommandEvaluation{Decision: CommandAllowed}
 }
 
-func normalizeCommandRules(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-
-	seen := make(map[string]struct{}, len(values))
-	out := make([]string, 0, len(values))
-
-	for _, value := range values {
-		valueText := strings.Join(strings.Fields(str.String(value).Trim()), " ")
-		if valueText == "" {
-			continue
-		}
-
-		if _, ok := seen[valueText]; ok {
-			continue
-		}
-
-		seen[valueText] = struct{}{}
-		out = append(out, valueText)
-	}
-
-	return out
-}
-
-func getCommandTokens(command string, args []string) []string {
-	if len(args) > 0 {
-		commandValue := str.String(command)
-		tokens := []string{commandValue.Trim()}
-		for _, arg := range args {
-			argValue := str.String(arg)
-			trimmed := argValue.Trim()
-			if trimmed == "" {
-				continue
-			}
-			tokens = append(tokens, trimmed)
-		}
-
-		return normalizeTokens(tokens)
-	}
-
-	return normalizeTokens(strings.Fields(command))
-}
-
-func normalizeTokens(tokens []string) []string {
-	out := make([]string, 0, len(tokens))
-
-	for _, token := range tokens {
-		tokenValue := str.String(token)
-		token = tokenValue.Trim()
-		if token == "" {
-			continue
-		}
-		out = append(out, token)
-	}
-
-	return out
-}
-
-func matchCommandRule(rules []string, tokens []string) string {
-	for _, rule := range rules {
-		ruleTokens := strings.Fields(rule)
-		if len(ruleTokens) == 0 || len(ruleTokens) > len(tokens) {
-			continue
-		}
-
-		matched := true
-		for i := range ruleTokens {
-			if ruleTokens[i] != tokens[i] {
-				matched = false
-				break
-			}
-		}
-
-		if matched {
-			return rule
+func matchCommandSelector(selectors []commandplan.Selector, target commandplan.Target) string {
+	for _, selector := range selectors {
+		if selector.Matches(target) {
+			sum := sha256.Sum256([]byte(selector.Fingerprint()))
+			return "command-selector:" + hex.EncodeToString(sum[:6])
 		}
 	}
-
 	return ""
 }
 
-func builtInApprovalRequired(tokens []string) string {
+func matchAllCommandSelectors(selectors []commandplan.Selector, plan commandplan.Plan) (string, bool) {
+	if len(selectors) == 0 {
+		return "", false
+	}
+	var matched string
+	for _, invocation := range plan.Invocations {
+		rule := matchCommandSelector(selectors, plan.Target(invocation))
+		if rule == "" {
+			return "", false
+		}
+		if matched == "" {
+			matched = rule
+		}
+	}
+	return matched, true
+}
+
+func getStructuralApprovalReason(plan commandplan.Plan) string {
+	if plan.DebuggerAttach {
+		return "command attempts to attach to Morph's managed browser"
+	}
+	if hasDownloadToShellPipeline(plan) {
+		return "downloaded content is piped to a shell"
+	}
+	if !plan.Complete {
+		return "command structure is incomplete and requires explicit approval"
+	}
+	for _, redirect := range plan.Redirects {
+		path := redirect.Path
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(plan.CWD, path)
+		}
+		path = filepath.ToSlash(filepath.Clean(path))
+		if path == "/dev/null" {
+			continue
+		}
+		if redirect.Action == commandplan.RedirectRead {
+			if isSensitiveReadPath(path) {
+				return "command reads credentials from a protected path"
+			}
+			continue
+		}
+		if path == "/etc" || strings.HasPrefix(path, "/etc/") ||
+			strings.HasPrefix(path, "/dev/") ||
+			strings.Contains(path, "/.ssh/") ||
+			strings.Contains(path, "/.morph/") {
+			return "command redirects data to a protected path"
+		}
+	}
+	for _, invocation := range plan.Invocations {
+		tokens := append([]string{filepath.Base(invocation.Executable)}, invocation.Arguments...)
+		if reason := builtInApprovalRequiredForInvocation(tokens); reason != "" {
+			return reason
+		}
+	}
+	return ""
+}
+
+func builtInApprovalRequiredForInvocation(tokens []string) string {
+	if len(tokens) == 0 {
+		return ""
+	}
+	executable := strings.ToLower(filepath.Base(tokens[0]))
+	if executable == "dd" && hasBlockDeviceOutput(tokens[1:]) {
+		return "command writes directly to a block device"
+	}
+	if isCredentialReadInvocation(executable, tokens[1:]) {
+		return "command reads credential files"
+	}
 	joined := strings.Join(tokens, " ")
-
 	for _, candidate := range builtInApprovalPatterns {
-		if candidate.pattern != nil && candidate.pattern.MatchString(joined) {
-			return candidate.reason
+		if !isDangerousPatternApplicable(candidate.reason, executable) {
+			continue
 		}
-
-		if candidate.match != nil && candidate.match(joined) {
+		if candidate.match != nil && candidate.match(joined) ||
+			candidate.pattern != nil && candidate.pattern.MatchString(joined) {
 			return candidate.reason
 		}
 	}
-
 	return ""
+}
+
+func hasBlockDeviceOutput(arguments []string) bool {
+	for _, argument := range arguments {
+		target, ok := strings.CutPrefix(argument, "of=")
+		if ok && isBlockDevicePath(filepath.ToSlash(filepath.Clean(target))) {
+			return true
+		}
+	}
+	return false
+}
+
+func isBlockDevicePath(path string) bool {
+	return strings.HasPrefix(path, "/dev/sd") ||
+		strings.HasPrefix(path, "/dev/hd") ||
+		strings.HasPrefix(path, "/dev/vd") ||
+		strings.HasPrefix(path, "/dev/nvme") ||
+		strings.HasPrefix(path, "/dev/mmcblk") ||
+		strings.HasPrefix(path, "/dev/disk") ||
+		strings.HasPrefix(path, "/dev/rdisk") ||
+		strings.HasPrefix(path, "/dev/mapper/") ||
+		strings.HasPrefix(strings.ToLower(path), "//./physicaldrive")
+}
+
+func isCredentialReadInvocation(executable string, arguments []string) bool {
+	if !slices.Contains([]string{"cat", "head", "tail"}, executable) {
+		return false
+	}
+	for _, argument := range arguments {
+		if strings.HasPrefix(argument, "-") {
+			continue
+		}
+		if isSensitiveReadPath(filepath.ToSlash(filepath.Clean(argument))) {
+			return true
+		}
+	}
+	return false
+}
+
+func isSensitiveReadPath(path string) bool {
+	base := filepath.Base(path)
+	return base == ".env" ||
+		base == ".netrc" ||
+		strings.Contains(path, "/.ssh/") ||
+		strings.Contains(path, "/.morph/credentials") ||
+		strings.Contains(path, "/.morph/auth")
+}
+
+func isDangerousPatternApplicable(reason string, executable string) bool {
+	switch reason {
+	case "dangerous destructive command", "delete in root path":
+		return executable == "rm"
+	case "world-writable permissions command", "recursive world-writable permissions command":
+		return executable == "chmod"
+	case "recursive chown to root command":
+		return executable == "chown"
+	case "privileged shutdown command":
+		return executable == "sudo"
+	case "disk formatting command":
+		return strings.HasPrefix(executable, "mkfs")
+	case "shutdown command":
+		return slices.Contains([]string{"shutdown", "reboot", "poweroff", "halt"}, executable)
+	case "disk copy command":
+		return executable == "dd"
+	case "sql drop command", "sql delete without where command", "sql truncate command":
+		return slices.Contains([]string{"psql", "mysql", "sqlite", "sqlite3"}, executable)
+	case "system service disable command":
+		return executable == "systemctl" || executable == "sudo"
+	case "kill all processes command":
+		return executable == "kill"
+	case "force kill processes command":
+		return executable == "pkill"
+	case "fork bomb command":
+		return slices.Contains(
+			[]string{"sh", "bash", "zsh", "ksh", "cmd", "python", "python2", "python3", "node", "ruby", "perl", "php"},
+			executable,
+		)
+	case "overwrite system file via tee":
+		return executable == "tee"
+	case "xargs with rm command":
+		return executable == "xargs"
+	case "shell execution via flag":
+		return slices.Contains([]string{"sh", "bash", "zsh", "ksh"}, executable)
+	case "script execution via flag":
+		return slices.Contains([]string{"python", "python2", "python3", "perl", "ruby", "node"}, executable)
+	case "find destructive action command":
+		return executable == "find"
+	case "credential exfiltration command":
+		return executable == "cat"
+	default:
+		return true
+	}
+}
+
+func hasDownloadToShellPipeline(plan commandplan.Plan) bool {
+	if !plan.HasPipeline {
+		return false
+	}
+	downloads := make(map[int]struct{})
+	for _, invocation := range plan.Invocations {
+		if invocation.Pipeline > 0 &&
+			slices.Contains([]string{"curl", "wget"}, strings.ToLower(filepath.Base(invocation.Executable))) {
+			downloads[invocation.Pipeline] = struct{}{}
+		}
+	}
+	for _, invocation := range plan.Invocations {
+		if _, ok := downloads[invocation.Pipeline]; ok &&
+			slices.Contains([]string{"sh", "bash", "zsh", "ksh"}, strings.ToLower(filepath.Base(invocation.Executable))) {
+			return true
+		}
+	}
+	return false
 }
 
 func isForkBombCommand(joined string) bool {

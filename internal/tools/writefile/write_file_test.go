@@ -325,3 +325,22 @@ func (s *approverStub) Authorize(_ context.Context, input permissions.Evaluation
 	s.input = input
 	return s.err
 }
+
+func (s *approverStub) PrepareBatch(
+	ctx context.Context,
+	inputs []permissions.EvaluationInput,
+) (permissions.BatchApproval, error) {
+	if len(inputs) != 1 {
+		return nil, errors.New("approver stub expects one operation")
+	}
+	if err := s.Authorize(ctx, inputs[0]); err != nil {
+		return nil, err
+	}
+	return approvalBatchStub{}, nil
+}
+
+type approvalBatchStub struct{}
+
+func (approvalBatchStub) Commit(context.Context) error {
+	return nil
+}

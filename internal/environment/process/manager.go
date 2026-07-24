@@ -3,9 +3,7 @@ package process
 import (
 	"context"
 	"errors"
-	"os"
 	"os/exec"
-	goruntime "runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -23,9 +21,6 @@ const DefaultMaxTracked = constants.DefaultProcessMaxTracked
 
 // DefaultStopGracePeriod is the package-level default stop grace period constant.
 const DefaultStopGracePeriod = constants.DefaultProcessStopGracePeriod
-
-var commandContext = exec.CommandContext
-var currentGOOS = goruntime.GOOS
 
 // DefaultManager manages default.
 type DefaultManager struct {
@@ -68,23 +63,15 @@ func (s *DefaultManager) Start(ctx context.Context, sessionID string, req StartR
 	if err := ctx.Err(); err != nil {
 		return Info{}, err
 	}
-	commandValue := str.String(req.Command)
-	command := commandValue.Trim()
-	if command == "" {
-		return Info{}, errors.New("command is required")
-	}
 	sessionID = normalizeProcessSessionID(sessionID)
 	labelValue := str.String(req.Label)
 	label := labelValue.Trim()
 
-	cmd := buildCommand(context.Background(), command, req.Args)
-	configureCommand(cmd)
-	cWDValue := str.String(req.CWD)
-	cmd.Dir = cWDValue.Trim()
-	cmd.Env = os.Environ()
-	for key, value := range req.Env {
-		cmd.Env = append(cmd.Env, key+"="+value)
+	cmd, err := req.Plan.NewCommand(context.Background())
+	if err != nil {
+		return Info{}, err
 	}
+	configureCommand(cmd)
 
 	limit := req.OutputBufferBytes
 	if limit <= 0 {
@@ -133,7 +120,6 @@ func (s *DefaultManager) Start(ctx context.Context, sessionID string, req StartR
 	}
 
 	processID := s.nextProcessIDLocked(sessionID)
-	cWDValue2 := str.String(req.CWD)
 	process := &trackedProcess{
 		cmd:    cmd,
 		stdout: stdout,
@@ -142,9 +128,8 @@ func (s *DefaultManager) Start(ctx context.Context, sessionID string, req StartR
 		info: Info{
 			ID:        processID,
 			Label:     label,
-			Command:   command,
-			Args:      append([]string(nil), req.Args...),
-			CWD:       cWDValue2.Trim(),
+			Command:   req.Plan.Summary(),
+			CWD:       req.Plan.CWD,
 			Status:    StatusRunning,
 			StartedAt: startedAt,
 		},
@@ -544,20 +529,6 @@ func (b *recentBuffer) wasTruncated() bool {
 	defer b.mu.Unlock()
 
 	return b.truncated
-}
-
-func buildCommand(ctx context.Context, command string, args []string) *exec.Cmd {
-	commandValue2 := str.String(command)
-	command = commandValue2.Trim()
-	if len(args) > 0 {
-		return commandContext(ctx, command, args...)
-	}
-
-	if currentGOOS == "windows" {
-		return commandContext(ctx, "cmd", "/C", command)
-	}
-
-	return commandContext(ctx, "sh", "-lc", command)
 }
 
 func normalizeProcessSessionID(sessionID string) string {

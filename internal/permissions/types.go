@@ -4,6 +4,7 @@ import (
 	"errors"
 	"slices"
 
+	commandplan "github.com/wandxy/morph/internal/command"
 	"github.com/wandxy/morph/pkg/str"
 )
 
@@ -96,6 +97,7 @@ const (
 	EffectCredentialBearing Effect = "credential_bearing"
 	EffectExternalSystem    Effect = "external_system"
 	EffectPrivilegeChanging Effect = "privilege_changing"
+	EffectIndirectExecution Effect = "indirect_execution"
 )
 
 type Decision string
@@ -183,6 +185,7 @@ type Operation struct {
 	Target        string
 	TargetScope   TargetScope
 	Network       *NetworkTarget
+	Command       *commandplan.Target
 	OwnerID       string
 	OwnerRequired bool
 }
@@ -205,6 +208,25 @@ func (o Operation) Normalize() (Operation, error) {
 			return Operation{}, err
 		}
 		o.Network = &network
+	}
+	if o.Command != nil {
+		if o.Target != "" {
+			return Operation{}, errors.New("permission operation cannot combine a command target and raw target")
+		}
+		if o.Resource != ResourceProcess {
+			return Operation{}, errors.New("permission command target requires the process resource")
+		}
+		if o.Action != ActionExecute && o.Action != ActionStart {
+			return Operation{}, errors.New("permission command target requires execute or start")
+		}
+		command, err := o.Command.Normalize()
+		if err != nil {
+			return Operation{}, err
+		}
+		o.Command = &command
+	}
+	if o.Network != nil && o.Command != nil {
+		return Operation{}, errors.New("permission operation cannot combine network and command targets")
 	}
 	o.OwnerID = str.String(o.OwnerID).Trim()
 	o.Effects = normalizeEffects(o.Effects)
@@ -231,6 +253,7 @@ func (o Operation) IsZero() bool {
 	return str.String(o.Tool).Trim() == "" && o.Resource == "" && o.Action == "" && len(o.Effects) == 0 &&
 		str.String(o.Target).Trim() == "" && (o.TargetScope == "" || o.TargetScope == TargetScopeUnknown) &&
 		o.Network == nil &&
+		o.Command == nil &&
 		str.String(o.OwnerID).Trim() == "" && !o.OwnerRequired
 }
 
@@ -343,7 +366,8 @@ func isValidEffect(value Effect) bool {
 		EffectDestructive,
 		EffectCredentialBearing,
 		EffectExternalSystem,
-		EffectPrivilegeChanging},
+		EffectPrivilegeChanging,
+		EffectIndirectExecution},
 		value)
 }
 

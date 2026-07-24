@@ -3,6 +3,8 @@ package process
 import (
 	"context"
 	"time"
+
+	commandplan "github.com/wandxy/morph/internal/command"
 )
 
 // Manager starts, reads, lists, and stops managed processes.
@@ -23,10 +25,7 @@ const (
 
 // StartRequest describes a start request.
 type StartRequest struct {
-	Command           string
-	Args              []string
-	CWD               string
-	Env               map[string]string
+	Plan              commandplan.Plan
 	Label             string
 	OutputBufferBytes int
 }

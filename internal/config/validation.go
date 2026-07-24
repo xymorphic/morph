@@ -132,6 +132,9 @@ func (c *Config) validate(options validationOptions) error {
 	if err := c.Permissions.Validate(); err != nil {
 		return err
 	}
+	if err := c.validateExecSettings(); err != nil {
+		return err
+	}
 	if err := c.validateBrowserSettings(); err != nil {
 		return err
 	}

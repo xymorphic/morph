@@ -36,8 +36,8 @@ Every authorization check combines an `AuthorizationContext` with an `Operation`
 - **Action**: `read`, `search`, `list`, `create`, `update`, `delete`, `execute`, `start`, `stop`, `trigger`, `manage`,
   or `connect`.
 - **Effects**: zero or more of `read`, `write`, `execution`, `network`, `destructive`, `credential_bearing`,
-  `external_system`, `privilege_changing`: the properties of the action that matter for risk, independent of which
-  tool triggered it.
+  `external_system`, `privilege_changing`, `indirect_execution`: the properties of the action that matter for risk,
+  independent of which tool triggered it.
 - **Target / target scope**: what the operation touches, and whether that target is inside the workspace
   (`workspace`) or reaches outside it (`external`).
 
@@ -67,7 +67,7 @@ For each request, the policy engine evaluates in this order:
 
 1. **`full_access` preset.** If the effective preset is `full_access`, the request is allowed immediately
    (`full_access`). See [Full Access Is Different](#full-access-is-different).
-2. **Hard deny.** A structural guardrail (a dangerous shell pattern, for example) denies unconditionally
+2. **Hard deny.** A structural guardrail (a dangerous command plan, for example) denies unconditionally
    (`hard_deny`), ahead of any rule.
 3. **Configured rule match.** Among the rules in `permissions.rules` that match, decision strength wins first: `deny` beats
    `ask` beats `allow`, regardless of which rule is more specific. Ties are broken by specificity, then by rule name.
@@ -188,6 +188,8 @@ A rule can match:
 - surface kind or exact surface
 - tool, resource, action, or effects
 - target scope or target prefix
+- structured network target
+- structured command selector
 
 Omitted fields match any value. Each rule returns `allow`, `ask`, or `deny` and can include a human-readable reason.
 
@@ -216,10 +218,33 @@ permissions:
       targetPrefixes: [auto_]
       decision: allow
       reason: approved scheduled reporting
+    - name: allow one automation to run git status
+      actors: [automation]
+      actorIds: [auto_report]
+      surfaces: [automation]
+      tools: [run_command]
+      resources: [process]
+      actions: [execute]
+      effects: [execution]
+      commands:
+        - executable: git
+          arguments: [status, --short]
+          modes: [direct]
+          requireComplete: true
+      decision: allow
+      reason: approved read-only repository status
 ```
 
 Automation jobs retain creator provenance but run as the separate `automation` actor. Policy and grants are checked
 again on every run, so revoking a rule or grant blocks the next run without changing the job.
+
+Command selectors never inspect a flat command string. `arguments` is an exact argument vector, while
+`argumentPrefix` matches the beginning of the vector. Allow and ask selectors default to `direct` mode. Deny selectors
+default to both `direct` and `posix_shell` so wrapping a denied command in a shell does not bypass the rule. A selector
+does not match indirect launchers unless `allowIndirect: true` and can require a complete or incomplete plan with
+`requireComplete`. A bare executable selector such as `git` does not match an explicitly supplied path such as
+`/usr/bin/git` or `/tmp/git`; use `resolvedPath` to match an exact path.
+`targetPrefixes` does not authorize structured command targets.
 
 Within the configured-rule layer, `deny` still beats `ask`, and `ask` still beats `allow`. Configured rules as a layer
 are evaluated before built-in preset rules, so a narrow configured `allow` can override a built-in `ask`.

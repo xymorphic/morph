@@ -136,10 +136,10 @@ func (s *Store) CreateApprovalGrant(
 	if !exists || request.Status != permissions.ApprovalApproved {
 		return permissions.ApprovalGrant{}, errors.New("approval request is not approved")
 	}
-	s.approvalGrants[grant.ID] = grant
+	s.approvalGrants[grant.ID] = cloneApprovalGrant(grant)
 	request.GrantID = grant.ID
 	s.approvalRequests[grant.RequestID] = request
-	return grant, nil
+	return cloneApprovalGrant(grant), nil
 }
 
 func (s *Store) FindApprovalGrant(
@@ -165,7 +165,7 @@ func (s *Store) FindApprovalGrant(
 			continue
 		}
 
-		return grant, true, nil
+		return cloneApprovalGrant(grant), true, nil
 	}
 
 	return permissions.ApprovalGrant{}, false, nil
@@ -189,7 +189,7 @@ func (s *Store) ConsumeApprovalGrant(
 	grant.Status = permissions.GrantConsumed
 	grant.ConsumedAt = now
 	s.approvalGrants[id] = grant
-	return grant, nil
+	return cloneApprovalGrant(grant), nil
 }
 
 func (s *Store) ListApprovalGrants(
@@ -205,7 +205,7 @@ func (s *Store) ListApprovalGrants(
 			continue
 		}
 
-		result = append(result, grant)
+		result = append(result, cloneApprovalGrant(grant))
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].CreatedAt.After(result[j].CreatedAt) })
 	if query.Offset > 0 {
@@ -301,7 +301,7 @@ func (s *Store) RevokeApprovalGrant(
 		return permissions.ApprovalGrant{}, errors.New("approval grant not found")
 	}
 	if grant.Status == permissions.GrantRevoked {
-		return grant, nil
+		return cloneApprovalGrant(grant), nil
 	}
 	if grant.Status != permissions.GrantActive {
 		return permissions.ApprovalGrant{}, errors.New("approval grant is not active")
@@ -309,7 +309,7 @@ func (s *Store) RevokeApprovalGrant(
 	grant.Status = permissions.GrantRevoked
 	grant.RevokedAt = now
 	s.approvalGrants[id] = grant
-	return grant, nil
+	return cloneApprovalGrant(grant), nil
 }
 
 func (s *Store) DeleteApprovalRequest(_ context.Context, id string, now time.Time) (string, error) {
@@ -368,5 +368,11 @@ func (s *Store) DeleteApprovalGrant(_ context.Context, id string, now time.Time)
 
 func cloneApprovalRequest(request permissions.ApprovalRequest) permissions.ApprovalRequest {
 	request.Effects = append([]permissions.Effect(nil), request.Effects...)
+	request.Operations = append([]string(nil), request.Operations...)
 	return request
+}
+
+func cloneApprovalGrant(grant permissions.ApprovalGrant) permissions.ApprovalGrant {
+	grant.Operations = append([]string(nil), grant.Operations...)
+	return grant
 }

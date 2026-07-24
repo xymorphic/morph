@@ -121,13 +121,11 @@ provider env vars below.
 | `MORPH_CAP_MEM` | `cap.mem` |
 | `MORPH_CAP_BROWSER` | `cap.browser` |
 | `MORPH_FS_ROOTS` | `fs.roots` |
-| `MORPH_EXEC_ALLOW` | `exec.allow` |
-| `MORPH_EXEC_ASK` | `exec.ask` |
-| `MORPH_EXEC_DENY` | `exec.deny` |
 | `MORPH_STORAGE_BACKEND` | `storage.backend` |
 | `MORPH_RULES_FILES` | `rules.files` |
 
-No `MORPH_*` override exists for `fs.noProfileAccess` or `compaction.recentSessionTail`.
+No `MORPH_*` override exists for typed command selectors, `fs.noProfileAccess`, or
+`compaction.recentSessionTail`.
 
 ## Search and reranker
 

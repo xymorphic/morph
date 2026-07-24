@@ -42,6 +42,7 @@ type PermissionDecisionPayload struct {
 	Preset        string                          `json:"preset,omitempty"`
 	OwnerRequired bool                            `json:"owner_required,omitempty"`
 	Network       *PermissionNetworkTargetPayload `json:"network,omitempty"`
+	Command       *PermissionCommandTargetPayload `json:"command,omitempty"`
 }
 
 type PermissionNetworkTargetPayload struct {
@@ -52,6 +53,16 @@ type PermissionNetworkTargetPayload struct {
 	Method       string `json:"method,omitempty"`
 	RequestClass string `json:"request_class,omitempty"`
 	HasQuery     bool   `json:"has_query,omitempty"`
+}
+
+type PermissionCommandTargetPayload struct {
+	Mode            string   `json:"mode,omitempty"`
+	Executable      string   `json:"executable,omitempty"`
+	InvocationCount int      `json:"invocation_count,omitempty"`
+	RedirectCount   int      `json:"redirect_count,omitempty"`
+	Complete        bool     `json:"complete"`
+	Indirect        bool     `json:"indirect,omitempty"`
+	DynamicReasons  []string `json:"dynamic_reasons,omitempty"`
 }
 
 type PermissionApprovalPayload struct {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	commandplan "github.com/wandxy/morph/internal/command"
 )
 
 const testSessionID = "session-1"
@@ -43,6 +44,21 @@ func TestManager_StartGetReadListAndExit(t *testing.T) {
 	list := manager.List(testSessionID)
 	require.Len(t, list, 1)
 	require.Equal(t, info.ID, list[0].ID)
+}
+
+func TestManager_StartRedactsCommandArgumentsFromProcessInfo(t *testing.T) {
+	manager := &DefaultManager{}
+	const secret = "super-secret-value"
+
+	info, err := manager.Start(context.Background(), testSessionID, testPrintRequest(secret, 32))
+	require.NoError(t, err)
+	require.NotContains(t, info.Command, secret)
+	require.Empty(t, info.Args)
+
+	current, err := manager.Get(testSessionID, info.ID)
+	require.NoError(t, err)
+	require.NotContains(t, current.Command, secret)
+	require.Empty(t, current.Args)
 }
 
 func TestManager_BoundsRecentOutput(t *testing.T) {
@@ -231,7 +247,7 @@ func TestManager_ValidatesMissingProcessAndCommand(t *testing.T) {
 	manager := &DefaultManager{}
 
 	_, err := manager.Start(context.Background(), testSessionID, StartRequest{})
-	require.EqualError(t, err, "command is required")
+	require.EqualError(t, err, "command plan has no executable invocation")
 
 	canceledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -263,30 +279,30 @@ func TestManager_StartHandlesNilContextAndStartFailure(t *testing.T) {
 	}, 5*time.Second, 20*time.Millisecond)
 
 	_, err = manager.Start(context.Background(), testSessionID, StartRequest{
-		Command: "command-that-does-not-exist-morph",
-		Args:    []string{"arg"},
+		Plan: commandplan.Plan{
+			Mode: commandplan.ModeDirect,
+			Invocations: []commandplan.Invocation{{
+				Executable: "command-that-does-not-exist-morph",
+			}},
+		},
 	})
-	require.Error(t, err)
+	require.EqualError(t, err, "direct command plan has no resolved executable")
 }
 
 func TestManager_StartAppliesEnvOverrides(t *testing.T) {
 	manager := &DefaultManager{}
 
 	req := StartRequest{
-		Command: "sh",
-		Args:    []string{"-lc", "printf %s \"$MORPH_PROCESS_TEST_VALUE\""},
-		Env: map[string]string{
+		Plan: testCommandPlan("sh", []string{"-lc", "printf %s \"$MORPH_PROCESS_TEST_VALUE\""}, map[string]string{
 			"MORPH_PROCESS_TEST_VALUE": "hello",
-		},
+		}),
 		OutputBufferBytes: 32,
 	}
 	if runtime.GOOS == "windows" {
 		req = StartRequest{
-			Command: "cmd",
-			Args:    []string{"/C", "set /p =%MORPH_PROCESS_TEST_VALUE%<nul"},
-			Env: map[string]string{
+			Plan: testCommandPlan("cmd", []string{"/C", "set /p =%MORPH_PROCESS_TEST_VALUE%<nul"}, map[string]string{
 				"MORPH_PROCESS_TEST_VALUE": "hello",
-			},
+			}),
 			OutputBufferBytes: 32,
 		}
 	}
@@ -308,11 +324,12 @@ func TestManager_StartAppliesEnvOverrides(t *testing.T) {
 func TestManager_WaitMarksExitedForNonZeroExitCode(t *testing.T) {
 	manager := &DefaultManager{}
 
-	info, err := manager.Start(context.Background(), testSessionID, StartRequest{Command: "false"})
+	info, err := manager.Start(context.Background(), testSessionID, StartRequest{
+		Plan: testCommandPlan("false", nil, nil),
+	})
 	if runtime.GOOS == "windows" {
 		info, err = manager.Start(context.Background(), testSessionID, StartRequest{
-			Command: "cmd",
-			Args:    []string{"/C", "exit 2"},
+			Plan: testCommandPlan("cmd", []string{"/C", "exit 2"}, nil),
 		})
 	}
 	require.NoError(t, err)
@@ -327,7 +344,9 @@ func TestManager_WaitMarksExitedForNonZeroExitCode(t *testing.T) {
 func TestManager_HandlesNilReceiver(t *testing.T) {
 	var manager *DefaultManager
 
-	_, err := manager.Start(context.Background(), testSessionID, StartRequest{Command: "printf", Args: []string{"hello"}})
+	_, err := manager.Start(context.Background(), testSessionID, StartRequest{
+		Plan: testCommandPlan("printf", []string{"hello"}, nil),
+	})
 	require.EqualError(t, err, "process manager is required")
 
 	_, err = manager.Get(testSessionID, "proc_1")
@@ -659,37 +678,6 @@ func TestNormalizeProcessSessionID_DefaultsWhenBlank(t *testing.T) {
 	require.Equal(t, "default", normalizeProcessSessionID("   "))
 }
 
-func TestBuildCommand_UsesShellWhenArgsAreOmitted(t *testing.T) {
-	cmd := buildCommand(context.Background(), "echo hello", nil)
-
-	if runtime.GOOS == "windows" {
-		require.Equal(t, "cmd", cmd.Path)
-		require.Equal(t, []string{"cmd", "/C", "echo hello"}, cmd.Args)
-		return
-	}
-
-	require.Equal(t, []string{"sh", "-lc", "echo hello"}, cmd.Args)
-}
-
-func TestBuildCommand_UsesDirectExecutionWhenArgsProvided(t *testing.T) {
-	cmd := buildCommand(context.Background(), "printf", []string{"hello"})
-
-	require.Equal(t, "printf", cmd.Args[0])
-	require.Equal(t, []string{"printf", "hello"}, cmd.Args)
-}
-
-func TestBuildCommand_UsesWindowsShellWhenConfigured(t *testing.T) {
-	previousGOOS := currentGOOS
-	t.Cleanup(func() {
-		currentGOOS = previousGOOS
-	})
-	currentGOOS = "windows"
-
-	cmd := buildCommand(context.Background(), "echo hello", nil)
-
-	require.Equal(t, []string{"cmd", "/C", "echo hello"}, cmd.Args)
-}
-
 func TestConfigureCommand_HandlesNilCommand(t *testing.T) {
 	require.NotPanics(t, func() {
 		configureCommand(nil)
@@ -739,15 +727,13 @@ func TestManager_StopReturnsContextErrorWhenCanceledWhileWaiting(t *testing.T) {
 func testPrintRequest(output string, bufferBytes int) StartRequest {
 	if runtime.GOOS == "windows" {
 		return StartRequest{
-			Command:           "cmd",
-			Args:              []string{"/C", "set /p =" + output + "<nul"},
+			Plan:              testCommandPlan("cmd", []string{"/C", "set /p =" + output + "<nul"}, nil),
 			OutputBufferBytes: bufferBytes,
 		}
 	}
 
 	return StartRequest{
-		Command:           "printf",
-		Args:              []string{output},
+		Plan:              testCommandPlan("printf", []string{output}, nil),
 		OutputBufferBytes: bufferBytes,
 	}
 }
@@ -755,13 +741,24 @@ func testPrintRequest(output string, bufferBytes int) StartRequest {
 func testSleepRequest() StartRequest {
 	if runtime.GOOS == "windows" {
 		return StartRequest{
-			Command: "cmd",
-			Args:    []string{"/C", "ping -n 6 127.0.0.1 >nul"},
+			Plan: testCommandPlan("cmd", []string{"/C", "ping -n 6 127.0.0.1 >nul"}, nil),
 		}
 	}
 
 	return StartRequest{
-		Command: "sleep",
-		Args:    []string{"5"},
+		Plan: testCommandPlan("sleep", []string{"5"}, nil),
 	}
+}
+
+func testCommandPlan(command string, arguments []string, environment map[string]string) commandplan.Plan {
+	plan, err := commandplan.Analyze(context.Background(), commandplan.Request{
+		Mode:        commandplan.ModeDirect,
+		Command:     command,
+		Args:        arguments,
+		Environment: environment,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return plan
 }

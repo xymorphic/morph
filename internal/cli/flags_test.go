@@ -266,7 +266,7 @@ func TestApplyConfigOverrides_AppliesTUIThinkingComposer(t *testing.T) {
 	require.False(t, cfg.TUIThinkingComposerEnabled())
 }
 
-func TestApplyConfigOverrides_AppliesFilesystemRootsAndExecRules(t *testing.T) {
+func TestApplyConfigOverrides_AppliesFilesystemRoots(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
 	cfg := &config.Config{}
@@ -279,9 +279,6 @@ func TestApplyConfigOverrides_AppliesFilesystemRootsAndExecRules(t *testing.T) {
 	err := cmd.Run(context.Background(), []string{
 		"morph",
 		"--fs.roots", "./workspace,./nested",
-		"--exec.allow", "git status",
-		"--exec.ask", "git push",
-		"--exec.deny", "git reset --hard",
 	})
 
 	require.NoError(t, err)
@@ -290,9 +287,15 @@ func TestApplyConfigOverrides_AppliesFilesystemRootsAndExecRules(t *testing.T) {
 		filepath.Join(dir, "workspace"),
 		filepath.Join(dir, "nested"),
 	}, cfg.FS.Roots)
-	require.Equal(t, []string{"git status"}, cfg.Exec.Allow)
-	require.Equal(t, []string{"git push"}, cfg.Exec.Ask)
-	require.Equal(t, []string{"git reset --hard"}, cfg.Exec.Deny)
+}
+
+func TestApplyConfigOverrides_RejectsRemovedExecRuleFlags(t *testing.T) {
+	cmd := &cli.Command{Flags: RootFlags(nil, nil)}
+	cmd.Action = func(context.Context, *cli.Command) error { return nil }
+
+	err := cmd.Run(context.Background(), []string{"morph", "--exec.allow", "git status"})
+
+	require.ErrorContains(t, err, "flag provided but not defined")
 }
 
 func TestApplyConfigOverrides_AppliesSessionSettings(t *testing.T) {

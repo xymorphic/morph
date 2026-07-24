@@ -88,6 +88,11 @@ func TestDecodePayload_DecodesPermissionDecision(t *testing.T) {
 			"scheme": "https", "host": "example.com", "port": float64(443), "path": "/news",
 			"method": "GET", "request_class": "navigation", "has_query": true,
 		},
+		"command": map[string]any{
+			"mode": "direct", "executable": "git", "invocation_count": float64(1),
+			"redirect_count": float64(0), "complete": false,
+			"dynamic_reasons": []string{"dynamic_argument"},
+		},
 	})
 
 	require.True(t, ok)
@@ -107,6 +112,10 @@ func TestDecodePayload_DecodesPermissionDecision(t *testing.T) {
 		Network: &PermissionNetworkTargetPayload{
 			Scheme: "https", Host: "example.com", Port: 443, Path: "/news",
 			Method: "GET", RequestClass: "navigation", HasQuery: true,
+		},
+		Command: &PermissionCommandTargetPayload{
+			Mode: "direct", Executable: "git", InvocationCount: 1, Complete: false,
+			DynamicReasons: []string{"dynamic_argument"},
 		},
 	}, payload)
 }

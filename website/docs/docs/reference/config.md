@@ -154,10 +154,29 @@ Routes: [Gateway Routes](./gateway-routes). Guides: [Gateway Overview](../guides
 
 | Key | Type | Default |
 | --- | --- | --- |
-| `allow` | `[]string` | `[]` |
-| `ask` | `[]string` | `[]` |
-| `deny` | `[]string` | `[]` |
+| `shell` | string | `/bin/sh` when available | Absolute POSIX shell used only by `posix_shell` mode |
+| `allowCommands` | `[]CommandSelector` | `[]` | Typed allow classification; cannot override structural approval or denial |
+| `askCommands` | `[]CommandSelector` | `[]` | Typed selectors that require approval |
+| `denyCommands` | `[]CommandSelector` | `[]` | Typed selectors that deny the complete command plan |
 
+`run_command` and `process start` default to `direct` mode. Use `mode: posix_shell` explicitly for shell syntax.
+Direct arguments are never split or interpreted as shell text.
+The legacy `allow`, `ask`, and `deny` string lists are not supported; configuration containing them fails validation.
+
+A command selector supports:
+
+| Key | Type | Meaning |
+| --- | --- | --- |
+| `executable` | string | Exact executable token; `git` does not match an explicitly supplied path such as `/usr/bin/git` or `/tmp/git` |
+| `resolvedPath` | string | Exact absolute executable path |
+| `arguments` | `[]string` | Exact argument vector |
+| `argumentPrefix` | `[]string` | Required argument-vector prefix |
+| `modes` | `[]string` | `direct`, `posix_shell`; allow and ask selectors default to `direct`, deny selectors default to both |
+| `allowIndirect` | bool | Opt in to launchers that can discover more commands at runtime |
+| `requireComplete` | bool | Require the analyzer's completeness value |
+
+Set at least `executable` or `resolvedPath`. Use `resolvedPath` to match an exact executable path. Do not combine
+`arguments` with `argumentPrefix`.
 See [Safety and Guardrails](../concepts/safety-and-guardrails).
 
 ## `permissions`
@@ -197,9 +216,11 @@ Each entry in `permissions.rules` matches on the fields below (omitted fields ma
 | `tools` | `[]string` | Tool name on the operation (rules that require a tool are more specific) |
 | `resources` | `[]string` | `file`, `process`, `network`, `memory`, `session`, `automation`, `gateway`, `configuration`, `model`, `daemon`, `plan`, `clock` |
 | `actions` | `[]string` | `read`, `search`, `list`, `create`, `update`, `delete`, `execute`, `start`, `stop`, `trigger`, `manage`, `connect` |
-| `effects` | `[]string` | `read`, `write`, `execution`, `network`, `destructive`, `credential_bearing`, `external_system`, `privilege_changing`; a rule matches only if the operation has **all** listed effects |
+| `effects` | `[]string` | `read`, `write`, `execution`, `network`, `destructive`, `credential_bearing`, `external_system`, `privilege_changing`, `indirect_execution`; a rule matches only if the operation has **all** listed effects |
 | `targetScopes` | `[]string` | `workspace`, `external` |
 | `targetPrefixes` | `[]string` | String-prefix match against the operation's normalized target |
+| `network` | `[]NetworkSelector` | Structured scheme, host, port, path, method, and request-class matching for network operations |
+| `commands` | `[]CommandSelector` | Structured executable, path, argument, mode, completeness, and indirect-execution matching for process operations |
 | `decision` | string | `allow`, `ask`, or `deny` (required) |
 | `reason` | string | Free text; a matching rule's `reason` becomes the approval request's stored reason, surfaced by `morph permissions explain` |
 

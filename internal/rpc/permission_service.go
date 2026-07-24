@@ -199,7 +199,7 @@ func approvalRequestToProto(request permissions.ApprovalRequest) *morphpb.Permis
 		Tool: request.Tool, Resource: string(request.Resource), Action: string(request.Action), Effects: effects,
 		Summary: request.Summary, Reason: request.Reason, Status: string(request.Status), Scope: string(request.Scope),
 		GrantId: request.GrantID, CreatedAt: permissionTimestampOrNil(request.CreatedAt), ExpiresAt: permissionTimestampOrNil(request.ExpiresAt),
-		ResolvedAt: permissionTimestampOrNil(request.ResolvedAt),
+		ResolvedAt: permissionTimestampOrNil(request.ResolvedAt), Operations: append([]string(nil), request.Operations...),
 	}
 }
 
@@ -209,6 +209,7 @@ func approvalGrantToProto(grant permissions.ApprovalGrant) *morphpb.PermissionGr
 		SessionId: grant.SessionID, Scope: string(grant.Scope), Status: string(grant.Status),
 		CreatedAt: permissionTimestampOrNil(grant.CreatedAt), ExpiresAt: permissionTimestampOrNil(grant.ExpiresAt),
 		ConsumedAt: permissionTimestampOrNil(grant.ConsumedAt), RevokedAt: permissionTimestampOrNil(grant.RevokedAt),
+		Operations: append([]string(nil), grant.Operations...),
 	}
 }
 

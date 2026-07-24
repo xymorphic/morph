@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/wandxy/morph/internal/agent/runcontext"
+	commandplan "github.com/wandxy/morph/internal/command"
 	processenv "github.com/wandxy/morph/internal/environment/process"
 	"github.com/wandxy/morph/internal/guardrails"
 	"github.com/wandxy/morph/internal/permissions"
@@ -89,7 +90,7 @@ func TestProcess_ResolvePermissionClassifiesActions(t *testing.T) {
 		effects []permissions.Effect
 		target  string
 	}{
-		{name: "start", input: `{"action":"start","command":"git","args":["status"]}`, action: permissions.ActionStart, effects: []permissions.Effect{permissions.EffectExecution, permissions.EffectWrite}, target: "git status"},
+		{name: "start", input: `{"action":"start","command":"git","args":["status"]}`, action: permissions.ActionStart, effects: []permissions.Effect{permissions.EffectExecution, permissions.EffectWrite}},
 		{name: "status", input: `{"action":"status","process_id":"proc-1"}`, action: permissions.ActionRead, effects: []permissions.Effect{permissions.EffectRead}, target: "proc-1"},
 		{name: "read", input: `{"action":"read","process_id":"proc-1"}`, action: permissions.ActionRead, effects: []permissions.Effect{permissions.EffectRead}, target: "proc-1"},
 		{name: "stop", input: `{"action":"stop","process_id":"proc-1"}`, action: permissions.ActionStop, effects: []permissions.Effect{permissions.EffectDestructive, permissions.EffectExecution, permissions.EffectWrite}, target: "proc-1"},
@@ -101,10 +102,17 @@ func TestProcess_ResolvePermissionClassifiesActions(t *testing.T) {
 			inputs, err := definition.ResolvePermission(context.Background(), tools.Call{Input: test.input})
 
 			require.NoError(t, err)
-			require.Len(t, inputs, 1)
-			require.Equal(t, test.action, inputs[0].Operation.Action)
-			require.Equal(t, test.effects, inputs[0].Operation.Effects)
-			require.Equal(t, test.target, inputs[0].Operation.Target)
+			input := inputs[0]
+			if test.name == "start" {
+				require.Len(t, inputs, 2)
+				input = getProcessPermissionInput(t, inputs)
+				require.NotNil(t, input.Operation.Command)
+				require.Equal(t, "git", input.Operation.Command.Executable)
+				require.Equal(t, []string{"status"}, input.Operation.Command.Arguments)
+			}
+			require.Equal(t, test.action, input.Operation.Action)
+			require.Equal(t, test.effects, input.Operation.Effects)
+			require.Equal(t, test.target, input.Operation.Target)
 		})
 	}
 }
@@ -116,8 +124,12 @@ func TestProcess_ResolvePermissionPreservesCommandConstraints(t *testing.T) {
 		wantHardDeny       bool
 		wantApprovalReason string
 	}{
-		{name: "deny", policy: guardrails.CommandPolicy{Deny: []string{"git push"}}, wantHardDeny: true},
-		{name: "ask", policy: guardrails.CommandPolicy{Ask: []string{"git push"}}, wantApprovalReason: "command requires approval: git push"},
+		{name: "deny", policy: guardrails.CommandPolicy{DenyCommands: []commandplan.Selector{{
+			Executable: "git", ArgumentPrefix: []string{"push"},
+		}}}, wantHardDeny: true},
+		{name: "ask", policy: guardrails.CommandPolicy{AskCommands: []commandplan.Selector{{
+			Executable: "git", ArgumentPrefix: []string{"push"},
+		}}}, wantApprovalReason: "Command matches approval rule: command-selector:"},
 	}
 
 	for _, test := range tests {
@@ -128,8 +140,9 @@ func TestProcess_ResolvePermissionPreservesCommandConstraints(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			require.Equal(t, test.wantHardDeny, inputs[0].HardDenyReason != "")
-			require.Equal(t, test.wantApprovalReason, inputs[0].ApprovalReason)
+			input := getProcessPermissionInput(t, inputs)
+			require.Equal(t, test.wantHardDeny, input.HardDenyReason != "")
+			require.Contains(t, input.ApprovalReason, test.wantApprovalReason)
 		})
 	}
 }
@@ -144,7 +157,7 @@ func TestProcess_ResolvePermissionRejectsInvalidCalls(t *testing.T) {
 		{name: "malformed", input: `{"action":`, message: "invalid tool input"},
 		{name: "missing action", input: `{}`, message: "action is required"},
 		{name: "unknown action", input: `{"action":"unknown"}`, message: `unsupported action "unknown"`},
-		{name: "missing command", input: `{"action":"start"}`, message: "command is required for start"},
+		{name: "missing command", input: `{"action":"start"}`, message: "command is required"},
 		{name: "invalid fields", input: `{"action":"list","stdout_bytes":1}`, message: "invalid process list request: stdout_bytes is only valid for action=read"},
 	}
 
@@ -208,6 +221,7 @@ func TestProcess_ToolRejectsReadOnlyFieldsForNonReadActions(t *testing.T) {
 
 func TestProcess_ToolIgnoresZeroReadOnlyFieldsForNonReadActions(t *testing.T) {
 	definition := Definition(&toolmocks.Runtime{
+		FilePolicyValue: guardrails.FilesystemPolicy{Roots: []string{t.TempDir()}},
 		StartProcessFunc: func(context.Context, string, processenv.StartRequest) (processenv.Info, error) {
 			return processenv.Info{ID: "proc_1", Status: processenv.StatusRunning}, nil
 		},
@@ -244,28 +258,31 @@ func TestProcess_ToolIgnoresZeroReadOnlyFieldsForNonReadActions(t *testing.T) {
 
 func TestProcess_ToolStartDelegatesToRuntime(t *testing.T) {
 	startedAt := time.Now().UTC()
-	result, err := Definition(&toolmocks.Runtime{
+	root := t.TempDir()
+	runtime := &toolmocks.Runtime{
+		FilePolicyValue: guardrails.FilesystemPolicy{Roots: []string{root}},
 		StartProcessFunc: func(_ context.Context, sessionID string, req processenv.StartRequest) (processenv.Info, error) {
 			require.Equal(t, "session-1", sessionID)
-			require.Equal(t, "printf", req.Command)
-			require.Equal(t, []string{"hello"}, req.Args)
-			require.Equal(t, "workspace", req.CWD)
-			require.Equal(t, map[string]string{"KEY": "value"}, req.Env)
+			require.Equal(t, "printf", req.Plan.Invocations[0].Executable)
+			require.Equal(t, []string{"hello"}, req.Plan.Invocations[0].Arguments)
+			require.Equal(t, root, req.Plan.CWD)
+			require.NotEmpty(t, req.Plan.EnvironmentDigest)
 			require.Equal(t, "printer", req.Label)
 			require.Equal(t, 32, req.OutputBufferBytes)
 			return processenv.Info{
 				ID:        "proc_1",
 				Label:     req.Label,
-				Command:   req.Command,
-				Args:      req.Args,
-				CWD:       req.CWD,
+				Command:   req.Plan.Invocations[0].Executable,
+				Args:      req.Plan.Invocations[0].Arguments,
+				CWD:       req.Plan.CWD,
 				Status:    processenv.StatusRunning,
 				StartedAt: startedAt,
 			}, nil
 		},
-	}).Handler.Invoke(tools.WithSessionID(context.Background(), "session-1"), tools.Call{
+	}
+	result, err := Definition(runtime).Handler.Invoke(tools.WithSessionID(context.Background(), "session-1"), tools.Call{
 		Name:  "process",
-		Input: `{"action":"start","command":" printf ","args":["hello"],"cwd":" workspace ","env":{"KEY":"value"},"label":" printer ","output_buffer_bytes":32}`,
+		Input: `{"action":"start","command":" printf ","args":["hello"],"cwd":".","env":{"KEY":"value"},"label":" printer ","output_buffer_bytes":32}`,
 	})
 
 	require.NoError(t, err)
@@ -311,9 +328,10 @@ func TestProcess_ToolUsesChildSessionIDForChildState(t *testing.T) {
 	require.NoError(t, err)
 
 	result, err := Definition(&toolmocks.Runtime{
+		FilePolicyValue: guardrails.FilesystemPolicy{Roots: []string{t.TempDir()}},
 		StartProcessFunc: func(_ context.Context, sessionID string, req processenv.StartRequest) (processenv.Info, error) {
 			require.Equal(t, childID, sessionID)
-			require.Equal(t, "printf", req.Command)
+			require.Equal(t, "printf", req.Plan.Invocations[0].Executable)
 			return processenv.Info{ID: "proc_1", Status: processenv.StatusRunning, StartedAt: time.Now().UTC()}, nil
 		},
 	}).Handler.Invoke(tools.WithRunContext(context.Background(), child), tools.Call{
@@ -327,9 +345,10 @@ func TestProcess_ToolUsesChildSessionIDForChildState(t *testing.T) {
 
 func TestProcess_ToolStartPassesNilEnvWhenEmpty(t *testing.T) {
 	result, err := Definition(&toolmocks.Runtime{
+		FilePolicyValue: guardrails.FilesystemPolicy{Roots: []string{t.TempDir()}},
 		StartProcessFunc: func(_ context.Context, sessionID string, req processenv.StartRequest) (processenv.Info, error) {
 			require.Equal(t, "default", sessionID)
-			require.Nil(t, req.Env)
+			require.NotEmpty(t, req.Plan.EnvironmentDigest)
 			return processenv.Info{ID: "proc_1", Status: processenv.StatusRunning, StartedAt: time.Now().UTC()}, nil
 		},
 	}).Handler.Invoke(context.Background(), tools.Call{
@@ -348,11 +367,12 @@ func TestProcess_ToolRequiresCommandForStart(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	requireToolError(t, result.Error, "invalid_input", "command is required for start")
+	requireToolError(t, result.Error, "invalid_input", "command is required")
 }
 
 func TestProcess_ToolAllowsZeroOutputBufferBytesForStart(t *testing.T) {
 	result, err := Definition(&toolmocks.Runtime{
+		FilePolicyValue: guardrails.FilesystemPolicy{Roots: []string{t.TempDir()}},
 		StartProcessFunc: func(_ context.Context, _ string, req processenv.StartRequest) (processenv.Info, error) {
 			require.Zero(t, req.OutputBufferBytes)
 			return processenv.Info{ID: "proc_1", Status: processenv.StatusRunning}, nil
@@ -367,7 +387,9 @@ func TestProcess_ToolAllowsZeroOutputBufferBytesForStart(t *testing.T) {
 }
 
 func TestProcess_ToolValidatesOutputBufferBytesForStart(t *testing.T) {
-	result, err := Definition(&toolmocks.Runtime{}).Handler.Invoke(context.Background(), tools.Call{
+	result, err := Definition(&toolmocks.Runtime{
+		FilePolicyValue: guardrails.FilesystemPolicy{Roots: []string{t.TempDir()}},
+	}).Handler.Invoke(context.Background(), tools.Call{
 		Name:  "process",
 		Input: `{"action":"start","command":"printf","output_buffer_bytes":-1}`,
 	})
@@ -687,6 +709,7 @@ func TestProcess_ToolListReturnsProcesses(t *testing.T) {
 
 func TestProcess_ToolReturnsRuntimeErrors(t *testing.T) {
 	result, err := Definition(&toolmocks.Runtime{
+		FilePolicyValue: guardrails.FilesystemPolicy{Roots: []string{t.TempDir()}},
 		StartProcessFunc: func(context.Context, string, processenv.StartRequest) (processenv.Info, error) {
 			return processenv.Info{}, errors.New("start failed")
 		},
@@ -721,6 +744,20 @@ func TestProcess_ToolReturnsRuntimeErrors(t *testing.T) {
 
 	require.NoError(t, err)
 	requireToolError(t, result.Error, "tool_error", "process not found")
+}
+
+func getProcessPermissionInput(
+	t *testing.T,
+	inputs []permissions.EvaluationInput,
+) permissions.EvaluationInput {
+	t.Helper()
+	for _, input := range inputs {
+		if input.Operation.Resource == permissions.ResourceProcess {
+			return input
+		}
+	}
+	t.Fatal("process permission input was not produced")
+	return permissions.EvaluationInput{}
 }
 
 func TestProcess_ToolStopReturnsProcess(t *testing.T) {

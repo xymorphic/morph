@@ -280,6 +280,18 @@ func TestAgent_SetBrowserServiceDelegatesToEnvironment(t *testing.T) {
 	require.Equal(t, 1, env.BrowserSets)
 }
 
+func TestAgent_SetCommandIdentityKeyDelegatesToEnvironment(t *testing.T) {
+	(*Agent)(nil).SetCommandIdentityKey(nil)
+	(&Agent{}).SetCommandIdentityKey(nil)
+
+	env := &mocks.EnvironmentStub{}
+	key := []byte("profile-owner-credential")
+	(&Agent{env: env}).SetCommandIdentityKey(key)
+	key[0] = 'X'
+
+	require.Equal(t, [][]byte{[]byte("profile-owner-credential")}, env.CommandKeys)
+}
+
 func TestAgent_StartPropagatesStateAndEnvironmentErrors(t *testing.T) {
 	originalOpen := OpenStateStore
 	originalNewEnvironment := NewEnvironment

@@ -128,7 +128,8 @@ func approvalRequestFromProto(value *morphpb.PermissionApprovalRequest) permissi
 		Profile: value.GetProfile(), SessionID: value.GetSessionId(), Tool: value.GetTool(),
 		Resource: permissions.Resource(value.GetResource()), Action: permissions.Action(value.GetAction()), Effects: effects,
 		Summary: value.GetSummary(), Reason: value.GetReason(), Status: permissions.ApprovalStatus(value.GetStatus()),
-		Scope: permissions.GrantScope(value.GetScope()), GrantID: value.GetGrantId(),
+		Operations: append([]string(nil), value.GetOperations()...),
+		Scope:      permissions.GrantScope(value.GetScope()), GrantID: value.GetGrantId(),
 		CreatedAt: protoTimestampToTime(value.GetCreatedAt()), ExpiresAt: protoTimestampToTime(value.GetExpiresAt()),
 		ResolvedAt: protoTimestampToTime(value.GetResolvedAt()),
 	}
@@ -144,6 +145,6 @@ func approvalGrantFromProto(value *morphpb.PermissionGrant) permissions.Approval
 		Profile: value.GetProfile(), SessionID: value.GetSessionId(), Scope: permissions.GrantScope(value.GetScope()),
 		Status: permissions.GrantStatus(value.GetStatus()), CreatedAt: protoTimestampToTime(value.GetCreatedAt()),
 		ExpiresAt: protoTimestampToTime(value.GetExpiresAt()), ConsumedAt: protoTimestampToTime(value.GetConsumedAt()),
-		RevokedAt: protoTimestampToTime(value.GetRevokedAt()),
+		RevokedAt: protoTimestampToTime(value.GetRevokedAt()), Operations: append([]string(nil), value.GetOperations()...),
 	}
 }

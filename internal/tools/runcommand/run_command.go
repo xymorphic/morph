@@ -5,23 +5,20 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
 	"os/exec"
-	goruntime "runtime"
-	"strings"
 	"time"
 
 	"github.com/wandxy/morph/pkg/logutils"
-	"github.com/wandxy/morph/pkg/str"
 
+	commandplan "github.com/wandxy/morph/internal/command"
 	envtypes "github.com/wandxy/morph/internal/environment/types"
-	"github.com/wandxy/morph/internal/guardrails"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/tools"
 	"github.com/wandxy/morph/internal/tools/common"
 )
 
 type input struct {
+	Mode           commandplan.Mode  `json:"mode"`
 	Command        string            `json:"command"`
 	Args           []string          `json:"args"`
 	Cwd            string            `json:"cwd"`
@@ -30,10 +27,11 @@ type input struct {
 }
 
 var (
-	log            = logutils.Module("tool.runcommand")
-	currentGOOS    = goruntime.GOOS
-	commandContext = common.CommandContext
-	waitCommand    = (*exec.Cmd).Wait
+	log        = logutils.Module("tool.runcommand")
+	newCommand = func(ctx context.Context, plan commandplan.Plan) (*exec.Cmd, error) {
+		return plan.NewCommand(ctx)
+	}
+	waitCommand = (*exec.Cmd).Wait
 )
 
 // Definition returns the model-visible tool definition.
@@ -53,9 +51,15 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 			Action:   permissions.ActionExecute,
 			Effects:  []permissions.Effect{permissions.EffectExecution},
 		},
+		PreparePermission: preparePermission(runtime),
 		ResolvePermission: resolvePermission(runtime),
 		InputSchema: common.ObjectSchema(map[string]any{
-			"command": common.StringSchema("Command to run. Uses the shell when args are omitted."),
+			"mode": map[string]any{
+				"type":        "string",
+				"description": "Execution mode. Defaults to direct.",
+				"enum":        []string{"direct", "posix_shell"},
+			},
+			"command": common.StringSchema("Executable name in direct mode or POSIX shell source in posix_shell mode."),
 			"args": map[string]any{
 				"type":        "array",
 				"description": "Arguments passed directly to the command.",
@@ -81,51 +85,39 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 			if result := common.DecodeInput(call, &req); result.Error != "" {
 				return result, nil
 			}
-			commandValue := str.String(req.Command)
-			if commandValue.Trim() == "" {
-				return common.ToolError("invalid_input", "command is required"), nil
+			plan, err := getCommandPlan(ctx, runtime, call, req)
+			if err != nil {
+				return common.ToolError(common.CommandErrorCode(err), err.Error()), nil
 			}
-
-			cwd := req.Cwd
-			cwdValue := str.String(cwd)
-			if cwdValue.Trim() == "" {
-				cwd = runtime.FilePolicy().Roots[0]
+			if code, message := common.CheckCommandPlan(
+				ctx,
+				runtime,
+				plan,
+				permissions.ActionExecute,
+				[]permissions.Effect{permissions.EffectExecution},
+			); code != "" {
+				return common.ToolError(code, message), nil
 			}
-
-			resolved, err := common.ResolveFilesystemPathForOperation(
+			if _, err := common.ResolveFilesystemPathForOperation(
 				ctx,
 				common.FilesystemPolicyFromRuntime(runtime),
-				cwd,
+				plan.CWD,
 				permissions.ActionRead,
-			)
-			if err != nil {
+			); err != nil {
 				return common.FileError(err), nil
 			}
 
-			if !permissions.HasFullAccess(ctx) {
-				eval := guardrails.EvaluateCommand(runtime.CommandPolicy(), req.Command, req.Args)
-				switch eval.Decision {
-				case guardrails.CommandDenied:
-					return common.ToolError("command_denied", eval.Reason), nil
-				case guardrails.CommandApprovalRequired:
-					message := "command requires approval"
-					if eval.Rule != "" {
-						message = "command requires approval: " + eval.Rule
-					}
-
-					return common.ToolError("approval_required", message), nil
-				}
-			}
-
 			timeout := common.WithTimeoutSeconds(req.TimeoutSeconds)
-			cwdValue2 := str.String(req.Cwd)
 			log.Info().
 				Str("tool", "run_command").
 				Str("phase", "start").
-				Bool("cwd_provided", cwdValue2.Trim() != "").
+				Str("mode", string(plan.Mode)).
+				Bool("cwd_provided", req.Cwd != "").
 				Int("args_count", len(req.Args)).
 				Int("env_overrides", len(req.Env)).
-				Bool("shell_mode", len(req.Args) == 0).
+				Int("invocation_count", len(plan.Invocations)).
+				Int("redirect_count", len(plan.Redirects)).
+				Bool("complete", plan.Complete).
 				Int("timeout_seconds", timeout).
 				Msg("command tool started")
 
@@ -141,16 +133,11 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 				return common.ToolError("command_failed", err.Error()), nil
 			}
 
-			cmd := buildCommand(context.Background(), req.Command, req.Args)
-			configureCommandProcess(cmd)
-
-			cmd.Dir = resolved.Absolute
-			cmd.Env = os.Environ()
-			if len(req.Env) > 0 {
-				for key, value := range req.Env {
-					cmd.Env = append(cmd.Env, key+"="+value)
-				}
+			cmd, err := newCommand(context.Background(), plan)
+			if err != nil {
+				return common.ToolError("command_failed", err.Error()), nil
 			}
+			configureCommandProcess(cmd)
 
 			var stdout bytes.Buffer
 			var stderr bytes.Buffer
@@ -253,43 +240,56 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 }
 
 func resolvePermission(runtime envtypes.Runtime) tools.PermissionResolver {
-	return func(_ context.Context, call tools.Call) ([]permissions.EvaluationInput, error) {
+	return func(ctx context.Context, call tools.Call) ([]permissions.EvaluationInput, error) {
+		preparation, err := preparePermission(runtime)(ctx, call)
+		return preparation.Inputs, err
+	}
+}
+
+func preparePermission(runtime envtypes.Runtime) tools.PermissionPreparer {
+	return func(ctx context.Context, call tools.Call) (tools.PermissionPreparation, error) {
 		var req input
 		if err := json.Unmarshal([]byte(call.Input), &req); err != nil {
-			return nil, tools.NewPermissionResolutionError("invalid_input", "invalid tool input")
+			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError("invalid_input", "invalid tool input")
 		}
-		command := str.String(req.Command).Trim()
-		if command == "" {
-			return nil, tools.NewPermissionResolutionError("invalid_input", "command is required")
+		plan, err := common.AnalyzeCommand(
+			ctx,
+			runtime,
+			req.Mode,
+			req.Command,
+			req.Args,
+			req.Cwd,
+			req.Env,
+		)
+		if err != nil {
+			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(common.CommandErrorCode(err), err.Error())
 		}
-
-		target := command
-		if len(req.Args) > 0 {
-			target += " " + strings.Join(req.Args, " ")
-		}
-		input := permissions.EvaluationInput{Operation: permissions.Operation{
-			Resource: permissions.ResourceProcess,
-			Action:   permissions.ActionExecute,
-			Effects:  []permissions.Effect{permissions.EffectExecution},
-			Target:   target,
-		}}
-		if runtime == nil {
-			return []permissions.EvaluationInput{input}, nil
-		}
-
-		evaluation := guardrails.EvaluateCommand(runtime.CommandPolicy(), req.Command, req.Args)
-		switch evaluation.Decision {
-		case guardrails.CommandDenied:
-			input.HardDenyReason = evaluation.Reason
-		case guardrails.CommandApprovalRequired:
-			input.ApprovalReason = "command requires approval"
-			if evaluation.Rule != "" {
-				input.ApprovalReason += ": " + evaluation.Rule
-			}
-		}
-
-		return []permissions.EvaluationInput{input}, nil
+		return tools.PermissionPreparation{
+			Inputs: common.CommandPermissionInputs(
+				ctx,
+				runtime,
+				plan,
+				permissions.ActionExecute,
+				[]permissions.Effect{permissions.EffectExecution},
+			),
+			Prepared: plan,
+		}, nil
 	}
+}
+
+func getCommandPlan(
+	ctx context.Context,
+	runtime envtypes.Runtime,
+	call tools.Call,
+	req input,
+) (commandplan.Plan, error) {
+	if prepared, ok := tools.GetPreparedCall(ctx, call); ok {
+		if plan, planOK := prepared.(commandplan.Plan); planOK {
+			return plan, nil
+		}
+		return commandplan.Plan{}, errors.New("prepared command plan is invalid")
+	}
+	return common.AnalyzeCommand(ctx, runtime, req.Mode, req.Command, req.Args, req.Cwd, req.Env)
 }
 
 func buildRunCommandOutput(exitCode int, stdout, stderr string, timedOut bool, timeoutSeconds int, elapsedSeconds float64) map[string]any {
@@ -310,18 +310,4 @@ func buildRunCommandOutput(exitCode int, stdout, stderr string, timedOut bool, t
 		"elapsed_seconds":   elapsedSeconds,
 		"remaining_seconds": remainingSeconds,
 	}
-}
-
-func buildCommand(ctx context.Context, command string, args []string) *exec.Cmd {
-	commandValue2 := str.String(command)
-	command = commandValue2.Trim()
-	if len(args) > 0 {
-		return commandContext(ctx, command, args...)
-	}
-
-	if currentGOOS == "windows" {
-		return commandContext(ctx, "cmd", "/C", command)
-	}
-
-	return commandContext(ctx, "sh", "-lc", command)
 }

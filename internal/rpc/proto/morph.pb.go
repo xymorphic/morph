@@ -5429,6 +5429,7 @@ type PermissionApprovalRequest struct {
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	ResolvedAt    *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=resolved_at,json=resolvedAt,proto3" json:"resolved_at,omitempty"`
+	Operations    []string               `protobuf:"bytes,19,rep,name=operations,proto3" json:"operations,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5589,6 +5590,13 @@ func (x *PermissionApprovalRequest) GetResolvedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *PermissionApprovalRequest) GetOperations() []string {
+	if x != nil {
+		return x.Operations
+	}
+	return nil
+}
+
 type PermissionGrant struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -5602,6 +5610,7 @@ type PermissionGrant struct {
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	ConsumedAt    *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=consumed_at,json=consumedAt,proto3" json:"consumed_at,omitempty"`
 	RevokedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
+	Operations    []string               `protobuf:"bytes,12,rep,name=operations,proto3" json:"operations,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5709,6 +5718,13 @@ func (x *PermissionGrant) GetConsumedAt() *timestamppb.Timestamp {
 func (x *PermissionGrant) GetRevokedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.RevokedAt
+	}
+	return nil
+}
+
+func (x *PermissionGrant) GetOperations() []string {
+	if x != nil {
+		return x.Operations
 	}
 	return nil
 }
@@ -7990,7 +8006,7 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x03(\tR\x06status\x12\x14\n" +
 	"\x05limit\x18\x04 \x01(\x05R\x05limit\"I\n" +
 	"\x1aListAutomationRunsResponse\x12+\n" +
-	"\x04runs\x18\x01 \x03(\v2\x17.morph.v1.AutomationRunR\x04runs\"\xd0\x04\n" +
+	"\x04runs\x18\x01 \x03(\v2\x17.morph.v1.AutomationRunR\x04runs\"\xf0\x04\n" +
 	"\x19PermissionApprovalRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -8015,7 +8031,10 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"\n" +
 	"expires_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12;\n" +
 	"\vresolved_at\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"resolvedAt\"\xb4\x03\n" +
+	"resolvedAt\x12\x1e\n" +
+	"\n" +
+	"operations\x18\x13 \x03(\tR\n" +
+	"operations\"\xd4\x03\n" +
 	"\x0fPermissionGrant\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -8035,7 +8054,10 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"consumedAt\x129\n" +
 	"\n" +
-	"revoked_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\trevokedAt\"e\n" +
+	"revoked_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\trevokedAt\x12\x1e\n" +
+	"\n" +
+	"operations\x18\f \x03(\tR\n" +
+	"operations\"e\n" +
 	"\x1dListPermissionRequestsRequest\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +

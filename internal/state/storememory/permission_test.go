@@ -17,7 +17,8 @@ func TestPermissionStore_ApprovalRequestLifecycle(t *testing.T) {
 	request := permissions.ApprovalRequest{
 		ID: "approval_one", Fingerprint: "fingerprint", Actor: permissions.Actor{Kind: permissions.ActorLocalOwner, ID: "owner"},
 		SessionID: "session", Effects: []permissions.Effect{permissions.EffectWrite}, Status: permissions.ApprovalPending,
-		CreatedAt: now, ExpiresAt: now.Add(time.Minute),
+		Operations: []string{"run_command · execute process"},
+		CreatedAt:  now, ExpiresAt: now.Add(time.Minute),
 	}
 
 	created, inserted, err := store.CreateApprovalRequest(ctx, request)
@@ -25,10 +26,12 @@ func TestPermissionStore_ApprovalRequestLifecycle(t *testing.T) {
 	require.True(t, inserted)
 	require.Equal(t, request, created)
 	request.Effects[0] = permissions.EffectRead
+	request.Operations[0] = "changed"
 	loaded, ok, err := store.GetApprovalRequest(ctx, created.ID)
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, []permissions.Effect{permissions.EffectWrite}, loaded.Effects)
+	require.Equal(t, []string{"run_command · execute process"}, loaded.Operations)
 
 	coalesced, inserted, err := store.CreateApprovalRequest(ctx, permissions.ApprovalRequest{
 		ID: "approval_coalesced", Fingerprint: created.Fingerprint, Actor: created.Actor,
@@ -123,13 +126,16 @@ func TestPermissionStore_ApprovalGrantLifecycle(t *testing.T) {
 	grant := permissions.ApprovalGrant{
 		ID: "grant_once", RequestID: approved.ID, Fingerprint: "fingerprint", Actor: actor,
 		Profile: "default", SessionID: "session", Scope: permissions.GrantOnce, Status: permissions.GrantActive,
-		CreatedAt: now, ExpiresAt: now.Add(time.Hour),
+		Operations: []string{"run_command · execute process", "run_command · read file workspace"},
+		CreatedAt:  now, ExpiresAt: now.Add(time.Hour),
 	}
 
 	created, err := store.CreateApprovalGrant(ctx, grant)
 	require.NoError(t, err)
 	require.Equal(t, grant, created)
 	require.Equal(t, grant.ID, store.approvalRequests[approved.ID].GrantID)
+	created.Operations[0] = "changed"
+	require.Equal(t, grant.Operations, store.approvalGrants[grant.ID].Operations)
 	_, err = store.CreateApprovalGrant(ctx, grant)
 	require.EqualError(t, err, "approval grant already exists")
 	_, err = store.CreateApprovalGrant(ctx, permissions.ApprovalGrant{ID: "missing", RequestID: "missing"})
@@ -142,6 +148,8 @@ func TestPermissionStore_ApprovalGrantLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, grant.ID, found.ID)
+	found.Operations[0] = "changed"
+	require.Equal(t, grant.Operations, store.approvalGrants[grant.ID].Operations)
 	_, ok, err = store.FindApprovalGrant(ctx, "different", actor, grant.Profile, grant.SessionID, now)
 	require.NoError(t, err)
 	require.False(t, ok)

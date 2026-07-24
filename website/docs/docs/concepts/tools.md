@@ -80,11 +80,13 @@ input and output sides:
   external operation. An `allow` rule that matches an external target lets that operation resolve outside the
   roots, the same way an approved request does. The intentionally unsafe **Full access** preset bypasses the boundary
   without per-operation approval. Reads remain capped in size for every preset.
-- **Command policy.** `run_command` evaluates each command against the profile's `exec.allow` / `exec.ask` / `exec.deny`
-  rules plus built-in dangerous-pattern checks. A denied command always returns a `command_denied` error. A command that
-  needs approval either prompts interactively (CLI `--chat` and TUI, which can wait for a human) or returns a structured
-  `approval_required` error immediately (gateway, automation, and RPC surfaces, which cannot). The `full_access`
-  permission preset bypasses these checks entirely. See [Permissions](./permissions) for the full decision model.
+- **Command policy.** `run_command` and `process start` analyze each request into a command plan before authorization.
+  Direct mode is the default and preserves every argument literally. POSIX shell mode parses pipelines, compound
+  commands, substitutions, nested shells, and redirections into separate operations. Typed selectors can match the
+  executable, resolved path, arguments, mode, completeness, and indirect-execution classification. Every operation
+  must pass before a process starts. Incomplete plans require an interactive local-owner approval and are denied on
+  unattended surfaces. The `full_access` preset bypasses command policy decisions, but malformed or unconstructable
+  input still fails. See [Permissions](./permissions) for the full decision model.
 - **Web blocking.** Web tools honor blocked-domain rules before fetching.
 - **Output safety.** When output safety is enabled, a tool's output is scanned before it is returned to the model, and
   unsafe content is blocked or redacted with a trace recorded; PII is also redacted from that output when PII redaction

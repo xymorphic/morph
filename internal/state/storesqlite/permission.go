@@ -12,45 +12,47 @@ import (
 )
 
 type approvalRequestModel struct {
-	ID          string `gorm:"primaryKey"`
-	Fingerprint string `gorm:"index:idx_approval_pending_lookup"`
-	ActorKind   string
-	ActorID     string
-	SurfaceKind string
-	Surface     string
-	Profile     string
-	SessionID   string `gorm:"index:idx_approval_pending_lookup"`
-	RunID       string
-	Tool        string
-	Resource    string
-	Action      string
-	EffectsJSON string
-	Summary     string
-	Reason      string
-	Status      string `gorm:"index:idx_approval_pending_lookup"`
-	Scope       string
-	GrantID     string
-	CreatedAt   time.Time
-	ExpiresAt   time.Time
-	ResolvedAt  *time.Time
+	ID             string `gorm:"primaryKey"`
+	Fingerprint    string `gorm:"index:idx_approval_pending_lookup"`
+	ActorKind      string
+	ActorID        string
+	SurfaceKind    string
+	Surface        string
+	Profile        string
+	SessionID      string `gorm:"index:idx_approval_pending_lookup"`
+	RunID          string
+	Tool           string
+	Resource       string
+	Action         string
+	EffectsJSON    string
+	Summary        string
+	Reason         string
+	OperationsJSON string
+	Status         string `gorm:"index:idx_approval_pending_lookup"`
+	Scope          string
+	GrantID        string
+	CreatedAt      time.Time
+	ExpiresAt      time.Time
+	ResolvedAt     *time.Time
 }
 
 func (approvalRequestModel) TableName() string { return "permission_approval_requests" }
 
 type approvalGrantModel struct {
-	ID          string `gorm:"primaryKey"`
-	RequestID   string `gorm:"uniqueIndex"`
-	Fingerprint string `gorm:"index:idx_approval_grant_lookup"`
-	ActorKind   string
-	ActorID     string
-	Profile     string
-	SessionID   string
-	Scope       string
-	Status      string `gorm:"index:idx_approval_grant_lookup"`
-	CreatedAt   time.Time
-	ExpiresAt   time.Time `gorm:"index:idx_approval_grant_lookup"`
-	ConsumedAt  *time.Time
-	RevokedAt   *time.Time
+	ID             string `gorm:"primaryKey"`
+	RequestID      string `gorm:"uniqueIndex"`
+	Fingerprint    string `gorm:"index:idx_approval_grant_lookup"`
+	ActorKind      string
+	ActorID        string
+	Profile        string
+	SessionID      string
+	OperationsJSON string
+	Scope          string
+	Status         string `gorm:"index:idx_approval_grant_lookup"`
+	CreatedAt      time.Time
+	ExpiresAt      time.Time `gorm:"index:idx_approval_grant_lookup"`
+	ConsumedAt     *time.Time
+	RevokedAt      *time.Time
 }
 
 func (approvalGrantModel) TableName() string { return "permission_approval_grants" }
@@ -243,7 +245,8 @@ func (s *Store) FindApprovalGrant(
 	if err != nil {
 		return permissions.ApprovalGrant{}, false, err
 	}
-	return approvalGrantFromModel(model), true, nil
+	grant, err := approvalGrantFromModel(model)
+	return grant, err == nil, err
 }
 
 func (s *Store) ConsumeApprovalGrant(
@@ -269,7 +272,7 @@ func (s *Store) ConsumeApprovalGrant(
 		return permissions.ApprovalGrant{}, err
 	}
 
-	return approvalGrantFromModel(model), nil
+	return approvalGrantFromModel(model)
 }
 
 func (s *Store) ListApprovalGrants(
@@ -292,7 +295,11 @@ func (s *Store) ListApprovalGrants(
 	}
 	result := make([]permissions.ApprovalGrant, len(models))
 	for index, model := range models {
-		result[index] = approvalGrantFromModel(model)
+		grant, err := approvalGrantFromModel(model)
+		if err != nil {
+			return nil, err
+		}
+		result[index] = grant
 	}
 
 	return result, nil
@@ -323,7 +330,10 @@ func (s *Store) RevokeApprovalGrant(
 		model.RevokedAt = &now
 		return tx.Save(&model).Error
 	})
-	return approvalGrantFromModel(model), err
+	if err != nil {
+		return permissions.ApprovalGrant{}, err
+	}
+	return approvalGrantFromModel(model)
 }
 
 func (s *Store) DeleteApprovalRequest(ctx context.Context, id string, now time.Time) (string, error) {
@@ -351,11 +361,17 @@ func (s *Store) DeleteApprovalRequest(ctx context.Context, id string, now time.T
 			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
 			}
-			if err == nil && approvalGrantFromModel(grant).IsActiveAt(now) {
-				grant.Status = string(permissions.GrantRevoked)
-				grant.RevokedAt = &now
-				if err := tx.Save(&grant).Error; err != nil {
-					return err
+			if err == nil {
+				loaded, convertErr := approvalGrantFromModel(grant)
+				if convertErr != nil {
+					return convertErr
+				}
+				if loaded.IsActiveAt(now) {
+					grant.Status = string(permissions.GrantRevoked)
+					grant.RevokedAt = &now
+					if err := tx.Save(&grant).Error; err != nil {
+						return err
+					}
 				}
 			}
 			if err == nil {
@@ -383,7 +399,11 @@ func (s *Store) DeleteApprovalGrant(ctx context.Context, id string, now time.Tim
 		switch permissions.GrantStatus(model.Status) {
 		case permissions.GrantConsumed, permissions.GrantExpired, permissions.GrantRevoked:
 		case permissions.GrantActive:
-			if approvalGrantFromModel(model).IsActiveAt(now) {
+			grant, err := approvalGrantFromModel(model)
+			if err != nil {
+				return err
+			}
+			if grant.IsActiveAt(now) {
 				return errors.New("active approval grant cannot be deleted; revoke it first")
 			}
 		default:
@@ -464,12 +484,14 @@ func (s *Store) PruneApprovals(
 
 func approvalRequestToModel(request permissions.ApprovalRequest) approvalRequestModel {
 	effects, _ := json.Marshal(request.Effects)
+	operations, _ := json.Marshal(request.Operations)
 	model := approvalRequestModel{
 		ID: request.ID, Fingerprint: request.Fingerprint, ActorKind: string(request.Actor.Kind), ActorID: request.Actor.ID,
 		SurfaceKind: string(request.SurfaceKind), Surface: string(request.Surface), Profile: request.Profile,
 		SessionID: request.SessionID, RunID: request.RunID, Tool: request.Tool, Resource: string(request.Resource),
 		Action: string(request.Action), EffectsJSON: string(effects), Summary: request.Summary, Reason: request.Reason,
-		Status: string(request.Status), Scope: string(request.Scope), GrantID: request.GrantID,
+		OperationsJSON: string(operations),
+		Status:         string(request.Status), Scope: string(request.Scope), GrantID: request.GrantID,
 		CreatedAt: request.CreatedAt, ExpiresAt: request.ExpiresAt,
 	}
 	if !request.ResolvedAt.IsZero() {
@@ -483,14 +505,21 @@ func approvalRequestFromModel(model approvalRequestModel) (permissions.ApprovalR
 	if err := json.Unmarshal([]byte(model.EffectsJSON), &effects); err != nil {
 		return permissions.ApprovalRequest{}, err
 	}
+	var operations []string
+	if model.OperationsJSON != "" {
+		if err := json.Unmarshal([]byte(model.OperationsJSON), &operations); err != nil {
+			return permissions.ApprovalRequest{}, err
+		}
+	}
 	request := permissions.ApprovalRequest{
 		ID: model.ID, Fingerprint: model.Fingerprint,
 		Actor:       permissions.Actor{Kind: permissions.ActorKind(model.ActorKind), ID: model.ActorID},
 		SurfaceKind: permissions.SurfaceKind(model.SurfaceKind), Surface: permissions.Surface(model.Surface),
 		Profile: model.Profile, SessionID: model.SessionID, RunID: model.RunID, Tool: model.Tool,
 		Resource: permissions.Resource(model.Resource), Action: permissions.Action(model.Action), Effects: effects,
-		Summary: model.Summary, Reason: model.Reason, Status: permissions.ApprovalStatus(model.Status),
-		Scope: permissions.GrantScope(model.Scope), GrantID: model.GrantID,
+		Summary: model.Summary, Reason: model.Reason, Operations: operations,
+		Status: permissions.ApprovalStatus(model.Status),
+		Scope:  permissions.GrantScope(model.Scope), GrantID: model.GrantID,
 		CreatedAt: model.CreatedAt, ExpiresAt: model.ExpiresAt,
 	}
 	if model.ResolvedAt != nil {
@@ -500,10 +529,12 @@ func approvalRequestFromModel(model approvalRequestModel) (permissions.ApprovalR
 }
 
 func approvalGrantToModel(grant permissions.ApprovalGrant) approvalGrantModel {
+	operations, _ := json.Marshal(grant.Operations)
 	model := approvalGrantModel{
 		ID: grant.ID, RequestID: grant.RequestID, Fingerprint: grant.Fingerprint,
 		ActorKind: string(grant.Actor.Kind), ActorID: grant.Actor.ID, Profile: grant.Profile,
-		SessionID: grant.SessionID, Scope: string(grant.Scope), Status: string(grant.Status),
+		SessionID: grant.SessionID, OperationsJSON: string(operations),
+		Scope: string(grant.Scope), Status: string(grant.Status),
 		CreatedAt: grant.CreatedAt, ExpiresAt: grant.ExpiresAt,
 	}
 	if !grant.ConsumedAt.IsZero() {
@@ -515,11 +546,18 @@ func approvalGrantToModel(grant permissions.ApprovalGrant) approvalGrantModel {
 	return model
 }
 
-func approvalGrantFromModel(model approvalGrantModel) permissions.ApprovalGrant {
+func approvalGrantFromModel(model approvalGrantModel) (permissions.ApprovalGrant, error) {
+	var operations []string
+	if model.OperationsJSON != "" {
+		if err := json.Unmarshal([]byte(model.OperationsJSON), &operations); err != nil {
+			return permissions.ApprovalGrant{}, err
+		}
+	}
 	grant := permissions.ApprovalGrant{
 		ID: model.ID, RequestID: model.RequestID, Fingerprint: model.Fingerprint,
 		Actor:   permissions.Actor{Kind: permissions.ActorKind(model.ActorKind), ID: model.ActorID},
-		Profile: model.Profile, SessionID: model.SessionID, Scope: permissions.GrantScope(model.Scope),
+		Profile: model.Profile, SessionID: model.SessionID, Operations: operations,
+		Scope:  permissions.GrantScope(model.Scope),
 		Status: permissions.GrantStatus(model.Status), CreatedAt: model.CreatedAt, ExpiresAt: model.ExpiresAt,
 	}
 	if model.ConsumedAt != nil {
@@ -528,5 +566,5 @@ func approvalGrantFromModel(model approvalGrantModel) permissions.ApprovalGrant 
 	if model.RevokedAt != nil {
 		grant.RevokedAt = *model.RevokedAt
 	}
-	return grant
+	return grant, nil
 }

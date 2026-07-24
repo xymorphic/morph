@@ -8,9 +8,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/rs/zerolog"
+	commandplan "github.com/wandxy/morph/internal/command"
 	processenv "github.com/wandxy/morph/internal/environment/process"
 	envtypes "github.com/wandxy/morph/internal/environment/types"
-	"github.com/wandxy/morph/internal/guardrails"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/tools"
 	"github.com/wandxy/morph/internal/tools/common"
@@ -22,6 +22,7 @@ var processLog = logutils.Module("tool.process")
 
 type input struct {
 	Action       string            `json:"action"`
+	Mode         commandplan.Mode  `json:"mode"`
 	Command      string            `json:"command"`
 	Args         []string          `json:"args"`
 	Cwd          string            `json:"cwd"`
@@ -48,12 +49,18 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 			Action:   permissions.ActionManage,
 			Effects:  []permissions.Effect{permissions.EffectRead, permissions.EffectWrite, permissions.EffectExecution},
 		},
+		PreparePermission: preparePermission(runtime),
 		ResolvePermission: resolvePermission(runtime),
 		InputSchema: common.ObjectSchema(map[string]any{
 			"action": map[string]any{
 				"type":        "string",
 				"description": "Process action to perform.",
 				"enum":        []string{"start", "status", "read", "stop", "list"},
+			},
+			"mode": map[string]any{
+				"type":        "string",
+				"description": "Execution mode for action=start. Defaults to direct.",
+				"enum":        []string{"direct", "posix_shell"},
 			},
 			"command": common.StringSchema("Command to start. Required for action=start."),
 			"args": map[string]any{
@@ -113,7 +120,7 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 
 			switch action {
 			case "start":
-				return handleStart(ctx, runtime, action, req, logEvent), nil
+				return handleStart(ctx, runtime, action, req, call, logEvent), nil
 
 			case "status":
 				return handleStatus(ctx, runtime, action, req, logEvent), nil
@@ -147,69 +154,86 @@ func projectSemanticContent(call tools.Call, result tools.Result) string {
 }
 
 func resolvePermission(runtime envtypes.Runtime) tools.PermissionResolver {
-	return func(_ context.Context, call tools.Call) ([]permissions.EvaluationInput, error) {
+	return func(ctx context.Context, call tools.Call) ([]permissions.EvaluationInput, error) {
+		preparation, err := preparePermission(runtime)(ctx, call)
+		return preparation.Inputs, err
+	}
+}
+
+func preparePermission(runtime envtypes.Runtime) tools.PermissionPreparer {
+	return func(ctx context.Context, call tools.Call) (tools.PermissionPreparation, error) {
 		var req input
 		if err := json.Unmarshal([]byte(call.Input), &req); err != nil {
-			return nil, tools.NewPermissionResolutionError("invalid_input", "invalid tool input")
+			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError("invalid_input", "invalid tool input")
 		}
 		action := str.String(req.Action).Normalized()
 		if action == "" {
-			return nil, tools.NewPermissionResolutionError("invalid_input", "action is required")
+			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError("invalid_input", "action is required")
 		}
 		if err := validateActionFields(action, req); err != nil {
-			return nil, tools.NewPermissionResolutionError("invalid_input", err.Error())
+			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError("invalid_input", err.Error())
 		}
 
-		input := permissions.EvaluationInput{Operation: permissions.Operation{
-			Resource: permissions.ResourceProcess,
-		}}
 		switch action {
 		case "start":
-			command := str.String(req.Command).Trim()
-			if command == "" {
-				return nil, tools.NewPermissionResolutionError("invalid_input", "command is required for start")
+			plan, err := common.AnalyzeCommand(
+				ctx,
+				runtime,
+				req.Mode,
+				req.Command,
+				req.Args,
+				req.Cwd,
+				req.Env,
+			)
+			if err != nil {
+				return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(common.CommandErrorCode(err), err.Error())
 			}
-			input.Operation.Action = permissions.ActionStart
-			input.Operation.Effects = []permissions.Effect{permissions.EffectExecution, permissions.EffectWrite}
-			input.Operation.Target = command
-			if len(req.Args) > 0 {
-				input.Operation.Target += " " + strings.Join(req.Args, " ")
-			}
-			if runtime != nil {
-				evaluation := guardrails.EvaluateCommand(runtime.CommandPolicy(), req.Command, req.Args)
-				switch evaluation.Decision {
-				case guardrails.CommandDenied:
-					input.HardDenyReason = evaluation.Reason
-				case guardrails.CommandApprovalRequired:
-					input.ApprovalReason = "command requires approval"
-					if evaluation.Rule != "" {
-						input.ApprovalReason += ": " + evaluation.Rule
-					}
-				}
-			}
+			return tools.PermissionPreparation{
+				Inputs: common.CommandPermissionInputs(
+					ctx,
+					runtime,
+					plan,
+					permissions.ActionStart,
+					[]permissions.Effect{permissions.EffectExecution, permissions.EffectWrite},
+				),
+				Prepared: plan,
+			}, nil
 		case "status", "read":
-			input.Operation.Action = permissions.ActionRead
-			input.Operation.Effects = []permissions.Effect{permissions.EffectRead}
-			input.Operation.Target = str.String(req.ProcessID).Trim()
+			return tools.PermissionPreparation{Inputs: []permissions.EvaluationInput{{
+				Operation: permissions.Operation{
+					Resource: permissions.ResourceProcess,
+					Action:   permissions.ActionRead,
+					Effects:  []permissions.Effect{permissions.EffectRead},
+					Target:   str.String(req.ProcessID).Trim(),
+				},
+			}}}, nil
 		case "stop":
-			input.Operation.Action = permissions.ActionStop
-			input.Operation.Effects = []permissions.Effect{
-				permissions.EffectDestructive,
-				permissions.EffectExecution,
-				permissions.EffectWrite,
-			}
-			input.Operation.Target = str.String(req.ProcessID).Trim()
+			return tools.PermissionPreparation{Inputs: []permissions.EvaluationInput{{
+				Operation: permissions.Operation{
+					Resource: permissions.ResourceProcess,
+					Action:   permissions.ActionStop,
+					Effects: []permissions.Effect{
+						permissions.EffectDestructive,
+						permissions.EffectExecution,
+						permissions.EffectWrite,
+					},
+					Target: str.String(req.ProcessID).Trim(),
+				},
+			}}}, nil
 		case "list":
-			input.Operation.Action = permissions.ActionList
-			input.Operation.Effects = []permissions.Effect{permissions.EffectRead}
+			return tools.PermissionPreparation{Inputs: []permissions.EvaluationInput{{
+				Operation: permissions.Operation{
+					Resource: permissions.ResourceProcess,
+					Action:   permissions.ActionList,
+					Effects:  []permissions.Effect{permissions.EffectRead},
+				},
+			}}}, nil
 		default:
-			return nil, tools.NewPermissionResolutionError(
+			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(
 				"invalid_input",
 				fmt.Sprintf("unsupported action %q", action),
 			)
 		}
-
-		return []permissions.EvaluationInput{input}, nil
 	}
 }
 
@@ -218,6 +242,7 @@ func handleStart(
 	runtime envtypes.Runtime,
 	action string,
 	req input,
+	call tools.Call,
 	logEvent anyLogEvent,
 ) tools.Result {
 	sessionID := normalizeSessionID(ctx)
@@ -231,23 +256,35 @@ func handleStart(
 		Bool("label_provided", labelValue.Trim() != "").
 		Bool("output_buffer_limit", req.OutputBytes != nil).
 		Msg("process tool start requested")
-	commandValue := str.String(req.Command)
-	command := commandValue.Trim()
-	if command == "" {
-		return common.ToolError("invalid_input", "command is required for start")
+	plan, err := getStartPlan(ctx, runtime, call, req)
+	if err != nil {
+		return common.ToolError(common.CommandErrorCode(err), err.Error())
+	}
+	if code, message := common.CheckCommandPlan(
+		ctx,
+		runtime,
+		plan,
+		permissions.ActionStart,
+		[]permissions.Effect{permissions.EffectExecution, permissions.EffectWrite},
+	); code != "" {
+		return common.ToolError(code, message)
+	}
+	if _, err := common.ResolveFilesystemPathForOperation(
+		ctx,
+		common.FilesystemPolicyFromRuntime(runtime),
+		plan.CWD,
+		permissions.ActionRead,
+	); err != nil {
+		return common.FileError(err)
 	}
 
 	outputBufferBytes, err := resolveOutputBufferLimit(req.OutputBytes, "output_buffer_bytes")
 	if err != nil {
 		return common.ToolError("invalid_input", err.Error())
 	}
-	cwdValue2 := str.String(req.Cwd)
 	labelValue2 := str.String(req.Label)
 	info, err := runtime.StartProcess(ctx, sessionID, processenv.StartRequest{
-		Command:           command,
-		Args:              append([]string(nil), req.Args...),
-		CWD:               cwdValue2.Trim(),
-		Env:               cloneEnv(req.Env),
+		Plan:              plan,
 		Label:             labelValue2.Trim(),
 		OutputBufferBytes: outputBufferBytes,
 	})
@@ -259,6 +296,21 @@ func handleStart(
 	logProcessComplete(action, info.Status, info.ID, 0, 0, false)
 
 	return encodeProcessOutput(map[string]any{"process": info})
+}
+
+func getStartPlan(
+	ctx context.Context,
+	runtime envtypes.Runtime,
+	call tools.Call,
+	req input,
+) (commandplan.Plan, error) {
+	if prepared, ok := tools.GetPreparedCall(ctx, call); ok {
+		if plan, planOK := prepared.(commandplan.Plan); planOK {
+			return plan, nil
+		}
+		return commandplan.Plan{}, fmt.Errorf("prepared command plan is invalid")
+	}
+	return common.AnalyzeCommand(ctx, runtime, req.Mode, req.Command, req.Args, req.Cwd, req.Env)
 }
 
 func handleStatus(ctx context.Context, runtime envtypes.Runtime, action string, req input, logEvent anyLogEvent) tools.Result {
@@ -552,19 +604,6 @@ func limitOutput(value string, maxBytes int) (string, int, bool) {
 	}
 
 	return string(data), len(data), true
-}
-
-func cloneEnv(env map[string]string) map[string]string {
-	if len(env) == 0 {
-		return nil
-	}
-
-	cloned := make(map[string]string, len(env))
-	for key, value := range env {
-		cloned[key] = value
-	}
-
-	return cloned
 }
 
 func normalizeSessionID(ctx context.Context) string {

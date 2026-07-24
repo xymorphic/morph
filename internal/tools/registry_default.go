@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"path/filepath"
 	"slices"
 	"sort"
 	"sync"
 
+	"github.com/wandxy/morph/internal/command"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/trace"
 	"github.com/wandxy/morph/pkg/str"
@@ -85,7 +87,7 @@ func (r *DefaultRegistry) Register(def Definition) error {
 	if def.Handler == nil {
 		return errors.New("tool handler is required")
 	}
-	if def.Permission.IsZero() && def.ResolvePermission == nil {
+	if def.Permission.IsZero() && def.ResolvePermission == nil && def.PreparePermission == nil {
 		return errors.New("tool permission declaration is required")
 	}
 	if err := validateSemanticIndexPolicy(def.SemanticIndex); err != nil {
@@ -296,7 +298,7 @@ func (r *DefaultRegistry) checkPermissions(
 	definition Definition,
 	call Call,
 ) (context.Context, Result, bool) {
-	inputs, err := getPermissionInputs(ctx, definition, call)
+	inputs, prepared, err := getPermissionInputs(ctx, definition, call)
 	if err != nil {
 		code := "invalid_input"
 		message := err.Error()
@@ -311,6 +313,9 @@ func (r *DefaultRegistry) checkPermissions(
 	if len(inputs) == 0 {
 		return ctx, Result{}, false
 	}
+	if prepared != nil {
+		ctx = withPreparedCall(ctx, definition.Name, call.Input, prepared)
+	}
 
 	approvals := r.getApprovalService()
 	var selected *permissions.DecisionError
@@ -318,6 +323,8 @@ func (r *DefaultRegistry) checkPermissions(
 	var preparedBatch permissions.BatchApproval
 	authorized := make([]permissions.Operation, 0, len(inputs))
 	askInputs := make([]permissions.EvaluationInput, 0, len(inputs))
+	askedFingerprints := make(map[string]struct{}, len(inputs))
+	authorization := getAuthorizationContext(ctx)
 	propagateAuthorization := r.permissions.Preset(ctx) == permissions.PresetAskForApproval ||
 		r.permissions.Preset(ctx) == permissions.PresetApproveForMe
 	for _, input := range inputs {
@@ -340,6 +347,7 @@ func (r *DefaultRegistry) checkPermissions(
 			}
 			input.ApprovalReason = approvalReason
 			askInputs = append(askInputs, input)
+			askedFingerprints[permissions.Fingerprint(authorization, input.Operation)] = struct{}{}
 			continue
 		}
 		if selected == nil {
@@ -354,15 +362,18 @@ func (r *DefaultRegistry) checkPermissions(
 			selected = firstAsk
 		} else {
 			var approvalErr error
-			if len(askInputs) == 1 {
-				approvalErr = approvals.Authorize(ctx, askInputs[0])
-			} else {
-				batchApprovals, ok := approvals.(permissions.BatchApprover)
-				if !ok {
-					approvalErr = errors.New("approval service does not support atomic operation batches")
+			batchApprovals, supportsAtomicApproval := approvals.(permissions.OperationBatchApprover)
+			if supportsAtomicApproval {
+				preparedBatch, approvalErr = batchApprovals.PrepareOperationBatch(ctx, askInputs, inputs)
+			} else if len(inputs) == 1 {
+				singleApproval, supportsPreparedApproval := approvals.(permissions.BatchApprover)
+				if !supportsPreparedApproval {
+					approvalErr = errors.New("approval service does not support prepared approvals")
 				} else {
-					preparedBatch, approvalErr = batchApprovals.PrepareBatch(ctx, askInputs)
+					preparedBatch, approvalErr = singleApproval.PrepareBatch(ctx, askInputs)
 				}
+			} else {
+				approvalErr = errors.New("approval service does not support atomic operation batches")
 			}
 			if approvalErr != nil {
 				if decisionErr, ok := permissions.GetDecisionError(approvalErr); ok {
@@ -378,13 +389,23 @@ func (r *DefaultRegistry) checkPermissions(
 			}
 		}
 	}
-	if selected == nil {
-		for _, input := range askInputs {
+	if selected == nil && len(askInputs) > 0 {
+		authorized = authorized[:0]
+		for _, input := range inputs {
 			recheck := r.permissions.Evaluate(ctx, input)
 			permissions.ObserveDecision(ctx, input.Operation, recheck)
 			if recheck.Decision == permissions.DecisionDeny {
 				selected = &permissions.DecisionError{Code: permissions.ErrorCodeDenied, Evaluation: recheck}
 				break
+			}
+			if recheck.Decision == permissions.DecisionAsk {
+				if _, approved := askedFingerprints[permissions.Fingerprint(authorization, input.Operation)]; !approved {
+					selected = &permissions.DecisionError{
+						Code:       permissions.ErrorCodeApprovalRequired,
+						Evaluation: recheck,
+					}
+					break
+				}
 			}
 			authorized = append(authorized, input.Operation)
 		}
@@ -406,26 +427,43 @@ func (r *DefaultRegistry) checkPermissions(
 	return ctx, Result{Error: Error{Code: selected.Code, Message: selected.Error()}.String()}, true
 }
 
-func getPermissionInputs(ctx context.Context, definition Definition, call Call) ([]permissions.EvaluationInput, error) {
+func getPermissionInputs(
+	ctx context.Context,
+	definition Definition,
+	call Call,
+) ([]permissions.EvaluationInput, any, error) {
+	if definition.PreparePermission != nil {
+		preparation, err := definition.PreparePermission(ctx, call)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(preparation.Inputs) == 0 {
+			return nil, nil, errors.New("permission preparer returned no operations")
+		}
+		inputs, err := normalizePermissionInputs(definition.Name, preparation.Inputs)
+		return inputs, preparation.Prepared, err
+	}
 	if definition.ResolvePermission == nil {
 		if definition.Permission.IsZero() {
-			return nil, nil
+			return nil, nil, nil
 		}
 
-		return normalizePermissionInputs(definition.Name, []permissions.EvaluationInput{{
+		inputs, err := normalizePermissionInputs(definition.Name, []permissions.EvaluationInput{{
 			Operation: definition.Permission,
 		}})
+		return inputs, nil, err
 	}
 
 	inputs, err := definition.ResolvePermission(ctx, call)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(inputs) == 0 {
-		return nil, errors.New("permission resolver returned no operations")
+		return nil, nil, errors.New("permission resolver returned no operations")
 	}
 
-	return normalizePermissionInputs(definition.Name, inputs)
+	inputs, err = normalizePermissionInputs(definition.Name, inputs)
+	return inputs, nil, err
 }
 
 func normalizePermissionInputs(toolName string, inputs []permissions.EvaluationInput) ([]permissions.EvaluationInput, error) {
@@ -477,7 +515,29 @@ func (r *DefaultRegistry) recordPermissionDecision(
 			operation.Network,
 			slices.Contains(operation.Effects, permissions.EffectCredentialBearing),
 		),
+		Command: getPermissionCommandTracePayload(operation.Command),
 	})
+}
+
+func getPermissionCommandTracePayload(
+	target *command.Target,
+) *trace.PermissionCommandTargetPayload {
+	if target == nil {
+		return nil
+	}
+	reasons := make([]string, len(target.DynamicReasons))
+	for index, reason := range target.DynamicReasons {
+		reasons[index] = string(reason)
+	}
+	return &trace.PermissionCommandTargetPayload{
+		Mode:            string(target.Mode),
+		Executable:      filepath.Base(target.Executable),
+		InvocationCount: target.InvocationCount,
+		RedirectCount:   target.RedirectCount,
+		Complete:        target.Complete,
+		Indirect:        target.Indirect,
+		DynamicReasons:  reasons,
+	}
 }
 
 func getPermissionNetworkTracePayload(

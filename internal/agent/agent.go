@@ -236,6 +236,13 @@ func (a *Agent) SetBrowserService(service envtypes.BrowserService) {
 	a.env.SetBrowserService(service)
 }
 
+func (a *Agent) SetCommandIdentityKey(key []byte) {
+	if a == nil || a.env == nil {
+		return
+	}
+	a.env.SetCommandIdentityKey(key)
+}
+
 func (a *Agent) ListProviders(context.Context) (ProviderList, error) {
 	if a == nil {
 		return ProviderList{}, errors.New("agent is required")

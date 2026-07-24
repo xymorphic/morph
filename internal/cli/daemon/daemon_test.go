@@ -1545,6 +1545,21 @@ func TestServeRPC_LoadsOwnerCredentialFromActiveProfile(t *testing.T) {
 	require.ErrorIs(t, err, expected)
 }
 
+func TestServeRPC_RejectsMissingProfileHomeForStableIdentity(t *testing.T) {
+	originalProfile := profile.Active()
+	profile.SetActive(profile.Profile{})
+	t.Cleanup(func() { profile.SetActive(originalProfile) })
+	cfg := config.NewDefaultConfig()
+	cfg.RPC.Address = "127.0.0.1"
+	cfg.RPC.Port = 0
+
+	err := serveRPC(
+		context.Background(), cfg, &agentstub.AgentRunnerStub{}, openTestRPCListener(t, cfg), nil,
+	)
+
+	require.EqualError(t, err, "active profile home is required for stable owner and command approval identity")
+}
+
 func TestCloseBrowserService_UsesBoundedContextAndReturnsFailure(t *testing.T) {
 	original := stopBrowserTimeout
 	stopBrowserTimeout = time.Second

@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	commandplan "github.com/wandxy/morph/internal/command"
 )
 
 func TestPermissionScope_AllowsOnlyDeclaredOperations(t *testing.T) {
@@ -31,6 +33,52 @@ func TestPermissionScope_AllowsOnlyDeclaredOperations(t *testing.T) {
 	require.False(t, scope.Allows(Operation{
 		Resource: ResourceFile, Action: ActionRead, Effects: []Effect{EffectWrite}, Target: "workspace/a.txt",
 	}))
+}
+
+func TestPermissionScope_AllowsTypedCommandsAndFileTargetsInOneScope(t *testing.T) {
+	scope := PermissionScope{
+		Restricted: true,
+		Resources:  []Resource{ResourceProcess, ResourceFile},
+		Actions:    []Action{ActionExecute, ActionUpdate},
+		Effects:    []Effect{EffectExecution, EffectWrite},
+		Commands:   []commandplan.Selector{{Executable: "git", ArgumentPrefix: []string{"status"}}},
+		TargetPrefixes: []string{
+			"workspace/",
+		},
+	}
+	command := commandplan.Target{
+		Mode: commandplan.ModeDirect, Executable: "git", ResolvedPath: "/usr/bin/git",
+		Arguments: []string{"status", "--short"}, PlanDigest: "plan", Complete: true,
+	}
+
+	require.True(t, scope.Allows(Operation{
+		Resource: ResourceProcess, Action: ActionExecute, Effects: []Effect{EffectExecution}, Command: &command,
+	}))
+	require.True(t, scope.Allows(Operation{
+		Resource: ResourceFile, Action: ActionUpdate, Effects: []Effect{EffectWrite}, Target: "workspace/out.txt",
+	}))
+	command.Arguments = []string{"push"}
+	require.False(t, scope.Allows(Operation{
+		Resource: ResourceProcess, Action: ActionExecute, Effects: []Effect{EffectExecution}, Command: &command,
+	}))
+}
+
+func TestIntersectScopes_CommandSelectorsCannotWidenThroughEmptyBoundary(t *testing.T) {
+	selector := commandplan.Selector{Executable: "git", ArgumentPrefix: []string{"status"}}
+	base := PermissionScope{
+		Restricted: true, Resources: []Resource{ResourceProcess}, Actions: []Action{ActionExecute},
+		Effects: []Effect{EffectExecution},
+	}
+	withCommand := base
+	withCommand.Commands = []commandplan.Selector{selector}
+
+	intersection, err := IntersectScopes(base, withCommand)
+	require.NoError(t, err)
+	require.Empty(t, intersection.Commands)
+
+	intersection, err = IntersectScopes(withCommand, base)
+	require.NoError(t, err)
+	require.Empty(t, intersection.Commands)
 }
 
 func TestPermissionScope_NormalizeRejectsInvalidConstraints(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -74,6 +75,7 @@ type ApprovalRequest struct {
 	Effects     []Effect
 	Summary     string
 	Reason      string
+	Operations  []string
 	Status      ApprovalStatus
 	Scope       GrantScope
 	GrantID     string
@@ -89,6 +91,7 @@ type ApprovalGrant struct {
 	Actor       Actor
 	Profile     string
 	SessionID   string
+	Operations  []string
 	Scope       GrantScope
 	Status      GrantStatus
 	CreatedAt   time.Time
@@ -199,6 +202,10 @@ type BatchApproval interface {
 
 type BatchApprover interface {
 	PrepareBatch(context.Context, []EvaluationInput) (BatchApproval, error)
+}
+
+type OperationBatchApprover interface {
+	PrepareOperationBatch(context.Context, []EvaluationInput, []EvaluationInput) (BatchApproval, error)
 }
 
 type ApprovalOptions struct {
@@ -419,6 +426,7 @@ func (s *ApprovalService) authorize(
 		Effects:     append([]Effect(nil), operation.Effects...),
 		Summary:     summary,
 		Reason:      input.ApprovalReason,
+		Operations:  getApprovalOperations(input, operation),
 		Status:      ApprovalPending,
 		CreatedAt:   now,
 		ExpiresAt:   now.Add(s.opts.RequestTTL),
@@ -479,31 +487,35 @@ func (s *ApprovalService) AuthorizeBatch(ctx context.Context, inputs []Evaluatio
 }
 
 func (s *ApprovalService) PrepareBatch(ctx context.Context, inputs []EvaluationInput) (BatchApproval, error) {
-	if len(inputs) == 0 {
+	return s.PrepareOperationBatch(ctx, inputs, inputs)
+}
+
+func (s *ApprovalService) PrepareOperationBatch(
+	ctx context.Context,
+	asked []EvaluationInput,
+	complete []EvaluationInput,
+) (BatchApproval, error) {
+	if len(asked) == 0 || len(complete) == 0 {
 		return nil, errors.New("approval batch requires at least one operation")
-	}
-	if len(inputs) == 1 {
-		grant, err := s.authorize(ctx, inputs[0], false)
-		if err != nil {
-			return nil, err
-		}
-		return &preparedBatchApproval{service: s, grant: grant}, nil
 	}
 	authorization, ok := FromContext(ctx)
 	if !ok {
 		return nil, errors.New("authorization context is required")
 	}
-	fingerprints := make([]string, 0, len(inputs))
-	operations := make([]Operation, 0, len(inputs))
+	fingerprints := make([]string, 0, len(complete))
+	completeFingerprints := make(map[string]struct{}, len(complete))
+	operations := make([]Operation, 0, len(complete))
 	effects := make([]Effect, 0)
 	ownerRequired := false
-	for _, input := range inputs {
+	for _, input := range complete {
 		operation, err := input.Operation.Normalize()
 		if err != nil {
 			return nil, err
 		}
 		operations = append(operations, operation)
-		fingerprints = append(fingerprints, Fingerprint(authorization, operation))
+		fingerprint := Fingerprint(authorization, operation)
+		fingerprints = append(fingerprints, fingerprint)
+		completeFingerprints[fingerprint] = struct{}{}
 		for _, effect := range operation.Effects {
 			if !slices.Contains(effects, effect) {
 				effects = append(effects, effect)
@@ -511,13 +523,22 @@ func (s *ApprovalService) PrepareBatch(ctx context.Context, inputs []EvaluationI
 		}
 		ownerRequired = ownerRequired || operation.OwnerRequired
 	}
-	slices.SortFunc(operations, func(left, right Operation) int {
-		return strings.Compare(
-			left.Tool+"\x00"+string(left.Resource)+"\x00"+string(left.Action),
-			right.Tool+"\x00"+string(right.Resource)+"\x00"+string(right.Action),
-		)
-	})
-	slices.Sort(fingerprints)
+	for _, input := range asked {
+		operation, err := input.Operation.Normalize()
+		if err != nil {
+			return nil, err
+		}
+		if _, exists := completeFingerprints[Fingerprint(authorization, operation)]; !exists {
+			return nil, errors.New("approval operation is not part of the complete batch")
+		}
+	}
+	if len(complete) == 1 {
+		grant, err := s.authorize(ctx, asked[0], false)
+		if err != nil {
+			return nil, err
+		}
+		return &preparedBatchApproval{service: s, grant: grant}, nil
+	}
 	slices.Sort(effects)
 	digest := sha256.Sum256([]byte(strings.Join(fingerprints, "\x00")))
 	tool := getBatchTool(operations)
@@ -526,8 +547,9 @@ func (s *ApprovalService) PrepareBatch(ctx context.Context, inputs []EvaluationI
 			Tool: tool, Resource: operations[0].Resource, Action: ActionExecute,
 			Effects: effects, Target: "batch:" + hex.EncodeToString(digest[:]), OwnerRequired: ownerRequired,
 		},
-		ApprovalSummary: fmt.Sprintf("%s · approve %d operations", tool, len(inputs)),
-		ApprovalReason:  getBatchApprovalReason(inputs, operations),
+		ApprovalSummary:    fmt.Sprintf("%s · approve %d operations", tool, len(complete)),
+		ApprovalReason:     getBatchApprovalReason(asked, operations),
+		approvalOperations: getApprovalOperationSummaries(operations),
 	}, false)
 	if err != nil {
 		return nil, err
@@ -599,6 +621,7 @@ func (s *ApprovalService) Resolve(ctx context.Context, id string, approved bool,
 			Actor:       request.Actor,
 			Profile:     request.Profile,
 			SessionID:   request.SessionID,
+			Operations:  slices.Clone(request.Operations),
 			Scope:       scope,
 			Status:      GrantActive,
 			CreatedAt:   now,
@@ -870,6 +893,9 @@ func getApprovalSummary(operation Operation) string {
 	if operation.Network != nil {
 		summary += " " + getSafeNetworkApprovalTarget(*operation.Network)
 	}
+	if operation.Command != nil {
+		summary += " " + filepath.Base(operation.Command.Executable)
+	}
 
 	return summary
 }
@@ -885,7 +911,6 @@ func getBatchTool(operations []Operation) string {
 }
 
 func getBatchApprovalReason(inputs []EvaluationInput, operations []Operation) string {
-	const maxPresentedOperations = 8
 	explicitReasons := make([]string, 0, len(inputs))
 	for _, input := range inputs {
 		reason := strings.TrimSpace(input.ApprovalReason)
@@ -894,19 +919,38 @@ func getBatchApprovalReason(inputs []EvaluationInput, operations []Operation) st
 		}
 	}
 	slices.Sort(explicitReasons)
-	limit := min(len(operations), maxPresentedOperations)
-	descriptions := make([]string, 0, limit+1)
-	for _, operation := range operations[:limit] {
-		descriptions = append(descriptions, getApprovalSummary(operation))
-	}
-	if remaining := len(operations) - limit; remaining > 0 {
-		descriptions = append(descriptions, fmt.Sprintf("%d more operations", remaining))
-	}
+	descriptions := getPresentedApprovalOperationSummaries(operations)
 	details := fmt.Sprintf("Approve all %d operations: %s", len(operations), strings.Join(descriptions, "; "))
 	if len(explicitReasons) == 0 {
 		return details
 	}
 	return strings.Join(explicitReasons, "; ") + " " + details
+}
+
+func getApprovalOperations(input EvaluationInput, operation Operation) []string {
+	if len(input.approvalOperations) > 0 {
+		return slices.Clone(input.approvalOperations)
+	}
+	return []string{getApprovalSummary(operation)}
+}
+
+func getApprovalOperationSummaries(operations []Operation) []string {
+	descriptions := make([]string, len(operations))
+	for index, operation := range operations {
+		descriptions[index] = getApprovalSummary(operation)
+	}
+	return descriptions
+}
+
+func getPresentedApprovalOperationSummaries(operations []Operation) []string {
+	const maxPresentedOperations = 8
+	limit := min(len(operations), maxPresentedOperations)
+	descriptions := make([]string, 0, limit+1)
+	descriptions = append(descriptions, getApprovalOperationSummaries(operations[:limit])...)
+	if remaining := len(operations) - limit; remaining > 0 {
+		descriptions = append(descriptions, fmt.Sprintf("%d more operations", remaining))
+	}
+	return descriptions
 }
 
 func getSafeNetworkApprovalTarget(target NetworkTarget) string {

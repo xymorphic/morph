@@ -4,6 +4,7 @@ import (
 	"maps"
 	"slices"
 
+	commandplan "github.com/wandxy/morph/internal/command"
 	"github.com/wandxy/morph/internal/constants"
 	"github.com/wandxy/morph/internal/permissions"
 )
@@ -252,10 +253,14 @@ func cloneConfig(cfg Config) Config {
 	cfg.Exec.Allow = slices.Clone(cfg.Exec.Allow)
 	cfg.Exec.Ask = slices.Clone(cfg.Exec.Ask)
 	cfg.Exec.Deny = slices.Clone(cfg.Exec.Deny)
+	cfg.Exec.AllowCommands = cloneCommandSelectors(cfg.Exec.AllowCommands)
+	cfg.Exec.AskCommands = cloneCommandSelectors(cfg.Exec.AskCommands)
+	cfg.Exec.DenyCommands = cloneCommandSelectors(cfg.Exec.DenyCommands)
 	cfg.Permissions.SurfaceKindDefaults = maps.Clone(cfg.Permissions.SurfaceKindDefaults)
 	cfg.Permissions.SurfaceDefaults = maps.Clone(cfg.Permissions.SurfaceDefaults)
 	cfg.Permissions.Rules = slices.Clone(cfg.Permissions.Rules)
 	for index := range cfg.Permissions.Rules {
+		cfg.Permissions.Rules[index].Commands = cloneCommandSelectors(cfg.Permissions.Rules[index].Commands)
 		cfg.Permissions.Rules[index].Profiles = slices.Clone(cfg.Permissions.Rules[index].Profiles)
 		cfg.Permissions.Rules[index].ActorKinds = slices.Clone(cfg.Permissions.Rules[index].ActorKinds)
 		cfg.Permissions.Rules[index].ActorIDs = slices.Clone(cfg.Permissions.Rules[index].ActorIDs)
@@ -361,6 +366,17 @@ func cloneBoolPtr(value *bool) *bool {
 	}
 
 	return new(*value)
+}
+
+func cloneCommandSelectors(values []commandplan.Selector) []commandplan.Selector {
+	cloned := slices.Clone(values)
+	for index := range cloned {
+		cloned[index].ExactArguments = slices.Clone(cloned[index].ExactArguments)
+		cloned[index].ArgumentPrefix = slices.Clone(cloned[index].ArgumentPrefix)
+		cloned[index].Modes = slices.Clone(cloned[index].Modes)
+		cloned[index].RequireComplete = cloneBoolPtr(cloned[index].RequireComplete)
+	}
+	return cloned
 }
 
 func cloneIntPtr(value *int) *int {

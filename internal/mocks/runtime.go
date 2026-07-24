@@ -91,6 +91,7 @@ type EnvironmentStub struct {
 	AutomationSets   int
 	Browser          envtypes.BrowserService
 	BrowserSets      int
+	CommandKeys      [][]byte
 	Plan             envtypes.Plan
 	PlanSessionIDs   []string
 }
@@ -113,6 +114,10 @@ func (s *EnvironmentStub) Tools() environment.ToolRegistry {
 
 func (s *EnvironmentStub) ToolPolicy() tools.Policy {
 	return s.Policy
+}
+
+func (s *EnvironmentStub) SetCommandIdentityKey(key []byte) {
+	s.CommandKeys = append(s.CommandKeys, append([]byte(nil), key...))
 }
 
 func (s *EnvironmentStub) NewIterationBudget() envbudget.IterationBudget {

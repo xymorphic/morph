@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/wandxy/morph/internal/agent/runcontext"
+	commandplan "github.com/wandxy/morph/internal/command"
 	"github.com/wandxy/morph/internal/environment/planstore"
 	"github.com/wandxy/morph/internal/environment/process"
 	"github.com/wandxy/morph/internal/environment/sessionmessages"
@@ -30,16 +31,44 @@ func TestNewRuntime_DefaultsRootToCWDAndNormalizesPolicy(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
 
+	duplicated := commandplan.Selector{Executable: "git", ArgumentPrefix: []string{"push"}}
 	runtime := NewRuntime(nil, guardrails.CommandPolicy{
-		Ask:  []string{" git push "},
-		Deny: []string{"git push", "git push"},
+		DenyCommands: []commandplan.Selector{duplicated, duplicated},
 	}, nil)
 
 	require.Equal(t, []string{dir}, runtime.FilePolicy().Roots)
-	require.Equal(t, []string{"git push"}, runtime.CommandPolicy().Ask)
-	require.Equal(t, []string{"git push"}, runtime.CommandPolicy().Deny)
+	require.Equal(t, []commandplan.Selector{{
+		Executable:     "git",
+		ArgumentPrefix: []string{"push"},
+		Modes:          []commandplan.Mode{commandplan.ModeDirect, commandplan.ModePOSIXShell},
+	}}, runtime.CommandPolicy().DenyCommands)
 	require.IsType(t, &process.DefaultManager{}, runtime.processMgr)
 	require.IsType(t, &planstore.MemoryPlanStore{}, runtime.plans)
+}
+
+func TestRuntime_CommandIdentityKeyIsIsolatedAndCanBindProfileCredential(t *testing.T) {
+	var nilRuntime *Runtime
+	require.Nil(t, nilRuntime.CommandIdentityKey())
+	nilRuntime.setCommandIdentityKey([]byte("ignored"))
+
+	left := NewRuntime([]string{t.TempDir()}, guardrails.CommandPolicy{}, nil)
+	right := NewRuntime([]string{t.TempDir()}, guardrails.CommandPolicy{}, nil)
+
+	require.Len(t, left.CommandIdentityKey(), 32)
+	require.NotEqual(t, left.CommandIdentityKey(), right.CommandIdentityKey())
+
+	credential := []byte("0123456789abcdef0123456789abcdef")
+	left.setCommandIdentityKey(credential)
+	right.setCommandIdentityKey(credential)
+	require.Equal(t, left.CommandIdentityKey(), right.CommandIdentityKey())
+
+	returned := left.CommandIdentityKey()
+	returned[0] ^= 0xff
+	require.NotEqual(t, returned, left.CommandIdentityKey())
+
+	before := left.CommandIdentityKey()
+	left.setCommandIdentityKey(nil)
+	require.Equal(t, before, left.CommandIdentityKey())
 }
 
 func TestRuntime_BrowserServiceReportsAvailability(t *testing.T) {
@@ -96,13 +125,11 @@ func TestRuntime_ProcessStateUsesChildSessionID(t *testing.T) {
 	runtime := NewRuntime([]string{t.TempDir()}, guardrails.CommandPolicy{}, nil)
 
 	parentProcess, err := runtime.StartProcess(context.Background(), parentID, process.StartRequest{
-		Command: "printf",
-		Args:    []string{"parent"},
+		Plan: testRuntimeCommandPlan(t, "printf", "parent"),
 	})
 	require.NoError(t, err)
 	childProcess, err := runtime.StartProcess(context.Background(), childID, process.StartRequest{
-		Command: "printf",
-		Args:    []string{"child"},
+		Plan: testRuntimeCommandPlan(t, "printf", "child"),
 	})
 	require.NoError(t, err)
 
@@ -112,11 +139,12 @@ func TestRuntime_ProcessStateUsesChildSessionID(t *testing.T) {
 	require.Len(t, runtime.ListProcesses(childID), 1)
 	foundParent, err := runtime.GetProcess(parentID, childProcess.ID)
 	require.NoError(t, err)
-	require.Equal(t, "printf", foundParent.Command)
-	require.Equal(t, []string{"parent"}, foundParent.Args)
+	require.Equal(t, "direct · printf", foundParent.Command)
+	require.Empty(t, foundParent.Args)
 	foundChild, err := runtime.GetProcess(childID, childProcess.ID)
 	require.NoError(t, err)
-	require.Equal(t, []string{"child"}, foundChild.Args)
+	require.Equal(t, "direct · printf", foundChild.Command)
+	require.Empty(t, foundChild.Args)
 	_, err = runtime.GetProcess("default", childProcess.ID)
 	require.EqualError(t, err, "process not found")
 }
@@ -196,8 +224,7 @@ func TestRuntime_ProcessMethodsDelegateToStore(t *testing.T) {
 	runtime := NewRuntime([]string{t.TempDir()}, guardrails.CommandPolicy{}, nil)
 
 	info, err := runtime.StartProcess(context.Background(), "session-1", process.StartRequest{
-		Command:           "printf",
-		Args:              []string{"hello"},
+		Plan:              testRuntimeCommandPlan(t, "printf", "hello"),
 		OutputBufferBytes: 32,
 	})
 	require.NoError(t, err)
@@ -219,6 +246,17 @@ func TestRuntime_ProcessMethodsDelegateToStore(t *testing.T) {
 	list := runtime.ListProcesses("session-1")
 	require.Len(t, list, 1)
 	require.Equal(t, info.ID, list[0].ID)
+}
+
+func testRuntimeCommandPlan(t *testing.T, executable string, arguments ...string) commandplan.Plan {
+	t.Helper()
+	plan, err := commandplan.Analyze(context.Background(), commandplan.Request{
+		Mode:    commandplan.ModeDirect,
+		Command: executable,
+		Args:    arguments,
+	})
+	require.NoError(t, err)
+	return plan
 }
 
 func TestRuntime_ProcessMethodsHandleNilReceiver(t *testing.T) {

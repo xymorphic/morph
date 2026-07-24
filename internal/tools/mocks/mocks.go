@@ -20,6 +20,8 @@ import (
 type Runtime struct {
 	FilePolicyValue              guardrails.FilesystemPolicy
 	CommandPolicyValue           guardrails.CommandPolicy
+	CommandShellValue            string
+	CommandIdentityKeyValue      []byte
 	StartProcessFunc             func(context.Context, string, processenv.StartRequest) (processenv.Info, error)
 	GetProcessFunc               func(string, string) (processenv.Info, error)
 	ReadProcessFunc              func(string, processenv.ReadRequest) (processenv.Output, error)
@@ -47,6 +49,10 @@ type Runtime struct {
 
 func (r *Runtime) FilePolicy() guardrails.FilesystemPolicy { return r.FilePolicyValue }
 func (r *Runtime) CommandPolicy() guardrails.CommandPolicy { return r.CommandPolicyValue }
+func (r *Runtime) CommandShell() string                    { return r.CommandShellValue }
+func (r *Runtime) CommandIdentityKey() []byte {
+	return append([]byte(nil), r.CommandIdentityKeyValue...)
+}
 func (r *Runtime) StartProcess(ctx context.Context, sessionID string, req processenv.StartRequest) (processenv.Info, error) {
 	if r != nil && r.StartProcessFunc != nil {
 		return r.StartProcessFunc(ctx, sessionID, req)
@@ -247,6 +253,12 @@ type FailingPlanRuntime struct {
 func (d *FailingPlanRuntime) FilePolicy() guardrails.FilesystemPolicy { return d.Runtime.FilePolicy() }
 func (d *FailingPlanRuntime) CommandPolicy() guardrails.CommandPolicy {
 	return d.Runtime.CommandPolicy()
+}
+func (d *FailingPlanRuntime) CommandShell() string {
+	return d.Runtime.CommandShell()
+}
+func (d *FailingPlanRuntime) CommandIdentityKey() []byte {
+	return d.Runtime.CommandIdentityKey()
 }
 func (d *FailingPlanRuntime) StartProcess(ctx context.Context, sessionID string, req processenv.StartRequest) (processenv.Info, error) {
 	return d.Runtime.StartProcess(ctx, sessionID, req)

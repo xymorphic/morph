@@ -454,10 +454,10 @@ func writeGrants(grants []permissions.ApprovalGrant) error {
 	}
 
 	w := tabwriter.NewWriter(permissionOutput, 0, 4, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "GRANT\tSTATUS\tSCOPE\tSESSION\tEXPIRES")
+	_, _ = fmt.Fprintln(w, "GRANT\tSTATUS\tSCOPE\tOPERATION\tSESSION\tEXPIRES")
 	for _, grant := range grants {
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", grant.ID, grant.Status, grant.Scope,
-			grant.SessionID, getGrantExpiryText(grant))
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", grant.ID, grant.Status, grant.Scope,
+			strings.Join(grant.Operations, "; "), grant.SessionID, getGrantExpiryText(grant))
 	}
 
 	return w.Flush()

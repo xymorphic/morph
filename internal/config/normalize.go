@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"slices"
 
+	commandplan "github.com/wandxy/morph/internal/command"
 	"github.com/wandxy/morph/internal/constants"
 	"github.com/wandxy/morph/internal/datadir"
 	"github.com/wandxy/morph/pkg/str"
@@ -100,6 +101,10 @@ func (c *Config) normalizeFields() {
 	c.Exec.Allow = dedupeAndTrim(c.Exec.Allow)
 	c.Exec.Ask = dedupeAndTrim(c.Exec.Ask)
 	c.Exec.Deny = dedupeAndTrim(c.Exec.Deny)
+	c.Exec.AllowCommands = normalizeCommandSelectors(c.Exec.AllowCommands)
+	c.Exec.AskCommands = normalizeCommandSelectors(c.Exec.AskCommands)
+	c.Exec.DenyCommands = normalizeDenyCommandSelectors(c.Exec.DenyCommands)
+	c.Exec.Shell = cleanOptionalPath(c.Exec.Shell)
 	c.Permissions.Normalize()
 	backendValue := str.String(c.Storage.Backend)
 	c.Storage.Backend = backendValue.Normalized()
@@ -302,6 +307,22 @@ func (c *Config) normalizeFields() {
 		c.Memory.Write.Enabled = new(constants.DefaultProfileMemoryWriteEnabled)
 	}
 
+}
+
+func normalizeCommandSelectors(values []commandplan.Selector) []commandplan.Selector {
+	normalized, err := commandplan.NormalizeSelectors(values)
+	if err != nil {
+		return slices.Clone(values)
+	}
+	return normalized
+}
+
+func normalizeDenyCommandSelectors(values []commandplan.Selector) []commandplan.Selector {
+	normalized, err := commandplan.NormalizeDenySelectors(values)
+	if err != nil {
+		return slices.Clone(values)
+	}
+	return normalized
 }
 
 func (c *Config) normalizeBrowser() {

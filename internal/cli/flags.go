@@ -426,24 +426,6 @@ func RootFlags(envFile, configFile *string) []cli.Flag {
 			Hidden: true,
 		},
 		&cli.StringFlag{
-			Name:   "exec.allow",
-			Usage:  "Comma-separated allowed command prefixes",
-			Value:  strings.Join(config.Get().Exec.Allow, ","),
-			Hidden: true,
-		},
-		&cli.StringFlag{
-			Name:   "exec.ask",
-			Usage:  "Comma-separated command prefixes that require approval",
-			Value:  strings.Join(config.Get().Exec.Ask, ","),
-			Hidden: true,
-		},
-		&cli.StringFlag{
-			Name:   "exec.deny",
-			Usage:  "Comma-separated denied command prefixes",
-			Value:  strings.Join(config.Get().Exec.Deny, ","),
-			Hidden: true,
-		},
-		&cli.StringFlag{
 			Name:   "storage.backend",
 			Usage:  "Storage backend: memory or sqlite",
 			Value:  config.Get().Storage.Backend,
@@ -817,15 +799,6 @@ func ApplyConfigOverrides(cmd *cli.Command, cfg *config.Config) {
 	}
 	if cmd.IsSet("cap.browser") {
 		cfg.Cap.Browser = new(cmd.Bool("cap.browser"))
-	}
-	if cmd.IsSet("exec.allow") {
-		cfg.Exec.Allow = splitConfigCSVAndTrim(cmd.String("exec.allow"))
-	}
-	if cmd.IsSet("exec.ask") {
-		cfg.Exec.Ask = splitConfigCSVAndTrim(cmd.String("exec.ask"))
-	}
-	if cmd.IsSet("exec.deny") {
-		cfg.Exec.Deny = splitConfigCSVAndTrim(cmd.String("exec.deny"))
 	}
 	if cmd.IsSet("storage.backend") {
 		literalValue30 := str.String(cmd.String("storage.backend"))

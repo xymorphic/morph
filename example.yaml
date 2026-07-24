@@ -66,9 +66,19 @@
 #   roots:
 #     - "."
 # exec:
+#   shell: "/bin/sh"
 #   allow: []
 #   ask: []
 #   deny: []
+#   allowCommands: []
+#   askCommands:
+#     - executable: "git"
+#       argumentPrefix: ["push"]
+#       modes: ["direct"]
+#   denyCommands:
+#     - resolvedPath: "/usr/bin/rm"
+#       argumentPrefix: ["-rf", "/"]
+#       modes: ["direct", "posix_shell"]
 # storage:
 #   backend: "sqlite"
 # session:

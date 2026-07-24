@@ -2,10 +2,12 @@ package permissions
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"time"
 
+	commandplan "github.com/wandxy/morph/internal/command"
 	"github.com/wandxy/morph/pkg/str"
 )
 
@@ -38,31 +40,33 @@ type Policy struct {
 }
 
 type Rule struct {
-	Name             string            `yaml:"name"`
-	Profiles         []string          `yaml:"profiles"`
-	ActorKinds       []ActorKind       `yaml:"actors"`
-	ActorIDs         []string          `yaml:"actorIds"`
-	ParentActorKinds []ActorKind       `yaml:"parentActors"`
-	SurfaceKinds     []SurfaceKind     `yaml:"surfaceKinds"`
-	Surfaces         []Surface         `yaml:"surfaces"`
-	Tools            []string          `yaml:"tools"`
-	Resources        []Resource        `yaml:"resources"`
-	Actions          []Action          `yaml:"actions"`
-	Effects          []Effect          `yaml:"effects"`
-	TargetScopes     []TargetScope     `yaml:"targetScopes"`
-	TargetPrefixes   []string          `yaml:"targetPrefixes"`
-	Network          []NetworkSelector `yaml:"network"`
-	Decision         Decision          `yaml:"decision"`
-	Reason           string            `yaml:"reason"`
+	Name             string                 `yaml:"name"`
+	Profiles         []string               `yaml:"profiles"`
+	ActorKinds       []ActorKind            `yaml:"actors"`
+	ActorIDs         []string               `yaml:"actorIds"`
+	ParentActorKinds []ActorKind            `yaml:"parentActors"`
+	SurfaceKinds     []SurfaceKind          `yaml:"surfaceKinds"`
+	Surfaces         []Surface              `yaml:"surfaces"`
+	Tools            []string               `yaml:"tools"`
+	Resources        []Resource             `yaml:"resources"`
+	Actions          []Action               `yaml:"actions"`
+	Effects          []Effect               `yaml:"effects"`
+	TargetScopes     []TargetScope          `yaml:"targetScopes"`
+	TargetPrefixes   []string               `yaml:"targetPrefixes"`
+	Network          []NetworkSelector      `yaml:"network"`
+	Commands         []commandplan.Selector `yaml:"commands"`
+	Decision         Decision               `yaml:"decision"`
+	Reason           string                 `yaml:"reason"`
 	toolRequired     bool
 }
 
 type EvaluationInput struct {
-	Authorization   AuthorizationContext
-	Operation       Operation
-	HardDenyReason  string
-	ApprovalSummary string
-	ApprovalReason  string
+	Authorization      AuthorizationContext
+	Operation          Operation
+	HardDenyReason     string
+	ApprovalSummary    string
+	ApprovalReason     string
+	approvalOperations []string
 }
 
 type Evaluation struct {
@@ -242,7 +246,9 @@ func (p Policy) Evaluate(input EvaluationInput) Evaluation {
 	}
 
 	var evaluation Evaluation
+	var matchedRule Rule
 	if rule, ok := getMatchingRule(p.Rules, authorization, operation); ok {
+		matchedRule = rule
 		evaluation = Evaluation{
 			Decision:              rule.Decision,
 			ReasonCode:            ReasonRuleMatched,
@@ -252,6 +258,7 @@ func (p Policy) Evaluate(input EvaluationInput) Evaluation {
 			MatchedConfiguredRule: true,
 		}
 	} else if rule, ok := getMatchingRule(p.presetRules, authorization, operation); ok {
+		matchedRule = rule
 		evaluation = Evaluation{
 			Decision:   rule.Decision,
 			ReasonCode: ReasonRuleMatched,
@@ -273,6 +280,16 @@ func (p Policy) Evaluate(input EvaluationInput) Evaluation {
 			Decision:   DecisionDeny,
 			ReasonCode: ReasonOwnerRequired,
 			Reason:     "operation requires its owner",
+			Preset:     preset,
+		}
+	}
+	if evaluation.Decision == DecisionAllow &&
+		slices.Contains(operation.Effects, EffectIndirectExecution) &&
+		(!evaluation.MatchedConfiguredRule || len(matchedRule.Commands) == 0) {
+		return Evaluation{
+			Decision:   DecisionAsk,
+			ReasonCode: ReasonApprovalRequired,
+			Reason:     "indirect command execution requires explicit permission",
 			Preset:     preset,
 		}
 	}
@@ -377,12 +394,21 @@ func (r *Rule) normalize() {
 		})
 	}
 	r.TargetPrefixes = normalizeStrings(r.TargetPrefixes)
+	r.Decision = Decision(str.String(r.Decision).Normalized())
 	if len(r.Network) > 0 {
 		if normalized, err := normalizeNetworkSelectors(r.Network); err == nil {
 			r.Network = normalized
 		}
 	}
-	r.Decision = Decision(str.String(r.Decision).Normalized())
+	if len(r.Commands) > 0 {
+		normalize := commandplan.NormalizeSelectors
+		if r.Decision == DecisionDeny {
+			normalize = commandplan.NormalizeDenySelectors
+		}
+		if normalized, err := normalize(r.Commands); err == nil {
+			r.Commands = normalized
+		}
+	}
 	r.Reason = str.String(r.Reason).Trim()
 }
 
@@ -396,7 +422,9 @@ func (r Rule) validate() error {
 	if len(r.Network) > 0 && len(r.TargetPrefixes) > 0 {
 		return errors.New("permission rule cannot combine network selectors and target prefixes")
 	}
-
+	if len(r.Commands) > 0 && (len(r.Network) > 0 || len(r.TargetPrefixes) > 0) {
+		return errors.New("permission rule cannot combine command selectors with other target selectors")
+	}
 	for _, value := range r.ActorKinds {
 		if !isValidActorKind(value, false) {
 			return errors.New("permission rule contains an invalid actor")
@@ -435,6 +463,24 @@ func (r Rule) validate() error {
 	if _, err := normalizeNetworkSelectors(r.Network); err != nil {
 		return err
 	}
+	for index, selector := range r.Commands {
+		normalizeCommands := commandplan.NormalizeSelectors
+		if r.Decision == DecisionDeny {
+			normalizeCommands = commandplan.NormalizeDenySelectors
+		}
+		if _, err := normalizeCommands([]commandplan.Selector{selector}); err != nil {
+			return fmt.Errorf("permission rule %q commands[%d]: %w", r.Name, index, err)
+		}
+	}
+	if len(r.Commands) > 0 {
+		if len(r.Resources) > 0 && !slices.Contains(r.Resources, ResourceProcess) {
+			return errors.New("permission command selectors require the process resource")
+		}
+		if len(r.Actions) > 0 && !slices.Contains(r.Actions, ActionExecute) &&
+			!slices.Contains(r.Actions, ActionStart) {
+			return errors.New("permission command selectors require execute or start")
+		}
+	}
 
 	return nil
 }
@@ -463,7 +509,7 @@ func (r Rule) specificity() int {
 
 	return len(r.Profiles) + len(r.ActorKinds) + len(r.ActorIDs) + len(r.ParentActorKinds) + len(r.SurfaceKinds) + len(r.Surfaces) +
 		len(r.Tools) + len(r.Resources) + len(r.Actions) + len(r.Effects) + len(r.TargetScopes) +
-		len(r.TargetPrefixes) + getNetworkSelectorSpecificity(r.Network) + toolRequired
+		len(r.TargetPrefixes) + getNetworkSelectorSpecificity(r.Network) + len(r.Commands) + toolRequired
 }
 
 func getDecisionPriority(decision Decision) int {
@@ -538,7 +584,19 @@ func matchesTargetPrefix(prefixes []string, target string) bool {
 
 func matchesOperationTarget(rule Rule, operation Operation) bool {
 	if operation.Network != nil {
+		if len(rule.Commands) > 0 && len(rule.Network) == 0 {
+			return false
+		}
 		return len(rule.TargetPrefixes) == 0 && matchesNetworkSelectors(rule.Network, operation.Network)
+	}
+	if operation.Command != nil {
+		if len(rule.Commands) == 0 && (len(rule.TargetPrefixes) > 0 || len(rule.Network) > 0) {
+			return false
+		}
+		return commandplan.MatchSelectors(rule.Commands, *operation.Command)
+	}
+	if len(rule.Commands) > 0 && len(rule.TargetPrefixes) == 0 {
+		return false
 	}
 
 	return len(rule.Network) == 0 && matchesTargetPrefix(rule.TargetPrefixes, operation.Target)

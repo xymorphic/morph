@@ -94,14 +94,28 @@ The defaults are on for `fs`, `net`, `exec`, and `mem`, and off for `browser`. S
 
 ### Set workspace roots and command rules
 
-Limit where file tools may read and write, and which commands may run without approval:
+Limit where file tools may read and write:
 
 ```bash
 morph config set fs.roots "/work/repo,/tmp/scratch"
-morph config set exec.deny "rm -rf /,mkfs"
 ```
 
-See [Safety and Guardrails](../concepts/safety-and-guardrails) for how `exec.allow`/`ask`/`deny` are evaluated.
+Use typed command selectors in `config.yaml` for precise execution policy:
+
+```yaml
+exec:
+  denyCommands:
+    - executable: rm
+      argumentPrefix: [--recursive]
+      modes: [direct, posix_shell]
+  allowCommands:
+    - executable: git
+      argumentPrefix: [status]
+      modes: [direct]
+      requireComplete: true
+```
+
+See [Safety and Guardrails](../concepts/safety-and-guardrails) for command analysis and selector evaluation.
 
 ### Enable the gateway
 

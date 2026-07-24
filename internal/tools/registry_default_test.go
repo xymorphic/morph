@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	commandplan "github.com/wandxy/morph/internal/command"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/state/storememory"
 	"github.com/wandxy/morph/internal/trace"
@@ -23,7 +24,7 @@ func newTestDefaultRegistry(options ...RegistryOptions) *testDefaultRegistry {
 }
 
 func (r *testDefaultRegistry) Register(definition Definition) error {
-	if definition.Permission.IsZero() && definition.ResolvePermission == nil {
+	if definition.Permission.IsZero() && definition.ResolvePermission == nil && definition.PreparePermission == nil {
 		definition.Permission = permissions.Operation{
 			Resource: permissions.ResourceClock,
 			Action:   permissions.ActionRead,
@@ -34,6 +35,78 @@ func (r *testDefaultRegistry) Register(definition Definition) error {
 	}
 
 	return r.DefaultRegistry.Register(definition)
+}
+
+func TestDefaultRegistry_InvokeCarriesPreparedValueIntoMatchingHandlerCall(t *testing.T) {
+	registry := newTestDefaultRegistry(RegistryOptions{
+		PermissionPolicy: permissions.Policy{Preset: permissions.PresetFullAccess},
+	})
+	call := Call{Name: "prepared", Input: `{"value":"one"}`}
+	require.NoError(t, registry.Register(Definition{
+		Name: "prepared",
+		PreparePermission: func(context.Context, Call) (PermissionPreparation, error) {
+			return PermissionPreparation{
+				Inputs: []permissions.EvaluationInput{{Operation: permissions.Operation{
+					Resource: permissions.ResourceClock, Action: permissions.ActionRead,
+				}}},
+				Prepared: "prepared-value",
+			}, nil
+		},
+		Handler: HandlerFunc(func(ctx context.Context, received Call) (Result, error) {
+			value, ok := GetPreparedCall(ctx, received)
+			require.True(t, ok)
+			require.Equal(t, "prepared-value", value)
+			_, mismatched := GetPreparedCall(ctx, Call{Name: received.Name, Input: `{"value":"two"}`})
+			require.False(t, mismatched)
+			return Result{Output: "ok"}, nil
+		}),
+	}))
+
+	result, err := registry.Invoke(context.Background(), call)
+
+	require.NoError(t, err)
+	require.Equal(t, "ok", result.Output)
+}
+
+func TestPreparedCall_BindsToolAndInput(t *testing.T) {
+	call := Call{Name: "prepared", Input: `{"value":"one"}`}
+	ctx := withPreparedCall(context.Background(), call.Name, call.Input, "value")
+
+	value, ok := GetPreparedCall(ctx, call)
+	require.True(t, ok)
+	require.Equal(t, "value", value)
+
+	_, ok = GetPreparedCall(ctx, Call{Name: "other", Input: call.Input})
+	require.False(t, ok)
+
+	var nilContext context.Context
+	ctx = withPreparedCall(nilContext, call.Name, call.Input, "value")
+	value, ok = GetPreparedCall(ctx, call)
+	require.True(t, ok)
+	require.Equal(t, "value", value)
+	_, ok = GetPreparedCall(nilContext, call)
+	require.False(t, ok)
+	_, ok = GetPreparedCall(context.Background(), call)
+	require.False(t, ok)
+}
+
+func TestDefaultRegistry_InvokeRejectsEmptyPreparedPermissionSet(t *testing.T) {
+	registry := newTestDefaultRegistry()
+	require.NoError(t, registry.Register(Definition{
+		Name: "prepared",
+		PreparePermission: func(context.Context, Call) (PermissionPreparation, error) {
+			return PermissionPreparation{Prepared: "unused"}, nil
+		},
+		Handler: HandlerFunc(func(context.Context, Call) (Result, error) {
+			t.Fatal("handler must not run without a permission operation")
+			return Result{}, nil
+		}),
+	}))
+
+	result, err := registry.Invoke(context.Background(), Call{Name: "prepared"})
+
+	require.NoError(t, err)
+	require.Contains(t, result.Error, "permission preparer returned no operations")
 }
 
 func TestDefaultRegistry_RegisterAndGet(t *testing.T) {
@@ -569,6 +642,54 @@ func TestDefaultRegistry_InvokeEnforcesPermissionDecision(t *testing.T) {
 			OwnerRequired: false,
 		},
 	}}, recorder.events)
+}
+
+func TestDefaultRegistry_InvokeRecordsRedactedCommandFacts(t *testing.T) {
+	registry := newTestDefaultRegistry(RegistryOptions{PermissionPolicy: permissions.Policy{
+		Default:             permissions.DecisionAllow,
+		SurfaceKindDefaults: map[permissions.SurfaceKind]permissions.Decision{},
+	}})
+	target := commandplan.Target{
+		Mode: commandplan.ModeDirect, Executable: "/private/secret/git",
+		ResolvedPath: "/private/secret/git", Arguments: []string{"secret"},
+		PlanDigest: "plan", Complete: false,
+		DynamicReasons: []commandplan.DynamicReason{
+			commandplan.ReasonDynamicArgument,
+		},
+		InvocationCount: 2,
+		RedirectCount:   1,
+	}
+	require.NoError(t, registry.Register(Definition{
+		Name: "run_command",
+		ResolvePermission: func(context.Context, Call) ([]permissions.EvaluationInput, error) {
+			return []permissions.EvaluationInput{{Operation: permissions.Operation{
+				Resource: permissions.ResourceProcess, Action: permissions.ActionExecute,
+				Effects: []permissions.Effect{permissions.EffectExecution}, Command: &target,
+			}}}, nil
+		},
+		Handler: HandlerFunc(func(context.Context, Call) (Result, error) {
+			return Result{Output: "done"}, nil
+		}),
+	}))
+	recorder := &permissionTraceRecorder{}
+	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
+		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceCLI,
+	})
+	ctx = WithTraceRecorder(ctx, recorder)
+
+	result, err := registry.Invoke(ctx, Call{Name: "run_command"})
+
+	require.NoError(t, err)
+	require.Equal(t, "done", result.Output)
+	require.Len(t, recorder.events, 1)
+	require.Equal(t, &trace.PermissionCommandTargetPayload{
+		Mode:            string(commandplan.ModeDirect),
+		Executable:      "git",
+		InvocationCount: 2,
+		RedirectCount:   1,
+		Complete:        false,
+		DynamicReasons:  []string{string(commandplan.ReasonDynamicArgument)},
+	}, recorder.events[0].payload.Command)
 }
 
 func TestDefaultRegistry_InvokeRecordsUnknownActor(t *testing.T) {
@@ -1209,6 +1330,176 @@ func TestDefaultRegistry_InvokeApprovesMultiOperationBatchOnce(t *testing.T) {
 	require.Len(t, approver.inputs, 2)
 }
 
+func TestDefaultRegistry_InvokeCommitsSingleOperationApprovalAfterRecheck(t *testing.T) {
+	approver := &batchApprovalRecorder{}
+	registry := newTestDefaultRegistry(RegistryOptions{
+		PermissionPolicy: permissions.Policy{Rules: []permissions.Rule{{
+			Name: "ask file", Resources: []permissions.Resource{permissions.ResourceFile},
+			Decision: permissions.DecisionAsk,
+		}}},
+		ApprovalService: approver,
+	})
+	require.NoError(t, registry.Register(Definition{
+		Name: "write_file",
+		Permission: permissions.Operation{
+			Resource: permissions.ResourceFile, Action: permissions.ActionUpdate,
+		},
+		Handler: HandlerFunc(func(context.Context, Call) (Result, error) {
+			return Result{Output: "written"}, nil
+		}),
+	}))
+	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
+		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceTUI,
+	})
+
+	result, err := registry.Invoke(ctx, Call{Name: "write_file"})
+
+	require.NoError(t, err)
+	require.Equal(t, "written", result.Output)
+	require.Equal(t, 1, approver.batchCalls)
+	require.Equal(t, 1, approver.commitCalls)
+	require.Zero(t, approver.singleCalls)
+}
+
+func TestDefaultRegistry_InvokeDoesNotConsumeSingleOperationApprovalBeforeFailedRecheck(t *testing.T) {
+	approver := &batchApprovalRecorder{}
+	registry := newTestDefaultRegistry(RegistryOptions{
+		PermissionPolicy: permissions.Policy{Rules: []permissions.Rule{{
+			Name: "ask file", Resources: []permissions.Resource{permissions.ResourceFile},
+			Decision: permissions.DecisionAsk,
+		}}},
+		ApprovalService: approver,
+	})
+	approver.prepare = func() {
+		registry.permissions = permissions.NewEngine(permissions.Policy{Rules: []permissions.Rule{{
+			Name: "deny file", Resources: []permissions.Resource{permissions.ResourceFile},
+			Decision: permissions.DecisionDeny,
+		}}})
+	}
+	require.NoError(t, registry.Register(Definition{
+		Name: "write_file",
+		Permission: permissions.Operation{
+			Resource: permissions.ResourceFile, Action: permissions.ActionUpdate,
+		},
+		Handler: HandlerFunc(func(context.Context, Call) (Result, error) {
+			t.Fatal("handler must not run after final recheck denies")
+			return Result{}, nil
+		}),
+	}))
+	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
+		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceTUI,
+	})
+
+	result, err := registry.Invoke(ctx, Call{Name: "write_file"})
+
+	require.NoError(t, err)
+	require.Contains(t, result.Error, permissions.ErrorCodeDenied)
+	require.Equal(t, 1, approver.batchCalls)
+	require.Zero(t, approver.commitCalls)
+}
+
+func TestDefaultRegistry_InvokeBindsAllowedOperationsIntoApprovalBatch(t *testing.T) {
+	approver := &batchApprovalRecorder{}
+	registry := newTestDefaultRegistry(RegistryOptions{
+		PermissionPolicy: permissions.Policy{Rules: []permissions.Rule{
+			{Name: "ask browser", Resources: []permissions.Resource{permissions.ResourceBrowser}, Decision: permissions.DecisionAsk},
+			{Name: "allow network", Resources: []permissions.Resource{permissions.ResourceNetwork}, Decision: permissions.DecisionAllow},
+		}},
+		ApprovalService: approver,
+	})
+	require.NoError(t, registry.Register(Definition{
+		Name: "browser",
+		ResolvePermission: func(context.Context, Call) ([]permissions.EvaluationInput, error) {
+			return browserPermissionInputs(), nil
+		},
+		Handler: HandlerFunc(func(context.Context, Call) (Result, error) {
+			return Result{Output: "ok"}, nil
+		}),
+	}))
+	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
+		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceTUI,
+	})
+
+	result, err := registry.Invoke(ctx, Call{Name: "browser"})
+
+	require.NoError(t, err)
+	require.Equal(t, "ok", result.Output)
+	require.Len(t, approver.asked, 1)
+	require.Len(t, approver.inputs, 2)
+}
+
+func TestDefaultRegistry_InvokeRechecksAllowedBatchOperationsAfterApproval(t *testing.T) {
+	approver := &batchApprovalRecorder{}
+	registry := newTestDefaultRegistry(RegistryOptions{
+		PermissionPolicy: permissions.Policy{Rules: []permissions.Rule{
+			{Name: "ask browser", Resources: []permissions.Resource{permissions.ResourceBrowser}, Decision: permissions.DecisionAsk},
+			{Name: "allow network", Resources: []permissions.Resource{permissions.ResourceNetwork}, Decision: permissions.DecisionAllow},
+		}},
+		ApprovalService: approver,
+	})
+	approver.prepare = func() {
+		registry.permissions = permissions.NewEngine(permissions.Policy{Rules: []permissions.Rule{
+			{Name: "allow browser", Resources: []permissions.Resource{permissions.ResourceBrowser}, Decision: permissions.DecisionAllow},
+			{Name: "deny network", Resources: []permissions.Resource{permissions.ResourceNetwork}, Decision: permissions.DecisionDeny},
+		}})
+	}
+	require.NoError(t, registry.Register(Definition{
+		Name: "browser",
+		ResolvePermission: func(context.Context, Call) ([]permissions.EvaluationInput, error) {
+			return browserPermissionInputs(), nil
+		},
+		Handler: HandlerFunc(func(context.Context, Call) (Result, error) {
+			t.Fatal("handler must not run when an allowed batch operation changes to deny")
+			return Result{}, nil
+		}),
+	}))
+	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
+		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceTUI,
+	})
+
+	result, err := registry.Invoke(ctx, Call{Name: "browser"})
+
+	require.NoError(t, err)
+	require.Contains(t, result.Error, permissions.ErrorCodeDenied)
+	require.Zero(t, approver.commitCalls)
+}
+
+func TestDefaultRegistry_InvokeDoesNotAuthorizeNewAskAfterBatchApproval(t *testing.T) {
+	approver := &batchApprovalRecorder{}
+	registry := newTestDefaultRegistry(RegistryOptions{
+		PermissionPolicy: permissions.Policy{Rules: []permissions.Rule{
+			{Name: "ask browser", Resources: []permissions.Resource{permissions.ResourceBrowser}, Decision: permissions.DecisionAsk},
+			{Name: "allow network", Resources: []permissions.Resource{permissions.ResourceNetwork}, Decision: permissions.DecisionAllow},
+		}},
+		ApprovalService: approver,
+	})
+	approver.prepare = func() {
+		registry.permissions = permissions.NewEngine(permissions.Policy{Rules: []permissions.Rule{
+			{Name: "allow browser", Resources: []permissions.Resource{permissions.ResourceBrowser}, Decision: permissions.DecisionAllow},
+			{Name: "ask network", Resources: []permissions.Resource{permissions.ResourceNetwork}, Decision: permissions.DecisionAsk},
+		}})
+	}
+	require.NoError(t, registry.Register(Definition{
+		Name: "browser",
+		ResolvePermission: func(context.Context, Call) ([]permissions.EvaluationInput, error) {
+			return browserPermissionInputs(), nil
+		},
+		Handler: HandlerFunc(func(context.Context, Call) (Result, error) {
+			t.Fatal("handler must not run when a new operation requires approval")
+			return Result{}, nil
+		}),
+	}))
+	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
+		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceTUI,
+	})
+
+	result, err := registry.Invoke(ctx, Call{Name: "browser"})
+
+	require.NoError(t, err)
+	require.Contains(t, result.Error, permissions.ErrorCodeApprovalRequired)
+	require.Zero(t, approver.commitCalls)
+}
+
 func TestDefaultRegistry_InvokeDoesNotRunHandlerWhenBatchCommitFails(t *testing.T) {
 	approver := &batchApprovalRecorder{commitErr: errors.New("approval grant already consumed")}
 	registry := newTestDefaultRegistry(RegistryOptions{
@@ -1269,6 +1560,36 @@ func TestDefaultRegistry_InvokeRejectsMultiOperationApprovalWithoutAtomicApprove
 	require.Equal(t, 0, approver.calls)
 }
 
+func TestDefaultRegistry_InvokeRejectsSingleOperationApprovalWithoutPreparedApprover(t *testing.T) {
+	approver := &nonPreparedApprovalRecorder{}
+	registry := newTestDefaultRegistry(RegistryOptions{
+		PermissionPolicy: permissions.Policy{Rules: []permissions.Rule{{
+			Name: "ask file", Resources: []permissions.Resource{permissions.ResourceFile},
+			Decision: permissions.DecisionAsk,
+		}}},
+		ApprovalService: approver,
+	})
+	require.NoError(t, registry.Register(Definition{
+		Name: "write_file",
+		Permission: permissions.Operation{
+			Resource: permissions.ResourceFile, Action: permissions.ActionUpdate,
+		},
+		Handler: HandlerFunc(func(context.Context, Call) (Result, error) {
+			t.Fatal("handler must not run without a prepared approval")
+			return Result{}, nil
+		}),
+	}))
+	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
+		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceTUI,
+	})
+
+	result, err := registry.Invoke(ctx, Call{Name: "write_file"})
+
+	require.NoError(t, err)
+	require.Contains(t, result.Error, "approval service does not support prepared approvals")
+	require.Zero(t, approver.calls)
+}
+
 func browserPermissionInputs() []permissions.EvaluationInput {
 	return []permissions.EvaluationInput{
 		{Operation: permissions.Operation{
@@ -1312,7 +1633,9 @@ type approvalRecorder struct {
 }
 
 type batchApprovalRecorder struct {
+	asked       []permissions.EvaluationInput
 	inputs      []permissions.EvaluationInput
+	prepare     func()
 	singleCalls int
 	batchCalls  int
 	commitCalls int
@@ -1329,8 +1652,20 @@ func (r *batchApprovalRecorder) PrepareBatch(
 	_ context.Context,
 	inputs []permissions.EvaluationInput,
 ) (permissions.BatchApproval, error) {
+	return r.PrepareOperationBatch(context.Background(), inputs, inputs)
+}
+
+func (r *batchApprovalRecorder) PrepareOperationBatch(
+	_ context.Context,
+	asked []permissions.EvaluationInput,
+	inputs []permissions.EvaluationInput,
+) (permissions.BatchApproval, error) {
 	r.batchCalls++
+	r.asked = append([]permissions.EvaluationInput(nil), asked...)
 	r.inputs = append([]permissions.EvaluationInput(nil), inputs...)
+	if r.prepare != nil {
+		r.prepare()
+	}
 	return batchApprovalFunc(func(context.Context) error {
 		r.commitCalls++
 		return r.commitErr
@@ -1350,4 +1685,26 @@ func (r *approvalRecorder) Authorize(_ context.Context, input permissions.Evalua
 		return r.authorize(input)
 	}
 	return r.err
+}
+
+func (r *approvalRecorder) PrepareBatch(
+	ctx context.Context,
+	inputs []permissions.EvaluationInput,
+) (permissions.BatchApproval, error) {
+	if len(inputs) != 1 {
+		return nil, errors.New("approval recorder expects one operation")
+	}
+	if err := r.Authorize(ctx, inputs[0]); err != nil {
+		return nil, err
+	}
+	return batchApprovalFunc(func(context.Context) error { return nil }), nil
+}
+
+type nonPreparedApprovalRecorder struct {
+	calls int
+}
+
+func (r *nonPreparedApprovalRecorder) Authorize(context.Context, permissions.EvaluationInput) error {
+	r.calls++
+	return nil
 }

@@ -6,7 +6,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	commandplan "github.com/wandxy/morph/internal/command"
 	"github.com/wandxy/morph/internal/constants"
+	"github.com/wandxy/morph/internal/permissions"
 )
 
 func TestConfig_ValidateRejectsInvalidLogLevel(t *testing.T) {
@@ -139,12 +142,15 @@ fs:
     - .
     - ./nested
 exec:
-  allow:
-    - git status
-  ask:
-    - git push
-  deny:
-    - git reset --hard
+  shell: ./bin/sh
+  allowCommands:
+    - executable: git
+      argumentPrefix: [status]
+  askCommands:
+    - executable: make
+      allowIndirect: true
+  denyCommands:
+    - resolvedPath: /tmp/untrusted/git
 `), 0o600))
 
 	cfg, err := Load("", configPath)
@@ -154,9 +160,42 @@ exec:
 		filepath.Join(workingDir),
 		filepath.Join(workingDir, "nested"),
 	}, cfg.FS.Roots)
-	require.Equal(t, []string{"git status"}, cfg.Exec.Allow)
-	require.Equal(t, []string{"git push"}, cfg.Exec.Ask)
-	require.Equal(t, []string{"git reset --hard"}, cfg.Exec.Deny)
+	require.Equal(t, filepath.Join(configDir, "bin", "sh"), cfg.Exec.Shell)
+	require.Equal(t, []commandplan.Selector{{
+		Executable: "git", ArgumentPrefix: []string{"status"}, Modes: []commandplan.Mode{commandplan.ModeDirect},
+	}}, cfg.Exec.AllowCommands)
+	require.Equal(t, []commandplan.Selector{{
+		Executable: "make", Modes: []commandplan.Mode{commandplan.ModeDirect}, AllowIndirect: true,
+	}}, cfg.Exec.AskCommands)
+	require.Equal(t, []commandplan.Selector{{
+		ResolvedPath: "/tmp/untrusted/git",
+		Modes:        []commandplan.Mode{commandplan.ModeDirect, commandplan.ModePOSIXShell},
+	}}, cfg.Exec.DenyCommands)
+}
+
+func TestConfig_ValidateRejectsInvalidExecSettings(t *testing.T) {
+	cfg := &Config{}
+	cfg.Normalize()
+	cfg.Exec.Shell = "relative/sh"
+	require.EqualError(t, cfg.ValidateRelaxed(), "exec shell must be an absolute path")
+
+	cfg.Exec.Shell = ""
+	cfg.Exec.AllowCommands = []commandplan.Selector{{}}
+	require.EqualError(t, cfg.ValidateRelaxed(),
+		"exec.allowCommands[0]: command selector requires an executable or resolved path")
+
+	cfg.Exec.AllowCommands = nil
+	cfg.Exec.Allow = []string{"git status"}
+	require.EqualError(t, cfg.ValidateRelaxed(),
+		"exec.allow, exec.ask, and exec.deny are no longer supported; "+
+			"use typed command selectors in exec.allowCommands, exec.askCommands, and exec.denyCommands")
+
+	cfg.Exec.Allow = nil
+	cfg.Permissions.Rules = []permissions.Rule{{
+		Name: "invalid command", Commands: []commandplan.Selector{{}}, Decision: permissions.DecisionDeny,
+	}}
+	require.EqualError(t, cfg.ValidateRelaxed(),
+		`permission rule "invalid command" commands[0]: command selector requires an executable or resolved path`)
 }
 
 func TestLoad_DefaultsNoProfileAccessToTrueWhenOmitted(t *testing.T) {
@@ -189,7 +228,7 @@ fs:
 	require.False(t, cfg.FS.NoProfileAccess)
 }
 
-func TestLoad_UsesFilesystemRootsAndExecRulesFromEnv(t *testing.T) {
+func TestLoad_UsesFilesystemRootsFromEnvAndRejectsLegacyExecRules(t *testing.T) {
 	clearEnvKeys(t, "MORPH_FS_ROOTS", "MORPH_EXEC_ALLOW", "MORPH_EXEC_ASK", "MORPH_EXEC_DENY")
 	dir := t.TempDir()
 	t.Chdir(dir)
@@ -219,7 +258,5 @@ log:
 		filepath.Join(dir),
 		filepath.Join(dir, "nested"),
 	}, cfg.FS.Roots)
-	require.Equal(t, []string{"git status"}, cfg.Exec.Allow)
-	require.Equal(t, []string{"git push"}, cfg.Exec.Ask)
-	require.Equal(t, []string{"git reset --hard"}, cfg.Exec.Deny)
+	require.ErrorContains(t, cfg.ValidateRelaxed(), "exec.allow, exec.ask, and exec.deny are no longer supported")
 }

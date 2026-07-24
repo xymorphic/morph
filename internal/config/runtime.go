@@ -1,6 +1,10 @@
 package config
 
-import "time"
+import (
+	"time"
+
+	commandplan "github.com/wandxy/morph/internal/command"
+)
 
 // RPCConfig contains daemon RPC address and port settings.
 type RPCConfig struct {
@@ -14,11 +18,16 @@ type FSConfig struct {
 	Roots           []string `yaml:"roots"`
 }
 
-// ExecConfig contains command execution allow/ask/deny policy settings.
+// ExecConfig contains command execution policy settings. The legacy allow, ask,
+// and deny string lists are unsupported and rejected at validation.
 type ExecConfig struct {
-	Allow []string `yaml:"allow"`
-	Ask   []string `yaml:"ask"`
-	Deny  []string `yaml:"deny"`
+	Allow         []string               `yaml:"allow"`
+	Ask           []string               `yaml:"ask"`
+	Deny          []string               `yaml:"deny"`
+	AllowCommands []commandplan.Selector `yaml:"allowCommands"`
+	AskCommands   []commandplan.Selector `yaml:"askCommands"`
+	DenyCommands  []commandplan.Selector `yaml:"denyCommands"`
+	Shell         string                 `yaml:"shell"`
 }
 
 // StorageConfig selects the durable state backend.

@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
+
+	"github.com/wandxy/morph/internal/command"
 )
 
 func Fingerprint(authorization AuthorizationContext, operation Operation) string {
@@ -23,6 +25,7 @@ func Fingerprint(authorization AuthorizationContext, operation Operation) string
 		operation.Target,
 		string(operation.TargetScope),
 		getNetworkTargetFingerprint(operation.Network),
+		getCommandTargetFingerprint(operation.Command),
 		operation.OwnerID,
 		scopeFingerprint(authorization.Scope),
 	}
@@ -42,7 +45,23 @@ func scopeFingerprint(scope PermissionScope) string {
 		strings.Join(valuesToStrings(scope.Effects), ","),
 		strings.Join(scope.TargetPrefixes, ","),
 		getNetworkSelectorsFingerprint(scope.Network),
+		getCommandSelectorsFingerprint(scope.Commands),
 	}, "|")
+}
+
+func getCommandTargetFingerprint(target *command.Target) string {
+	if target == nil {
+		return ""
+	}
+	return target.Fingerprint()
+}
+
+func getCommandSelectorsFingerprint(selectors []command.Selector) string {
+	values := make([]string, len(selectors))
+	for index, selector := range selectors {
+		values[index] = selector.Fingerprint()
+	}
+	return strings.Join(values, ",")
 }
 
 func getNetworkSelectorsFingerprint(selectors []NetworkSelector) string {

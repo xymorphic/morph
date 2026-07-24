@@ -193,5 +193,13 @@ func approveForMePresetRules() []Rule {
 			Reason:       "This action changes files outside Morph's workspace.",
 			toolRequired: true,
 		},
+		{
+			Name:         "preset.safety.indirect_execution",
+			SurfaceKinds: []SurfaceKind{SurfaceKindLocal},
+			Effects:      []Effect{EffectIndirectExecution},
+			Decision:     DecisionAsk,
+			Reason:       "This command can discover and run additional instructions at runtime.",
+			toolRequired: true,
+		},
 	}
 }

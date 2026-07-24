@@ -94,6 +94,7 @@ type Environment interface {
 	SetApprovalService(permissions.Approver)
 	SetAutomationService(envtypes.AutomationService)
 	SetBrowserService(envtypes.BrowserService)
+	SetCommandIdentityKey([]byte)
 	SetModelClient(models.Client)
 }
 
@@ -297,6 +298,7 @@ func (e *environment) prepareTools() error {
 	if e.runtime == nil {
 		e.runtime = NewRuntime(e.fileRoots(), e.commandPolicy(), e.stateMgr)
 	}
+	e.runtime.commandShell = e.commandShell()
 	e.runtime.memory = e.memory
 
 	if err := e.tools.RegisterGroup(tools.Group{Name: "core"}); err != nil {
@@ -633,6 +635,7 @@ func (e *environment) SetAutomationService(service envtypes.AutomationService) {
 	if e.runtime == nil {
 		e.runtime = NewRuntime(e.fileRoots(), e.commandPolicy(), e.stateMgr)
 	}
+	e.runtime.commandShell = e.commandShell()
 	e.runtime.automation = service
 }
 
@@ -644,6 +647,16 @@ func (e *environment) SetBrowserService(service envtypes.BrowserService) {
 		e.runtime = NewRuntime(e.fileRoots(), e.commandPolicy(), e.stateMgr)
 	}
 	e.runtime.browser = service
+}
+
+func (e *environment) SetCommandIdentityKey(key []byte) {
+	if e == nil {
+		return
+	}
+	if e.runtime == nil {
+		e.runtime = NewRuntime(e.fileRoots(), e.commandPolicy(), e.stateMgr)
+	}
+	e.runtime.setCommandIdentityKey(key)
 }
 
 func (e *environment) SetModelClient(client models.Client) {
@@ -668,10 +681,17 @@ func (e *environment) commandPolicy() guardrails.CommandPolicy {
 	}
 
 	return guardrails.CommandPolicy{
-		Allow: e.cfg.Exec.Allow,
-		Ask:   e.cfg.Exec.Ask,
-		Deny:  e.cfg.Exec.Deny,
+		AllowCommands: e.cfg.Exec.AllowCommands,
+		AskCommands:   e.cfg.Exec.AskCommands,
+		DenyCommands:  e.cfg.Exec.DenyCommands,
 	}.Normalize()
+}
+
+func (e *environment) commandShell() string {
+	if e == nil || e.cfg == nil {
+		return ""
+	}
+	return e.cfg.Exec.Shell
 }
 
 func (e *environment) addInstruction(instruction instructions.Instruction) {

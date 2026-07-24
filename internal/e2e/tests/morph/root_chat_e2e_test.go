@@ -26,6 +26,7 @@ import (
 	sessioncmd "github.com/wandxy/morph/cmd/session"
 	tracecmd "github.com/wandxy/morph/cmd/trace"
 	morphcli "github.com/wandxy/morph/internal/cli"
+	commandplan "github.com/wandxy/morph/internal/command"
 	"github.com/wandxy/morph/internal/config"
 	"github.com/wandxy/morph/internal/datadir"
 	"github.com/wandxy/morph/internal/e2e"
@@ -306,7 +307,7 @@ func Test_E2E_MorphRootChat_CommandDeniedReturnsCoherentAnswer(t *testing.T) {
 	resetRootChatE2E(t)
 
 	cfg := e2e.DefaultConfig(e2e.ConfigOptions{StorageBackend: "sqlite"})
-	cfg.Exec.Deny = []string{"git push"}
+	cfg.Exec.DenyCommands = []commandplan.Selector{{Executable: "git", ArgumentPrefix: []string{"push"}}}
 
 	client := e2e.NewClient(
 		e2e.ToolStep(models.ToolCall{
@@ -315,7 +316,7 @@ func Test_E2E_MorphRootChat_CommandDeniedReturnsCoherentAnswer(t *testing.T) {
 			Input: `{"command":"git","args":["push","origin","main"]}`,
 		}),
 		e2e.Step{
-			Check: e2e.ToolError("call-1", "run_command", "permission_denied", "matched deny rule"),
+			Check: e2e.ToolError("call-1", "run_command", "permission_denied", "matched typed deny rule"),
 			Response: &models.Response{
 				OutputText: "I can't run that command because command execution policy denies it.",
 			},
@@ -334,7 +335,7 @@ func Test_E2E_MorphRootChat_CommandApprovalRequiresInteractiveTerminal(t *testin
 	resetRootChatE2E(t)
 
 	cfg := e2e.DefaultConfig(e2e.ConfigOptions{StorageBackend: "sqlite"})
-	cfg.Exec.Ask = []string{"git push"}
+	cfg.Exec.AskCommands = []commandplan.Selector{{Executable: "git", ArgumentPrefix: []string{"push"}}}
 
 	client := e2e.NewClient(
 		e2e.ToolStep(models.ToolCall{
@@ -348,7 +349,7 @@ func Test_E2E_MorphRootChat_CommandApprovalRequiresInteractiveTerminal(t *testin
 	configPath := writeRPCConfig(t, h.Address(), h.Port(), e2e.RPCConfigOptions{Name: "yaml-agent"})
 
 	output, err := runRootChatCommand(t, "morph", "--config", configPath, "push the current branch")
-	require.ErrorContains(t, err, "approval required for run_command · execute process")
+	require.ErrorContains(t, err, "approval required for run_command · approve 2 operations")
 	require.ErrorContains(t, err, "root chat input and output must be an interactive terminal")
 	assert.Empty(t, output)
 }

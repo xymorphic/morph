@@ -45,8 +45,10 @@ func TestPermissionStore_PersistsApprovalLifecycle(t *testing.T) {
 		ID: "approval_one", Fingerprint: "fingerprint", Actor: permissions.Actor{Kind: permissions.ActorLocalOwner, ID: "owner"},
 		SurfaceKind: permissions.SurfaceKindLocal, Surface: permissions.SurfaceTUI, Profile: "default", SessionID: "session",
 		Tool: "run_command", Resource: permissions.ResourceProcess, Action: permissions.ActionExecute,
-		Effects: []permissions.Effect{permissions.EffectExecution}, Summary: "run command", Status: permissions.ApprovalPending,
-		CreatedAt: now, ExpiresAt: now.Add(time.Minute),
+		Effects: []permissions.Effect{permissions.EffectExecution}, Summary: "run command",
+		Operations: []string{"run_command · execute process", "run_command · read file workspace"},
+		Status:     permissions.ApprovalPending,
+		CreatedAt:  now, ExpiresAt: now.Add(time.Minute),
 	}
 
 	created, inserted, err := store.CreateApprovalRequest(ctx, request)
@@ -66,7 +68,8 @@ func TestPermissionStore_PersistsApprovalLifecycle(t *testing.T) {
 	grant := permissions.ApprovalGrant{
 		ID: "grant_one", RequestID: request.ID, Fingerprint: request.Fingerprint, Actor: request.Actor,
 		Profile: request.Profile, SessionID: request.SessionID, Scope: permissions.GrantOnce,
-		Status: permissions.GrantActive, CreatedAt: now, ExpiresAt: now.Add(time.Minute),
+		Operations: request.Operations,
+		Status:     permissions.GrantActive, CreatedAt: now, ExpiresAt: now.Add(time.Minute),
 	}
 	_, err = store.CreateApprovalGrant(ctx, grant)
 	require.NoError(t, err)
@@ -74,6 +77,7 @@ func TestPermissionStore_PersistsApprovalLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, grant.ID, found.ID)
+	require.Equal(t, request.Operations, found.Operations)
 	consumed, err := store.ConsumeApprovalGrant(ctx, grant.ID, now)
 	require.NoError(t, err)
 	require.Equal(t, permissions.GrantConsumed, consumed.Status)
@@ -81,9 +85,71 @@ func TestPermissionStore_PersistsApprovalLifecycle(t *testing.T) {
 	requests, err := store.ListApprovalRequests(ctx, permissions.ApprovalQuery{Status: permissions.ApprovalApproved})
 	require.NoError(t, err)
 	require.Len(t, requests, 1)
+	require.Equal(t, request.Operations, requests[0].Operations)
 	grants, err := store.ListApprovalGrants(ctx, permissions.GrantQuery{Status: permissions.GrantConsumed})
 	require.NoError(t, err)
 	require.Len(t, grants, 1)
+	require.Equal(t, request.Operations, grants[0].Operations)
+}
+
+func TestPermissionStore_PersistsCompositeOperationsAcrossReopen(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.db")
+	store, err := NewStore(path)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	now := time.Date(2026, 7, 14, 12, 0, 0, 0, time.UTC)
+	operations := []string{
+		"run_command · execute process",
+		"run_command · read file workspace",
+		"run_command · write file /tmp/result",
+	}
+	request := permissions.ApprovalRequest{
+		ID: "approval_composite", Fingerprint: "batch:fingerprint",
+		Actor:   permissions.Actor{Kind: permissions.ActorLocalOwner, ID: "owner"},
+		Profile: "default", SessionID: "session", Status: permissions.ApprovalPending,
+		Operations: operations, CreatedAt: now, ExpiresAt: now.Add(time.Minute),
+	}
+	_, _, err = store.CreateApprovalRequest(ctx, request)
+	require.NoError(t, err)
+	_, err = store.ResolveApprovalRequest(
+		ctx, request.ID, permissions.ApprovalApproved, permissions.GrantSession, now,
+	)
+	require.NoError(t, err)
+	_, err = store.CreateApprovalGrant(ctx, permissions.ApprovalGrant{
+		ID: "grant_composite", RequestID: request.ID, Fingerprint: request.Fingerprint,
+		Actor: request.Actor, Profile: request.Profile, SessionID: request.SessionID,
+		Scope: permissions.GrantSession, Status: permissions.GrantActive,
+		Operations: operations, CreatedAt: now, ExpiresAt: now.Add(time.Hour),
+	})
+	require.NoError(t, err)
+	require.NoError(t, store.Close())
+
+	reopened, err := NewStore(path)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, reopened.Close()) })
+
+	loadedRequest, ok, err := reopened.GetApprovalRequest(ctx, request.ID)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, operations, loadedRequest.Operations)
+
+	loadedGrant, ok, err := reopened.FindApprovalGrant(
+		ctx, request.Fingerprint, request.Actor, request.Profile, request.SessionID, now,
+	)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, operations, loadedGrant.Operations)
+}
+
+func TestPermissionStore_RejectsCorruptGrantOperations(t *testing.T) {
+	store := newAutomationSQLiteStore(t)
+	require.NoError(t, store.db.Create(&approvalGrantModel{
+		ID: "grant_corrupt", OperationsJSON: "{", Status: string(permissions.GrantRevoked),
+	}).Error)
+
+	_, err := store.ListApprovalGrants(context.Background(), permissions.GrantQuery{})
+	require.Error(t, err)
 }
 
 func TestPermissionStore_PersistsAlwaysGrantAcrossReopenAndSessions(t *testing.T) {
@@ -428,7 +494,9 @@ func TestPermissionStore_ConversionsPreserveOptionalTimestamps(t *testing.T) {
 	grantModel := approvalGrantToModel(grant)
 	require.NotNil(t, grantModel.ConsumedAt)
 	require.NotNil(t, grantModel.RevokedAt)
-	require.Equal(t, grant, approvalGrantFromModel(grantModel))
+	convertedGrant, err := approvalGrantFromModel(grantModel)
+	require.NoError(t, err)
+	require.Equal(t, grant, convertedGrant)
 }
 
 func TestPermissionStore_PropagatesDatabaseErrors(t *testing.T) {

@@ -27,7 +27,8 @@ Every authorization decision can be reduced to this sentence:
 
 For example:
 
-> The local owner, through the TUI, wants to execute a process target `git status`, with the `execution` effect.
+> The local owner, through the TUI, wants to execute the resolved `git` program with the argument `status` and the
+> `execution` effect.
 
 In Go, that request is represented by two main values:
 
@@ -47,7 +48,14 @@ operation := permissions.Operation{
     Resource: permissions.ResourceProcess,
     Action:   permissions.ActionExecute,
     Effects:  []permissions.Effect{permissions.EffectExecution},
-    Target:   "git status",
+    Command: &command.Target{
+        Mode:         command.ModeDirect,
+        Executable:   "git",
+        ResolvedPath: "/usr/bin/git",
+        Arguments:    []string{"status"},
+        PlanDigest:   "profile-keyed-plan-digest",
+        Complete:     true,
+    },
 }
 ```
 
@@ -228,6 +236,7 @@ Effects answer: **what consequences can the operation have?**
 | `credential_bearing` | Reads or changes secrets/credentials | Setting a provider API key |
 | `external_system` | Affects something beyond local process state | Sending or scheduling delivery |
 | `privilege_changing` | Changes who can do what | Approving a gateway sender |
+| `indirect_execution` | Can discover and launch more executable work at runtime | Running `make` |
 
 Resource/action tells us the operation's semantic identity. Effects let one policy cover consequences across many resources.
 
@@ -243,17 +252,19 @@ This can match deletion of memory, automation, or files without naming each reso
 
 ### 6.6 Target
 
-The target answers: **which exact object, command, path, or identifier is affected?**
+The target answers: **which exact object, command plan, path, or identifier is affected?**
 
 Examples:
 
 - file path: `workspace/report.md`
-- command: `git status`
+- command: direct `/usr/bin/git` with arguments `[status]`
 - memory ID: `mem_123`
 - automation ID: `auto_daily_summary`
 - process ID: `process_456`
 
-Target is used for rule matching and approval fingerprints. Changing the target normally changes the approval identity.
+Raw targets are used for resources such as files and record IDs. Network and command operations carry structured
+targets. Changing a structured field such as the command mode, resolved executable, arguments, cwd identity, or
+environment identity changes the approval identity.
 
 ### 6.7 Owner requirement
 
@@ -495,18 +506,31 @@ This is important because authorizing only the first file would permit a multi-t
 
 #### `run_command`
 
-Resolves command and arguments into one target string:
+Analyzes input once and reuses the resulting command plan through execution:
 
 ```text
-command = git
-args    = [status, --short]
-target  = git status --short
+mode        = direct
+executable  = git
+path        = /usr/bin/git
+arguments   = [status, --short]
+complete    = true
+cwd         = workspace:<keyed-root-digest>
+environment = profile-keyed digest
 ```
 
-It also imports signals from the hard command guardrail:
+Direct mode produces one process operation. POSIX shell mode produces one process operation for every static
+invocation, plus file operations for input and output redirections. A later deny blocks the complete plan before any
+process starts. Dynamic or indirect features add bounded reason codes and stronger approval behavior.
 
-- command guardrail deny -> `HardDenyReason`;
-- command guardrail approval -> `ApprovalReason`.
+Every directory inside one configured workspace uses the same keyed workspace-root identity. A session grant for
+`git status` therefore remains reusable after moving from the workspace root to `internal/browser`, while moving the
+command to another workspace or an external directory changes the identity. Relative redirection targets remain exact,
+so changing directories still changes approval identity when it changes the file a command would read or write.
+
+The guardrail contributes:
+
+- structural denial as `HardDenyReason`;
+- structural approval as `ApprovalReason`.
 
 #### `process`
 
@@ -705,7 +729,7 @@ Result: match.
 
 But an operation with only `[write]` does not match because it lacks `destructive`.
 
-### 10.6 Target prefix matching
+### 10.6 Target and structured-selector matching
 
 `targetPrefixes` uses string-prefix matching.
 
@@ -715,7 +739,19 @@ targetPrefixes: [workspace/]
 
 matches `workspace/docs/readme.md` but not `outside/readme.md`.
 
-For filesystem tools, resolvers clean and slash-normalize targets first. New target types must define their own canonical representation before relying on prefixes.
+For filesystem tools, resolvers clean and slash-normalize targets first. Network and command operations use structured
+selectors instead. `targetPrefixes` cannot authorize a structured command target.
+
+A command selector can match:
+
+- an exact executable token or exact resolved path;
+- exact arguments or an argument prefix;
+- direct or POSIX shell mode;
+- complete or incomplete analysis;
+- indirect execution only when `allowIndirect` is set.
+
+This distinguishes `git status` from quoted text, a different executable with the same name, and a shell plan that
+happens to contain a `git status` invocation. A bare `git` selector does not match `/tmp/git`.
 
 ## 11. Exact policy evaluation order
 
@@ -858,7 +894,7 @@ repeated full-access banner.
 
 Full access expresses the user's intent to give Morph unrestricted access to the computer. Tool execution therefore:
 
-- ignores `exec.allow`, `exec.ask`, and `exec.deny` command decisions;
+- ignores command-policy decisions and structural approval or denial signals;
 - permits file tools and command working directories outside `fs.roots`;
 - continues to validate tool input and preserve time, size, text, and protocol checks.
 
@@ -1052,16 +1088,20 @@ Approval lookup uses a SHA-256 fingerprint of:
 - tool;
 - resource and action;
 - normalized effects;
-- target;
+- raw target or structured network/command fingerprint;
 - owner ID.
 
 Session ID is intentionally not inside the fingerprint. Session restrictions are enforced by grant scope during lookup.
 
+For a command operation, the private fingerprint also binds mode, resolved executable, arguments, plan digest,
+workspace-relative cwd identity, effective-environment digest, completeness, dynamic reasons, invocation count, and
+redirect count.
+
 Example:
 
 ```text
-approved: run_command target "git status"
-new call: run_command target "git push"
+approved: direct /usr/bin/git [status]
+new call: direct /usr/bin/git [push]
 ```
 
 The targets differ, so fingerprints differ. The old approval cannot authorize the new command.
@@ -1399,7 +1439,7 @@ The approval trace includes:
 The summary is generated as:
 
 ```text
-run_command · execute process
+run_command · execute process git
 ```
 
 It intentionally does not include the raw target. A command containing a secret should not be echoed into the transcript simply because approval is required.
@@ -1512,7 +1552,7 @@ Terminal A is blocked waiting for approval:
 
 ```text
 Permission approval required
-run_command · execute process
+run_command · execute process git
 Effects: execution
 ```
 
@@ -1871,7 +1911,7 @@ request/grant audit chain must respect the configured request and grant cutoffs.
 | Approval lifecycle, scopes, coalescing, explicit deletion, cleanup loop, and failures | `internal/permissions/approval_test.go` |
 | Internal waiter behavior | `internal/permissions/approval_internal_test.go` |
 | Tool registry ordering and no-side-effect checks | `internal/tools/registry_default_test.go` |
-| Dynamic command targets and hard policy | `internal/tools/runcommand/run_command_test.go` |
+| Dynamic command plans and hard policy | `internal/tools/runcommand/run_command_test.go` |
 | Filesystem target normalization | `internal/tools/writefile/write_file_test.go` and `internal/tools/patch/patch_test.go` |
 | Process action classification | `internal/tools/process/process_test.go` |
 | Automation action classification | `internal/tools/automation/automation_test.go` |

@@ -20,11 +20,13 @@ func TestPermissionService_TranslatesApprovalLifecycle(t *testing.T) {
 		request: &morphpb.PermissionApprovalRequest{
 			Id: "approval_1", ActorKind: "local_owner", SurfaceKind: "local", Surface: "tui",
 			Tool: "run_command", Resource: "process", Action: "execute", Effects: []string{"execution"},
-			Status: "pending", CreatedAt: timestamppb.New(now), ExpiresAt: timestamppb.New(now.Add(time.Minute)),
+			Operations: []string{"run_command · execute process"},
+			Status:     "pending", CreatedAt: timestamppb.New(now), ExpiresAt: timestamppb.New(now.Add(time.Minute)),
 		},
 		grant: &morphpb.PermissionGrant{
 			Id: "grant_1", RequestId: "approval_1", Scope: "session", Status: "active",
-			CreatedAt: timestamppb.New(now), ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+			Operations: []string{"run_command · execute process"},
+			CreatedAt:  timestamppb.New(now), ExpiresAt: timestamppb.New(now.Add(time.Hour)),
 		},
 	}
 	service := NewPermissionService(stub)
@@ -34,6 +36,7 @@ func TestPermissionService_TranslatesApprovalLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, requests, 1)
 	require.Equal(t, []permissions.Effect{permissions.EffectExecution}, requests[0].Effects)
+	require.Equal(t, []string{"run_command · execute process"}, requests[0].Operations)
 	require.Equal(t, int32(5), stub.listRequest.GetLimit())
 	require.Equal(t, int32(10), stub.listRequest.GetOffset())
 	request, ok, err := service.GetApprovalRequest(context.Background(), "approval_1")
@@ -46,6 +49,7 @@ func TestPermissionService_TranslatesApprovalLifecycle(t *testing.T) {
 	grants, err := service.ListApprovalGrants(context.Background(), permissions.GrantQuery{Status: permissions.GrantActive})
 	require.NoError(t, err)
 	require.Len(t, grants, 1)
+	require.Equal(t, []string{"run_command · execute process"}, grants[0].Operations)
 	grant, err := service.RevokeApprovalGrant(context.Background(), "grant_1")
 	require.NoError(t, err)
 	require.Equal(t, "grant_1", grant.ID)

@@ -224,6 +224,7 @@ func (c *Config) resolvePaths(baseDir string) {
 	c.Web.NativeAllowedHostFiles = getPathsFromBase(c.Web.NativeAllowedHostFiles, baseDir)
 	c.Web.NativeBlockedHostFiles = getPathsFromBase(c.Web.NativeBlockedHostFiles, baseDir)
 	c.Browser.Executable = getExecutableFromBase(c.Browser.Executable, baseDir)
+	c.Exec.Shell = getExecutableFromBase(c.Exec.Shell, baseDir)
 	c.Browser.ProfileRoot = getPathFromBase(c.Browser.ProfileRoot, baseDir)
 	c.Browser.TemporaryRoot = getPathFromBase(c.Browser.TemporaryRoot, baseDir)
 	c.Browser.Artifacts.Root = getPathFromBase(c.Browser.Artifacts.Root, baseDir)

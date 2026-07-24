@@ -63,6 +63,13 @@ func (f HandlerFunc) Invoke(ctx context.Context, call Call) (Result, error) {
 
 type PermissionResolver func(context.Context, Call) ([]permissions.EvaluationInput, error)
 
+type PermissionPreparation struct {
+	Inputs   []permissions.EvaluationInput
+	Prepared any
+}
+
+type PermissionPreparer func(context.Context, Call) (PermissionPreparation, error)
+
 type SemanticIndexMode string
 
 const (
@@ -213,6 +220,7 @@ type Definition struct {
 	Requires          Capabilities
 	Permission        permissions.Operation
 	ResolvePermission PermissionResolver
+	PreparePermission PermissionPreparer
 	SemanticIndex     SemanticIndexPolicy
 	Platforms         []string
 	Handler           Handler

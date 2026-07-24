@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	commandplan "github.com/wandxy/morph/internal/command"
 	"github.com/wandxy/morph/internal/constants"
 	"github.com/wandxy/morph/internal/permissions"
 )
@@ -71,8 +73,16 @@ func TestNewProfileConfig_LeavesModelSelectionEmpty(t *testing.T) {
 	require.Equal(t, permissions.PresetApproveForMe, cfg.Permissions.Preset)
 }
 
-func TestCloneConfig_ClonesPersonalityPointers(t *testing.T) {
+func TestCloneConfig_ClonesNestedValues(t *testing.T) {
 	cfg := Config{
+		Exec: ExecConfig{AllowCommands: []commandplan.Selector{{
+			Executable: "git", ArgumentPrefix: []string{"status"}, RequireComplete: new(true),
+		}}},
+		Permissions: permissions.Policy{Rules: []permissions.Rule{{
+			Name: "allow git", Commands: []commandplan.Selector{{
+				Executable: "git", ExactArguments: []string{"status"}, RequireComplete: new(true),
+			}},
+		}}},
 		Models: ModelsConfig{
 			Providers: map[string]ProviderModelConfig{
 				"openai": {
@@ -110,6 +120,10 @@ func TestCloneConfig_ClonesPersonalityPointers(t *testing.T) {
 	*cloned.Personalities["researcher"].Memory.Pinned = false
 	*cloned.Personalities["researcher"].Tools.Filesystem = false
 	*cloned.Personalities["researcher"].Model.Stream = true
+	cloned.Exec.AllowCommands[0].ArgumentPrefix[0] = "push"
+	*cloned.Exec.AllowCommands[0].RequireComplete = false
+	cloned.Permissions.Rules[0].Commands[0].ExactArguments[0] = "push"
+	*cloned.Permissions.Rules[0].Commands[0].RequireComplete = false
 
 	require.Equal(t, "value", cfg.Models.Providers["openai"].Headers["X-Test"])
 	require.True(t, *cfg.Models.Providers["openai"].Models["gpt-4o"].SupportsTools)
@@ -118,6 +132,10 @@ func TestCloneConfig_ClonesPersonalityPointers(t *testing.T) {
 	require.True(t, *cfg.Personalities["researcher"].Memory.Pinned)
 	require.True(t, *cfg.Personalities["researcher"].Tools.Filesystem)
 	require.False(t, *cfg.Personalities["researcher"].Model.Stream)
+	require.Equal(t, []string{"status"}, cfg.Exec.AllowCommands[0].ArgumentPrefix)
+	require.True(t, *cfg.Exec.AllowCommands[0].RequireComplete)
+	require.Equal(t, []string{"status"}, cfg.Permissions.Rules[0].Commands[0].ExactArguments)
+	require.True(t, *cfg.Permissions.Rules[0].Commands[0].RequireComplete)
 }
 
 func TestCloneProviderModelMetadata_ReturnsNilForEmptyInput(t *testing.T) {

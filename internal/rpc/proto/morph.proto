@@ -641,6 +641,7 @@ message PermissionApprovalRequest {
   google.protobuf.Timestamp created_at = 16;
   google.protobuf.Timestamp expires_at = 17;
   google.protobuf.Timestamp resolved_at = 18;
+  repeated string operations = 19;
 }
 
 message PermissionGrant {
@@ -655,6 +656,7 @@ message PermissionGrant {
   google.protobuf.Timestamp expires_at = 9;
   google.protobuf.Timestamp consumed_at = 10;
   google.protobuf.Timestamp revoked_at = 11;
+  repeated string operations = 12;
 }
 
 message ListPermissionRequestsRequest {

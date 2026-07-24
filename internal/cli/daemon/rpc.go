@@ -63,6 +63,10 @@ type browserServiceBinder interface {
 	SetBrowserService(envtypes.BrowserService)
 }
 
+type commandIdentityBinder interface {
+	SetCommandIdentityKey([]byte)
+}
+
 type browserApprovalBinder interface {
 	SetApprover(permissions.Approver)
 }
@@ -258,13 +262,15 @@ var serveRPC = func(
 ) (serveErr error) {
 	defer func() { _ = lis.Close() }()
 	activeProfile := profile.Active()
-	var ownerCredential []byte
-	var err error
-	if strings.TrimSpace(activeProfile.HomeDir) != "" {
-		ownerCredential, err = loadOrCreateOwnerCredential(activeProfile.HomeDir)
-		if err != nil {
-			return err
-		}
+	if strings.TrimSpace(activeProfile.HomeDir) == "" {
+		return errors.New("active profile home is required for stable owner and command approval identity")
+	}
+	ownerCredential, err := loadOrCreateOwnerCredential(activeProfile.HomeDir)
+	if err != nil {
+		return err
+	}
+	if binder, ok := agent.(commandIdentityBinder); ok {
+		binder.SetCommandIdentityKey(ownerCredential)
 	}
 	browserRuntime, err := buildBrowserService(ctx, cfg, ownerCredential)
 	if err != nil {

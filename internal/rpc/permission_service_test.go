@@ -28,7 +28,8 @@ func TestPermissionService_ListsInspectsResolvesAndRevokes(t *testing.T) {
 		Surface: permissions.SurfaceTUI, SurfaceKind: permissions.SurfaceKindLocal,
 		Tool: "run_command", Resource: permissions.ResourceProcess, Action: permissions.ActionExecute,
 		Effects: []permissions.Effect{permissions.EffectExecution}, Summary: "run command",
-		Status: permissions.ApprovalPending, CreatedAt: now, ExpiresAt: now.Add(time.Minute),
+		Operations: []string{"run_command · execute process"},
+		Status:     permissions.ApprovalPending, CreatedAt: now, ExpiresAt: now.Add(time.Minute),
 	}
 	_, _, err = store.CreateApprovalRequest(context.Background(), request)
 	require.NoError(t, err)
@@ -39,6 +40,7 @@ func TestPermissionService_ListsInspectsResolvesAndRevokes(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, listed.GetRequests(), 1)
 	require.Equal(t, []string{"execution"}, listed.GetRequests()[0].GetEffects())
+	require.Equal(t, request.Operations, listed.GetRequests()[0].GetOperations())
 	got, err := service.GetRequest(context.Background(), &morphpb.GetPermissionRequestRequest{Id: request.ID})
 	require.NoError(t, err)
 	require.Equal(t, request.Summary, got.GetRequest().GetSummary())
@@ -51,6 +53,7 @@ func TestPermissionService_ListsInspectsResolvesAndRevokes(t *testing.T) {
 	grants, err := service.ListGrants(context.Background(), &morphpb.ListPermissionGrantsRequest{Status: "active"})
 	require.NoError(t, err)
 	require.Len(t, grants.GetGrants(), 1)
+	require.Equal(t, request.Operations, grants.GetGrants()[0].GetOperations())
 	revoked, err := service.RevokeGrant(operatorCtx, &morphpb.RevokePermissionGrantRequest{
 		Id: grants.GetGrants()[0].GetId(),
 	})

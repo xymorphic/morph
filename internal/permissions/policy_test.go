@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	commandplan "github.com/wandxy/morph/internal/command"
 )
 
 func TestPolicy_NormalizeAppliesConservativeDefaults(t *testing.T) {
@@ -45,6 +47,74 @@ func TestPolicy_NormalizeAppliesConservativeDefaults(t *testing.T) {
 		Reason:         "owner workspace write",
 	}, policy.Rules[0])
 	require.NoError(t, policy.Validate())
+}
+
+func TestPolicy_CommandRulesMatchTypedFactsOnly(t *testing.T) {
+	policy := Policy{
+		Default:             DecisionDeny,
+		SurfaceKindDefaults: map[SurfaceKind]Decision{SurfaceKindLocal: DecisionDeny},
+		Rules: []Rule{{
+			Name:      "git status",
+			Resources: []Resource{ResourceProcess},
+			Actions:   []Action{ActionExecute},
+			Commands: []commandplan.Selector{{
+				Executable: "git", ArgumentPrefix: []string{"status"},
+			}},
+			Decision: DecisionAllow,
+		}},
+	}
+	authorization := AuthorizationContext{
+		Actor: Actor{Kind: ActorLocalOwner}, Surface: SurfaceCLI,
+	}
+	target := commandplan.Target{
+		Mode: commandplan.ModeDirect, Executable: "git", ResolvedPath: "/usr/bin/git",
+		Arguments: []string{"status", "--short"}, PlanDigest: "plan", Complete: true,
+	}
+
+	evaluation := policy.Evaluate(EvaluationInput{
+		Authorization: authorization,
+		Operation: Operation{
+			Resource: ResourceProcess, Action: ActionExecute,
+			Effects: []Effect{EffectExecution}, Command: &target,
+		},
+	})
+	require.Equal(t, DecisionAllow, evaluation.Decision)
+
+	target.Arguments = []string{"push"}
+	evaluation = policy.Evaluate(EvaluationInput{
+		Authorization: authorization,
+		Operation: Operation{
+			Resource: ResourceProcess, Action: ActionExecute,
+			Effects: []Effect{EffectExecution}, Command: &target,
+		},
+	})
+	require.Equal(t, DecisionDeny, evaluation.Decision)
+}
+
+func TestPolicy_RawTargetPrefixesCannotAuthorizeCommandTargets(t *testing.T) {
+	policy := Policy{
+		Default:             DecisionDeny,
+		SurfaceKindDefaults: map[SurfaceKind]Decision{SurfaceKindLocal: DecisionDeny},
+		Rules: []Rule{{
+			Name: "raw command", Resources: []Resource{ResourceProcess},
+			Actions: []Action{ActionExecute}, TargetPrefixes: []string{"git status"},
+			Decision: DecisionAllow,
+		}},
+	}
+	target := commandplan.Target{
+		Mode: commandplan.ModeDirect, Executable: "git", ResolvedPath: "/usr/bin/git",
+		Arguments: []string{"status"}, PlanDigest: "plan", Complete: true,
+	}
+
+	evaluation := policy.Evaluate(EvaluationInput{
+		Authorization: AuthorizationContext{Actor: Actor{Kind: ActorLocalOwner}, Surface: SurfaceCLI},
+		Operation: Operation{
+			Resource: ResourceProcess, Action: ActionExecute,
+			Effects: []Effect{EffectExecution}, Command: &target,
+		},
+	})
+
+	require.Equal(t, DecisionDeny, evaluation.Decision)
 }
 
 func TestPolicy_NormalizeHandlesNilPolicyAndSortsDistinctValues(t *testing.T) {
@@ -208,6 +278,109 @@ func TestPolicy_EvaluateRequiresApprovalAfterAllowButPreservesDeny(t *testing.T)
 	evaluation = policy.Evaluate(input)
 	require.Equal(t, DecisionDeny, evaluation.Decision)
 	require.Equal(t, "deny destructive", evaluation.Rule)
+}
+
+func TestPolicy_EvaluateRequiresTypedOptInForIndirectCommandExecution(t *testing.T) {
+	target := commandplan.Target{
+		Mode: commandplan.ModeDirect, Executable: "make", ResolvedPath: "/usr/bin/make",
+		Indirect: true, PlanDigest: "plan", Complete: true,
+	}
+	input := EvaluationInput{
+		Authorization: AuthorizationContext{
+			Actor: Actor{Kind: ActorLocalOwner}, Surface: SurfaceCLI,
+		},
+		Operation: Operation{
+			Resource: ResourceProcess, Action: ActionExecute,
+			Effects: []Effect{EffectExecution, EffectIndirectExecution}, Command: &target,
+		},
+	}
+
+	broad := Policy{Rules: []Rule{{
+		Name: "broad process allow", Resources: []Resource{ResourceProcess}, Decision: DecisionAllow,
+	}}}
+	evaluation := broad.Evaluate(input)
+	require.Equal(t, DecisionAsk, evaluation.Decision)
+	require.Equal(t, ReasonApprovalRequired, evaluation.ReasonCode)
+	require.Equal(t, "indirect command execution requires explicit permission", evaluation.Reason)
+
+	explicit := Policy{Rules: []Rule{{
+		Name: "allow make",
+		Commands: []commandplan.Selector{{
+			Executable: "make", AllowIndirect: true,
+		}},
+		Decision: DecisionAllow,
+	}}}
+	evaluation = explicit.Evaluate(input)
+	require.Equal(t, DecisionAllow, evaluation.Decision)
+	require.Equal(t, "allow make", evaluation.Rule)
+}
+
+func TestPolicy_CommandOnlyRuleDoesNotMatchOtherTargetKinds(t *testing.T) {
+	policy := Policy{
+		Default:             DecisionDeny,
+		SurfaceKindDefaults: map[SurfaceKind]Decision{},
+		Rules: []Rule{{
+			Name: "allow git",
+			Commands: []commandplan.Selector{{
+				Executable: "git",
+			}},
+			Decision: DecisionAllow,
+		}},
+	}
+	authorization := AuthorizationContext{
+		Actor: Actor{Kind: ActorLocalOwner}, Surface: SurfaceCLI,
+	}
+
+	fileEvaluation := policy.Evaluate(EvaluationInput{
+		Authorization: authorization,
+		Operation: Operation{
+			Resource: ResourceFile, Action: ActionRead, Effects: []Effect{EffectRead}, Target: "git",
+		},
+	})
+	require.Equal(t, DecisionDeny, fileEvaluation.Decision)
+
+	network := NetworkTarget{
+		Scheme: "https", Host: "example.com", Port: 443, Path: "/", Method: "GET",
+		RequestClass: NetworkRequestNavigation,
+	}
+	networkEvaluation := policy.Evaluate(EvaluationInput{
+		Authorization: authorization,
+		Operation: Operation{
+			Resource: ResourceNetwork, Action: ActionRead,
+			Effects: []Effect{EffectRead, EffectNetwork}, Network: &network,
+		},
+	})
+	require.Equal(t, DecisionDeny, networkEvaluation.Decision)
+}
+
+func TestPolicy_ValidateRejectsMixedCommandAndOtherTargetSelectors(t *testing.T) {
+	tests := []Rule{
+		{
+			Name: "command and prefix",
+			Commands: []commandplan.Selector{{
+				Executable: "git",
+			}},
+			TargetPrefixes: []string{"git"},
+			Decision:       DecisionAllow,
+		},
+		{
+			Name: "command and network",
+			Commands: []commandplan.Selector{{
+				Executable: "git",
+			}},
+			Network:  []NetworkSelector{{Host: "example.com"}},
+			Decision: DecisionAllow,
+		},
+	}
+
+	for _, rule := range tests {
+		policy := Policy{Rules: []Rule{rule}}
+		require.EqualError(
+			t,
+			policy.Validate(),
+			"permission rule cannot combine command selectors with other target selectors",
+		)
+	}
 }
 
 func TestPolicy_EvaluateEnforcesOwnerRequirement(t *testing.T) {
