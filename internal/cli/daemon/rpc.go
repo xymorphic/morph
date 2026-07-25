@@ -7,20 +7,24 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
+	morphauth "github.com/wandxy/morph/internal/auth"
+	"github.com/wandxy/morph/internal/auth/storesqlite"
 	"github.com/wandxy/morph/internal/automation"
 	"github.com/wandxy/morph/internal/browser"
 	"github.com/wandxy/morph/internal/config"
+	"github.com/wandxy/morph/internal/credential"
 	envtypes "github.com/wandxy/morph/internal/environment/types"
 	"github.com/wandxy/morph/internal/gateway"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/profile"
 	morphrpc "github.com/wandxy/morph/internal/rpc"
-	"github.com/wandxy/morph/internal/rpc/rpcauth"
 	"github.com/wandxy/morph/internal/rpc/server"
+	"github.com/wandxy/morph/internal/rpc/tlsconfig"
 	morphruntime "github.com/wandxy/morph/internal/runtime"
 	"github.com/wandxy/morph/pkg/str"
 	"google.golang.org/grpc"
@@ -45,7 +49,7 @@ var serveRPCShutdownTimeout = 5 * time.Second
 var postShutdownServeErrHook = func(err error) error { return err }
 
 var writeRuntimeMetadata = morphruntime.WriteActive
-var loadOrCreateOwnerCredential = rpcauth.LoadOrCreate
+var openAuthStore = storesqlite.Open
 
 var openRPCListener = openRPCListenerImpl
 
@@ -67,6 +71,10 @@ type commandIdentityBinder interface {
 	SetCommandIdentityKey([]byte)
 }
 
+type browserIdentityBinder interface {
+	SetAttachmentIdentityKey([]byte)
+}
+
 type browserApprovalBinder interface {
 	SetApprover(permissions.Approver)
 }
@@ -81,6 +89,12 @@ var newGatewayAutomationDeliverySink = func(cfg config.GatewayConfig) automation
 
 var stopGatewayTimeout = 5 * time.Second
 var stopBrowserTimeout = 5 * time.Second
+
+const (
+	rpcAuthRetention     = 30 * 24 * time.Hour
+	rpcAuthPruneInterval = 24 * time.Hour
+	rpcAuthPruneLimit    = 1000
+)
 
 type browserService interface {
 	Close(context.Context) error
@@ -263,16 +277,42 @@ var serveRPC = func(
 	defer func() { _ = lis.Close() }()
 	activeProfile := profile.Active()
 	if strings.TrimSpace(activeProfile.HomeDir) == "" {
-		return errors.New("active profile home is required for stable owner and command approval identity")
+		return errors.New("active profile home is required for Morph identity")
 	}
-	ownerCredential, err := loadOrCreateOwnerCredential(activeProfile.HomeDir)
+	identityStore := credential.NewFileStore(filepath.Join(activeProfile.HomeDir, "auth.json"))
+	authDatabase, err := openAuthStore(filepath.Join(activeProfile.HomeDir, "auth.db"))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := authDatabase.Close(); serveErr == nil {
+			serveErr = closeErr
+		}
+	}()
+	if cfg == nil || strings.TrimSpace(cfg.Auth.Key) == "" {
+		recoveryCtx, cancelRecovery := context.WithTimeout(context.Background(), 5*time.Second)
+		err := recoverRPCIdentityRotation(recoveryCtx, identityStore, authDatabase)
+		cancelRecovery()
+		if err != nil {
+			return err
+		}
+	}
+	identity, err := loadRPCIdentity(cfg, identityStore)
+	if err != nil {
+		return err
+	}
+	commandIdentityKey, err := morphauth.DeriveSecret(identity, "command-approval")
 	if err != nil {
 		return err
 	}
 	if binder, ok := agent.(commandIdentityBinder); ok {
-		binder.SetCommandIdentityKey(ownerCredential)
+		binder.SetCommandIdentityKey(commandIdentityKey)
 	}
-	browserRuntime, err := buildBrowserService(ctx, cfg, ownerCredential)
+	browserIdentityKey, err := morphauth.DeriveSecret(identity, "browser-attachment")
+	if err != nil {
+		return err
+	}
+	browserRuntime, err := buildBrowserService(ctx, cfg, browserIdentityKey)
 	if err != nil {
 		return err
 	}
@@ -326,6 +366,43 @@ var serveRPC = func(
 	if runtime, ok := browserRuntime.(morphrpc.BrowserAPI); ok {
 		browserAPI = runtime
 	}
+	authConfig := config.NewDefaultConfig().Auth
+	if cfg != nil {
+		authConfig = cfg.Auth
+	}
+	if strings.TrimSpace(authConfig.Audience) == "" {
+		authConfig.Audience = "morph-rpc:" + activeProfile.Name
+	}
+	authService, err := morphauth.NewService(morphauth.ServiceOptions{
+		Audience:         authConfig.Audience,
+		Store:            authDatabase,
+		MaximumTokenSize: authConfig.MaximumTokenBytes,
+		MaximumTokenTTL:  authConfig.MaximumTokenTTL,
+		SessionIdleTTL:   authConfig.SessionIdleTTL,
+		SessionMaxTTL:    authConfig.SessionMaximumTTL,
+	})
+	if err != nil {
+		return err
+	}
+	seedCtx, cancelSeed := context.WithTimeout(context.Background(), 5*time.Second)
+	err = seedRPCAuthRoot(
+		seedCtx,
+		authService,
+		identity,
+		activeProfile.Name,
+		cfg != nil && strings.TrimSpace(cfg.Auth.Key) != "",
+	)
+	cancelSeed()
+	if err != nil {
+		return err
+	}
+	transportCredentials, err := tlsconfig.ServerCredentials(authConfig.TLS)
+	if err != nil {
+		return err
+	}
+	pruneCtx, cancelPrune := context.WithCancel(ctx)
+	defer cancelPrune()
+	go pruneRPCAuthState(pruneCtx, authService.Store())
 
 	grpcSrv := server.New(agent, server.Options{
 		RuntimeModel:         morphrpc.ModelRuntimeFromConfig(cfg),
@@ -338,8 +415,13 @@ var serveRPC = func(
 		BrowserConfig:        browserConfig,
 		BrowserCapability:    browserCapability,
 		PermissionPolicy:     permissionPolicy,
-		OwnerCredential:      ownerCredential,
-		OwnerPrincipal:       activeProfile.Name,
+		Auth:                 authService,
+		AuthServiceOptions: []morphrpc.AuthServiceOption{
+			morphrpc.WithIdentityRotationApply(
+				prepareIdentityRotationApply(identityStore, agent, browserRuntime),
+			),
+		},
+		TransportCredentials: transportCredentials,
 		ProfileName:          activeProfile.Name,
 	})
 
@@ -393,4 +475,160 @@ var serveRPC = func(
 	daemonLog.Info().
 		Msg("RPC server stopped")
 	return nil
+}
+
+func pruneRPCAuthState(ctx context.Context, store morphauth.Store) {
+	prune := func() {
+		_, err := store.Prune(
+			ctx,
+			time.Now().UTC().Add(-rpcAuthRetention),
+			rpcAuthPruneLimit,
+		)
+		if err != nil && ctx.Err() == nil {
+			daemonLog.Warn().Err(err).Msg("RPC auth retention pruning failed")
+		}
+	}
+	prune()
+	ticker := time.NewTicker(rpcAuthPruneInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			prune()
+		}
+	}
+}
+
+func seedRPCAuthRoot(
+	ctx context.Context,
+	service *morphauth.Service,
+	identity morphauth.Identity,
+	ownerID string,
+	configured bool,
+) error {
+	if _, err := service.SeedRoot(ctx, identity, ownerID); err == nil {
+		return nil
+	} else if !configured || !errors.Is(err, morphauth.ErrPermissionDenied) {
+		return err
+	}
+	authorizations, err := service.Store().ListAuthorizations(ctx)
+	if err != nil {
+		return err
+	}
+	var current *morphauth.Authorization
+	for index := range authorizations {
+		authorization := &authorizations[index]
+		if authorization.Status != morphauth.StatusActive ||
+			!containsRPCAuthScope(authorization.Services, morphauth.RootScope) {
+			continue
+		}
+		if current != nil {
+			return errors.New("RPC auth state contains multiple active root identities")
+		}
+		current = authorization
+	}
+	if current == nil ||
+		current.IdentityID == identity.ID ||
+		identity.Generation != current.Generation+1 {
+		return errors.New(
+			"configured Morph identity replacement must use a new key and the next auth generation",
+		)
+	}
+
+	return service.RotateRoot(ctx, current.IdentityID, identity, ownerID)
+}
+
+func containsRPCAuthScope(scopes []string, target string) bool {
+	for _, scope := range scopes {
+		if scope == target {
+			return true
+		}
+	}
+	return false
+}
+
+func prepareIdentityRotationApply(
+	store *credential.FileStore,
+	agent any,
+	browserRuntime browserService,
+) func(context.Context, string, uint64) (func(), error) {
+	return func(_ context.Context, identityID string, generation uint64) (func(), error) {
+		record, found, err := store.LoadMorphAuth()
+		if err != nil {
+			return nil, err
+		}
+		if !found || record.Pending == nil ||
+			record.Pending.IdentityID != identityID ||
+			record.Pending.Generation != generation {
+			return nil, errors.New("pending Morph identity does not match rotation request")
+		}
+		identity, err := morphauth.ParseIdentity(
+			[]byte(record.Pending.PrivateKey),
+			record.Pending.Generation,
+		)
+		if err != nil || identity.ID != identityID {
+			return nil, errors.New("pending Morph identity is invalid")
+		}
+		commandKey, err := morphauth.DeriveSecret(identity, "command-approval")
+		if err != nil {
+			return nil, err
+		}
+		browserKey, err := morphauth.DeriveSecret(identity, "browser-attachment")
+		if err != nil {
+			return nil, err
+		}
+
+		return func() {
+			if binder, ok := agent.(commandIdentityBinder); ok {
+				binder.SetCommandIdentityKey(commandKey)
+			}
+			if binder, ok := browserRuntime.(browserIdentityBinder); ok {
+				binder.SetAttachmentIdentityKey(browserKey)
+			}
+		}, nil
+	}
+}
+
+func loadRPCIdentity(cfg *config.Config, store *credential.FileStore) (morphauth.Identity, error) {
+	if cfg != nil && strings.TrimSpace(cfg.Auth.Key) != "" {
+		key := []byte(cfg.Auth.Key)
+		if !strings.Contains(cfg.Auth.Key, "-----BEGIN") {
+			var err error
+			key, err = os.ReadFile(cfg.Auth.Key)
+			if err != nil {
+				return morphauth.Identity{}, fmt.Errorf("read Morph identity key: %w", err)
+			}
+		}
+		return morphauth.ParseIdentity(key, cfg.Auth.Generation)
+	}
+	if store == nil {
+		return morphauth.Identity{}, errors.New("morph identity store is required")
+	}
+
+	return store.LoadOrCreateIdentity()
+}
+
+func recoverRPCIdentityRotation(
+	ctx context.Context,
+	identityStore *credential.FileStore,
+	authStore morphauth.Store,
+) error {
+	record, found, err := identityStore.LoadMorphAuth()
+	if err != nil || !found || record.Pending == nil {
+		return err
+	}
+	authorization, err := authStore.GetAuthorization(ctx, record.Pending.IdentityID)
+	if err == nil && authorization.Status == morphauth.StatusActive {
+		return identityStore.ActivateIdentityRotation(record.Pending.IdentityID)
+	}
+	if errors.Is(err, morphauth.ErrNotFound) {
+		return identityStore.AbortIdentityRotation(record.Pending.IdentityID)
+	}
+	if err != nil {
+		return err
+	}
+
+	return errors.New("pending Morph identity rotation has no active authorization")
 }

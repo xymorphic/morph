@@ -39,10 +39,15 @@ func TestService_ResolveAttachmentBindsCredentialIdentityAndScope(t *testing.T) 
 	require.NoError(t, err)
 	require.Equal(t, first.identity, reordered.identity)
 
+	service.SetAttachmentIdentityKey([]byte("abcdef0123456789abcdef0123456789"))
+	rebound, err := service.resolveAttachment(profile)
+	require.NoError(t, err)
+	require.NotEqual(t, first.identity, rebound.identity)
+
 	credential = "rotated-secret"
 	rotated, err := service.resolveAttachment(profile)
 	require.NoError(t, err)
-	require.NotEqual(t, first.identity, rotated.identity)
+	require.NotEqual(t, rebound.identity, rotated.identity)
 
 	profile.AttachmentScope = config.BrowserAttachmentBrowser
 	profile.TargetIDs = nil

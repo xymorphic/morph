@@ -6,12 +6,14 @@ import (
 	"io"
 
 	agentapi "github.com/wandxy/morph/internal/agent"
+	morphauth "github.com/wandxy/morph/internal/auth"
 	"github.com/wandxy/morph/internal/automation"
 	"github.com/wandxy/morph/internal/config"
 	"github.com/wandxy/morph/internal/gateway"
 	agentstub "github.com/wandxy/morph/internal/mocks/agentstub"
 	"github.com/wandxy/morph/internal/permissions"
 	morphpb "github.com/wandxy/morph/internal/rpc/proto"
+	"github.com/wandxy/morph/internal/rpc/rpcmeta"
 	"github.com/wandxy/morph/internal/trace"
 	agent "github.com/wandxy/morph/pkg/agent"
 	"github.com/wandxy/morph/pkg/gateway/pairing"
@@ -34,6 +36,14 @@ func newAllowedService(api agentapi.ServiceAPI) *Service {
 func newAllowedServiceWithOptions(api agentapi.ServiceAPI, opts ServiceOptions) *Service {
 	opts.PermissionPolicy = allowedRPCPolicy()
 	return NewServiceWithOptions(api, opts)
+}
+
+func withTestPrincipal(ctx context.Context, source string) context.Context {
+	return rpcmeta.WithAuthenticatedPrincipal(ctx, morphauth.Principal{
+		IdentityID: "identity", OwnerID: "default", UserID: "identity",
+		Roles: []string{morphauth.RoleOwner}, SessionID: "session", TokenID: "token",
+		Source: source, IdentityGeneration: 1, AuthorizationRevision: 1,
+	})
 }
 
 type respondStreamServerStub struct {

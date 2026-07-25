@@ -147,8 +147,9 @@ The protobuf package is `morph.v1`. See [RPC Reference](./rpc) for the service a
 
 ### Is RPC authenticated?
 
-Not yet at the application layer. RPC uses plaintext gRPC; keep `rpc.address` on loopback unless the network boundary
-protects it. See [Security](../operations/security) and [Daemon and RPC](../concepts/daemon-and-rpc).
+Yes. Every RPC requires an Ed25519-signed access token backed by live server-side authorization, session, and token
+state. Plaintext transport is restricted to loopback; server TLS and mutual TLS are available for remote endpoints.
+See [Security](../operations/security) and [Daemon and RPC](../concepts/daemon-and-rpc).
 
 ### Where should I put API keys?
 

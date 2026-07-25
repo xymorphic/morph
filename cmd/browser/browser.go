@@ -16,20 +16,18 @@ import (
 	morphcli "github.com/wandxy/morph/internal/cli"
 	"github.com/wandxy/morph/internal/config"
 	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/profile"
 	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	"github.com/wandxy/morph/internal/rpc/rpcauth"
 	"github.com/wandxy/morph/pkg/str"
 )
 
 var (
-	browserOutput         io.Writer = os.Stdout
-	rotateOwnerCredential           = rpcauth.Rotate
-	newClient                       = func(ctx context.Context, cfg *config.Config) (browserClient, error) {
-		return rpcclient.NewClient(ctx, rpcclient.Options{
+	browserOutput io.Writer = os.Stdout
+	newClient               = func(ctx context.Context, cfg *config.Config) (browserClient, error) {
+		return rpcclient.NewClient(ctx, rpcclient.OptionsWithConfigAuth(rpcclient.Options{
 			Address: cfg.RPC.Address, Port: cfg.RPC.Port,
 			PermissionSurface: permissions.SurfaceCLI, PermissionPreset: cfg.Permissions.EffectivePreset(),
-		})
+			AuthServices: []string{"/morph.v1.BrowserService"},
+		}, cfg))
 	}
 )
 
@@ -63,7 +61,6 @@ func NewCommand() *cli.Command {
 			newStartCommand(),
 			newStopCommand(),
 			newConfigCommand(),
-			newAuthCommand(),
 			newArtifactCommand(),
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
@@ -139,36 +136,6 @@ func newArtifactGetResult(artifact browserdomain.Artifact, destination string) a
 	return artifactGetResult{
 		Handle: artifact.Handle, Kind: artifact.Kind, Name: artifact.Name, MIMEType: artifact.MIMEType,
 		Size: artifact.Size, CreatedAt: artifact.CreatedAt, ExpiresAt: artifact.ExpiresAt, SavedTo: destination,
-	}
-}
-
-func newAuthCommand() *cli.Command {
-	return &cli.Command{
-		Name: "auth", Usage: "Manage browser RPC owner authentication",
-		Commands: []*cli.Command{{
-			Name: "rotate", Usage: "Rotate the profile RPC owner credential",
-			Action: func(_ context.Context, cmd *cli.Command) error {
-				active := profile.Active()
-				if _, err := rotateOwnerCredential(active.HomeDir); err != nil {
-					return err
-				}
-				if cmd.Bool("json") {
-					return writeJSON(map[string]any{
-						"rotated": true, "restart_required": true,
-						"browser_attachment_approvals_invalidated": true,
-					})
-				}
-
-				_, err := fmt.Fprintln(
-					browserOutput,
-					"rotated RPC owner credential; restart the daemon, reconnect local clients, and reapprove browser attachments",
-				)
-				return err
-			},
-		}},
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			return cli.ShowSubcommandHelp(cmd)
-		},
 	}
 }
 

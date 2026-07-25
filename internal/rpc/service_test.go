@@ -94,14 +94,14 @@ func TestService_RespondReturnsMessage(t *testing.T) {
 	requireRespondEvent(t, stream.events[1], morphpb.RespondEvent_DONE, "", morphpb.RespondEvent_CHANNEL_UNSPECIFIED)
 }
 
-func TestService_RespondClassifiesLoopbackTUIClientAsLocalOwner(t *testing.T) {
+func TestService_RespondClassifiesAuthenticatedTUIClientAsLocalOwner(t *testing.T) {
 	stub := &agentstub.AgentServiceStub{Reply: "hello back"}
 	svc := newAllowedService(stub)
 	outgoing := rpcmeta.WithOutgoingPermissionSurface(context.Background(), permissions.SurfaceTUI)
 	outgoingMetadata, ok := metadata.FromOutgoingContext(outgoing)
 	require.True(t, ok)
 	ctx := metadata.NewIncomingContext(context.Background(), outgoingMetadata)
-	ctx = rpcmeta.WithAuthenticatedLocalOwner(ctx, "default")
+	ctx = withTestPrincipal(ctx, "tui")
 	ctx = peer.NewContext(ctx, &peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 50051}})
 	stream := &respondStreamServerStub{ctx: ctx}
 
@@ -135,14 +135,14 @@ func TestService_RespondDoesNotElevateRemoteTUIClient(t *testing.T) {
 	require.Equal(t, permissions.SurfaceTUI, authorization.Surface)
 }
 
-func TestService_RespondAcceptsPermissionPresetOnlyFromLoopbackOwnerClient(t *testing.T) {
+func TestService_RespondAcceptsPermissionPresetOnlyFromMatchingOwnerSource(t *testing.T) {
 	tests := []struct {
 		name       string
-		address    net.IP
+		source     string
 		wantPreset bool
 	}{
-		{name: "loopback owner", address: net.ParseIP("127.0.0.1"), wantPreset: true},
-		{name: "remote client", address: net.ParseIP("192.0.2.1"), wantPreset: false},
+		{name: "matching owner source", source: "tui", wantPreset: true},
+		{name: "mismatched owner source", source: "rpc", wantPreset: false},
 	}
 
 	for _, test := range tests {
@@ -154,10 +154,7 @@ func TestService_RespondAcceptsPermissionPresetOnlyFromLoopbackOwnerClient(t *te
 			outgoingMetadata, ok := metadata.FromOutgoingContext(outgoing)
 			require.True(t, ok)
 			ctx := metadata.NewIncomingContext(context.Background(), outgoingMetadata)
-			ctx = rpcmeta.WithAuthenticatedLocalOwner(ctx, "default")
-			ctx = peer.NewContext(ctx, &peer.Peer{
-				Addr: &net.TCPAddr{IP: test.address, Port: 50051},
-			})
+			ctx = withTestPrincipal(ctx, test.source)
 
 			err := svc.Respond(
 				&morphpb.RespondRequest{Message: "hello"},
@@ -228,7 +225,11 @@ func incomingPermissionContext(
 	outgoingMetadata, ok := metadata.FromOutgoingContext(outgoing)
 	require.True(t, ok)
 	ctx := metadata.NewIncomingContext(context.Background(), outgoingMetadata)
-	ctx = rpcmeta.WithAuthenticatedLocalOwner(ctx, "default")
+	source := string(surface)
+	if !address.IsLoopback() {
+		source = "rpc"
+	}
+	ctx = withTestPrincipal(ctx, source)
 
 	return peer.NewContext(ctx, &peer.Peer{
 		Addr: &net.TCPAddr{IP: address, Port: 50051},

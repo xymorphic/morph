@@ -108,6 +108,9 @@ func (c *Config) validate(options validationOptions) error {
 	if c.RPC.Port < 0 {
 		return errors.New("rpc port must be non-negative; set MORPH_RPC_PORT, provide it in config, or use --rpc.port")
 	}
+	if err := c.validateAuth(); err != nil {
+		return err
+	}
 
 	if err := c.validateGatewaySettings(gatewayValidationOptions{
 		skipCredentials: options.skipGatewayCredentials,

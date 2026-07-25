@@ -92,6 +92,12 @@ morph config set rpc.port 50051
 Flags and `MORPH_RPC_ADDRESS` / `MORPH_RPC_PORT` override config. See [Daemon and RPC](../concepts/daemon-and-rpc) and
 [Environment Variables](../reference/environment-variables).
 
+If the endpoint is reachable but calls return `Unauthenticated`, verify that the client and daemon use the same profile
+and audience, then inspect `morph auth identity show` and `morph auth session list`. `PermissionDenied` means the token
+is valid but does not contain the requested canonical service or method scope. For TLS failures, run
+`morph auth mtls status` and verify the server CA, server name, client certificate, and TLS mode. Morph never falls back
+from an explicitly configured invalid token or key to another credential source.
+
 ### Stale runtime metadata
 
 If a daemon crashed or was killed, `runtime.json` may reference a dead process. Morph removes stale metadata when a

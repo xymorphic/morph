@@ -107,6 +107,28 @@ func RootFlags(envFile, configFile *string) []cli.Flag {
 			Usage: "Bind port for the RPC service",
 			Value: config.Get().RPC.Port,
 		},
+		&cli.StringFlag{
+			Name:   "auth.token",
+			Usage:  "RPC access token",
+			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:   "auth.key",
+			Usage:  "RPC Ed25519 private key",
+			Hidden: true,
+		},
+		&cli.UintFlag{
+			Name:   "auth.generation",
+			Usage:  "RPC signing identity generation",
+			Value:  uint(config.Get().Auth.Generation),
+			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:   "rpc.tls.mode",
+			Usage:  "RPC TLS mode: disabled, server, or mutual",
+			Value:  config.Get().Auth.TLS.Mode,
+			Hidden: true,
+		},
 		&cli.BoolFlag{
 			Name:  "gateway.enabled",
 			Usage: "Enable the external client gateway inside the daemon",
@@ -608,6 +630,18 @@ func ApplyConfigOverrides(cmd *cli.Command, cfg *config.Config) {
 	}
 	if cmd.IsSet("rpc.port") {
 		cfg.RPC.Port = cmd.Int("rpc.port")
+	}
+	if cmd.IsSet("auth.token") {
+		cfg.Auth.Token = strings.TrimSpace(cmd.String("auth.token"))
+	}
+	if cmd.IsSet("auth.key") {
+		cfg.Auth.Key = strings.TrimSpace(cmd.String("auth.key"))
+	}
+	if cmd.IsSet("auth.generation") {
+		cfg.Auth.Generation = uint64(cmd.Uint("auth.generation"))
+	}
+	if cmd.IsSet("rpc.tls.mode") {
+		cfg.Auth.TLS.Mode = strings.TrimSpace(cmd.String("rpc.tls.mode"))
 	}
 	if cmd.IsSet("gateway.enabled") {
 		cfg.Gateway.Enabled = cmd.Bool("gateway.enabled")

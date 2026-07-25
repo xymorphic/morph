@@ -11,9 +11,10 @@ one-shot `--chat` are RPC clients. Conceptual overview: [Daemon and RPC](../conc
 **Proto source:** `internal/rpc/proto/morph.proto`  
 **Package:** `morph.v1`  
 
-:::warning[Transport security]
-Daemon RPC currently uses **plaintext gRPC** with no application-level authentication. Bind `rpc.address` to loopback
-unless the host network boundary protects the port. See [Security](../operations/security).
+:::note[Authentication and transport]
+Every RPC, including health and streaming calls, requires an Ed25519-signed Morph access token backed by an active
+authorization, auth session, and token record. Plaintext transport is permitted only on loopback. Configure server TLS
+or mutual TLS before binding elsewhere. See [Security](../operations/security).
 :::
 
 ## Client usage
@@ -28,9 +29,11 @@ not part of durable user state and can be recreated by starting the daemon again
 
 Typical flow for chat:
 
-1. `MorphService.Respond`: server-streaming; receive `TEXT_DELTA`, selected display-safe `TRACE_EVENT` events, then
+1. The client resolves an explicit token or effective profile identity, opens an authenticated session, and attaches
+   exactly one bearer token to each call.
+2. `MorphService.Respond`: server-streaming; receive `TEXT_DELTA`, selected display-safe `TRACE_EVENT` events, then
    `DONE` or `ERROR`.
-2. Session commands use `SessionService` unary RPCs against the same connection.
+3. Session commands use `SessionService` unary RPCs against the same connection.
 
 For HTTP gateway clients that bypass gRPC, see [Gateway Routes](./gateway-routes).
 
@@ -151,8 +154,8 @@ Model and workflow: [Automation](../concepts/automation). Full field reference: 
 | `DeleteRecord`* | Delete a terminal request or grant |
 | `Prune`* | Delete terminal history outside the configured retention window |
 
-\* `ResolveRequest`, `GetGrant`, `RevokeGrant`, `DeleteRecord`, and `Prune` require an interactive local owner (the same
-loopback + `cli`/`tui` check described below) and reject any other caller with `PERMISSION_DENIED`. Any RPC caller
+\* `ResolveRequest`, `GetGrant`, `RevokeGrant`, `DeleteRecord`, and `Prune` require an authenticated owner identity
+using a signed `cli` or `tui` source and reject any other caller with `PERMISSION_DENIED`. Any authenticated RPC caller
 that can reach `ListRequests`, `GetRequest`, or `ListGrants` can read
 request metadata (actor kind, surface, profile, session, tool, resource, action, effects, reason, status, and
 timestamps) and grant metadata (request link, actor kind, profile, session, scope, status, operation summaries, and
@@ -165,17 +168,34 @@ CLI: [CLI Reference: permissions](./cli#permissions-approvals-and-grants). Model
 
 Clients that need Morph to know where a call originated attach an outgoing permission surface and, for local
 clients, a preset override as gRPC metadata rather than a request field; see `internal/rpc/rpcmeta` for the exact
-keys if you're writing a new client. **This metadata is caller-provided, not authentication.** The server only
-classifies a caller as `local_owner` when the claimed surface is `cli`/`tui` **and** the connection itself is a
-loopback peer; a preset override is likewise honored only once that `local_owner`-over-loopback check has already
-passed. A remote or non-loopback caller claiming `cli`/`tui` is still authorized as an ordinary `rpc_client` and its
-preset override is ignored. `MorphService.Respond` also
+keys if you're writing a new client. **This metadata is caller-provided, not authentication.** The server classifies a
+caller as `local_owner` only when a validated owner principal has the same signed `cli` or `tui` source. Other
+authenticated identities remain `rpc_client`; metadata alone cannot create owner authority. `MorphService.Respond` also
 streams an `EvtPermissionApprovalChanged` trace event when a request is created or resolved, which is how the TUI and
 root `--chat` render their interactive approval prompts.
 
+## AuthService
+
+`AuthService.OpenSession` is the sole bootstrap RPC. It still requires a valid EdDSA JWT with the bootstrap scope;
+the server then atomically activates safe session and token metadata. The remaining methods require an active token.
+
+| Method | Description |
+| --- | --- |
+| `OpenSession` | Validate a signed bootstrap token and activate its session |
+| `ListSessions` / `RevokeSession` | Inspect or revoke auth sessions |
+| `ListTokens` / `RevokeToken` | Inspect safe token metadata or revoke a token |
+| `ListAuthorizations` / `GrantAuthorization` / `RevokeAuthorization` | Manage bounded public-key authorizations |
+| `ListAudit` / `PruneAudit` | Inspect or prune credential-safe auth audit data |
+| `RotateIdentity` | Atomically advance the root identity and revoke the prior generation |
+| `IdentityStatus` | Return the caller's identity generation and authorization revision |
+
+The API never persists or returns raw JWTs or private keys. Revocation is checked on every call, and active stream
+contexts are cancelled when their session or token becomes inactive.
+
 ## Health
 
-When enabled, the gRPC server registers the standard gRPC health service for liveness checks.
+When enabled, the gRPC server registers the standard gRPC health service. Health calls use the same JWT and live-session
+checks as Morph services.
 
 ## Where To Go Next
 

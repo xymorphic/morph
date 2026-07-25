@@ -108,6 +108,37 @@ non-secret auth marker internally when the runtime does not require a real API k
 
 See [Daemon and RPC](../concepts/daemon-and-rpc) and [RPC Reference](./rpc).
 
+## `auth`
+
+| Key | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `key` | string | `""` | Ed25519 PKCS#8 PEM or key-file reference; otherwise `auth.json` is used |
+| `generation` | uint | `1` | Generation of an externally configured key; increment by one with each key replacement |
+| `token` | string | `""` | Explicit operator-managed access token |
+| `audience` | string | `morph-rpc:<profile>` | Expected JWT audience |
+| `cliTokenTTL` | duration | `5m` | Automatic CLI token lifetime |
+| `tuiTokenTTL` | duration | `8h` | Automatic renewable TUI token lifetime |
+| `maximumTokenTTL` | duration | `24h` | Authorization policy ceiling |
+| `sessionIdleTTL` | duration | `15m` | Inactive session expiry |
+| `sessionMaximumTTL` | duration | `24h` | Absolute session expiry |
+| `maximumTokenBytes` | int | `16384` | Maximum encoded JWT size |
+| `nonceBytes` | int | `24` | Random issuance nonce bytes, 16–64 |
+
+### `auth.tls`
+
+| Key | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `mode` | string | `disabled` | `disabled`, `server`, or `mutual`; disabled is loopback-only |
+| `serverCertificate` / `serverKey` | path | `""` | Server certificate and private key |
+| `serverCA` | path | `""` | Client trust roots for the RPC server certificate |
+| `clientCA` | path | `""` | Server trust roots for mutual-TLS clients |
+| `clientCertificate` / `clientKey` | path | `""` | Client certificate and key in mutual mode |
+| `serverName` | string | `""` | TLS server-name override |
+| `minimumVersion` | string | `1.3` | `1.2` or `1.3` |
+
+Private keys and tokens are redacted from effective configuration output. Certificate and key changes take effect on a
+controlled daemon restart.
+
 ## `gateway`
 
 | Key | Type | Default |

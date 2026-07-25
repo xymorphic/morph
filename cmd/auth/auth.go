@@ -40,11 +40,20 @@ func SetOutput(w io.Writer) io.Writer {
 func NewCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "auth",
-		Usage: "Manage provider credentials",
+		Usage: "Manage provider credentials and Morph RPC identity",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "json", Usage: "Print machine-readable JSON"},
+		},
 		Commands: []*cli.Command{
 			newLoginCommand(),
 			newStatusCommand(),
 			newLogoutCommand(),
+			newIdentityCommand(),
+			newSessionCommand(),
+			newTokenCommand(),
+			newAuthorizationCommand(),
+			newAuditCommand(),
+			newMTLSCommand(),
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			return cli.ShowSubcommandHelp(cmd)
@@ -83,8 +92,12 @@ func newLoginCommand() *cli.Command {
 				return err
 			}
 
-			_, err = fmt.Fprintf(authOutput, "%s credential stored\n", provider)
-			return err
+			return writeSafeJSONOrText(
+				cmd,
+				map[string]string{"provider": provider, "status": "stored"},
+				"%s credential stored\n",
+				provider,
+			)
 		},
 	}
 }
@@ -106,16 +119,31 @@ func newStatusCommand() *cli.Command {
 				return err
 			}
 
-			writer := tabwriter.NewWriter(authOutput, 0, 4, 2, ' ', 0)
-			if _, err := fmt.Fprintln(writer, "PROVIDER\tCREDENTIAL"); err != nil {
-				return err
-			}
+			statuses := make([]map[string]string, 0, len(providers))
 			for _, provider := range providers {
 				status, err := getProviderAuthStatus(provider, store, cfg)
 				if err != nil {
 					return err
 				}
-				if _, err := fmt.Fprintf(writer, "%s\t%s\n", provider, formatAuthStatus(status)); err != nil {
+				statuses = append(statuses, map[string]string{
+					"provider": provider,
+					"status":   formatAuthStatus(status),
+				})
+			}
+			if cmd.Bool("json") {
+				return writeJSONValue(statuses)
+			}
+			writer := tabwriter.NewWriter(authOutput, 0, 4, 2, ' ', 0)
+			if _, err := fmt.Fprintln(writer, "PROVIDER\tCREDENTIAL"); err != nil {
+				return err
+			}
+			for _, status := range statuses {
+				if _, err := fmt.Fprintf(
+					writer,
+					"%s\t%s\n",
+					status["provider"],
+					status["status"],
+				); err != nil {
 					return err
 				}
 			}
@@ -144,8 +172,12 @@ func newLogoutCommand() *cli.Command {
 				return err
 			}
 
-			_, err = fmt.Fprintf(authOutput, "%s credential removed\n", provider)
-			return err
+			return writeSafeJSONOrText(
+				cmd,
+				map[string]string{"provider": provider, "status": "removed"},
+				"%s credential removed\n",
+				provider,
+			)
 		},
 	}
 }

@@ -19,11 +19,14 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/stretchr/testify/require"
 	urfavecli "github.com/urfave/cli/v3"
+	morphauth "github.com/wandxy/morph/internal/auth"
+	authstorememory "github.com/wandxy/morph/internal/auth/storememory"
 	"github.com/wandxy/morph/internal/automation"
 	"github.com/wandxy/morph/internal/brand"
 	"github.com/wandxy/morph/internal/browser"
 	"github.com/wandxy/morph/internal/config"
 	"github.com/wandxy/morph/internal/constants"
+	"github.com/wandxy/morph/internal/credential"
 	morphgateway "github.com/wandxy/morph/internal/gateway"
 	agentstub "github.com/wandxy/morph/internal/mocks/agentstub"
 	models "github.com/wandxy/morph/internal/model"
@@ -55,6 +58,23 @@ type browserServiceStub struct {
 type browserApprovalServiceStub struct {
 	browserServiceStub
 	approver permissions.Approver
+}
+
+type identityBinderStub struct {
+	commandKey []byte
+	browserKey []byte
+}
+
+func (s *identityBinderStub) SetCommandIdentityKey(key []byte) {
+	s.commandKey = append([]byte(nil), key...)
+}
+
+func (s *identityBinderStub) SetAttachmentIdentityKey(key []byte) {
+	s.browserKey = append([]byte(nil), key...)
+}
+
+func (s *identityBinderStub) Close(context.Context) error {
+	return nil
 }
 
 func (s *browserApprovalServiceStub) SetApprover(approver permissions.Approver) {
@@ -146,7 +166,7 @@ func TestNewCommand_BuildsConfigFromFlags(t *testing.T) {
 
 	serveRPC = func(ctx context.Context, cfg *config.Config, app agentRunner, _ net.Listener, _ gatewayManager) error {
 		serveCalled = true
-		require.Equal(t, "0.0.0.0", cfg.RPC.Address)
+		require.Equal(t, "127.0.0.1", cfg.RPC.Address)
 		require.Equal(t, 6000, cfg.RPC.Port)
 		require.NotNil(t, app)
 		return nil
@@ -163,7 +183,7 @@ func TestNewCommand_BuildsConfigFromFlags(t *testing.T) {
 		"--model.provider", "openrouter",
 		"--model.api-key", "flag-key",
 		"--model.base-url", serverURL,
-		"--rpc.address", "0.0.0.0",
+		"--rpc.address", "127.0.0.1",
 		"--rpc.port", "6000",
 		"--trace.enabled",
 		"--trace.disk.dir", "/tmp/morph-traces",
@@ -177,7 +197,7 @@ func TestNewCommand_BuildsConfigFromFlags(t *testing.T) {
 	require.Equal(t, "openrouter", cfg.Models.Main.Provider)
 	require.Equal(t, "flag-key", cfg.Models.Providers["openrouter"].APIKey)
 	require.Equal(t, serverURL, cfg.Models.Main.BaseURL)
-	require.Equal(t, "0.0.0.0", cfg.RPC.Address)
+	require.Equal(t, "127.0.0.1", cfg.RPC.Address)
 	require.Equal(t, 6000, cfg.RPC.Port)
 	require.True(t, cfg.Trace.Enabled)
 	require.Equal(t, "/tmp/morph-traces", cfg.Trace.Disk.Dir)
@@ -210,7 +230,7 @@ func TestNewCommand_BuildsConfigFromFlags(t *testing.T) {
 	require.Contains(t, startupBuffer.String(), "Storage")
 	require.Contains(t, startupBuffer.String(), "sqlite")
 	require.Contains(t, startupBuffer.String(), "RPC")
-	require.Contains(t, startupBuffer.String(), "0.0.0.0:6000")
+	require.Contains(t, startupBuffer.String(), "127.0.0.1:6000")
 	require.Contains(t, startupBuffer.String(), "Streaming")
 	require.Contains(t, startupBuffer.String(), "true")
 	require.Contains(t, startupBuffer.String(), "Debug requests")
@@ -1521,28 +1541,127 @@ func TestBuildBrowserService_SkipsDisabledRuntimeAndPropagatesConstructionFailur
 	require.Nil(t, service)
 }
 
-func TestServeRPC_LoadsOwnerCredentialFromActiveProfile(t *testing.T) {
+func TestServeRPC_RejectsInvalidConfiguredMorphIdentity(t *testing.T) {
 	originalProfile := profile.Active()
-	originalLoad := loadOrCreateOwnerCredential
 	t.Cleanup(func() {
 		profile.SetActive(originalProfile)
-		loadOrCreateOwnerCredential = originalLoad
 	})
 	home := t.TempDir()
 	profile.SetActive(profile.Profile{Name: "test", HomeDir: home})
-	expected := errors.New("owner credential failed")
-	loadOrCreateOwnerCredential = func(actual string) ([]byte, error) {
-		require.Equal(t, home, actual)
-		return nil, expected
-	}
 	cfg := config.NewDefaultConfig()
 	cfg.RPC.Address = "127.0.0.1"
 	cfg.RPC.Port = 0
+	cfg.Auth.Key = "invalid"
 
 	err := serveRPC(
 		context.Background(), cfg, &agentstub.AgentRunnerStub{}, openTestRPCListener(t, cfg), nil,
 	)
-	require.ErrorIs(t, err, expected)
+	require.ErrorContains(t, err, "read Morph identity key")
+}
+
+func TestRecoverRPCIdentityRotation_FinalizesCommittedTransition(t *testing.T) {
+	ctx := context.Background()
+	identityStore := credential.NewFileStore(filepath.Join(t.TempDir(), "auth.json"))
+	current, err := identityStore.LoadOrCreateIdentity()
+	require.NoError(t, err)
+	_, next, err := identityStore.PrepareIdentityRotation()
+	require.NoError(t, err)
+	authStore := authstorememory.New()
+	service, err := morphauth.NewService(morphauth.ServiceOptions{
+		Audience: "morph-rpc:test", Store: authStore,
+		SessionMaxTTL: 24 * time.Hour,
+	})
+	require.NoError(t, err)
+	_, err = service.SeedRoot(ctx, current, "owner")
+	require.NoError(t, err)
+	require.NoError(t, service.RotateRoot(ctx, current.ID, next, "owner"))
+
+	require.NoError(t, recoverRPCIdentityRotation(ctx, identityStore, authStore))
+	record, found, err := identityStore.LoadMorphAuth()
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Equal(t, next.ID, record.IdentityID)
+	require.Nil(t, record.Pending)
+}
+
+func TestRecoverRPCIdentityRotation_AbortsUncommittedTransition(t *testing.T) {
+	ctx := context.Background()
+	identityStore := credential.NewFileStore(filepath.Join(t.TempDir(), "auth.json"))
+	current, err := identityStore.LoadOrCreateIdentity()
+	require.NoError(t, err)
+	_, _, err = identityStore.PrepareIdentityRotation()
+	require.NoError(t, err)
+	authStore := authstorememory.New()
+	service, err := morphauth.NewService(morphauth.ServiceOptions{
+		Audience: "morph-rpc:test", Store: authStore,
+		SessionMaxTTL: 24 * time.Hour,
+	})
+	require.NoError(t, err)
+	_, err = service.SeedRoot(ctx, current, "owner")
+	require.NoError(t, err)
+
+	require.NoError(t, recoverRPCIdentityRotation(ctx, identityStore, authStore))
+	record, found, err := identityStore.LoadMorphAuth()
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Equal(t, current.ID, record.IdentityID)
+	require.Nil(t, record.Pending)
+}
+
+func TestSeedRPCAuthRoot_RotatesConfiguredIdentityAtNextGeneration(t *testing.T) {
+	store := authstorememory.New()
+	service, err := morphauth.NewService(morphauth.ServiceOptions{
+		Audience: "morph-rpc:test", Store: store,
+	})
+	require.NoError(t, err)
+	current, err := morphauth.GenerateIdentity(1)
+	require.NoError(t, err)
+	require.NoError(t, seedRPCAuthRoot(
+		context.Background(), service, current, "owner", true,
+	))
+	next, err := morphauth.GenerateIdentity(2)
+	require.NoError(t, err)
+	require.NoError(t, seedRPCAuthRoot(
+		context.Background(), service, next, "owner", true,
+	))
+
+	previous, err := store.GetAuthorization(context.Background(), current.ID)
+	require.NoError(t, err)
+	require.Equal(t, morphauth.StatusRevoked, previous.Status)
+	replacement, err := store.GetAuthorization(context.Background(), next.ID)
+	require.NoError(t, err)
+	require.Equal(t, morphauth.StatusActive, replacement.Status)
+
+	skipped, err := morphauth.GenerateIdentity(4)
+	require.NoError(t, err)
+	err = seedRPCAuthRoot(context.Background(), service, skipped, "owner", true)
+	require.EqualError(t, err,
+		"configured Morph identity replacement must use a new key and the next auth generation")
+}
+
+func TestPrepareIdentityRotationApply_RebindsRuntimeSecrets(t *testing.T) {
+	store := credential.NewFileStore(filepath.Join(t.TempDir(), "auth.json"))
+	_, err := store.LoadOrCreateIdentity()
+	require.NoError(t, err)
+	_, next, err := store.PrepareIdentityRotation()
+	require.NoError(t, err)
+	agent := &identityBinderStub{}
+	browserRuntime := &identityBinderStub{}
+
+	apply, err := prepareIdentityRotationApply(
+		store, agent, browserRuntime,
+	)(context.Background(), next.ID, next.Generation)
+	require.NoError(t, err)
+	require.Empty(t, agent.commandKey)
+	require.Empty(t, browserRuntime.browserKey)
+	apply()
+
+	expectedCommand, err := morphauth.DeriveSecret(next, "command-approval")
+	require.NoError(t, err)
+	expectedBrowser, err := morphauth.DeriveSecret(next, "browser-attachment")
+	require.NoError(t, err)
+	require.Equal(t, expectedCommand, agent.commandKey)
+	require.Equal(t, expectedBrowser, browserRuntime.browserKey)
 }
 
 func TestServeRPC_RejectsMissingProfileHomeForStableIdentity(t *testing.T) {
@@ -1557,7 +1676,7 @@ func TestServeRPC_RejectsMissingProfileHomeForStableIdentity(t *testing.T) {
 		context.Background(), cfg, &agentstub.AgentRunnerStub{}, openTestRPCListener(t, cfg), nil,
 	)
 
-	require.EqualError(t, err, "active profile home is required for stable owner and command approval identity")
+	require.EqualError(t, err, "active profile home is required for Morph identity")
 }
 
 func TestCloseBrowserService_UsesBoundedContextAndReturnsFailure(t *testing.T) {

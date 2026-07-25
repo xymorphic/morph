@@ -1,6 +1,6 @@
 //go:build !windows
 
-package rpcauth
+package credential
 
 import (
 	"errors"
@@ -22,15 +22,28 @@ func checkCredentialPermissions(path string) error {
 		return err
 	}
 	if info.Mode().Perm()&0o077 != 0 {
-		return errors.New("RPC owner credential permissions are too broad")
+		return errors.New("credential store permissions are too broad")
 	}
 	directory, err := os.Stat(filepath.Dir(path))
 	if err != nil {
 		return err
 	}
 	if directory.Mode().Perm()&0o077 != 0 {
-		return errors.New("RPC owner credential directory permissions are too broad")
+		return errors.New("credential store directory permissions are too broad")
 	}
 
 	return nil
+}
+
+func syncCredentialDirectory(path string) error {
+	directory, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = directory.Close() }()
+	return directory.Sync()
+}
+
+func replaceCredentialFile(source, destination string) error {
+	return os.Rename(source, destination)
 }

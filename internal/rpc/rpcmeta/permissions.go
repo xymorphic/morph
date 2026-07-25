@@ -2,45 +2,16 @@ package rpcmeta
 
 import (
 	"context"
-	"net"
-	"strings"
 
+	morphauth "github.com/wandxy/morph/internal/auth"
 	"github.com/wandxy/morph/internal/permissions"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
 )
 
 const (
 	permissionSurfaceKey = "x-morph-permission-surface"
 	permissionPresetKey  = "x-morph-permission-preset"
 )
-
-type authenticatedPermissionPrincipalKey struct{}
-type authenticatedLocalOwnerKey struct{}
-
-func WithAuthenticatedLocalOwner(ctx context.Context, principalID string) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	principalID = strings.TrimSpace(principalID)
-	if principalID == "" {
-		return ctx
-	}
-
-	return context.WithValue(ctx, authenticatedLocalOwnerKey{}, principalID)
-}
-
-func WithAuthenticatedPermissionPrincipal(ctx context.Context, principalID string) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	principalID = strings.TrimSpace(principalID)
-	if principalID == "" {
-		return ctx
-	}
-
-	return context.WithValue(ctx, authenticatedPermissionPrincipalKey{}, principalID)
-}
 
 func WithOutgoingPermissionSurface(ctx context.Context, surface permissions.Surface) context.Context {
 	if ctx == nil {
@@ -100,14 +71,13 @@ func PermissionPresetFromIncomingContext(ctx context.Context) (permissions.Prese
 
 func PermissionActorFromIncomingContext(ctx context.Context) permissions.Actor {
 	if ctx != nil {
-		if principalID, ok := ctx.Value(authenticatedLocalOwnerKey{}).(string); ok &&
-			strings.TrimSpace(principalID) != "" && isSupportedClientSurface(PermissionSurfaceFromIncomingContext(ctx)) &&
-			isLoopbackPeer(ctx) {
-			return permissions.Actor{Kind: permissions.ActorLocalOwner, ID: strings.TrimSpace(principalID)}
-		}
-		if principalID, ok := ctx.Value(authenticatedPermissionPrincipalKey{}).(string); ok &&
-			strings.TrimSpace(principalID) != "" {
-			return permissions.Actor{Kind: permissions.ActorRPCClient, ID: strings.TrimSpace(principalID)}
+		if principal, ok := AuthenticatedPrincipal(ctx); ok {
+			surface := PermissionSurfaceFromIncomingContext(ctx)
+			if principal.HasRole(morphauth.RoleOwner) && isSupportedClientSurface(surface) &&
+				principal.Source == string(surface) {
+				return permissions.Actor{Kind: permissions.ActorLocalOwner, ID: principal.OwnerID}
+			}
+			return permissions.Actor{Kind: permissions.ActorRPCClient, ID: principal.IdentityID}
 		}
 	}
 
@@ -116,19 +86,4 @@ func PermissionActorFromIncomingContext(ctx context.Context) permissions.Actor {
 
 func isSupportedClientSurface(surface permissions.Surface) bool {
 	return surface == permissions.SurfaceCLI || surface == permissions.SurfaceTUI
-}
-
-func isLoopbackPeer(ctx context.Context) bool {
-	remotePeer, ok := peer.FromContext(ctx)
-	if !ok || remotePeer.Addr == nil {
-		return false
-	}
-
-	host, _, err := net.SplitHostPort(remotePeer.Addr.String())
-	if err != nil {
-		host = remotePeer.Addr.String()
-	}
-	ip := net.ParseIP(strings.Trim(host, "[]"))
-
-	return ip != nil && ip.IsLoopback()
 }

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/flock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wandxy/morph/internal/profile"
@@ -349,7 +350,9 @@ func TestFileStore_NilReceiverReturnsError(t *testing.T) {
 }
 
 func TestFileStore_ReturnsParseError(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "auth.json")
+	directory := t.TempDir()
+	require.NoError(t, os.Chmod(directory, 0o700))
+	path := filepath.Join(directory, "auth.json")
 	require.NoError(t, os.WriteFile(path, []byte("{"), 0o600))
 
 	_, err := NewFileStore(path).List()
@@ -357,7 +360,9 @@ func TestFileStore_ReturnsParseError(t *testing.T) {
 }
 
 func TestFileStore_GetReturnsLoadError(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "auth.json")
+	directory := t.TempDir()
+	require.NoError(t, os.Chmod(directory, 0o700))
+	path := filepath.Join(directory, "auth.json")
 	require.NoError(t, os.WriteFile(path, []byte("{"), 0o600))
 
 	_, _, err := NewFileStore(path).Get("openai")
@@ -365,7 +370,9 @@ func TestFileStore_GetReturnsLoadError(t *testing.T) {
 }
 
 func TestFileStore_LoadsEmptyCredentialFile(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "auth.json")
+	directory := t.TempDir()
+	require.NoError(t, os.Chmod(directory, 0o700))
+	path := filepath.Join(directory, "auth.json")
 	require.NoError(t, os.WriteFile(path, []byte(" \n"), 0o600))
 
 	providers, err := NewFileStore(path).List()
@@ -403,7 +410,9 @@ func TestFileStore_NormalizesEmptyScopes(t *testing.T) {
 
 func TestFileStore_LockTimeoutReturnsError(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "auth.json")
-	require.NoError(t, os.WriteFile(path+".lock", []byte("locked"), 0o600))
+	lock := flock.New(path + ".lock")
+	require.NoError(t, lock.Lock())
+	t.Cleanup(func() { require.NoError(t, lock.Unlock()) })
 	originalRetries := lockRetries
 	originalDelay := lockRetryDelay
 	lockRetries = 1

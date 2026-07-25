@@ -28,12 +28,13 @@ const gatewayPairingNameDisplayLimit = 40
 var (
 	gatewayOutput io.Writer = os.Stdout
 	newClient               = func(ctx context.Context, cfg *config.Config) (gatewayClient, error) {
-		return rpcclient.NewClient(ctx, rpcclient.Options{
+		return rpcclient.NewClient(ctx, rpcclient.OptionsWithConfigAuth(rpcclient.Options{
 			Address:           cfg.RPC.Address,
 			Port:              cfg.RPC.Port,
 			PermissionSurface: permissions.SurfaceCLI,
 			PermissionPreset:  cfg.Permissions.EffectivePreset(),
-		})
+			AuthServices:      []string{"/morph.v1.GatewayService"},
+		}, cfg))
 	}
 	setTelegramWebhook = telegramgateway.SetWebhook
 )

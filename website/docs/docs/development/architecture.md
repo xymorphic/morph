@@ -162,11 +162,10 @@ Deep dive: [Agent Loop](./agent-loop) and [Prompt Assembly](./prompt-assembly).
 | `internal/rpc/service.go` | Maps protobuf ↔ `internal/agent.ServiceAPI` |
 | `internal/rpc/client` | Client used by TUI, session/gateway commands, and tests |
 
-:::warning
-Daemon RPC is currently designed for local profile clients. It uses plaintext gRPC and does not yet have application-level
-authentication, so keep `rpc.address` on loopback unless the host network boundary is doing the protection. A gRPC auth
-phase is tracked in the project plan.
-:::
+`internal/auth` owns profile identity, strict EdDSA access tokens, scope validation, durable session/token state, and
+audit records. Mandatory unary and stream interceptors validate one bearer token and place an immutable principal in
+the request context. `internal/rpc/rpcmeta` derives permission actors from that principal; transport or caller metadata
+does not grant authority. Plaintext is loopback-only, with server TLS and mutual TLS available for remote listeners.
 
 Regenerate protobufs after `.proto` changes:
 

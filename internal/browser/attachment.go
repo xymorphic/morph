@@ -33,14 +33,43 @@ type attachment struct {
 
 func WithAttachmentIdentityKey(key []byte) ServiceOption {
 	return func(service *Service) {
-		if len(key) < 32 {
-			service.attachmentIdentityKey = append([]byte(nil), key...)
-			return
-		}
-		digest := hmac.New(sha256.New, key)
-		_, _ = digest.Write([]byte(attachmentIdentityKeyDomain))
-		service.attachmentIdentityKey = digest.Sum(nil)
+		service.SetAttachmentIdentityKey(key)
 	}
+}
+
+func (s *Service) SetAttachmentIdentityKey(key []byte) {
+	if s == nil {
+		return
+	}
+	normalized := normalizeAttachmentIdentityKey(key)
+	s.attachmentKeyMu.Lock()
+	s.attachmentIdentityKey = normalized
+	s.attachmentKeyMu.Unlock()
+
+	s.mu.RLock()
+	sessions := make([]*managedSession, 0, len(s.sessions))
+	for _, runtime := range s.sessions {
+		sessions = append(sessions, runtime)
+	}
+	s.mu.RUnlock()
+	for _, runtime := range sessions {
+		runtime.actionMu.Lock()
+		if runtime.attachment.identity != "" {
+			digest := hmac.New(sha256.New, normalized)
+			_, _ = digest.Write([]byte(runtime.attachment.identity))
+			runtime.attachment.identity = hex.EncodeToString(digest.Sum(nil))
+		}
+		runtime.actionMu.Unlock()
+	}
+}
+
+func normalizeAttachmentIdentityKey(key []byte) []byte {
+	if len(key) < 32 {
+		return append([]byte(nil), key...)
+	}
+	digest := hmac.New(sha256.New, key)
+	_, _ = digest.Write([]byte(attachmentIdentityKeyDomain))
+	return digest.Sum(nil)
 }
 
 func WithCredentialResolver(resolve CredentialResolver) ServiceOption {
@@ -56,7 +85,10 @@ func (s *Service) resolveAttachment(profile config.BrowserProfileConfig) (attach
 	if !profile.AcknowledgeUnmanagedEgress {
 		return attachment{}, errors.New("attached browser profile must acknowledge unmanaged egress")
 	}
-	if len(s.attachmentIdentityKey) < 32 {
+	s.attachmentKeyMu.RLock()
+	identityKey := append([]byte(nil), s.attachmentIdentityKey...)
+	s.attachmentKeyMu.RUnlock()
+	if len(identityKey) < 32 {
 		return attachment{}, errors.New("browser attachment identity key is unavailable")
 	}
 	credential, err := s.resolveCredential(profile.CredentialRef)
@@ -81,7 +113,7 @@ func (s *Service) resolveAttachment(profile config.BrowserProfileConfig) (attach
 		profile.Mode, origin, target.Path, profile.DataIdentity, profile.AttachmentScope,
 		profile.BrowserContextID, strings.Join(targetIDs, "\x00"), profile.CredentialRef, credential,
 	}, "\x00")
-	digest := hmac.New(sha256.New, s.attachmentIdentityKey)
+	digest := hmac.New(sha256.New, identityKey)
 	_, _ = digest.Write([]byte(material))
 	targetSet := make(map[string]struct{}, len(targetIDs))
 	for _, id := range targetIDs {

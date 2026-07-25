@@ -8,13 +8,12 @@ import (
 	"time"
 
 	urfavecli "github.com/urfave/cli/v3"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
 	clidaemon "github.com/wandxy/morph/internal/cli/daemon"
 	"github.com/wandxy/morph/internal/config"
+	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/profile"
+	rpcclient "github.com/wandxy/morph/internal/rpc/client"
 	morphruntime "github.com/wandxy/morph/internal/runtime"
 	"github.com/wandxy/morph/pkg/logutils"
 	"github.com/wandxy/morph/pkg/str"
@@ -39,7 +38,26 @@ var (
 	daemonBootstrapInitialTimeout = defaultDaemonBootstrapInitialTimeout
 	daemonBootstrapReadyTimeout   = defaultDaemonBootstrapReadyTimeout
 	daemonBootstrapPollInterval   = defaultDaemonBootstrapPollInterval
+	newDaemonHealthClient         = func(
+		ctx context.Context,
+		cfg *config.Config,
+		address string,
+		port int,
+	) (daemonHealthClient, error) {
+		return rpcclient.NewClient(ctx, rpcclient.OptionsWithConfigAuth(rpcclient.Options{
+			Address:           address,
+			Port:              port,
+			PermissionSurface: permissions.SurfaceCLI,
+			PermissionPreset:  cfg.Permissions.EffectivePreset(),
+			AuthMethods:       []string{"/grpc.health.v1.Health/Check"},
+		}, cfg))
+	}
 )
+
+type daemonHealthClient interface {
+	CheckHealth(context.Context) (string, error)
+	Close() error
+}
 
 type DaemonStatus struct {
 	State     string
@@ -78,7 +96,7 @@ func GetDaemonStatus(ctx context.Context) (DaemonStatus, error) {
 		return status, fmt.Errorf("daemon is %s", probe.State)
 	}
 
-	health, err := checkDaemonHealth(ctx, status.Address, status.Port)
+	health, err := checkDaemonHealth(ctx, config.Get(), status.Address, status.Port)
 	if err != nil {
 		return status, fmt.Errorf("daemon health check failed: %w", err)
 	}
@@ -160,11 +178,19 @@ func checkDaemonRPCImpl(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("rpc port must be greater than zero")
 	}
 
-	_, err := checkDaemonHealth(ctx, address, cfg.RPC.Port)
+	_, err := checkDaemonHealth(ctx, cfg, address, cfg.RPC.Port)
 	return err
 }
 
-func checkDaemonHealthImpl(ctx context.Context, address string, port int) (string, error) {
+func checkDaemonHealthImpl(
+	ctx context.Context,
+	cfg *config.Config,
+	address string,
+	port int,
+) (string, error) {
+	if cfg == nil {
+		return "", fmt.Errorf("config is required")
+	}
 	addressValue3 := str.String(address)
 	address = addressValue3.Trim()
 	if address == "" {
@@ -174,24 +200,13 @@ func checkDaemonHealthImpl(ctx context.Context, address string, port int) (strin
 		return "", fmt.Errorf("rpc port must be greater than zero")
 	}
 
-	conn, err := grpc.NewClient(
-		fmt.Sprintf("%s:%d", address, port),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	client, err := newDaemonHealthClient(ctx, cfg, address, port)
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = conn.Close() }()
+	defer func() { _ = client.Close() }()
 
-	resp, err := healthpb.NewHealthClient(conn).Check(ctx, &healthpb.HealthCheckRequest{})
-	if err != nil {
-		return "", err
-	}
-	if resp.GetStatus() != healthpb.HealthCheckResponse_SERVING {
-		return "", fmt.Errorf("daemon health status is %s", resp.GetStatus())
-	}
-
-	return resp.GetStatus().String(), nil
+	return client.CheckHealth(ctx)
 }
 
 func daemonStatusFromProbe(probe morphruntime.ProbeResult) DaemonStatus {

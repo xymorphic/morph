@@ -3,6 +3,7 @@ package config
 import (
 	"maps"
 	"slices"
+	"time"
 
 	commandplan "github.com/wandxy/morph/internal/command"
 	"github.com/wandxy/morph/internal/constants"
@@ -30,6 +31,20 @@ var DefaultConfig = Config{
 	RPC: RPCConfig{
 		Address: constants.DefaultRPCAddress,
 		Port:    constants.DefaultRPCPort,
+	},
+	Auth: AuthConfig{
+		Generation:        1,
+		CLITokenTTL:       5 * time.Minute,
+		TUITokenTTL:       8 * time.Hour,
+		MaximumTokenTTL:   24 * time.Hour,
+		SessionIdleTTL:    15 * time.Minute,
+		SessionMaximumTTL: 24 * time.Hour,
+		MaximumTokenBytes: 16 * 1024,
+		NonceBytes:        24,
+		TLS: AuthTLSConfig{
+			Mode:           AuthTLSDisabled,
+			MinimumVersion: "1.3",
+		},
 	},
 	Gateway: GatewayConfig{
 		Address: constants.DefaultRPCAddress,

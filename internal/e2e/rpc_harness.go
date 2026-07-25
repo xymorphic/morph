@@ -5,12 +5,16 @@ import (
 	"errors"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 
 	morphagent "github.com/wandxy/morph/internal/agent"
+	morphauth "github.com/wandxy/morph/internal/auth"
+	"github.com/wandxy/morph/internal/auth/storememory"
+	"github.com/wandxy/morph/internal/credential"
+	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/profile"
 	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	"github.com/wandxy/morph/internal/rpc/rpcauth"
 	"github.com/wandxy/morph/pkg/str"
 	"google.golang.org/grpc"
 
@@ -26,11 +30,14 @@ var grpcServe = func(srv *grpc.Server, lis net.Listener) error {
 // RPCHarness drives rpc e2e scenarios.
 type RPCHarness struct {
 	*Harness
-	address string
-	port    int
-	server  *grpc.Server
-	errMu   sync.Mutex
-	err     error
+	address      string
+	port         int
+	server       *grpc.Server
+	authKey      []byte
+	authAudience string
+	authOwnerID  string
+	errMu        sync.Mutex
+	err          error
 }
 
 // NewRPCHarness returns an RPC-backed e2e harness.
@@ -40,7 +47,7 @@ func NewRPCHarness(ctx context.Context, opts HarnessOptions) (*RPCHarness, error
 		return nil, err
 	}
 	activeProfile := profile.Active()
-	ownerCredential, err := rpcauth.LoadOrCreate(activeProfile.HomeDir)
+	identity, err := credential.NewFileStore("").LoadOrCreateIdentity()
 	if err != nil {
 		_ = base.Close()
 		return nil, err
@@ -65,19 +72,43 @@ func NewRPCHarness(ctx context.Context, opts HarnessOptions) (*RPCHarness, error
 		_ = base.Close()
 		return nil, errors.New("e2e rpc harness requires a full agent service")
 	}
+	authService, err := morphauth.NewService(morphauth.ServiceOptions{
+		Audience:       base.cfg.Auth.Audience,
+		Store:          storememory.New(),
+		SessionIdleTTL: base.cfg.Auth.SessionIdleTTL,
+		SessionMaxTTL:  base.cfg.Auth.SessionMaximumTTL,
+	})
+	if err != nil {
+		_ = lis.Close()
+		_ = base.Close()
+		return nil, err
+	}
+	if _, err := authService.SeedRoot(ctx, identity, activeProfile.Name); err != nil {
+		_ = lis.Close()
+		_ = base.Close()
+		return nil, err
+	}
+	authKey, err := morphauth.MarshalIdentity(identity)
+	if err != nil {
+		_ = lis.Close()
+		_ = base.Close()
+		return nil, err
+	}
 	grpcServer := server.New(serviceAPI, server.Options{
 		Health:           true,
 		PermissionPolicy: base.cfg.Permissions,
-		OwnerCredential:  ownerCredential,
-		OwnerPrincipal:   activeProfile.Name,
 		ProfileName:      activeProfile.Name,
+		Auth:             authService,
 	})
 
 	h := &RPCHarness{
-		Harness: base,
-		address: tcpAddr.IP.String(),
-		port:    tcpAddr.Port,
-		server:  grpcServer,
+		Harness:      base,
+		address:      tcpAddr.IP.String(),
+		port:         tcpAddr.Port,
+		server:       grpcServer,
+		authKey:      authKey,
+		authAudience: base.cfg.Auth.Audience,
+		authOwnerID:  activeProfile.Name,
 	}
 
 	go func() {
@@ -113,8 +144,11 @@ func (h *RPCHarness) Client(ctx context.Context) (*rpcclient.Client, error) {
 	}
 
 	return rpcclient.NewClient(normalizeHarnessContext(ctx), rpcclient.Options{
-		Address: h.address,
-		Port:    h.port,
+		Address: h.address, Port: h.port,
+		PermissionSurface: permissions.SurfaceCLI,
+		AuthAudience:      h.authAudience,
+		AuthKey:           append([]byte(nil), h.authKey...),
+		AuthOwnerID:       h.authOwnerID,
 	})
 }
 
@@ -144,5 +178,8 @@ func (h *RPCHarness) ConfigFileContents() string {
 	addressValue := str.String(h.address)
 	return "rpc:\n" +
 		"  address: " + addressValue.Trim() + "\n" +
-		"  port: " + strconv.Itoa(h.port) + "\n"
+		"  port: " + strconv.Itoa(h.port) + "\n" +
+		"auth:\n" +
+		"  audience: " + h.authAudience + "\n" +
+		"  key: |\n    " + strings.ReplaceAll(string(h.authKey), "\n", "\n    ")
 }

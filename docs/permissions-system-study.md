@@ -397,13 +397,12 @@ This is why an unattended job cannot pretend to be an interactive local owner me
 
 RPC service methods derive the actor and surface independently:
 
-- loopback peer plus supported `cli` or `tui` metadata: actor `local_owner`, exact claimed local surface;
-- remote peer, missing peer, unsupported metadata, or generic RPC surface: actor `rpc_client`;
+- validated owner JWT plus a matching signed `cli` or `tui` source: actor `local_owner`, exact local surface;
+- authenticated non-owner, mismatched source, unsupported metadata, or generic RPC source: actor `rpc_client`;
 - missing or invalid surface metadata: surface `rpc`;
 - session ID where applicable.
 
-The loopback check prevents a remote RPC caller from becoming `local_owner` merely by sending
-`x-morph-permission-surface: tui`.
+Surface metadata cannot turn an unauthenticated or non-owner caller into `local_owner`.
 
 ### 7.5 Creator provenance fields
 
@@ -1581,16 +1580,14 @@ x-morph-permission-surface: cli
 
 The TUI uses the same field with value `tui`.
 
-The server combines the claimed surface with its observed RPC peer address. A caller is treated as an interactive local
-owner only when the surface is `cli` or `tui` and the peer address is IPv4 or IPv6 loopback. Resolve and revoke reject
-remote peers, missing peers, generic RPC callers, and unsupported surfaces.
+The server combines the claimed surface with the immutable authenticated principal. A caller is treated as an
+interactive local owner only when the JWT has the owner role and its signed source matches `cli` or `tui`. Resolve and
+revoke reject non-owner identities, source mismatches, generic RPC callers, and unsupported surfaces.
 
 ### Local-owner RPC trust boundary
 
-Surface metadata identifies the claimed interaction surface; it is not authentication. The loopback peer check prevents
-remote surface spoofing, but another process running under the local machine's trust boundary can still send the same
-metadata.
-The daemon therefore uses loopback plus supported surface metadata as its local-owner trust boundary.
+Surface metadata identifies the claimed interaction surface; it is not authentication. The mandatory Ed25519 JWT,
+server-side authorization, live token/session state, and signed source form the local-owner trust boundary.
 
 ## 19. General RPC enforcement
 
@@ -1602,7 +1599,7 @@ Session mutation, model selection, credential changes, gateway lifecycle, pairin
 
 The RPC checker:
 
-1. classifies a loopback `cli`/`tui` caller as `local_owner` and every other caller as `rpc_client` when authorization is absent;
+1. classifies a validated owner with matching signed `cli`/`tui` source as `local_owner` and every other authenticated caller as `rpc_client`;
 2. preserves the exact supported local surface or falls back to `rpc`;
 3. evaluates the configured permission engine;
 4. maps deny to gRPC `PermissionDenied`;
@@ -1796,8 +1793,9 @@ effects       = [write, credential_bearing]
 ownerRequired = true
 ```
 
-A generic or remote RPC client is not automatically the local owner. Only a loopback CLI/TUI caller enters the current
-local-owner trust boundary. Without an explicit allow rule, ownership post-processing denies the generic RPC mutation.
+A generic RPC client is not automatically the local owner. Only a cryptographically authenticated owner token whose
+signed source matches the CLI/TUI surface enters the local-owner trust boundary. Without that proof, ownership
+post-processing denies the generic RPC mutation.
 
 Always approval is unavailable because the operation is credential-bearing.
 
@@ -1922,7 +1920,7 @@ request/grant audit chain must respect the configured request and grant cutoffs.
 | Automation action classification | `internal/tools/automation/automation_test.go` |
 | SQLite persistence, filtering, pagination, explicit deletion, and pruning | `internal/state/storesqlite/permission_test.go` |
 | Live approval trace fanout | `internal/agent/trace_stream_test.go` |
-| Loopback local-owner classification and remote surface-spoof resistance | `internal/rpc/rpcmeta/permissions_test.go` |
+| Authenticated owner classification and surface-spoof resistance | `internal/rpc/rpcmeta/permissions_test.go` |
 | RPC protection, safe trace streaming, and error mapping | `internal/rpc/permissions_test.go` and `internal/rpc/service_test.go` |
 | Approval RPC lifecycle | `internal/rpc/permission_service_test.go` |
 | RPC client translation | `internal/rpc/client/permission_test.go` |
@@ -2055,8 +2053,8 @@ Why dangerous: effects are factual consequences, not subjective severity. Policy
 
 ### Mistake: assuming surface metadata authenticates a caller
 
-Why dangerous: metadata can be claimed by a custom client. Morph now requires a loopback peer before granting local-owner
-semantics, but loopback establishes only a machine-local trust boundary, not cryptographic client identity.
+Why dangerous: metadata can be claimed by a custom client. Morph requires a validated owner JWT whose signed source
+matches the metadata before granting local-owner semantics.
 
 ### Mistake: allowing unattended approval waiting
 
@@ -2078,10 +2076,10 @@ Why dangerous: one caller can cancel unrelated coalesced work.
 
 ### Local-owner RPC classification
 
-CLI/TUI metadata identifies the claimed surface, while the server independently requires a loopback RPC peer before
-classifying the actor as `local_owner`. This prevents remote callers from elevating themselves with surface metadata.
-Another process inside the same machine-local trust boundary can send the same metadata, so operators should treat local
-RPC access as trusted access.
+CLI/TUI metadata identifies the claimed surface, while the server independently requires a live owner authorization,
+valid signed token, and matching signed source before classifying the actor as `local_owner`. Surface metadata and
+loopback location do not prove ownership. Bearer tokens remain replayable until expiry or revocation, so remote RPC
+requires TLS and sensitive deployments should use mutual TLS with certificate-bound tokens.
 
 ### Interactive approvals
 

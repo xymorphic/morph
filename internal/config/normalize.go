@@ -155,6 +155,7 @@ func (c *Config) normalizeFields() {
 	if c.RPC.Port == 0 {
 		c.RPC.Port = constants.DefaultRPCPort
 	}
+	c.normalizeAuth()
 	if c.Gateway.Address == "" {
 		c.Gateway.Address = constants.DefaultRPCAddress
 	}

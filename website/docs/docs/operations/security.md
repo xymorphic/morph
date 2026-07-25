@@ -37,6 +37,7 @@ machines that hold them:
 | Secret | Typical storage | Used for |
 | --- | --- | --- |
 | Model provider API keys / OAuth tokens | `auth.json`, `config.yaml`, `.env` | Main, summary, embedding, reranker calls |
+| Morph RPC Ed25519 identity / optional bearer token | `auth.json`, configured key file, environment | RPC authentication and owner authorization |
 | Web provider API key | `config.yaml`, `.env` | `web_search` / `web_extract` |
 | `gateway.authToken` | `config.yaml`, `.env` | Generic HTTP `POST /v1/respond` |
 | `gateway.pairingSecret` | `config.yaml`, `.env` | Pairing code generation for Slack/Telegram |
@@ -44,7 +45,8 @@ machines that hold them:
 | Telegram bot token, webhook secret | `config.yaml`, `.env` | Telegram gateway |
 | Automation webhook URL | Stored on the job itself | Delivering a scheduled job's output to `webhook` delivery |
 
-Gateway bot tokens are **not** stored in `auth.json`; that file is for model providers only. See
+Gateway bot tokens are **not** stored in `auth.json`; that file stores provider credentials and the Morph RPC identity.
+See
 [Provider Auth](../guides/provider-auth) and the [Gateway Overview](../guides/gateway/).
 
 Everything in a [profile](../concepts/profiles) home (sessions, memory, pairings, traces) is sensitive even when it
@@ -129,23 +131,25 @@ Morph opens two TCP listeners when fully enabled: **RPC** (gRPC, default `127.0.
 
 ### RPC (gRPC)
 
-The RPC interface is **local-only by default** and uses **plaintext gRPC without application-level authentication**.
-Any process that can reach the bound address can invoke daemon RPC, including session control, gateway pairing
-approval, and model configuration via `ModelService`. `PermissionService.ResolveRequest`, `GetGrant`, `RevokeGrant`,
-`DeleteRecord`, and `Prune` additionally require an interactive local-owner caller (loopback plus `cli`/`tui`
-surface); its read methods (`ListRequests`, `GetRequest`, `ListGrants`) do not, and expose approval/grant metadata to
-any caller that can reach the port. The responses include actor kind, session information, and grant operation
-summaries but not actor IDs, grant fingerprints, or normalized operation targets. The protected `GetGrant` method
-adds the actor ID and fingerprint for one exact grant. See
+The RPC interface is **local-only by default** and requires a valid Ed25519-signed JWT on every method. The daemon
+checks the identity authorization, exact service or method scope, active session, active token, generation, and
+authorization revision before invoking a handler. `PermissionService` owner operations additionally require a
+validated owner principal with a signed `cli` or `tui` source. Authentication controls entry to an RPC method; the
+permission engine independently controls the requested Morph operation. See
 [RPC Reference: PermissionService](../reference/rpc#permissionservice).
+
+Mandatory RPC authentication is an atomic client-and-daemon upgrade boundary. Restart older daemons after upgrading
+the CLI; current clients report an explicit restart/version error when a daemon does not expose the auth service.
 
 | Setting | Default | Risk if widened |
 | --- | --- | --- |
-| `rpc.address` | `127.0.0.1` | Binding to `0.0.0.0` or a public interface exposes full daemon control |
+| `rpc.address` | `127.0.0.1` | Non-loopback binds are rejected unless RPC TLS is configured |
 | `rpc.port` | `50051` | Conflicts or predictable ports on shared hosts |
 
-Keep RPC on loopback unless you have network isolation (VPN, firewall, separate user) that replaces Morph's lack of RPC
-auth. See [Daemon and RPC](../concepts/daemon-and-rpc).
+Plaintext RPC is accepted only on loopback. Use `auth.tls.mode: server` for encrypted remote RPC or `mutual` to require
+trusted client certificates as well. JWT remains mandatory in every mode. A generated token may be bound to the mTLS
+leaf certificate using `cnf.x5t#S256`; the daemon rejects a missing or mismatched certificate. See
+[Daemon and RPC](../concepts/daemon-and-rpc).
 
 ### Gateway HTTP
 
@@ -206,18 +210,21 @@ messages-only deployment, disable capabilities you do not need rather than relyi
 
 Environment overrides: `MORPH_CAP_FS`, `MORPH_CAP_NET`, `MORPH_CAP_EXEC`, `MORPH_CAP_MEM`, `MORPH_CAP_BROWSER`.
 
-### Browser owner authentication and network containment
+### Profile identity and browser containment
 
-Local CLI and TUI browser management requires a profile-scoped owner credential in addition to loopback transport and
-the claimed surface. Invalid or overexposed credential files fail closed. Recover by running
-`morph browser auth rotate`, restarting the daemon, and reconnecting local clients.
+Local CLI and TUI clients normally mint scoped, in-memory tokens from the profile Ed25519 identity. CLI sessions are
+short-lived and expire when unused; TUI tokens renew within bounded sessions. Clients revoke on clean exit only when
+their exact method scope includes session revocation. Explicit tokens remain operator-managed and are never replaced
+or revoked automatically.
 
-Rotation changes the private browser-attachment identity key. Existing remote and personal-browser attachment grants
-no longer match, and attached sessions should be stopped before rotation and restarted after the daemon comes back.
+Use `morph auth identity rotate` to stage a new profile identity, transactionally revoke prior authorization and active
+credentials in `auth.db`, then activate the key in `auth.json`. Startup resolves an interrupted rotation before serving
+RPC. Rotation also changes the domain-separated browser-attachment identity, so existing remote and personal-browser
+attachment grants no longer match.
 
-Each RPC proof is method-bound, request-bound, short-lived, and accepted once by a running daemon. The replay cache is
-kept in memory, so a daemon restart resets it; the 30-second proof lifetime bounds that restart window. Rotate the owner
-credential when a local process or captured diagnostic may have exposed a proof or the credential itself.
+For an externally configured `auth.key`, replace the key and increment `auth.generation` by exactly one before
+restarting the daemon. Startup transactionally rotates the persisted root authorization; skipped or reused generations
+fail closed.
 
 Managed Chromium sends HTTP and HTTPS traffic through an authenticated, fail-closed egress proxy. Proxy authentication
 identifies the managed browser but does not authorize a destination. A CDP-visible logical request must first pass the

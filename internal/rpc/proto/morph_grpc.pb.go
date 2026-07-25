@@ -2258,3 +2258,523 @@ var BrowserService_ServiceDesc = grpc.ServiceDesc{
 	},
 	Metadata: "internal/rpc/proto/morph.proto",
 }
+
+const (
+	AuthService_OpenSession_FullMethodName         = "/morph.v1.AuthService/OpenSession"
+	AuthService_ListSessions_FullMethodName        = "/morph.v1.AuthService/ListSessions"
+	AuthService_RevokeSession_FullMethodName       = "/morph.v1.AuthService/RevokeSession"
+	AuthService_ListTokens_FullMethodName          = "/morph.v1.AuthService/ListTokens"
+	AuthService_RevokeToken_FullMethodName         = "/morph.v1.AuthService/RevokeToken"
+	AuthService_ListAuthorizations_FullMethodName  = "/morph.v1.AuthService/ListAuthorizations"
+	AuthService_GrantAuthorization_FullMethodName  = "/morph.v1.AuthService/GrantAuthorization"
+	AuthService_RevokeAuthorization_FullMethodName = "/morph.v1.AuthService/RevokeAuthorization"
+	AuthService_ListAudit_FullMethodName           = "/morph.v1.AuthService/ListAudit"
+	AuthService_PruneAudit_FullMethodName          = "/morph.v1.AuthService/PruneAudit"
+	AuthService_RotateIdentity_FullMethodName      = "/morph.v1.AuthService/RotateIdentity"
+	AuthService_IdentityStatus_FullMethodName      = "/morph.v1.AuthService/IdentityStatus"
+)
+
+// AuthServiceClient is the client API for AuthService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type AuthServiceClient interface {
+	OpenSession(ctx context.Context, in *OpenAuthSessionRequest, opts ...grpc.CallOption) (*OpenAuthSessionResponse, error)
+	ListSessions(ctx context.Context, in *ListAuthSessionsRequest, opts ...grpc.CallOption) (*ListAuthSessionsResponse, error)
+	RevokeSession(ctx context.Context, in *RevokeAuthSessionRequest, opts ...grpc.CallOption) (*RevokeAuthSessionResponse, error)
+	ListTokens(ctx context.Context, in *ListAuthTokensRequest, opts ...grpc.CallOption) (*ListAuthTokensResponse, error)
+	RevokeToken(ctx context.Context, in *RevokeAuthTokenRequest, opts ...grpc.CallOption) (*RevokeAuthTokenResponse, error)
+	ListAuthorizations(ctx context.Context, in *ListAuthAuthorizationsRequest, opts ...grpc.CallOption) (*ListAuthAuthorizationsResponse, error)
+	GrantAuthorization(ctx context.Context, in *GrantAuthAuthorizationRequest, opts ...grpc.CallOption) (*GrantAuthAuthorizationResponse, error)
+	RevokeAuthorization(ctx context.Context, in *RevokeAuthAuthorizationRequest, opts ...grpc.CallOption) (*RevokeAuthAuthorizationResponse, error)
+	ListAudit(ctx context.Context, in *ListAuthAuditRequest, opts ...grpc.CallOption) (*ListAuthAuditResponse, error)
+	PruneAudit(ctx context.Context, in *PruneAuthAuditRequest, opts ...grpc.CallOption) (*PruneAuthAuditResponse, error)
+	RotateIdentity(ctx context.Context, in *RotateAuthIdentityRequest, opts ...grpc.CallOption) (*RotateAuthIdentityResponse, error)
+	IdentityStatus(ctx context.Context, in *GetAuthIdentityStatusRequest, opts ...grpc.CallOption) (*GetAuthIdentityStatusResponse, error)
+}
+
+type authServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewAuthServiceClient(cc grpc.ClientConnInterface) AuthServiceClient {
+	return &authServiceClient{cc}
+}
+
+func (c *authServiceClient) OpenSession(ctx context.Context, in *OpenAuthSessionRequest, opts ...grpc.CallOption) (*OpenAuthSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OpenAuthSessionResponse)
+	err := c.cc.Invoke(ctx, AuthService_OpenSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) ListSessions(ctx context.Context, in *ListAuthSessionsRequest, opts ...grpc.CallOption) (*ListAuthSessionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAuthSessionsResponse)
+	err := c.cc.Invoke(ctx, AuthService_ListSessions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) RevokeSession(ctx context.Context, in *RevokeAuthSessionRequest, opts ...grpc.CallOption) (*RevokeAuthSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RevokeAuthSessionResponse)
+	err := c.cc.Invoke(ctx, AuthService_RevokeSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) ListTokens(ctx context.Context, in *ListAuthTokensRequest, opts ...grpc.CallOption) (*ListAuthTokensResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAuthTokensResponse)
+	err := c.cc.Invoke(ctx, AuthService_ListTokens_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) RevokeToken(ctx context.Context, in *RevokeAuthTokenRequest, opts ...grpc.CallOption) (*RevokeAuthTokenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RevokeAuthTokenResponse)
+	err := c.cc.Invoke(ctx, AuthService_RevokeToken_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) ListAuthorizations(ctx context.Context, in *ListAuthAuthorizationsRequest, opts ...grpc.CallOption) (*ListAuthAuthorizationsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAuthAuthorizationsResponse)
+	err := c.cc.Invoke(ctx, AuthService_ListAuthorizations_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) GrantAuthorization(ctx context.Context, in *GrantAuthAuthorizationRequest, opts ...grpc.CallOption) (*GrantAuthAuthorizationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GrantAuthAuthorizationResponse)
+	err := c.cc.Invoke(ctx, AuthService_GrantAuthorization_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) RevokeAuthorization(ctx context.Context, in *RevokeAuthAuthorizationRequest, opts ...grpc.CallOption) (*RevokeAuthAuthorizationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RevokeAuthAuthorizationResponse)
+	err := c.cc.Invoke(ctx, AuthService_RevokeAuthorization_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) ListAudit(ctx context.Context, in *ListAuthAuditRequest, opts ...grpc.CallOption) (*ListAuthAuditResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAuthAuditResponse)
+	err := c.cc.Invoke(ctx, AuthService_ListAudit_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) PruneAudit(ctx context.Context, in *PruneAuthAuditRequest, opts ...grpc.CallOption) (*PruneAuthAuditResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PruneAuthAuditResponse)
+	err := c.cc.Invoke(ctx, AuthService_PruneAudit_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) RotateIdentity(ctx context.Context, in *RotateAuthIdentityRequest, opts ...grpc.CallOption) (*RotateAuthIdentityResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RotateAuthIdentityResponse)
+	err := c.cc.Invoke(ctx, AuthService_RotateIdentity_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) IdentityStatus(ctx context.Context, in *GetAuthIdentityStatusRequest, opts ...grpc.CallOption) (*GetAuthIdentityStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAuthIdentityStatusResponse)
+	err := c.cc.Invoke(ctx, AuthService_IdentityStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AuthServiceServer is the server API for AuthService service.
+// All implementations must embed UnimplementedAuthServiceServer
+// for forward compatibility.
+type AuthServiceServer interface {
+	OpenSession(context.Context, *OpenAuthSessionRequest) (*OpenAuthSessionResponse, error)
+	ListSessions(context.Context, *ListAuthSessionsRequest) (*ListAuthSessionsResponse, error)
+	RevokeSession(context.Context, *RevokeAuthSessionRequest) (*RevokeAuthSessionResponse, error)
+	ListTokens(context.Context, *ListAuthTokensRequest) (*ListAuthTokensResponse, error)
+	RevokeToken(context.Context, *RevokeAuthTokenRequest) (*RevokeAuthTokenResponse, error)
+	ListAuthorizations(context.Context, *ListAuthAuthorizationsRequest) (*ListAuthAuthorizationsResponse, error)
+	GrantAuthorization(context.Context, *GrantAuthAuthorizationRequest) (*GrantAuthAuthorizationResponse, error)
+	RevokeAuthorization(context.Context, *RevokeAuthAuthorizationRequest) (*RevokeAuthAuthorizationResponse, error)
+	ListAudit(context.Context, *ListAuthAuditRequest) (*ListAuthAuditResponse, error)
+	PruneAudit(context.Context, *PruneAuthAuditRequest) (*PruneAuthAuditResponse, error)
+	RotateIdentity(context.Context, *RotateAuthIdentityRequest) (*RotateAuthIdentityResponse, error)
+	IdentityStatus(context.Context, *GetAuthIdentityStatusRequest) (*GetAuthIdentityStatusResponse, error)
+	mustEmbedUnimplementedAuthServiceServer()
+}
+
+// UnimplementedAuthServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedAuthServiceServer struct{}
+
+func (UnimplementedAuthServiceServer) OpenSession(context.Context, *OpenAuthSessionRequest) (*OpenAuthSessionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method OpenSession not implemented")
+}
+func (UnimplementedAuthServiceServer) ListSessions(context.Context, *ListAuthSessionsRequest) (*ListAuthSessionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListSessions not implemented")
+}
+func (UnimplementedAuthServiceServer) RevokeSession(context.Context, *RevokeAuthSessionRequest) (*RevokeAuthSessionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RevokeSession not implemented")
+}
+func (UnimplementedAuthServiceServer) ListTokens(context.Context, *ListAuthTokensRequest) (*ListAuthTokensResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListTokens not implemented")
+}
+func (UnimplementedAuthServiceServer) RevokeToken(context.Context, *RevokeAuthTokenRequest) (*RevokeAuthTokenResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RevokeToken not implemented")
+}
+func (UnimplementedAuthServiceServer) ListAuthorizations(context.Context, *ListAuthAuthorizationsRequest) (*ListAuthAuthorizationsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAuthorizations not implemented")
+}
+func (UnimplementedAuthServiceServer) GrantAuthorization(context.Context, *GrantAuthAuthorizationRequest) (*GrantAuthAuthorizationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GrantAuthorization not implemented")
+}
+func (UnimplementedAuthServiceServer) RevokeAuthorization(context.Context, *RevokeAuthAuthorizationRequest) (*RevokeAuthAuthorizationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RevokeAuthorization not implemented")
+}
+func (UnimplementedAuthServiceServer) ListAudit(context.Context, *ListAuthAuditRequest) (*ListAuthAuditResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAudit not implemented")
+}
+func (UnimplementedAuthServiceServer) PruneAudit(context.Context, *PruneAuthAuditRequest) (*PruneAuthAuditResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PruneAudit not implemented")
+}
+func (UnimplementedAuthServiceServer) RotateIdentity(context.Context, *RotateAuthIdentityRequest) (*RotateAuthIdentityResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RotateIdentity not implemented")
+}
+func (UnimplementedAuthServiceServer) IdentityStatus(context.Context, *GetAuthIdentityStatusRequest) (*GetAuthIdentityStatusResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method IdentityStatus not implemented")
+}
+func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
+func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
+
+// UnsafeAuthServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to AuthServiceServer will
+// result in compilation errors.
+type UnsafeAuthServiceServer interface {
+	mustEmbedUnimplementedAuthServiceServer()
+}
+
+func RegisterAuthServiceServer(s grpc.ServiceRegistrar, srv AuthServiceServer) {
+	// If the following call panics, it indicates UnimplementedAuthServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&AuthService_ServiceDesc, srv)
+}
+
+func _AuthService_OpenSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OpenAuthSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).OpenSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_OpenSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).OpenSession(ctx, req.(*OpenAuthSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_ListSessions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAuthSessionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).ListSessions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_ListSessions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).ListSessions(ctx, req.(*ListAuthSessionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_RevokeSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeAuthSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).RevokeSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_RevokeSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).RevokeSession(ctx, req.(*RevokeAuthSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_ListTokens_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAuthTokensRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).ListTokens(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_ListTokens_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).ListTokens(ctx, req.(*ListAuthTokensRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_RevokeToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeAuthTokenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).RevokeToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_RevokeToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).RevokeToken(ctx, req.(*RevokeAuthTokenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_ListAuthorizations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAuthAuthorizationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).ListAuthorizations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_ListAuthorizations_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).ListAuthorizations(ctx, req.(*ListAuthAuthorizationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_GrantAuthorization_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GrantAuthAuthorizationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).GrantAuthorization(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_GrantAuthorization_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).GrantAuthorization(ctx, req.(*GrantAuthAuthorizationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_RevokeAuthorization_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeAuthAuthorizationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).RevokeAuthorization(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_RevokeAuthorization_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).RevokeAuthorization(ctx, req.(*RevokeAuthAuthorizationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_ListAudit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAuthAuditRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).ListAudit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_ListAudit_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).ListAudit(ctx, req.(*ListAuthAuditRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_PruneAudit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PruneAuthAuditRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).PruneAudit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_PruneAudit_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).PruneAudit(ctx, req.(*PruneAuthAuditRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_RotateIdentity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RotateAuthIdentityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).RotateIdentity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_RotateIdentity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).RotateIdentity(ctx, req.(*RotateAuthIdentityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_IdentityStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAuthIdentityStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).IdentityStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_IdentityStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).IdentityStatus(ctx, req.(*GetAuthIdentityStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var AuthService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "morph.v1.AuthService",
+	HandlerType: (*AuthServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "OpenSession",
+			Handler:    _AuthService_OpenSession_Handler,
+		},
+		{
+			MethodName: "ListSessions",
+			Handler:    _AuthService_ListSessions_Handler,
+		},
+		{
+			MethodName: "RevokeSession",
+			Handler:    _AuthService_RevokeSession_Handler,
+		},
+		{
+			MethodName: "ListTokens",
+			Handler:    _AuthService_ListTokens_Handler,
+		},
+		{
+			MethodName: "RevokeToken",
+			Handler:    _AuthService_RevokeToken_Handler,
+		},
+		{
+			MethodName: "ListAuthorizations",
+			Handler:    _AuthService_ListAuthorizations_Handler,
+		},
+		{
+			MethodName: "GrantAuthorization",
+			Handler:    _AuthService_GrantAuthorization_Handler,
+		},
+		{
+			MethodName: "RevokeAuthorization",
+			Handler:    _AuthService_RevokeAuthorization_Handler,
+		},
+		{
+			MethodName: "ListAudit",
+			Handler:    _AuthService_ListAudit_Handler,
+		},
+		{
+			MethodName: "PruneAudit",
+			Handler:    _AuthService_PruneAudit_Handler,
+		},
+		{
+			MethodName: "RotateIdentity",
+			Handler:    _AuthService_RotateIdentity_Handler,
+		},
+		{
+			MethodName: "IdentityStatus",
+			Handler:    _AuthService_IdentityStatus_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "internal/rpc/proto/morph.proto",
+}

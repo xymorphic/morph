@@ -3,6 +3,7 @@ package authcmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -13,9 +14,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	morphauth "github.com/wandxy/morph/internal/auth"
 	"github.com/wandxy/morph/internal/config"
 	appcredential "github.com/wandxy/morph/internal/credential"
 	"github.com/wandxy/morph/internal/profile"
+	rpcclient "github.com/wandxy/morph/internal/rpc/client"
+	morphpb "github.com/wandxy/morph/internal/rpc/proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func setAuthTestSubscriptionProviderLookup(t *testing.T) {
@@ -46,6 +52,39 @@ func TestCommand_LoginStoresAPIKeyWithoutPrintingSecret(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, appcredential.TypeAPIKey, credential.Type)
 	require.Equal(t, "sk-secret-value", credential.Key)
+}
+
+func TestCommand_ProviderCommandsHonorJSONOutput(t *testing.T) {
+	setAuthTestSubscriptionProviderLookup(t)
+	setAuthTestProfile(t)
+	var output bytes.Buffer
+	restore := SetOutput(&output)
+	t.Cleanup(func() { SetOutput(restore) })
+
+	err := NewCommand().Run(context.Background(), []string{
+		"auth", "--json", "login", "openai", "--api-key", "secret",
+	})
+	require.NoError(t, err)
+	require.JSONEq(t, `{"provider":"openai","status":"stored"}`, output.String())
+
+	output.Reset()
+	err = NewCommand().Run(context.Background(), []string{
+		"auth", "--json", "status", "openai",
+	})
+	require.NoError(t, err)
+	var statuses []map[string]string
+	require.NoError(t, json.Unmarshal(output.Bytes(), &statuses))
+	require.Equal(t, []map[string]string{{
+		"provider": "openai",
+		"status":   "stored api_key",
+	}}, statuses)
+
+	output.Reset()
+	err = NewCommand().Run(context.Background(), []string{
+		"auth", "--json", "logout", "openai",
+	})
+	require.NoError(t, err)
+	require.JSONEq(t, `{"provider":"openai","status":"removed"}`, output.String())
 }
 
 func TestCommand_LoginStoresOAuthTokenWithExpiry(t *testing.T) {
@@ -279,6 +318,7 @@ models:
 
 func TestCommand_StatusReturnsCredentialStoreParseError(t *testing.T) {
 	home := setAuthTestProfile(t)
+	require.NoError(t, os.Chmod(home, 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(home, "auth.json"), []byte("{"), 0o600))
 
 	err := NewCommand().Run(context.Background(), []string{"auth", "status", "openai"})
@@ -292,6 +332,166 @@ func TestCommand_StatusReturnsOutputError(t *testing.T) {
 
 	err := NewCommand().Run(context.Background(), []string{"auth", "status", "openai"})
 	require.EqualError(t, err, "write failed")
+}
+
+func TestCommand_ManagesLocalMorphIdentityAndGeneratesTokenFile(t *testing.T) {
+	home := setAuthTestProfile(t)
+	output := &bytes.Buffer{}
+	restore := SetOutput(output)
+	t.Cleanup(func() { SetOutput(restore) })
+
+	err := NewCommand().Run(context.Background(), []string{"auth", "identity", "init"})
+	require.NoError(t, err)
+	record, found, err := appcredential.NewFileStore(
+		filepath.Join(home, "auth.json"),
+	).LoadMorphAuth()
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Contains(t, output.String(), record.IdentityID)
+
+	output.Reset()
+	err = NewCommand().Run(context.Background(), []string{"auth", "--json", "identity", "show"})
+	require.NoError(t, err)
+	require.Contains(t, output.String(), record.IdentityID)
+	require.NotContains(t, output.String(), "PRIVATE KEY")
+
+	tokenPath := filepath.Join(home, "token.jwt")
+	err = NewCommand().Run(context.Background(), []string{
+		"auth", "token", "generate", "--output", tokenPath,
+	})
+	require.NoError(t, err)
+	info, err := os.Stat(tokenPath)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	body, err := os.ReadFile(tokenPath)
+	require.NoError(t, err)
+	require.Equal(t, 2, strings.Count(strings.TrimSpace(string(body)), "."))
+
+	narrowedPath := filepath.Join(home, "narrowed.jwt")
+	err = NewCommand().Run(context.Background(), []string{
+		"auth", "token", "generate",
+		"--method", "/morph.v1.SessionService/List",
+		"--output", narrowedPath,
+	})
+	require.NoError(t, err)
+	identity, err := morphauth.ParseIdentity([]byte(record.PrivateKey), record.Generation)
+	require.NoError(t, err)
+	narrowed, err := os.ReadFile(narrowedPath)
+	require.NoError(t, err)
+	claims, err := morphauth.VerifyAccessToken(
+		strings.TrimSpace(string(narrowed)),
+		identity.PublicKey,
+		morphauth.VerifyOptions{
+			Audience: "morph-rpc:test",
+			Issuer:   identity.ID,
+		},
+	)
+	require.NoError(t, err)
+	require.Contains(t, claims.Methods, "/morph.v1.SessionService/List")
+	require.Contains(t, claims.Methods, "/morph.v1.AuthService/OpenSession")
+
+	output.Reset()
+	err = NewCommand().Run(context.Background(), []string{
+		"auth", "--json", "token", "generate",
+	})
+	require.NoError(t, err)
+	var generated map[string]string
+	require.NoError(t, json.Unmarshal(output.Bytes(), &generated))
+	require.Equal(t, 2, strings.Count(generated["token"], "."))
+
+	err = NewCommand().Run(context.Background(), []string{
+		"auth", "token", "generate", "--ttl", "25h",
+	})
+	require.ErrorContains(t, err, "token TTL must be greater than zero and at most")
+
+	err = NewCommand().Run(context.Background(), []string{"auth", "identity", "rotate"})
+	require.NoError(t, err)
+	rotated, found, err := appcredential.NewFileStore(
+		filepath.Join(home, "auth.json"),
+	).LoadMorphAuth()
+	require.NoError(t, err)
+	require.True(t, found)
+	require.NotEqual(t, record.IdentityID, rotated.IdentityID)
+	require.Equal(t, record.Generation+1, rotated.Generation)
+}
+
+func TestRotateIdentity_RejectsAuthDatabaseStatFailureBeforePreparingKey(t *testing.T) {
+	home := setAuthTestProfile(t)
+	store := appcredential.NewFileStore(filepath.Join(home, "auth.json"))
+	current, err := store.LoadOrCreateIdentity()
+	require.NoError(t, err)
+	databasePath := filepath.Join(home, "auth.db")
+	if err := os.Symlink(databasePath, databasePath); err != nil {
+		t.Skipf("create auth database symlink: %v", err)
+	}
+
+	err = NewCommand().Run(context.Background(), []string{
+		"auth", "identity", "rotate",
+	})
+	require.ErrorContains(t, err, "inspect RPC auth database")
+	record, found, err := store.LoadMorphAuth()
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Equal(t, current.ID, record.IdentityID)
+	require.Nil(t, record.Pending)
+}
+
+func TestLoadOrPrepareIdentityRotation_ResumesPendingKey(t *testing.T) {
+	store := appcredential.NewFileStore(filepath.Join(t.TempDir(), "auth.json"))
+	_, err := store.LoadOrCreateIdentity()
+	require.NoError(t, err)
+	current, pending, err := store.PrepareIdentityRotation()
+	require.NoError(t, err)
+
+	resumedRecord, resumed, err := loadOrPrepareIdentityRotation(store)
+	require.NoError(t, err)
+	require.Equal(t, current.IdentityID, resumedRecord.IdentityID)
+	require.Equal(t, pending.ID, resumed.ID)
+	require.Equal(t, pending.Generation, resumed.Generation)
+}
+
+func TestShouldAbortIdentityRotation_OnlyAbortsDefinitePrecommitFailures(t *testing.T) {
+	require.True(t, shouldAbortIdentityRotation(
+		status.Error(codes.InvalidArgument, "invalid"),
+	))
+	require.True(t, shouldAbortIdentityRotation(
+		status.Error(codes.PermissionDenied, "denied"),
+	))
+	require.False(t, shouldAbortIdentityRotation(
+		status.Error(codes.Unavailable, "response lost"),
+	))
+	require.False(t, shouldAbortIdentityRotation(context.DeadlineExceeded))
+}
+
+func TestCheckPendingIdentityActive_UsesPendingKey(t *testing.T) {
+	identity, err := morphauth.GenerateIdentity(2)
+	require.NoError(t, err)
+	original := newMorphAuthClient
+	t.Cleanup(func() { newMorphAuthClient = original })
+	newMorphAuthClient = func(
+		_ context.Context,
+		cfg *config.Config,
+		methods []string,
+	) (morphAuthClient, error) {
+		require.Contains(t, cfg.Auth.Key, "PRIVATE KEY")
+		require.Equal(t, identity.Generation, cfg.Auth.Generation)
+		require.Equal(t, []string{
+			morphpb.AuthService_IdentityStatus_FullMethodName,
+		}, methods)
+		return morphAuthClientStub{api: authAPIStub{
+			identityStatus: &morphpb.GetAuthIdentityStatusResponse{
+				IdentityId: identity.ID,
+				Generation: identity.Generation,
+				Status:     morphauth.StatusActive,
+			},
+		}}, nil
+	}
+
+	active, err := checkPendingIdentityActive(
+		context.Background(), config.NewDefaultConfig(), identity,
+	)
+	require.NoError(t, err)
+	require.True(t, active)
 }
 
 func TestCommand_LogoutRemovesStoredCredential(t *testing.T) {
@@ -412,6 +612,30 @@ func setAuthTestProfile(t *testing.T) string {
 }
 
 type errorWriter struct{}
+
+type morphAuthClientStub struct {
+	api rpcclient.AuthAPI
+}
+
+func (s morphAuthClientStub) Close() error {
+	return nil
+}
+
+func (s morphAuthClientStub) AuthAPI() rpcclient.AuthAPI {
+	return s.api
+}
+
+type authAPIStub struct {
+	rpcclient.AuthAPI
+	identityStatus *morphpb.GetAuthIdentityStatusResponse
+	identityErr    error
+}
+
+func (s authAPIStub) IdentityStatus(
+	context.Context,
+) (*morphpb.GetAuthIdentityStatusResponse, error) {
+	return s.identityStatus, s.identityErr
+}
 
 func (errorWriter) Write([]byte) (int, error) {
 	return 0, errors.New("write failed")

@@ -228,6 +228,15 @@ func (c *Config) resolvePaths(baseDir string) {
 	c.Browser.ProfileRoot = getPathFromBase(c.Browser.ProfileRoot, baseDir)
 	c.Browser.TemporaryRoot = getPathFromBase(c.Browser.TemporaryRoot, baseDir)
 	c.Browser.Artifacts.Root = getPathFromBase(c.Browser.Artifacts.Root, baseDir)
+	if c.Auth.Key != "" && !strings.Contains(c.Auth.Key, "-----BEGIN") {
+		c.Auth.Key = getPathFromBase(c.Auth.Key, baseDir)
+	}
+	c.Auth.TLS.ServerCertificate = getPathFromBase(c.Auth.TLS.ServerCertificate, baseDir)
+	c.Auth.TLS.ServerKey = getPathFromBase(c.Auth.TLS.ServerKey, baseDir)
+	c.Auth.TLS.ServerCA = getPathFromBase(c.Auth.TLS.ServerCA, baseDir)
+	c.Auth.TLS.ClientCA = getPathFromBase(c.Auth.TLS.ClientCA, baseDir)
+	c.Auth.TLS.ClientCertificate = getPathFromBase(c.Auth.TLS.ClientCertificate, baseDir)
+	c.Auth.TLS.ClientKey = getPathFromBase(c.Auth.TLS.ClientKey, baseDir)
 	for index := range c.Browser.Profiles {
 		c.Browser.Profiles[index].Directory = getPathFromBase(c.Browser.Profiles[index].Directory, baseDir)
 	}

@@ -78,6 +78,18 @@ provider env vars below.
 | --- | --- |
 | `MORPH_RPC_ADDRESS` | `rpc.address` |
 | `MORPH_RPC_PORT` | `rpc.port` |
+| `MORPH_AUTH_KEY` | `auth.key` |
+| `MORPH_AUTH_TOKEN` | `auth.token` |
+| `MORPH_AUTH_AUDIENCE` | `auth.audience` |
+| `MORPH_RPC_TLS_MODE` | `auth.tls.mode` |
+| `MORPH_RPC_TLS_CERT` | `auth.tls.serverCertificate` |
+| `MORPH_RPC_TLS_KEY` | `auth.tls.serverKey` |
+| `MORPH_RPC_TLS_SERVER_CA` | `auth.tls.serverCA` |
+| `MORPH_RPC_TLS_CLIENT_CA` | `auth.tls.clientCA` |
+| `MORPH_RPC_TLS_CLIENT_CERT` | `auth.tls.clientCertificate` |
+| `MORPH_RPC_TLS_CLIENT_KEY` | `auth.tls.clientKey` |
+| `MORPH_RPC_TLS_SERVER_NAME` | `auth.tls.serverName` |
+| `MORPH_RPC_TLS_MIN_VERSION` | `auth.tls.minimumVersion` |
 
 ## Gateway
 

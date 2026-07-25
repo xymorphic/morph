@@ -149,8 +149,8 @@ Clients find the daemon through:
 2. Otherwise **`runtime.json`** in the profile home, if the recorded PID is alive and the port accepts connections.
 3. Otherwise configured defaults (`127.0.0.1:50051`).
 
-When a client **starts** a daemon, it waits for the gRPC health check to report **SERVING** before connecting. When
-connecting to an already-running daemon, it uses reachability on the recorded endpoint.
+When a client starts or checks a daemon, the gRPC health call uses the same JWT session and TLS settings as every other
+RPC. `runtime.json` supplies only endpoint metadata; it never grants access.
 
 Change the bind address or port in config:
 

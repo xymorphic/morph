@@ -74,6 +74,21 @@ service BrowserService {
   rpc EffectiveConfig(GetBrowserEffectiveConfigRequest) returns (GetBrowserEffectiveConfigResponse);
 }
 
+service AuthService {
+  rpc OpenSession(OpenAuthSessionRequest) returns (OpenAuthSessionResponse);
+  rpc ListSessions(ListAuthSessionsRequest) returns (ListAuthSessionsResponse);
+  rpc RevokeSession(RevokeAuthSessionRequest) returns (RevokeAuthSessionResponse);
+  rpc ListTokens(ListAuthTokensRequest) returns (ListAuthTokensResponse);
+  rpc RevokeToken(RevokeAuthTokenRequest) returns (RevokeAuthTokenResponse);
+  rpc ListAuthorizations(ListAuthAuthorizationsRequest) returns (ListAuthAuthorizationsResponse);
+  rpc GrantAuthorization(GrantAuthAuthorizationRequest) returns (GrantAuthAuthorizationResponse);
+  rpc RevokeAuthorization(RevokeAuthAuthorizationRequest) returns (RevokeAuthAuthorizationResponse);
+  rpc ListAudit(ListAuthAuditRequest) returns (ListAuthAuditResponse);
+  rpc PruneAudit(PruneAuthAuditRequest) returns (PruneAuthAuditResponse);
+  rpc RotateIdentity(RotateAuthIdentityRequest) returns (RotateAuthIdentityResponse);
+  rpc IdentityStatus(GetAuthIdentityStatusRequest) returns (GetAuthIdentityStatusResponse);
+}
+
 message RespondRequest {
   string message = 1;
   string instruct = 2;
@@ -792,3 +807,169 @@ message GetBrowserEffectiveConfigResponse {
 
 message GetPermissionGrantRequest { string id = 1; }
 message GetPermissionGrantResponse { PermissionGrant grant = 1; }
+
+message AuthPrincipal {
+  string identity_id = 1;
+  string owner_id = 2;
+  string user_id = 3;
+  repeated string roles = 4;
+  string session_id = 5;
+  string token_id = 6;
+  repeated string services = 7;
+  repeated string methods = 8;
+  string source = 9;
+  uint64 identity_generation = 10;
+  uint64 authorization_revision = 11;
+  string certificate_thumbprint = 12;
+}
+
+message AuthSession {
+  string id = 1;
+  string identity_id = 2;
+  string owner_id = 3;
+  string user_id = 4;
+  repeated string roles = 5;
+  string source = 6;
+  string status = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp last_seen_at = 9;
+  google.protobuf.Timestamp idle_expires_at = 10;
+  google.protobuf.Timestamp absolute_expires_at = 11;
+  uint64 identity_generation = 12;
+  uint64 authorization_revision = 13;
+  google.protobuf.Timestamp revoked_at = 14;
+  string revocation_note = 15;
+}
+
+message AuthToken {
+  string id = 1;
+  string session_id = 2;
+  string identity_id = 3;
+  string owner_id = 4;
+  string user_id = 5;
+  repeated string roles = 6;
+  repeated string services = 7;
+  repeated string methods = 8;
+  google.protobuf.Timestamp issued_at = 9;
+  google.protobuf.Timestamp not_before = 10;
+  google.protobuf.Timestamp expires_at = 11;
+  google.protobuf.Timestamp last_used_at = 12;
+  uint64 use_count = 13;
+  string status = 14;
+  uint64 identity_generation = 15;
+  uint64 authorization_revision = 16;
+  string certificate_thumbprint = 17;
+  google.protobuf.Timestamp revoked_at = 18;
+  string revocation_note = 19;
+}
+
+message AuthAuthorization {
+  string identity_id = 1;
+  bytes public_key = 2;
+  string owner_id = 3;
+  string user_id = 4;
+  repeated string roles = 5;
+  repeated string services = 6;
+  repeated string methods = 7;
+  int64 maximum_ttl_seconds = 8;
+  uint64 generation = 9;
+  uint64 revision = 10;
+  string status = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  google.protobuf.Timestamp revoked_at = 14;
+  string revocation_note = 15;
+}
+
+message AuthAuditEvent {
+  string id = 1;
+  string type = 2;
+  string identity_id = 3;
+  string session_id = 4;
+  string token_id = 5;
+  string method = 6;
+  string reason = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message OpenAuthSessionRequest {
+  string source = 1;
+}
+message OpenAuthSessionResponse {
+  AuthPrincipal principal = 1;
+  AuthSession session = 2;
+}
+
+message ListAuthSessionsRequest {}
+message ListAuthSessionsResponse {
+  repeated AuthSession sessions = 1;
+}
+message RevokeAuthSessionRequest {
+  string id = 1;
+  string reason = 2;
+}
+message RevokeAuthSessionResponse {
+  AuthSession session = 1;
+}
+
+message ListAuthTokensRequest {}
+message ListAuthTokensResponse {
+  repeated AuthToken tokens = 1;
+}
+message RevokeAuthTokenRequest {
+  string id = 1;
+  string reason = 2;
+}
+message RevokeAuthTokenResponse {
+  AuthToken token = 1;
+}
+
+message ListAuthAuthorizationsRequest {}
+message ListAuthAuthorizationsResponse {
+  repeated AuthAuthorization authorizations = 1;
+}
+message GrantAuthAuthorizationRequest {
+  AuthAuthorization authorization = 1;
+}
+message GrantAuthAuthorizationResponse {
+  AuthAuthorization authorization = 1;
+}
+message RevokeAuthAuthorizationRequest {
+  string identity_id = 1;
+  string reason = 2;
+}
+message RevokeAuthAuthorizationResponse {
+  AuthAuthorization authorization = 1;
+}
+
+message ListAuthAuditRequest {
+  int32 limit = 1;
+}
+message ListAuthAuditResponse {
+  repeated AuthAuditEvent events = 1;
+}
+message PruneAuthAuditRequest {
+  google.protobuf.Timestamp before = 1;
+  int32 limit = 2;
+}
+message PruneAuthAuditResponse {
+  int32 pruned = 1;
+}
+
+message RotateAuthIdentityRequest {
+  string current_identity_id = 1;
+  string next_identity_id = 2;
+  bytes next_public_key = 3;
+  uint64 next_generation = 4;
+}
+message RotateAuthIdentityResponse {
+  AuthAuthorization authorization = 1;
+}
+
+message GetAuthIdentityStatusRequest {}
+message GetAuthIdentityStatusResponse {
+  string identity_id = 1;
+  uint64 generation = 2;
+  uint64 authorization_revision = 3;
+  string status = 4;
+}

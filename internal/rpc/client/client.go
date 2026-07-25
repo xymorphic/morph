@@ -6,23 +6,23 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
+	"net/url"
 	"strings"
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	agentapi "github.com/wandxy/morph/internal/agent"
 	"github.com/wandxy/morph/internal/automation"
 	"github.com/wandxy/morph/internal/browser"
+	"github.com/wandxy/morph/internal/config"
 	models "github.com/wandxy/morph/internal/model"
 	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/profile"
 	morphpb "github.com/wandxy/morph/internal/rpc/proto"
-	"github.com/wandxy/morph/internal/rpc/rpcauth"
 	"github.com/wandxy/morph/internal/rpc/rpcmeta"
+	"github.com/wandxy/morph/internal/rpc/tlsconfig"
 	storage "github.com/wandxy/morph/internal/state/core"
 	"github.com/wandxy/morph/internal/state/search"
 	"github.com/wandxy/morph/internal/trace"
@@ -41,6 +41,8 @@ type Client struct {
 	Automation  *AutomationService
 	Permission  *PermissionService
 	Browser     *BrowserService
+	Auth        *AuthService
+	auth        *authResolver
 }
 
 type SessionService struct {
@@ -267,11 +269,22 @@ type ClientAPI interface {
 
 // Options configures this package operation.
 type Options struct {
-	Address           string
-	Port              int
-	PermissionSurface permissions.Surface
-	PermissionPreset  permissions.Preset
-	OwnerCredential   []byte
+	Address                   string
+	Port                      int
+	PermissionSurface         permissions.Surface
+	PermissionPreset          permissions.Preset
+	AuthToken                 string
+	AuthKey                   []byte
+	AuthIdentityGeneration    uint64
+	AuthAudience              string
+	AuthOwnerID               string
+	AuthTokenTTL              time.Duration
+	AuthNonceBytes            int
+	AuthSessionIdleTTL        time.Duration
+	AuthServices              []string
+	AuthMethods               []string
+	AuthTLS                   config.AuthTLSConfig
+	authCertificateThumbprint string
 }
 
 // NewClient returns a client configured with the supplied dependencies.
@@ -287,35 +300,30 @@ func NewClient(ctx context.Context, opts Options) (*Client, error) {
 	}
 
 	target := fmt.Sprintf("%s:%d", address, opts.Port)
-	ownerCredential := append([]byte(nil), opts.OwnerCredential...)
-	if len(ownerCredential) == 0 && (opts.PermissionSurface == permissions.SurfaceCLI ||
-		opts.PermissionSurface == permissions.SurfaceTUI) {
-		active := profile.Active()
-		if strings.TrimSpace(active.HomeDir) != "" {
-			loadedCredential, loadErr := rpcauth.Load(active.HomeDir)
-			if loadErr != nil && !errors.Is(loadErr, os.ErrNotExist) {
-				return nil, fmt.Errorf(
-					"load RPC owner credential: %w; run morph browser auth rotate, then restart the daemon",
-					loadErr,
-				)
-			}
-			ownerCredential = loadedCredential
-		}
+	if _, err := url.Parse("dns:///" + target); err != nil {
+		return nil, err
 	}
+	transportCredentials, certificateThumbprint, err := tlsconfig.ClientCredentials(opts.AuthTLS, target)
+	if err != nil {
+		return nil, err
+	}
+	opts.authCertificateThumbprint = certificateThumbprint
+	resolver := newAuthResolver(opts)
 	conn, err := grpc.NewClient(
 		target,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(transportCredentials),
 		grpc.WithChainUnaryInterceptor(
-			permissionUnaryClientInterceptor(opts), ownerUnaryClientInterceptor(ownerCredential),
+			permissionUnaryClientInterceptor(opts), authUnaryClientInterceptor(resolver),
 		),
 		grpc.WithChainStreamInterceptor(
-			permissionStreamClientInterceptor(opts), ownerStreamClientInterceptor(ownerCredential),
+			permissionStreamClientInterceptor(opts), authStreamClientInterceptor(resolver),
 		),
 	)
 	if err != nil {
 		return nil, err
 	}
 
+	resolver.setConnection(conn)
 	return &Client{
 		conn:        conn,
 		reconnector: conn,
@@ -326,6 +334,8 @@ func NewClient(ctx context.Context, opts Options) (*Client, error) {
 		Automation:  newAutomationService(morphpb.NewAutomationServiceClient(conn), conn),
 		Permission:  newPermissionService(morphpb.NewPermissionServiceClient(conn), conn),
 		Browser:     newBrowserService(morphpb.NewBrowserServiceClient(conn), conn),
+		Auth:        newAuthService(morphpb.NewAuthServiceClient(conn)),
+		auth:        resolver,
 	}, nil
 }
 
@@ -566,9 +576,29 @@ func (c *Client) BrowserAPI() BrowserAPI {
 	return c.Browser
 }
 
+func (c *Client) CheckHealth(ctx context.Context) (string, error) {
+	if c == nil || c.conn == nil {
+		return "", errors.New("RPC client is unavailable")
+	}
+	response, err := healthpb.NewHealthClient(c.conn).Check(ctx, &healthpb.HealthCheckRequest{})
+	if err != nil {
+		return "", err
+	}
+	if response.GetStatus() != healthpb.HealthCheckResponse_SERVING {
+		return "", fmt.Errorf("daemon health status is %s", response.GetStatus())
+	}
+
+	return response.GetStatus().String(), nil
+}
+
 func (c *Client) Close() error {
 	if c == nil || c.conn == nil {
 		return nil
+	}
+	if c.auth != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_ = c.auth.close(ctx)
+		cancel()
 	}
 
 	return c.conn.Close()

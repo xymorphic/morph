@@ -1,6 +1,6 @@
 //go:build windows
 
-package rpcauth
+package credential
 
 import (
 	"errors"
@@ -34,22 +34,22 @@ func checkCredentialPermissions(path string) error {
 		}
 		owner, _, err := descriptor.Owner()
 		if err != nil || owner == nil || !owner.Equals(currentUser) {
-			return errors.New("RPC owner credential owner is invalid")
+			return errors.New("credential store owner is invalid")
 		}
 		control, _, err := descriptor.Control()
 		if err != nil || control&windows.SE_DACL_PROTECTED == 0 {
-			return errors.New("RPC owner credential permissions are too broad")
+			return errors.New("credential store permissions are too broad")
 		}
 		dacl, _, err := descriptor.DACL()
 		if err != nil || dacl == nil || dacl.AceCount != 1 {
-			return errors.New("RPC owner credential permissions are too broad")
+			return errors.New("credential store permissions are too broad")
 		}
 		var ace *windows.ACCESS_ALLOWED_ACE
 		if err := windows.GetAce(dacl, 0, &ace); err != nil || ace == nil ||
 			ace.Header.AceType != windows.ACCESS_ALLOWED_ACE_TYPE ||
 			ace.Mask&windows.GENERIC_ALL != windows.GENERIC_ALL ||
 			!(*windows.SID)(unsafe.Pointer(&ace.SidStart)).Equals(currentUser) {
-			return errors.New("RPC owner credential permissions are too broad")
+			return errors.New("credential store permissions are too broad")
 		}
 	}
 
@@ -97,4 +97,12 @@ func getCurrentUserSID() (*windows.SID, error) {
 	}
 
 	return user.User.Sid.Copy()
+}
+
+func syncCredentialDirectory(string) error {
+	return nil
+}
+
+func replaceCredentialFile(source, destination string) error {
+	return windows.Rename(source, destination)
 }

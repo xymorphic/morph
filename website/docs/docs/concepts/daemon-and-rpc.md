@@ -59,8 +59,8 @@ Clients use this file to locate the daemon for a profile. Endpoint resolution fo
 3. **Stale metadata is discarded.** If the recorded process is gone or the endpoint is unreachable, the client removes
    the stale `runtime.json` and falls back to the configured default endpoint.
 
-When a client starts a daemon, it waits for the gRPC health check to report serving before connecting. Resolving the
-endpoint of an already-running daemon uses the reachability check in step 2 above, not the health check.
+When a client starts a daemon, it opens an authenticated session and waits for the protected gRPC health check to report
+serving before connecting. Endpoint metadata locates the listener but is not authentication.
 
 ## Which Commands Use RPC
 
@@ -73,14 +73,16 @@ Not every command talks to the daemon, and only some start one:
 - **Session commands (`morph session ...`)** and **gateway commands (`morph gateway ...`)** connect over RPC but do **not**
   start a daemon; they expect one to already be running.
 - **Trace (`morph trace ...`)** reads trace files from the profile on disk and does not use RPC.
-- **Auth (`morph auth ...`)** reads and writes the local credential store and does not use RPC.
+- **Auth identity commands** can initialize and inspect the local profile key without a daemon. Auth session, token,
+  authorization, and audit management commands use the protected `AuthService` and require a running daemon.
 
 Because every RPC client resolves the profile first and then connects, they all share the same runtime and state. See
 [Profiles and Config](../getting-started/profiles-and-config) for how the active profile is resolved.
 
 ## The RPC Surface
 
-The daemon exposes five gRPC services. The full request and response messages are in the
+The daemon exposes application, management, browser, permission, and authentication gRPC services. The full request
+and response messages are in the
 [RPC Reference](../reference/rpc); the summary below is by concern.
 
 - **`MorphService`**: `Respond` streams a reply back as it is produced. Events carry incremental assistant text and
@@ -94,6 +96,17 @@ The daemon exposes five gRPC services. The full request and response messages ar
   management.
 - **`AutomationService`**: create, update, list, run, and remove scheduled jobs, and list their run history. See
   [Automation](./automation).
+- **`PermissionService`** and **`BrowserService`**: manage approvals and the browser runtime.
+- **`AuthService`**: activate signed sessions, expose safe token/session metadata, manage public-key authorizations,
+  revocation, identity status, and audit retention.
+
+Every method, including health and streaming methods, passes through mandatory authentication. Clients use an explicit
+token when configured; otherwise they mint a scoped in-memory JWT from the effective profile Ed25519 key. The daemon
+checks authorization and live session/token state on every call. CLI clients revoke automatic sessions on clean exit;
+the TUI renews its token inside one bounded session.
+
+Plaintext transport is valid only on loopback. Remote listeners require server TLS or mutual TLS. Mutual TLS supplements
+JWT authentication and can bind an automatic token to the presented client certificate.
 
 ## Gateway Control Through RPC
 

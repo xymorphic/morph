@@ -40,6 +40,19 @@
 #   address: "127.0.0.1"
 #   port: 50051
 
+# auth:
+#   generation: 1
+#   cliTokenTTL: "5m"
+#   tuiTokenTTL: "8h"
+#   maximumTokenTTL: "24h"
+#   sessionIdleTTL: "15m"
+#   sessionMaximumTTL: "24h"
+#   maximumTokenBytes: 16384
+#   nonceBytes: 24
+#   tls:
+#     mode: "disabled"
+#     minimumVersion: "1.3"
+
 # gateway:
 #   enabled: false
 #   address: "127.0.0.1"

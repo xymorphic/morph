@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/wandxy/morph/internal/permissions"
 	rpcclient "github.com/wandxy/morph/internal/rpc/client"
 	"github.com/wandxy/morph/pkg/str"
 )
@@ -37,8 +38,12 @@ func (a *RPCAdapter) Send(ctx context.Context, req RootChatRequest) (RootChatRes
 	}
 
 	client, err := rpcclientNewClient(normalizeHarnessContext(ctx), rpcclient.Options{
-		Address: a.harness.address,
-		Port:    a.harness.port,
+		Address:           a.harness.address,
+		Port:              a.harness.port,
+		PermissionSurface: permissions.SurfaceCLI,
+		AuthAudience:      a.harness.authAudience,
+		AuthKey:           append([]byte(nil), a.harness.authKey...),
+		AuthOwnerID:       a.harness.authOwnerID,
 	})
 	if err != nil {
 		return RootChatResult{}, err

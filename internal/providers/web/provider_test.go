@@ -127,6 +127,7 @@ func TestResolveOptions_UsesGenericWebEnvWhenConfigStoredAndProviderEnvAreMissin
 
 func TestResolveOptions_ReturnsStoredCredentialParseError(t *testing.T) {
 	home := setWebAuthTestProfile(t)
+	require.NoError(t, os.Chmod(home, 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(home, "auth.json"), []byte("{"), 0o600))
 
 	_, err := ResolveOptions(&config.Config{Web: config.WebConfig{Provider: ProviderExa}})

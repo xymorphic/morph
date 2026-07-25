@@ -14,7 +14,6 @@ import (
 
 	"github.com/wandxy/morph/internal/permissions"
 	morphpb "github.com/wandxy/morph/internal/rpc/proto"
-	"github.com/wandxy/morph/internal/rpc/rpcmeta"
 	"github.com/wandxy/morph/internal/state/storememory"
 )
 
@@ -124,12 +123,16 @@ func TestPermissionService_FailsClosedWhenUnavailableOrInvalid(t *testing.T) {
 	require.Equal(t, codes.PermissionDenied, status.Code(err))
 }
 
-func permissionOperatorContext(surface string, address string) context.Context {
+func permissionOperatorContext(surface, address string) context.Context {
 	ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
 		"x-morph-permission-surface",
 		surface,
 	))
-	ctx = rpcmeta.WithAuthenticatedLocalOwner(ctx, "default")
+	source := surface
+	if !net.ParseIP(address).IsLoopback() {
+		source = "rpc"
+	}
+	ctx = withTestPrincipal(ctx, source)
 	return peer.NewContext(ctx, &peer.Peer{
 		Addr: &net.TCPAddr{IP: net.ParseIP(address), Port: 50051},
 	})

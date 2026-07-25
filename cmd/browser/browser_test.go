@@ -24,33 +24,8 @@ func TestNewCommand_ExposesBrowserOperatorCommands(t *testing.T) {
 		names = append(names, child.Name)
 	}
 	require.ElementsMatch(
-		t, []string{"status", "profiles", "sessions", "start", "stop", "config", "auth", "artifact"}, names,
+		t, []string{"status", "profiles", "sessions", "start", "stop", "config", "artifact"}, names,
 	)
-}
-
-func TestBrowserAuthRotate_ReplacesCredentialAndRequiresRestart(t *testing.T) {
-	originalProfile := profile.Active()
-	originalRotate := rotateOwnerCredential
-	originalOutput := browserOutput
-	t.Cleanup(func() {
-		profile.SetActive(originalProfile)
-		rotateOwnerCredential = originalRotate
-		browserOutput = originalOutput
-	})
-	home := t.TempDir()
-	profile.SetActive(profile.Profile{Name: "default", HomeDir: home})
-	rotatedHome := ""
-	rotateOwnerCredential = func(profileHome string) ([]byte, error) {
-		rotatedHome = profileHome
-		return []byte("rotated"), nil
-	}
-	output := &bytes.Buffer{}
-	browserOutput = output
-
-	require.NoError(t, NewCommand().Run(context.Background(), []string{"browser", "auth", "rotate"}))
-	require.Equal(t, home, rotatedHome)
-	require.Contains(t, output.String(), "restart the daemon")
-	require.Contains(t, output.String(), "reapprove browser attachments")
 }
 
 func TestBrowserCommands_RenderStatusProfilesSessionsAndConfig(t *testing.T) {

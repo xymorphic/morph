@@ -134,6 +134,24 @@ See [Provider Auth](../guides/provider-auth).
 
 Full flag and enum reference: [Automation Reference](./automation). Walkthrough: [Automation Guide](../guides/automation).
 
+### `auth`: provider credentials and RPC identity
+
+Provider commands remain `auth login`, `auth status`, and `auth logout`. RPC identity and authorization commands are
+grouped separately:
+
+| Subcommand | Purpose |
+| --- | --- |
+| `auth identity init\|show\|rotate` | Initialize, inspect, or rotate the safe profile identity |
+| `auth token generate\|list\|revoke` | Generate an explicitly requested token or manage safe token metadata |
+| `auth session list\|revoke` | Inspect or revoke RPC auth sessions |
+| `auth authorization list\|grant\|revoke` | Manage bounded public-key authorizations |
+| `auth audit list\|prune` | Inspect or prune credential-safe auth audit events |
+| `auth mtls status` | Show the effective RPC TLS mode and server name |
+
+Identity initialization and inspection work without a daemon. Session, token metadata, authorization, and audit
+operations require a reachable authenticated daemon. Add `--json` to the `auth` command for machine-readable output.
+Raw tokens are displayed only by `auth token generate`; use `--output` to write one with owner-only permissions.
+
 ### `browser`: managed browser runtime
 
 | Subcommand | Usage | Notes |
@@ -145,13 +163,12 @@ Full flag and enum reference: [Automation Reference](./automation). Walkthrough:
 | `browser stop` | `morph browser stop <session-id> [--owner-session ID]` | Stop an owned browser session |
 | `browser artifact get` | `morph browser artifact get <handle> --output <path> [--owner-session ID]` | Save an owned artifact without replacing an existing file |
 | `browser config` | `morph browser config [--json]` | Effective enablement, network, and permission posture |
-| `browser auth rotate` | `morph browser auth rotate [--json]` | Replace the profile owner credential; restart the daemon, reconnect clients, and reapprove browser attachments |
 
-Browser commands authenticate to the daemon as the active profile owner. Claimed CLI metadata alone does not grant
+Browser commands authenticate to the daemon with the active profile identity. Claimed CLI metadata alone does not grant
 owner authority. Enabling the service and Browser capability makes the tool eligible; the effective permission preset
-and configured rules still authorize each browser operation. If the profile owner credential changes while the daemon
-is running, restart the daemon before retrying the command so both processes load the same credential. Rotation also
-changes the private attachment identity key, so existing remote and personal-browser attachment grants no longer match.
+and configured rules still authorize each browser operation. Profile identity rotation is managed under `morph auth`
+and also changes the private attachment identity key, so existing remote and personal-browser attachment grants no
+longer match.
 
 Browser artifact handles are temporary and owner-bound. For an artifact created in a chat or automation session, pass
 the session that owns it:

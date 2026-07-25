@@ -1191,6 +1191,7 @@ func TestPullSelectedOllamaModel_RejectsInvalidInputs(t *testing.T) {
 	require.EqualError(t, err, "--pull is only supported with Ollama chat APIs")
 
 	profileHome := t.TempDir()
+	require.NoError(t, os.Chmod(profileHome, 0o700))
 	profile.SetActive(profile.Profile{HomeDir: profileHome})
 	require.NoError(t, os.WriteFile(filepath.Join(profileHome, "auth.json"), []byte("{bad json"), 0o600))
 

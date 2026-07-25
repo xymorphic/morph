@@ -133,6 +133,44 @@ func TestCommandPermissionInputs_DoesNotAuthorizeNullDeviceRedirection(t *testin
 	require.Equal(t, permissions.ResourceProcess, inputs[1].Operation.Resource)
 }
 
+func TestGetMorphAuthCommandEffects_ClassifiesSensitiveOperations(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		effects []permissions.Effect
+	}{
+		{
+			name: "identity rotation", args: []string{"auth", "identity", "rotate"},
+			effects: []permissions.Effect{
+				permissions.EffectCredentialBearing,
+				permissions.EffectPrivilegeChanging,
+			},
+		},
+		{
+			name: "token generation", args: []string{"auth", "token", "generate"},
+			effects: []permissions.Effect{permissions.EffectCredentialBearing},
+		},
+		{
+			name: "session revocation", args: []string{"auth", "session", "revoke", "session"},
+			effects: []permissions.Effect{permissions.EffectDestructive},
+		},
+		{
+			name: "authorization grant", args: []string{"auth", "authorization", "grant"},
+			effects: []permissions.Effect{permissions.EffectPrivilegeChanging},
+		},
+		{
+			name: "audit list", args: []string{"auth", "audit", "list"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			require.ElementsMatch(t, test.effects, getMorphAuthCommandEffects(
+				commandplan.Invocation{Executable: "/usr/local/bin/morph", Arguments: test.args},
+			))
+		})
+	}
+}
+
 func TestCommandPermissionInputs_DescribesInvocationsRedirectsAndDebuggerAccess(t *testing.T) {
 	root := t.TempDir()
 	runtime := &toolmocks.Runtime{

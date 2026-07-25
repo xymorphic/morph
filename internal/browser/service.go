@@ -32,6 +32,7 @@ type Service struct {
 	policy                NetworkPolicy
 	artifacts             *artifactStore
 	attachmentIdentityKey []byte
+	attachmentKeyMu       sync.RWMutex
 	resolveCredential     CredentialResolver
 	now                   func() time.Time
 	lifetime              context.Context

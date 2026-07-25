@@ -3,21 +3,23 @@ package server
 import (
 	"context"
 	"net"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	morphauth "github.com/wandxy/morph/internal/auth"
 	"github.com/wandxy/morph/internal/browser"
 	"github.com/wandxy/morph/internal/config"
 	agentstub "github.com/wandxy/morph/internal/mocks/agentstub"
 	"github.com/wandxy/morph/internal/permissions"
 	morphpb "github.com/wandxy/morph/internal/rpc/proto"
-	"github.com/wandxy/morph/internal/rpc/rpcauth"
 	"github.com/wandxy/morph/internal/rpc/rpcmeta"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -40,8 +42,21 @@ func TestNew_RegistersHealthWhenEnabled(t *testing.T) {
 	require.Contains(t, serviceInfo, healthgrpc.Health_ServiceDesc.ServiceName)
 }
 
-func TestBrowserService_EndToEndRequiresOwnerProof(t *testing.T) {
-	credential := []byte("01234567890123456789012345678901")
+func TestNew_RegisteredMethodsMatchAuthenticationCatalog(t *testing.T) {
+	server := New(&agentstub.AgentRunnerStub{}, Options{Health: true})
+	var methods []string
+	for serviceName, service := range server.GetServiceInfo() {
+		for _, method := range service.Methods {
+			methods = append(methods, "/"+serviceName+"/"+method.Name)
+		}
+	}
+	sort.Strings(methods)
+
+	require.Equal(t, morphauth.RPCMethodCatalog(), methods)
+}
+
+func TestBrowserService_EndToEndRequiresJWT(t *testing.T) {
+	authService, token := newServerAuthFixture(t)
 	cfg := config.NewDefaultConfig()
 	runtime := &browserServerRuntime{status: browser.Status{
 		Enabled:  true,
@@ -50,7 +65,7 @@ func TestBrowserService_EndToEndRequiresOwnerProof(t *testing.T) {
 	server := New(&agentstub.AgentRunnerStub{}, Options{
 		Browser: runtime, BrowserConfig: cfg.Browser, BrowserCapability: true, ProfileName: "default",
 		PermissionPolicy: permissions.Policy{Rules: []permissions.Rule{{Name: "allow", Decision: permissions.DecisionAllow}}},
-		OwnerCredential:  credential, OwnerPrincipal: "default",
+		Auth:             authService,
 	})
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -65,6 +80,7 @@ func TestBrowserService_EndToEndRequiresOwnerProof(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = connection.Close() })
 	client := morphpb.NewBrowserServiceClient(connection)
+	authClient := morphpb.NewAuthServiceClient(connection)
 
 	_, err = client.Status(context.Background(), &morphpb.GetBrowserStatusRequest{})
 	require.Equal(t, codes.Unauthenticated, status.Code(err))
@@ -74,11 +90,10 @@ func TestBrowserService_EndToEndRequiresOwnerProof(t *testing.T) {
 	_, err = client.Status(spoofed, &morphpb.GetBrowserStatusRequest{})
 	require.Equal(t, codes.Unauthenticated, status.Code(err))
 
-	request := &morphpb.GetBrowserStatusRequest{}
-	authenticated, err := rpcauth.WithOutgoingProof(
-		spoofed, morphpb.BrowserService_Status_FullMethodName, credential, request,
-	)
+	authenticated := metadata.AppendToOutgoingContext(spoofed, authorizationMetadataKey, "Bearer "+token)
+	_, err = authClient.OpenSession(authenticated, &morphpb.OpenAuthSessionRequest{Source: "cli"})
 	require.NoError(t, err)
+	request := &morphpb.GetBrowserStatusRequest{}
 	response, err := client.Status(authenticated, request)
 	require.NoError(t, err)
 	require.True(t, response.GetStatus().GetEnabled())
@@ -88,10 +103,6 @@ func TestBrowserService_EndToEndRequiresOwnerProof(t *testing.T) {
 	require.NoError(t, err)
 	_, err = unauthenticatedStream.Recv()
 	require.Equal(t, codes.Unauthenticated, status.Code(err))
-	authenticated, err = rpcauth.WithOutgoingProof(
-		spoofed, morphpb.BrowserService_ReadArtifact_FullMethodName, credential, artifactRequest,
-	)
-	require.NoError(t, err)
 	authenticatedStream, err := client.ReadArtifact(authenticated, artifactRequest)
 	require.NoError(t, err)
 	artifactResponse, err := authenticatedStream.Recv()

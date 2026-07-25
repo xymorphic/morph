@@ -491,12 +491,18 @@ func isTerminalWriter(output io.Writer) bool {
 }
 
 func newDefaultChatClient(ctx context.Context, cfg *config.Config) (rpcclient.ChatClient, error) {
-	return rpcclient.NewClient(ctx, rpcclient.Options{
+	return rpcclient.NewClient(ctx, rpcclient.OptionsWithConfigAuth(rpcclient.Options{
 		Address:           cfg.RPC.Address,
 		Port:              cfg.RPC.Port,
 		PermissionSurface: permissions.SurfaceCLI,
 		PermissionPreset:  cfg.Permissions.EffectivePreset(),
-	})
+		AuthServices: []string{
+			"/morph.v1.MorphService",
+			"/morph.v1.SessionService",
+			"/morph.v1.ModelService",
+			"/morph.v1.PermissionService",
+		},
+	}, cfg))
 }
 
 type chatStreamFormatter struct {

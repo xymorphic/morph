@@ -16,6 +16,8 @@ import (
 	"google.golang.org/grpc"
 
 	models "github.com/wandxy/morph/internal/model"
+	"github.com/wandxy/morph/internal/permissions"
+	rpcclient "github.com/wandxy/morph/internal/rpc/client"
 	morphmsg "github.com/wandxy/morph/pkg/agent/message"
 )
 
@@ -80,7 +82,12 @@ func TestWaitForRPC(t *testing.T) {
 			require.NoError(t, h.Close())
 		})
 
-		client, err := WaitForRPC(h.Address(), h.Port(), 2*time.Second)
+		client, err := WaitForRPC(h.Address(), h.Port(), 2*time.Second, rpcclient.Options{
+			PermissionSurface: permissions.SurfaceCLI,
+			AuthAudience:      h.authAudience,
+			AuthKey:           h.authKey,
+			AuthOwnerID:       h.authOwnerID,
+		})
 		require.NoError(t, err)
 		t.Cleanup(func() {
 			require.NoError(t, client.Close())

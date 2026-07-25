@@ -85,6 +85,42 @@ func applyEnvOverrides(cfg *Config) {
 			cfg.RPC.Port = port
 		}
 	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_AUTH_KEY")); value != "" {
+		cfg.Auth.Key = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_AUTH_TOKEN")); value != "" {
+		cfg.Auth.Token = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_AUTH_AUDIENCE")); value != "" {
+		cfg.Auth.Audience = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_RPC_TLS_MODE")); value != "" {
+		cfg.Auth.TLS.Mode = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_RPC_TLS_CERT")); value != "" {
+		cfg.Auth.TLS.ServerCertificate = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_RPC_TLS_KEY")); value != "" {
+		cfg.Auth.TLS.ServerKey = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_RPC_TLS_SERVER_CA")); value != "" {
+		cfg.Auth.TLS.ServerCA = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_RPC_TLS_CLIENT_CA")); value != "" {
+		cfg.Auth.TLS.ClientCA = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_RPC_TLS_CLIENT_CERT")); value != "" {
+		cfg.Auth.TLS.ClientCertificate = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_RPC_TLS_CLIENT_KEY")); value != "" {
+		cfg.Auth.TLS.ClientKey = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_RPC_TLS_SERVER_NAME")); value != "" {
+		cfg.Auth.TLS.ServerName = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_RPC_TLS_MIN_VERSION")); value != "" {
+		cfg.Auth.TLS.MinimumVersion = value
+	}
 	if value, ok := parseOptionalBoolEnv("MORPH_GATEWAY_ENABLED"); ok {
 		cfg.Gateway.Enabled = value
 	}

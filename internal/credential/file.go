@@ -2,7 +2,6 @@ package credential
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/gofrs/flock"
 	"github.com/wandxy/morph/internal/datadir"
 	"github.com/wandxy/morph/pkg/str"
 )
@@ -62,6 +62,9 @@ func (s *FileStore) Get(provider string) (StoredCredential, bool, error) {
 	if provider == "" {
 		return StoredCredential{}, false, errors.New("provider is required")
 	}
+	if provider == morphAuthDocumentKey {
+		return StoredCredential{}, false, errors.New("provider name is reserved")
+	}
 
 	var credential StoredCredential
 	var ok bool
@@ -83,6 +86,9 @@ func (s *FileStore) Set(provider string, credential StoredCredential) error {
 	if provider == "" {
 		return errors.New("provider is required")
 	}
+	if provider == morphAuthDocumentKey {
+		return errors.New("provider name is reserved")
+	}
 
 	credential, err := checkStoredCredential(credential)
 	if err != nil {
@@ -100,6 +106,9 @@ func (s *FileStore) Remove(provider string) error {
 	provider = normalizeProvider(provider)
 	if provider == "" {
 		return errors.New("provider is required")
+	}
+	if provider == morphAuthDocumentKey {
+		return errors.New("provider name is reserved")
 	}
 
 	return s.withLockedData(false, func(data map[string]StoredCredential) (map[string]StoredCredential, bool, error) {
@@ -218,7 +227,11 @@ func (s *FileStore) withLockedData(
 	}
 	defer release()
 
-	data, err := loadData(path)
+	document, err := loadDocument(path)
+	if err != nil {
+		return err
+	}
+	data, err := providersFromDocument(document)
 	if err != nil {
 		return err
 	}
@@ -230,7 +243,11 @@ func (s *FileStore) withLockedData(
 		if next == nil {
 			next = make(map[string]StoredCredential)
 		}
-		if err := writeData(path, next); err != nil {
+		document, err = replaceProviders(document, next)
+		if err != nil {
+			return err
+		}
+		if err := writeDocument(path, document); err != nil {
 			return err
 		}
 	}
@@ -239,82 +256,35 @@ func (s *FileStore) withLockedData(
 }
 
 func loadData(path string) (map[string]StoredCredential, error) {
-	body, err := os.ReadFile(path)
+	document, err := loadDocument(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return make(map[string]StoredCredential), nil
-		}
-
-		return nil, fmt.Errorf("read credential store: %w", err)
-	}
-	bodyValue := str.String(string(body))
-	if len(bodyValue.Trim()) == 0 {
-		return make(map[string]StoredCredential), nil
+		return nil, err
 	}
 
-	var data map[string]StoredCredential
-	if err := json.Unmarshal(body, &data); err != nil {
-		return nil, fmt.Errorf("parse credential store: %w", err)
-	}
-	normalized := make(map[string]StoredCredential, len(data))
-	for provider, credential := range data {
-		provider = normalizeProvider(provider)
-		if provider == "" {
-			continue
-		}
-		normalized[provider] = normalizeCredential(credential)
-	}
-
-	return normalized, nil
+	return providersFromDocument(document)
 }
 
 func writeData(path string, data map[string]StoredCredential) error {
-	body, err := json.MarshalIndent(data, "", "  ")
+	document, err := replaceProviders(make(rawDocument), data)
 	if err != nil {
-		return fmt.Errorf("encode credential store: %w", err)
-	}
-	body = append(body, '\n')
-
-	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
-	if err != nil {
-		return fmt.Errorf("create credential store temp file: %w", err)
-	}
-	tmpPath := tmp.Name()
-	defer func() { _ = os.Remove(tmpPath) }()
-
-	if _, err := tmp.Write(body); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("write credential store temp file: %w", err)
-	}
-	if err := tmp.Chmod(0o600); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("secure credential store temp file: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("close credential store temp file: %w", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("replace credential store: %w", err)
-	}
-	if err := os.Chmod(path, 0o600); err != nil {
-		return fmt.Errorf("secure credential store: %w", err)
+		return err
 	}
 
-	return nil
+	return writeDocument(path, document)
 }
 
 func acquireFileLock(path string) (func(), error) {
+	lock := flock.New(path)
 	var lastErr error
 	for range lockRetries {
-		file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
-		if err == nil {
-			_ = file.Close()
-			return func() { _ = os.Remove(path) }, nil
+		locked, err := lock.TryLock()
+		if err == nil && locked {
+			return func() { _ = lock.Unlock() }, nil
 		}
-		if !os.IsExist(err) {
+		if err != nil {
 			return nil, fmt.Errorf("acquire credential store lock: %w", err)
 		}
-		lastErr = err
+		lastErr = errors.New("credential store is locked")
 		time.Sleep(lockRetryDelay)
 	}
 

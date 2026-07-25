@@ -2,13 +2,12 @@ package rpcmeta
 
 import (
 	"context"
-	"net"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
 
+	morphauth "github.com/wandxy/morph/internal/auth"
 	"github.com/wandxy/morph/internal/permissions"
 )
 
@@ -67,57 +66,42 @@ func TestPermissionPreset_RoundTripsSupportedValue(t *testing.T) {
 	require.False(t, ok)
 }
 
-func TestPermissionActor_ClassifiesOnlyLoopbackInteractiveClientsAsLocalOwner(t *testing.T) {
+func TestPermissionActor_RequiresMatchingAuthenticatedOwnerSource(t *testing.T) {
 	tests := []struct {
 		name    string
 		ctx     context.Context
 		expects permissions.ActorKind
 	}{
 		{
-			name: "loopback TUI",
-			ctx: incomingPermissionContext(
-				permissions.SurfaceTUI,
-				&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 50051},
-			),
+			name:    "authenticated TUI",
+			ctx:     incomingPermissionContext(permissions.SurfaceTUI, "tui", true),
 			expects: permissions.ActorLocalOwner,
 		},
 		{
-			name: "loopback CLI",
-			ctx: incomingPermissionContext(
-				permissions.SurfaceCLI,
-				&net.TCPAddr{IP: net.ParseIP("::1"), Port: 50051},
-			),
+			name:    "authenticated CLI",
+			ctx:     incomingPermissionContext(permissions.SurfaceCLI, "cli", true),
 			expects: permissions.ActorLocalOwner,
 		},
 		{
-			name: "unauthenticated loopback TUI spoof",
-			ctx: peer.NewContext(
-				metadata.NewIncomingContext(context.Background(), metadata.Pairs(
-					permissionSurfaceKey, string(permissions.SurfaceTUI),
-				)),
-				&peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 50051}},
-			),
+			name: "unauthenticated TUI spoof",
+			ctx: metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+				permissionSurfaceKey, string(permissions.SurfaceTUI),
+			)),
 			expects: permissions.ActorRPCClient,
 		},
 		{
-			name: "remote TUI spoof",
-			ctx: incomingPermissionContext(
-				permissions.SurfaceTUI,
-				&net.TCPAddr{IP: net.ParseIP("192.0.2.1"), Port: 50051},
-			),
+			name:    "source mismatch",
+			ctx:     incomingPermissionContext(permissions.SurfaceTUI, "rpc", true),
 			expects: permissions.ActorRPCClient,
 		},
 		{
-			name:    "missing peer",
-			ctx:     incomingPermissionContext(permissions.SurfaceTUI, nil),
+			name:    "non-owner role",
+			ctx:     incomingPermissionContext(permissions.SurfaceTUI, "tui", false),
 			expects: permissions.ActorRPCClient,
 		},
 		{
-			name: "loopback generic RPC",
-			ctx: peer.NewContext(
-				context.Background(),
-				&peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 50051}},
-			),
+			name:    "generic RPC",
+			ctx:     context.Background(),
 			expects: permissions.ActorRPCClient,
 		},
 	}
@@ -131,22 +115,28 @@ func TestPermissionActor_ClassifiesOnlyLoopbackInteractiveClientsAsLocalOwner(t 
 
 func TestPermissionActor_UsesAuthenticatedPrincipalWithoutGrantingOwnerAuthority(t *testing.T) {
 	var nilContext context.Context
-	ctx := WithAuthenticatedPermissionPrincipal(nilContext, " client-123 ")
+	ctx := WithAuthenticatedPrincipal(nilContext, morphauth.Principal{
+		IdentityID: "client-123", SessionID: "session", TokenID: "token",
+		Roles: []string{morphauth.RoleOperator}, Source: "rpc",
+	})
 	actor := PermissionActorFromIncomingContext(ctx)
 	require.Equal(t, permissions.Actor{Kind: permissions.ActorRPCClient, ID: "client-123"}, actor)
 
-	unchanged := WithAuthenticatedPermissionPrincipal(context.Background(), " ")
+	unchanged := WithAuthenticatedPrincipal(context.Background(), morphauth.Principal{})
 	require.Equal(t, permissions.ActorRPCClient, PermissionActorFromIncomingContext(unchanged).Kind)
 	require.Equal(t, permissions.ActorRPCClient, PermissionActorFromIncomingContext(nilContext).Kind)
 }
 
-func incomingPermissionContext(surface permissions.Surface, address net.Addr) context.Context {
+func incomingPermissionContext(surface permissions.Surface, source string, owner bool) context.Context {
 	outgoing := WithOutgoingPermissionSurface(context.Background(), surface)
 	outgoingMetadata, _ := metadata.FromOutgoingContext(outgoing)
 	ctx := metadata.NewIncomingContext(context.Background(), outgoingMetadata)
-	ctx = WithAuthenticatedLocalOwner(ctx, "default")
-	if address != nil {
-		ctx = peer.NewContext(ctx, &peer.Peer{Addr: address})
+	roles := []string{morphauth.RoleOperator}
+	if owner {
+		roles = []string{morphauth.RoleOwner}
 	}
-	return ctx
+	return WithAuthenticatedPrincipal(ctx, morphauth.Principal{
+		IdentityID: "identity", OwnerID: "default", UserID: "user",
+		Roles: roles, SessionID: "session", TokenID: "token", Source: source,
+	})
 }

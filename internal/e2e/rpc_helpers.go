@@ -63,14 +63,22 @@ func ReserveRPCPort() (int, error) {
 }
 
 // WaitForRPC waits until an RPC endpoint accepts connections.
-func WaitForRPC(address string, port int, timeout time.Duration) (*rpcclient.Client, error) {
+func WaitForRPC(
+	address string,
+	port int,
+	timeout time.Duration,
+	authOptions ...rpcclient.Options,
+) (*rpcclient.Client, error) {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		addressValue := str.String(address)
-		client, err := rpcHelperNewClient(context.Background(), rpcclient.Options{
-			Address: addressValue.Trim(),
-			Port:    port,
-		})
+		options := rpcclient.Options{Address: addressValue.Trim(), Port: port}
+		if len(authOptions) > 0 {
+			options = authOptions[0]
+			options.Address = addressValue.Trim()
+			options.Port = port
+		}
+		client, err := rpcHelperNewClient(context.Background(), options)
 		if err == nil {
 			_, currentErr := client.Session.Current(context.Background())
 			if currentErr == nil {

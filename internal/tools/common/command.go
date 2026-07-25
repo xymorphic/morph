@@ -107,6 +107,9 @@ func CommandPermissionInputs(
 	}})
 	for _, invocation := range plan.Invocations {
 		invocationEffects := slices.Clone(effects)
+		invocationEffects = append(invocationEffects, getMorphAuthCommandEffects(invocation)...)
+		slices.Sort(invocationEffects)
+		invocationEffects = slices.Compact(invocationEffects)
 		if invocation.Indirect {
 			invocationEffects = append(invocationEffects, permissions.EffectIndirectExecution)
 		}
@@ -158,6 +161,65 @@ func CommandPermissionInputs(
 
 	applyCommandGuardrail(ctx, runtime, plan, inputs)
 	return inputs
+}
+
+func getMorphAuthCommandEffects(invocation commandplan.Invocation) []permissions.Effect {
+	if filepath.Base(invocation.Executable) != "morph" {
+		return nil
+	}
+	authIndex := slices.Index(invocation.Arguments, "auth")
+	if authIndex < 0 {
+		return nil
+	}
+	nounIndex := nextCommandArgument(invocation.Arguments, authIndex+1)
+	if nounIndex < 0 {
+		return nil
+	}
+	actionIndex := nextCommandArgument(invocation.Arguments, nounIndex+1)
+	action := ""
+	if actionIndex >= 0 {
+		action = invocation.Arguments[actionIndex]
+	}
+	switch invocation.Arguments[nounIndex] {
+	case "identity":
+		if action == "show" {
+			return nil
+		}
+		return []permissions.Effect{
+			permissions.EffectCredentialBearing,
+			permissions.EffectPrivilegeChanging,
+		}
+	case "token":
+		if action == "generate" {
+			return []permissions.Effect{permissions.EffectCredentialBearing}
+		}
+		if action == "revoke" {
+			return []permissions.Effect{permissions.EffectDestructive}
+		}
+	case "session":
+		if action == "revoke" {
+			return []permissions.Effect{permissions.EffectDestructive}
+		}
+	case "authorization":
+		if action == "grant" || action == "revoke" {
+			return []permissions.Effect{permissions.EffectPrivilegeChanging}
+		}
+	case "audit":
+		if action == "prune" {
+			return []permissions.Effect{permissions.EffectDestructive}
+		}
+	}
+
+	return nil
+}
+
+func nextCommandArgument(arguments []string, start int) int {
+	for index := start; index < len(arguments); index++ {
+		if !strings.HasPrefix(arguments[index], "-") {
+			return index
+		}
+	}
+	return -1
 }
 
 func CheckCommandPlan(

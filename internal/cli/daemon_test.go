@@ -13,9 +13,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	urfavecli "github.com/urfave/cli/v3"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
 	clidaemon "github.com/wandxy/morph/internal/cli/daemon"
 	"github.com/wandxy/morph/internal/config"
@@ -111,12 +108,17 @@ func TestDaemonDependenciesAdaptCLIConfigInputs(t *testing.T) {
 }
 
 func TestCheckDaemonRPCImpl_CallsHealthService(t *testing.T) {
-	rpcAddress, stop := startHealthRPCServer(t, healthpb.HealthCheckResponse_SERVING)
-	defer stop()
+	original := newDaemonHealthClient
+	t.Cleanup(func() { newDaemonHealthClient = original })
+	newDaemonHealthClient = func(
+		context.Context, *config.Config, string, int,
+	) (daemonHealthClient, error) {
+		return daemonHealthClientStub{status: "SERVING"}, nil
+	}
 
 	err := checkDaemonRPCImpl(
 		context.Background(),
-		&config.Config{RPC: config.RPCConfig{Address: rpcAddress.address, Port: rpcAddress.port}},
+		&config.Config{RPC: config.RPCConfig{Address: "127.0.0.1", Port: 50051}},
 	)
 
 	require.NoError(t, err)
@@ -141,7 +143,7 @@ func TestGetDaemonStatus_ReturnsRunningStatus(t *testing.T) {
 			},
 		}
 	}
-	checkDaemonHealth = func(_ context.Context, address string, port int) (string, error) {
+	checkDaemonHealth = func(_ context.Context, _ *config.Config, address string, port int) (string, error) {
 		require.Equal(t, "127.0.0.1", address)
 		require.Equal(t, 50051, port)
 		return "SERVING", nil
@@ -168,7 +170,7 @@ func TestGetDaemonStatus_ReturnsMissingStatusWithoutError(t *testing.T) {
 	probeActiveRuntime = func(context.Context, profile.Profile) morphruntime.ProbeResult {
 		return morphruntime.ProbeResult{State: morphruntime.ProbeStateMissing, Err: expectedErr}
 	}
-	checkDaemonHealth = func(context.Context, string, int) (string, error) {
+	checkDaemonHealth = func(context.Context, *config.Config, string, int) (string, error) {
 		t.Fatal("health should not be checked when runtime probe fails")
 		return "", nil
 	}
@@ -186,7 +188,7 @@ func TestGetDaemonStatus_ReturnsProbeStateWithoutError(t *testing.T) {
 	probeActiveRuntime = func(context.Context, profile.Profile) morphruntime.ProbeResult {
 		return morphruntime.ProbeResult{State: morphruntime.ProbeStateStale}
 	}
-	checkDaemonHealth = func(context.Context, string, int) (string, error) {
+	checkDaemonHealth = func(context.Context, *config.Config, string, int) (string, error) {
 		t.Fatal("health should not be checked when runtime probe is stale")
 		return "", nil
 	}
@@ -210,7 +212,7 @@ func TestGetDaemonStatus_ReturnsHealthError(t *testing.T) {
 			},
 		}
 	}
-	checkDaemonHealth = func(context.Context, string, int) (string, error) {
+	checkDaemonHealth = func(context.Context, *config.Config, string, int) (string, error) {
 		return "", expectedErr
 	}
 
@@ -221,13 +223,13 @@ func TestGetDaemonStatus_ReturnsHealthError(t *testing.T) {
 }
 
 func TestCheckDaemonHealthImpl_ReturnsMissingAddressError(t *testing.T) {
-	_, err := checkDaemonHealthImpl(context.Background(), "", 50051)
+	_, err := checkDaemonHealthImpl(context.Background(), config.NewDefaultConfig(), "", 50051)
 
 	require.EqualError(t, err, "rpc address is required")
 }
 
 func TestCheckDaemonHealthImpl_ReturnsMissingPortError(t *testing.T) {
-	_, err := checkDaemonHealthImpl(context.Background(), "127.0.0.1", 0)
+	_, err := checkDaemonHealthImpl(context.Background(), config.NewDefaultConfig(), "127.0.0.1", 0)
 
 	require.EqualError(t, err, "rpc port must be greater than zero")
 }
@@ -263,12 +265,17 @@ func TestCheckDaemonRPCImpl_ReturnsClientConstructionError(t *testing.T) {
 }
 
 func TestCheckDaemonRPCImpl_ReturnsNonServingHealthError(t *testing.T) {
-	rpcAddress, stop := startHealthRPCServer(t, healthpb.HealthCheckResponse_NOT_SERVING)
-	defer stop()
+	original := newDaemonHealthClient
+	t.Cleanup(func() { newDaemonHealthClient = original })
+	newDaemonHealthClient = func(
+		context.Context, *config.Config, string, int,
+	) (daemonHealthClient, error) {
+		return daemonHealthClientStub{err: errors.New("daemon health status is NOT_SERVING")}, nil
+	}
 
 	err := checkDaemonRPCImpl(
 		context.Background(),
-		&config.Config{RPC: config.RPCConfig{Address: rpcAddress.address, Port: rpcAddress.port}},
+		&config.Config{RPC: config.RPCConfig{Address: "127.0.0.1", Port: 50051}},
 	)
 
 	require.EqualError(t, err, "daemon health status is NOT_SERVING")
@@ -575,38 +582,15 @@ func replaceDaemonBootstrapHooks(t *testing.T) func() {
 	}
 }
 
-type healthRPCAddress struct {
-	address string
-	port    int
+type daemonHealthClientStub struct {
+	status string
+	err    error
 }
 
-func startHealthRPCServer(
-	t *testing.T,
-	status healthpb.HealthCheckResponse_ServingStatus,
-) (healthRPCAddress, func()) {
-	t.Helper()
+func (s daemonHealthClientStub) CheckHealth(context.Context) (string, error) {
+	return s.status, s.err
+}
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-
-	grpcServer := grpc.NewServer()
-	healthServer := health.NewServer()
-	healthpb.RegisterHealthServer(grpcServer, healthServer)
-	healthServer.SetServingStatus("", status)
-
-	serverErr := make(chan error, 1)
-	go func() {
-		serverErr <- grpcServer.Serve(listener)
-	}()
-
-	tcpAddr, ok := listener.Addr().(*net.TCPAddr)
-	require.True(t, ok)
-
-	stop := func() {
-		grpcServer.Stop()
-		serveErr := <-serverErr
-		require.True(t, serveErr == nil || errors.Is(serveErr, grpc.ErrServerStopped))
-	}
-
-	return healthRPCAddress{address: "127.0.0.1", port: tcpAddr.Port}, stop
+func (daemonHealthClientStub) Close() error {
+	return nil
 }

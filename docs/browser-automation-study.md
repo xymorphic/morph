@@ -983,10 +983,10 @@ permission decision.
 Changing endpoint, credentials, profile identity, or attachment scope changes the fingerprint and prevents stale grant
 reuse.
 
-The keyed identity uses a domain-separated HMAC subkey derived from the profile-scoped owner credential. Credential
-rotation therefore invalidates old attachment fingerprints without placing secret material in approval text or traces.
-Stop attached sessions before rotating the credential, restart the daemon, and start the sessions again so the relay,
-credential identity, and approval all use the new key.
+The keyed identity uses a domain-separated subkey derived from the profile Ed25519 identity. `morph auth identity
+rotate` therefore invalidates old attachment fingerprints without placing secret material in approval text or traces.
+Stop attached sessions before rotation and start them again after the daemon accepts the new identity so the relay,
+identity generation, and approval all use the new key.
 
 Target-scoped attachments cannot create tabs. Context-scoped attachments filter every discovered or addressed target
 by its server-reported browser context. Whole-browser scope is accepted only when named explicitly and is visible in
