@@ -3,7 +3,6 @@ package storesqlite
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -17,11 +16,16 @@ import (
 )
 
 type Store struct {
-	mu             sync.Mutex
-	db             *sql.DB
-	memory         *storememory.Store
-	lastUsePersist time.Time
-	useDirty       bool
+	mu                  sync.Mutex
+	db                  *sql.DB
+	memory              *storememory.Store
+	persisted           storememory.Snapshot
+	persistedAuditStart int
+	stateRevision       uint64
+	lastUsePersist      time.Time
+	dirtySessions       map[string]struct{}
+	dirtyTokens         map[string]struct{}
+	auditIDs            map[string]struct{}
 }
 
 const recordUsePersistInterval = time.Second
@@ -30,8 +34,32 @@ func Open(path string) (*Store, error) {
 	if path == "" {
 		return nil, errors.New("auth database path is required")
 	}
-	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
-		return nil, errors.New("auth database must not be a symbolic link")
+	if info, err := os.Lstat(path); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return nil, errors.New("auth database must not be a symbolic link")
+		}
+		if !info.Mode().IsRegular() {
+			return nil, errors.New("auth database must be a regular file")
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("inspect auth database: %w", err)
+	}
+	directory := filepath.Dir(path)
+	if info, err := os.Lstat(directory); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return nil, errors.New("auth database directory must not be a symbolic link")
+		}
+		if !info.IsDir() {
+			return nil, errors.New("auth database directory must be a directory")
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("inspect auth database directory: %w", err)
+	}
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		return nil, fmt.Errorf("create auth database directory: %w", err)
+	}
+	if err := os.Chmod(directory, 0o700); err != nil {
+		return nil, fmt.Errorf("secure auth database directory: %w", err)
 	}
 	dsn := "file:" + filepath.ToSlash(path) + "?_busy_timeout=5000&_journal_mode=WAL&_foreign_keys=on"
 	db, err := sql.Open("sqlite3", dsn)
@@ -39,27 +67,36 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("open auth database: %w", err)
 	}
 	db.SetMaxOpenConns(1)
-	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS morph_auth_state (
-			id INTEGER PRIMARY KEY CHECK (id = 1),
-			payload BLOB NOT NULL,
-			updated_at TEXT NOT NULL
-		)
-	`); err != nil {
+	if err := db.Ping(); err != nil {
 		_ = db.Close()
-		return nil, fmt.Errorf("initialize auth database: %w", err)
+		return nil, fmt.Errorf("create auth database: %w", err)
 	}
 	if err := os.Chmod(path, 0o600); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("secure auth database: %w", err)
+	}
+	if err := initializeSchema(db); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("initialize auth database: %w", err)
 	}
 	snapshot, err := loadSnapshot(db)
 	if err != nil {
 		_ = db.Close()
 		return nil, err
 	}
+	stateRevision, err := loadStateRevision(db)
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 
-	return &Store{db: db, memory: storememory.NewFromSnapshot(snapshot)}, nil
+	store := &Store{
+		db: db, memory: storememory.NewFromSnapshot(snapshot),
+		persisted: snapshot, stateRevision: stateRevision,
+	}
+	store.rebuildAuditIDs()
+
+	return store, nil
 }
 
 func (s *Store) SeedRoot(
@@ -68,13 +105,12 @@ func (s *Store) SeedRoot(
 ) (morphauth.Authorization, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	before := s.memory.Snapshot()
 	result, err := s.memory.SeedRoot(ctx, authorization)
 	if err != nil {
 		return morphauth.Authorization{}, err
 	}
 	if err := s.persist(ctx); err != nil {
-		s.memory = storememory.NewFromSnapshot(before)
+		s.restorePersisted()
 		return morphauth.Authorization{}, err
 	}
 
@@ -96,13 +132,12 @@ func (s *Store) PutAuthorization(
 ) (morphauth.Authorization, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	before := s.memory.Snapshot()
 	result, err := s.memory.PutAuthorization(ctx, authorization)
 	if err != nil {
 		return morphauth.Authorization{}, err
 	}
 	if err := s.persist(ctx); err != nil {
-		s.memory = storememory.NewFromSnapshot(before)
+		s.restorePersisted()
 		return morphauth.Authorization{}, err
 	}
 
@@ -117,12 +152,11 @@ func (s *Store) RotateIdentity(
 ) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	before := s.memory.Snapshot()
 	if err := s.memory.RotateIdentity(ctx, currentIdentityID, next, now); err != nil {
 		return err
 	}
 
-	return s.persistOrRestore(ctx, before)
+	return s.persistOrRestore(ctx)
 }
 
 func (s *Store) ListAuthorizations(ctx context.Context) ([]morphauth.Authorization, error) {
@@ -138,12 +172,11 @@ func (s *Store) Activate(
 ) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	before := s.memory.Snapshot()
 	if err := s.memory.Activate(ctx, session, token); err != nil {
 		return err
 	}
 
-	return s.persistOrRestore(ctx, before)
+	return s.persistOrRestore(ctx)
 }
 
 func (s *Store) GetSession(ctx context.Context, id string) (morphauth.Session, error) {
@@ -179,22 +212,18 @@ func (s *Store) RecordUse(
 	defer s.mu.Unlock()
 	shouldPersist := s.lastUsePersist.IsZero() ||
 		now.Sub(s.lastUsePersist) >= recordUsePersistInterval
-	var before storememory.Snapshot
-	if shouldPersist {
-		before = s.memory.Snapshot()
-	}
 	if err := s.memory.RecordUse(ctx, sessionID, tokenID, method, now, idleExpiresAt); err != nil {
 		return err
 	}
-	s.useDirty = true
+	s.markUsageDirty(sessionID, tokenID)
 	if !shouldPersist {
 		return nil
 	}
-	if err := s.persistOrRestore(ctx, before); err != nil {
+	if err := s.persistDirtyUsage(ctx); err != nil {
+		s.restorePersisted()
 		return err
 	}
 	s.lastUsePersist = now
-	s.useDirty = false
 
 	return nil
 }
@@ -214,22 +243,18 @@ func (s *Store) KeepAliveSession(
 		now.Before(s.lastUsePersist) ||
 		persistInterval <= 0 ||
 		now.Sub(s.lastUsePersist) >= persistInterval
-	var before storememory.Snapshot
-	if shouldPersist {
-		before = s.memory.Snapshot()
-	}
 	if err := s.memory.KeepAliveSession(ctx, sessionID, now, idleExpiresAt); err != nil {
 		return err
 	}
-	s.useDirty = true
+	s.markUsageDirty(sessionID, "")
 	if !shouldPersist {
 		return nil
 	}
-	if err := s.persistOrRestore(ctx, before); err != nil {
+	if err := s.persistDirtyUsage(ctx); err != nil {
+		s.restorePersisted()
 		return err
 	}
 	s.lastUsePersist = now
-	s.useDirty = false
 
 	return nil
 }
@@ -241,12 +266,11 @@ func (s *Store) RevokeSession(
 ) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	before := s.memory.Snapshot()
 	if err := s.memory.RevokeSession(ctx, id, reason, now); err != nil {
 		return err
 	}
 
-	return s.persistOrRestore(ctx, before)
+	return s.persistOrRestore(ctx)
 }
 
 func (s *Store) RevokeToken(
@@ -256,23 +280,54 @@ func (s *Store) RevokeToken(
 ) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	before := s.memory.Snapshot()
 	if err := s.memory.RevokeToken(ctx, id, reason, now); err != nil {
 		return err
 	}
 
-	return s.persistOrRestore(ctx, before)
+	return s.persistOrRestore(ctx)
 }
 
 func (s *Store) AppendAudit(ctx context.Context, event morphauth.AuditEvent) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	before := s.memory.Snapshot()
-	if err := s.memory.AppendAudit(ctx, event); err != nil {
-		return err
+	if s.db == nil {
+		return errors.New("auth database is closed")
 	}
+	if event.ID != "" {
+		if _, exists := s.auditIDs[event.ID]; exists {
+			return fmt.Errorf("duplicate audit event ID %q", event.ID)
+		}
+	}
+	appended, evicted := s.memory.AppendAuditChange(event)
+	before := storememory.Snapshot{}
+	if evicted != nil {
+		before.Audit = []morphauth.AuditEvent{*evicted}
+	}
+	current := storememory.Snapshot{
+		Audit: []morphauth.AuditEvent{appended},
+	}
+	nextRevision, err := persistChanges(
+		ctx,
+		s.db,
+		s.stateRevision,
+		before,
+		current,
+	)
+	if err != nil {
+		s.restorePersisted()
+		return fmt.Errorf("persist auth audit event: %w", err)
+	}
+	if evicted != nil {
+		s.persisted.Audit[s.persistedAuditStart] = appended
+		s.persistedAuditStart = (s.persistedAuditStart + 1) % len(s.persisted.Audit)
+		delete(s.auditIDs, evicted.ID)
+	} else {
+		s.persisted.Audit = append(s.persisted.Audit, appended)
+	}
+	s.auditIDs[appended.ID] = struct{}{}
+	s.stateRevision = nextRevision
 
-	return s.persistOrRestore(ctx, before)
+	return nil
 }
 
 func (s *Store) ListAudit(ctx context.Context, limit int) ([]morphauth.AuditEvent, error) {
@@ -311,7 +366,7 @@ func (s *Store) PruneBatches(
 	if total == 0 {
 		return 0, nil
 	}
-	if err := s.persistOrRestore(ctx, before); err != nil {
+	if err := s.persistOrRestore(ctx); err != nil {
 		return 0, err
 	}
 
@@ -325,8 +380,8 @@ func (s *Store) Close() error {
 		return nil
 	}
 	var persistErr error
-	if s.useDirty {
-		persistErr = s.persist(context.Background())
+	if len(s.dirtySessions) > 0 || len(s.dirtyTokens) > 0 {
+		persistErr = s.persistDirtyUsage(context.Background())
 	}
 	closeErr := s.db.Close()
 	s.db = nil
@@ -340,48 +395,125 @@ func (s *Store) persist(ctx context.Context) error {
 	if s.db == nil {
 		return errors.New("auth database is closed")
 	}
-	body, err := json.Marshal(s.memory.Snapshot())
-	if err != nil {
-		return fmt.Errorf("encode auth state: %w", err)
-	}
-	_, err = s.db.ExecContext(ctx, `
-		INSERT INTO morph_auth_state (id, payload, updated_at)
-		VALUES (1, ?, ?)
-		ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at
-	`, body, time.Now().UTC().Format(time.RFC3339Nano))
+	current := s.memory.Snapshot()
+	nextRevision, err := persistChanges(
+		ctx,
+		s.db,
+		s.stateRevision,
+		s.getPersistedSnapshot(),
+		current,
+	)
 	if err != nil {
 		return fmt.Errorf("persist auth state: %w", err)
 	}
-	s.useDirty = false
+	s.persisted = current
+	s.persistedAuditStart = 0
+	s.stateRevision = nextRevision
+	s.clearDirtyUsage()
+	s.rebuildAuditIDs()
 
 	return nil
 }
 
 func (s *Store) persistOrRestore(
 	ctx context.Context,
-	before storememory.Snapshot,
 ) error {
 	if err := s.persist(ctx); err != nil {
-		s.memory = storememory.NewFromSnapshot(before)
+		s.restorePersisted()
 		return err
 	}
 
 	return nil
 }
 
-func loadSnapshot(db *sql.DB) (storememory.Snapshot, error) {
-	var body []byte
-	err := db.QueryRow(`SELECT payload FROM morph_auth_state WHERE id = 1`).Scan(&body)
-	if errors.Is(err, sql.ErrNoRows) {
-		return storememory.Snapshot{}, nil
+func (s *Store) persistDirtyUsage(ctx context.Context) error {
+	if s.db == nil {
+		return errors.New("auth database is closed")
 	}
+	before := storememory.Snapshot{
+		Sessions: make(map[string]morphauth.Session, len(s.dirtySessions)),
+		Tokens:   make(map[string]morphauth.Token, len(s.dirtyTokens)),
+	}
+	current := storememory.Snapshot{
+		Sessions: make(map[string]morphauth.Session, len(s.dirtySessions)),
+		Tokens:   make(map[string]morphauth.Token, len(s.dirtyTokens)),
+	}
+	for id := range s.dirtySessions {
+		before.Sessions[id] = s.persisted.Sessions[id]
+		session, err := s.memory.GetSession(ctx, id)
+		if err != nil {
+			return err
+		}
+		current.Sessions[id] = session
+	}
+	for id := range s.dirtyTokens {
+		before.Tokens[id] = s.persisted.Tokens[id]
+		token, err := s.memory.GetToken(ctx, id)
+		if err != nil {
+			return err
+		}
+		current.Tokens[id] = token
+	}
+	nextRevision, err := persistChanges(
+		ctx,
+		s.db,
+		s.stateRevision,
+		before,
+		current,
+	)
 	if err != nil {
-		return storememory.Snapshot{}, fmt.Errorf("load auth state: %w", err)
+		return fmt.Errorf("persist auth usage: %w", err)
 	}
-	var snapshot storememory.Snapshot
-	if err := json.Unmarshal(body, &snapshot); err != nil {
-		return storememory.Snapshot{}, fmt.Errorf("parse auth state: %w", err)
+	for id, session := range current.Sessions {
+		s.persisted.Sessions[id] = session
+	}
+	for id, token := range current.Tokens {
+		s.persisted.Tokens[id] = token
+	}
+	s.stateRevision = nextRevision
+	s.clearDirtyUsage()
+
+	return nil
+}
+
+func (s *Store) markUsageDirty(sessionID, tokenID string) {
+	if s.dirtySessions == nil {
+		s.dirtySessions = make(map[string]struct{})
+	}
+	s.dirtySessions[sessionID] = struct{}{}
+	if tokenID == "" {
+		return
+	}
+	if s.dirtyTokens == nil {
+		s.dirtyTokens = make(map[string]struct{})
+	}
+	s.dirtyTokens[tokenID] = struct{}{}
+}
+
+func (s *Store) clearDirtyUsage() {
+	clear(s.dirtySessions)
+	clear(s.dirtyTokens)
+}
+
+func (s *Store) restorePersisted() {
+	s.memory = storememory.NewFromSnapshot(s.getPersistedSnapshot())
+	s.clearDirtyUsage()
+}
+
+func (s *Store) rebuildAuditIDs() {
+	s.auditIDs = make(map[string]struct{}, len(s.persisted.Audit))
+	for _, event := range s.persisted.Audit {
+		s.auditIDs[event.ID] = struct{}{}
+	}
+}
+
+func (s *Store) getPersistedSnapshot() storememory.Snapshot {
+	snapshot := s.persisted
+	snapshot.Audit = make([]morphauth.AuditEvent, len(s.persisted.Audit))
+	for offset := range len(s.persisted.Audit) {
+		index := (s.persistedAuditStart + offset) % len(s.persisted.Audit)
+		snapshot.Audit[offset] = s.persisted.Audit[index]
 	}
 
-	return snapshot, nil
+	return snapshot
 }

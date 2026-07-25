@@ -111,6 +111,7 @@ func TestProjectPaths_DeriveFromActiveProfileHome(t *testing.T) {
 	require.Equal(t, filepath.Join(profileHome, "data"), DataDir())
 	require.Equal(t, filepath.Join(profileHome, "traces"), DebugTraceDir())
 	require.Equal(t, filepath.Join(profileHome, "data", "state.db"), StateDBPath())
+	require.Equal(t, filepath.Join(profileHome, "data", "auth.db"), AuthDBPath())
 	require.Equal(t, filepath.Join(profileHome, "data", "session.db"), SessionDBPath())
 }
 
@@ -122,12 +123,14 @@ func TestProjectPaths_IsolateProfiles(t *testing.T) {
 
 	profile.SetActive(profile.Profile{Name: "work", HomeDir: workHome})
 	require.Equal(t, filepath.Join(workHome, "data", "state.db"), StateDBPath())
+	require.Equal(t, filepath.Join(workHome, "data", "auth.db"), AuthDBPath())
 	require.Equal(t, filepath.Join(workHome, "traces"), DebugTraceDir())
 	require.Equal(t, filepath.Join(workHome, "SOUL.md"), filepath.Join(HomeDir(), "SOUL.md"))
 	require.Equal(t, filepath.Join(workHome, "memory.md"), filepath.Join(HomeDir(), "memory.md"))
 
 	profile.SetActive(profile.Profile{Name: "personal", HomeDir: personalHome})
 	require.Equal(t, filepath.Join(personalHome, "data", "state.db"), StateDBPath())
+	require.Equal(t, filepath.Join(personalHome, "data", "auth.db"), AuthDBPath())
 	require.Equal(t, filepath.Join(personalHome, "traces"), DebugTraceDir())
 	require.Equal(t, filepath.Join(personalHome, "SOUL.md"), filepath.Join(HomeDir(), "SOUL.md"))
 	require.Equal(t, filepath.Join(personalHome, "memory.md"), filepath.Join(HomeDir(), "memory.md"))

@@ -198,6 +198,7 @@ pairing helpers on top of the store.
 | Implementation | Path | Use |
 | --- | --- | --- |
 | `internal/state/storesqlite` | `data/state.db` | Production default (`storage.backend: sqlite`) |
+| `internal/auth/storesqlite` | `data/auth.db` | RPC authorizations, sessions, token metadata, and audit state |
 | `internal/state/storememory` | in-process | Tests and `storage.backend: memory` |
 
 Search and vectors:

@@ -218,7 +218,7 @@ their exact method scope includes session revocation. Explicit tokens remain ope
 or revoked automatically.
 
 Use `morph auth identity rotate` to stage a new profile identity, transactionally revoke prior authorization and active
-credentials in `auth.db`, then activate the key in `auth.json`. Startup resolves an interrupted rotation before serving
+credentials in `data/auth.db`, then activate the key in `auth.json`. Startup resolves an interrupted rotation before serving
 RPC. Rotation also changes the domain-separated browser-attachment identity, so existing remote and personal-browser
 attachment grants no longer match.
 

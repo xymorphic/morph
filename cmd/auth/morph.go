@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -20,6 +20,7 @@ import (
 	morphcli "github.com/wandxy/morph/internal/cli"
 	"github.com/wandxy/morph/internal/config"
 	"github.com/wandxy/morph/internal/credential"
+	"github.com/wandxy/morph/internal/datadir"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/profile"
 	rpcclient "github.com/wandxy/morph/internal/rpc/client"
@@ -100,8 +101,7 @@ func rotateIdentity(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	active := profile.Active()
-	databasePath := filepath.Join(active.HomeDir, "auth.db")
+	databasePath := datadir.AuthDBPath()
 	databaseExists := true
 	if _, statErr := os.Stat(databasePath); statErr != nil {
 		if !os.IsNotExist(statErr) {
@@ -407,7 +407,7 @@ func newAuditCommand() *cli.Command {
 		Commands: []*cli.Command{
 			{
 				Name: "list", Usage: "List RPC authentication audit events",
-				Flags: []cli.Flag{morphcli.ProfileFlag(), &cli.IntFlag{Name: "limit", Value: 50}},
+				Flags: []cli.Flag{morphcli.ProfileFlag(), &cli.IntFlag{Name: "limit", Value: 25}},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					return withMorphAuthAPI(ctx, cmd, []string{
 						morphpb.AuthService_ListAudit_FullMethodName,
@@ -416,7 +416,10 @@ func newAuditCommand() *cli.Command {
 						if err != nil {
 							return err
 						}
-						return writeJSONValue(events)
+						if cmd.Bool("json") {
+							return writeJSONValue(events)
+						}
+						return writeAuditList(events)
 					})
 				},
 			},
@@ -670,6 +673,57 @@ func writeJSONValue(value any) error {
 	encoder := json.NewEncoder(authOutput)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(value)
+}
+
+func writeAuditList(events []*morphpb.AuthAuditEvent) error {
+	_, err := fmt.Fprint(authOutput, auditListToText(events))
+	return err
+}
+
+func auditListToText(events []*morphpb.AuthAuditEvent) string {
+	if len(events) == 0 {
+		return "No RPC authentication audit events found.\n"
+	}
+
+	var output strings.Builder
+	output.WriteString("RPC authentication audit\n")
+	for index, event := range events {
+		if index > 0 {
+			output.WriteByte('\n')
+		}
+		fmt.Fprintf(
+			&output,
+			"[%s] %s\n",
+			getAuthDisplayText(event.GetType()),
+			getAuthDisplayText(formatProtoTime(event.GetCreatedAt())),
+		)
+		appendAuditField(&output, "Event ID", event.GetId())
+		appendAuditField(&output, "Identity", event.GetIdentityId())
+		appendAuditField(&output, "Session", event.GetSessionId())
+		appendAuditField(&output, "Token", event.GetTokenId())
+		appendAuditField(&output, "Method", event.GetMethod())
+		appendAuditField(&output, "Reason", event.GetReason())
+	}
+
+	return output.String()
+}
+
+func appendAuditField(output *strings.Builder, label, value string) {
+	if strings.TrimSpace(value) == "" {
+		return
+	}
+	fmt.Fprintf(output, "  %-12s %s\n", label+":", getAuthDisplayText(value))
+}
+
+func getAuthDisplayText(value string) string {
+	if value == "" {
+		return "-"
+	}
+	if strings.TrimSpace(value) != value || strings.ContainsAny(value, "\r\n\t") {
+		return strconv.Quote(value)
+	}
+
+	return value
 }
 
 type authorizationOutput struct {

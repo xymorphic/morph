@@ -18,6 +18,7 @@ import (
 	"github.com/wandxy/morph/internal/browser"
 	"github.com/wandxy/morph/internal/config"
 	"github.com/wandxy/morph/internal/credential"
+	"github.com/wandxy/morph/internal/datadir"
 	envtypes "github.com/wandxy/morph/internal/environment/types"
 	"github.com/wandxy/morph/internal/gateway"
 	"github.com/wandxy/morph/internal/permissions"
@@ -286,7 +287,7 @@ var serveRPC = func(
 		return errors.New("active profile home is required for Morph identity")
 	}
 	identityStore := credential.NewFileStore(filepath.Join(activeProfile.HomeDir, "auth.json"))
-	authDatabase, err := openAuthStore(filepath.Join(activeProfile.HomeDir, "auth.db"))
+	authDatabase, err := openAuthStore(datadir.AuthDBPath())
 	if err != nil {
 		return err
 	}

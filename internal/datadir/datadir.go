@@ -71,6 +71,10 @@ func StateDBPath() string {
 	return filepath.Join(DataDir(), "state.db")
 }
 
+func AuthDBPath() string {
+	return filepath.Join(DataDir(), "auth.db")
+}
+
 // SessionDBPath returns the path to the project session database.
 func SessionDBPath() string {
 	return filepath.Join(DataDir(), "session.db")

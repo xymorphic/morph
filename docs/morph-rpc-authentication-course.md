@@ -24,11 +24,11 @@ The system has seven related objects. Treating any two as interchangeable is the
 
 | Object | Useful mental model | Where it lives | What it proves or controls |
 | --- | --- | --- | --- |
-| Identity | Passport | Private key in `auth.json`; public key in `auth.db` | Who can sign |
-| Authorization | Server-side trust envelope | `auth.db` | Maximum roles, scopes, TTL, generation, and revision |
+| Identity | Passport | Private key in `auth.json`; public key in `data/auth.db` | Who can sign |
+| Authorization | Server-side trust envelope | `data/auth.db` | Maximum roles, scopes, TTL, generation, and revision |
 | Access token | Signed, short-lived visa | Normally only client memory | Requested subset of the authorization |
-| Auth session | Checked-in visit | `auth.db` | Idle and absolute lifetime shared by one or more tokens |
-| Token record | Activated visa record | `auth.db` | Live status, exact claims, expiry, usage, and revocation |
+| Auth session | Checked-in visit | `data/auth.db` | Idle and absolute lifetime shared by one or more tokens |
+| Token record | Activated visa record | `data/auth.db` | Live status, exact claims, expiry, usage, and revocation |
 | Principal | Validated caller card | Request context only | Immutable identity used by handlers and permissions |
 | Permission decision | What the caller may do inside Morph | Permission engine state | File, command, network, browser, and other operation access |
 
@@ -329,19 +329,25 @@ Important files:
 | --- | --- | --- |
 | `config.yaml` | Audience, TTLs, TLS, RPC address, and other profile config | Secrets are redacted by config diagnostics |
 | `auth.json` | Provider credentials and `_morph` private identity | Directory `0700`, file `0600`, locked and atomically replaced |
-| `auth.db` | Public authorizations, sessions, token metadata, audit snapshot | File `0600`; symlinks rejected |
+| `data/auth.db` | Public authorizations, sessions, token metadata, usage, and audit rows | File `0600`; symlinks rejected |
 | `runtime.json` | Active daemon PID and RPC endpoint | Lets profile-aware clients find the daemon |
 
 Optional SQLite inspection:
 
 ```console
-sqlite3 "$PROFILE_HOME/auth.db" '.schema morph_auth_state'
-sqlite3 "$PROFILE_HOME/auth.db" \
-  'select id, length(payload), updated_at from morph_auth_state;'
+sqlite3 "$PROFILE_HOME/data/auth.db" '.tables'
+sqlite3 "$PROFILE_HOME/data/auth.db" '.schema authorizations'
+sqlite3 "$PROFILE_HOME/data/auth.db" \
+  'select id, status, identity_id, expires_at from tokens;'
+sqlite3 "$PROFILE_HOME/data/auth.db" \
+  'select type, identity_id, session_id, token_id, created_at from audit_events order by sequence;'
 ```
 
-The SQLite store persists one atomic JSON snapshot. It contains token metadata and nonces, not raw JWT strings or
-private keys.
+The SQLite store uses normalized tables for authorizations, their roles and scopes, sessions, session roles, tokens,
+token roles and scopes, per-method usage, and audit events. A store mutation writes one SQLite transaction, so related
+rows change together, and a revision check rejects stale concurrent writers. Usage and keepalive flushes update only
+dirty session and token rows. Audit rollover deletes the expired event and appends one stable sequence instead of
+renumbering retained history. Token rows contain safe claim metadata and nonces, not raw JWT strings or private keys.
 
 ## 6. Watch Automatic CLI Credentials Live and Die
 
@@ -886,12 +892,13 @@ revision change cancels the authenticated stream context.
 
 ### SQLite write behavior
 
-The SQLite store keeps an in-memory working snapshot protected by a mutex and persists mutations to one database row.
+The SQLite store keeps an in-memory working set protected by a mutex and persists changes to normalized tables in one
+transaction. A database revision prevents two daemon/store instances from overwriting each other's security changes.
 
 - activation, revocation, authorization changes, rotation, and audit appends persist immediately;
-- ordinary use updates are coalesced to at most one snapshot write per second;
+- ordinary use updates are coalesced to at most one dirty-row flush per second;
 - stream keepalives persist no slower than one third of the current lease, capped at one second;
-- a failed persistence restores the previous in-memory snapshot;
+- a failed persistence restores the last durable in-memory state;
 - dirty use state is flushed on clean close.
 
 The lease-relative keepalive rule matters for very short idle TTLs: persistence happens before a crash can expose an
@@ -901,7 +908,7 @@ Run the durability-focused tests:
 
 ```console
 CGO_ENABLED=1 go test -tags sqlite_fts5 ./internal/auth/storesqlite \
-  -run 'TestStore_(PersistsStreamKeepAliveBeforeClose|PersistsKeepAliveBeforeShortDurableLeaseExpires|DefersKeepAliveWithinDurableLeaseMargin|RestoresKeepAliveAfterPersistenceFailure)' \
+  -run 'TestStore_(PersistsStreamKeepAliveBeforeClose|PersistsKeepAliveBeforeShortDurableLeaseExpires|DefersKeepAliveWithinDurableLeaseMargin|RestoresKeepAliveAfterPersistenceFailure|CloseReportsFailedDeferredUsageFlush)' \
   -v
 ```
 
@@ -1217,7 +1224,7 @@ Then remove that exact temporary directory using your normal safe cleanup workfl
 - the temporary Morph binary;
 - both disposable profiles;
 - all lab identities and tokens;
-- `auth.db`;
+- `data/auth.db`;
 - optional TLS private keys.
 
 Do not keep the JWT or TLS keys after the lab.
@@ -1246,7 +1253,7 @@ Answers:
 5. Explicit credentials are caller-managed and must never be silently replaced or revoked.
 6. RPC method authorization, then operation-level permission evaluation.
 7. A keepalive watcher rechecks its principal and cancels the stream context on failure.
-8. Identity in `auth.json`; authorizations, sessions, token metadata, and audit state in `auth.db`.
+8. Identity in `auth.json`; authorizations, sessions, token metadata, and audit state in `data/auth.db`.
 9. TLS protects and optionally binds the transport; JWT still supplies Morph identity, scope, session, and revocation.
 10. `authorization_revision` and `identity_generation`.
 

@@ -19,11 +19,13 @@ import (
 	morphauth "github.com/wandxy/morph/internal/auth"
 	"github.com/wandxy/morph/internal/config"
 	appcredential "github.com/wandxy/morph/internal/credential"
+	"github.com/wandxy/morph/internal/datadir"
 	"github.com/wandxy/morph/internal/profile"
 	rpcclient "github.com/wandxy/morph/internal/rpc/client"
 	morphpb "github.com/wandxy/morph/internal/rpc/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func newProviderTestCommand() *cli.Command {
@@ -434,7 +436,8 @@ func TestRotateIdentity_RejectsAuthDatabaseStatFailureBeforePreparingKey(t *test
 	store := appcredential.NewFileStore(filepath.Join(home, "auth.json"))
 	current, err := store.LoadOrCreateIdentity()
 	require.NoError(t, err)
-	databasePath := filepath.Join(home, "auth.db")
+	databasePath := datadir.AuthDBPath()
+	require.NoError(t, os.MkdirAll(filepath.Dir(databasePath), 0o700))
 	if err := os.Symlink(databasePath, databasePath); err != nil {
 		t.Skipf("create auth database symlink: %v", err)
 	}
@@ -596,6 +599,79 @@ func TestAuthorizationOutput_EncodesPublicKeyAsHex(t *testing.T) {
 	require.Equal(t, hex.EncodeToString(identity.PublicKey), value["public_key"])
 }
 
+func TestCommand_AuditListHonorsTextAndJSONOutput(t *testing.T) {
+	setAuthTestProfile(t)
+	createdAt := timestamppb.New(time.Date(2026, 7, 25, 18, 30, 0, 0, time.UTC))
+	events := []*morphpb.AuthAuditEvent{{
+		Id:         "audit-1",
+		Type:       "scope_denied",
+		IdentityId: "identity-1",
+		SessionId:  "session-1",
+		TokenId:    "token-1",
+		Method:     "/morph.v1.AuthService/ListTokens",
+		Reason:     "method is not authorized",
+		CreatedAt:  createdAt,
+	}}
+	var requestedLimits []int32
+	originalClient := newMorphAuthClient
+	t.Cleanup(func() { newMorphAuthClient = originalClient })
+	newMorphAuthClient = func(
+		_ context.Context,
+		_ *config.Config,
+		methods []string,
+	) (morphAuthClient, error) {
+		require.Equal(t, []string{
+			morphpb.AuthService_ListAudit_FullMethodName,
+		}, methods)
+		return morphAuthClientStub{api: authAPIStub{
+			auditEvents: events,
+			auditLimit: func(limit int32) {
+				requestedLimits = append(requestedLimits, limit)
+			},
+		}}, nil
+	}
+	output := &bytes.Buffer{}
+	restoreOutput := SetOutput(output)
+	t.Cleanup(func() { SetOutput(restoreOutput) })
+
+	err := NewCommand().Run(context.Background(), []string{
+		"auth", "audit", "list",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []int32{25}, requestedLimits)
+	require.True(t, strings.HasPrefix(output.String(), "RPC authentication audit\n"))
+	require.Contains(
+		t,
+		output.String(),
+		"[scope_denied] "+formatProtoTime(createdAt),
+	)
+	require.Contains(t, output.String(), "Event ID:    audit-1")
+	require.Contains(t, output.String(), "Identity:    identity-1")
+	require.Contains(t, output.String(), "Session:     session-1")
+	require.Contains(t, output.String(), "Token:       token-1")
+	require.Contains(t, output.String(), "Method:      /morph.v1.AuthService/ListTokens")
+	require.Contains(t, output.String(), "Reason:      method is not authorized")
+
+	output.Reset()
+	err = NewCommand().Run(context.Background(), []string{
+		"auth", "--json", "audit", "list", "--limit", "1",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []int32{25, 1}, requestedLimits)
+	var decoded []map[string]any
+	require.NoError(t, json.Unmarshal(output.Bytes(), &decoded))
+	require.Len(t, decoded, 1)
+	require.Equal(t, "audit-1", decoded[0]["id"])
+}
+
+func TestAuditListToText_FormatsEmptyState(t *testing.T) {
+	require.Equal(
+		t,
+		"No RPC authentication audit events found.\n",
+		auditListToText(nil),
+	)
+}
+
 func TestRandomAuthID_UsesHexEncoding(t *testing.T) {
 	id, err := randomAuthID()
 	require.NoError(t, err)
@@ -686,12 +762,25 @@ type authAPIStub struct {
 	rpcclient.AuthAPI
 	identityStatus *morphpb.GetAuthIdentityStatusResponse
 	identityErr    error
+	auditEvents    []*morphpb.AuthAuditEvent
+	auditErr       error
+	auditLimit     func(int32)
 }
 
 func (s authAPIStub) IdentityStatus(
 	context.Context,
 ) (*morphpb.GetAuthIdentityStatusResponse, error) {
 	return s.identityStatus, s.identityErr
+}
+
+func (s authAPIStub) ListAudit(
+	_ context.Context,
+	limit int32,
+) ([]*morphpb.AuthAuditEvent, error) {
+	if s.auditLimit != nil {
+		s.auditLimit(limit)
+	}
+	return s.auditEvents, s.auditErr
 }
 
 func (errorWriter) Write([]byte) (int, error) {

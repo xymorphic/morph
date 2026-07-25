@@ -14,9 +14,11 @@ durable authorization and auth-session state, and mandatory authentication for e
 principal must drive RPC method authorization, permission actor identity, audit records, token revocation, and optional
 mutual TLS certificate binding.
 
-This is a direct cutover. Morph will not read, migrate, or accept `rpc-owner.key`, legacy owner-proof metadata, or
-unauthenticated RPC calls after the new boundary is enabled. Existing Morph capabilities continue to work through the
-new authenticated client path, but the old RPC authentication protocol is removed rather than retained as a fallback.
+This is a direct cutover. Morph will not read, migrate, or accept `rpc-owner.key`, legacy owner-proof metadata,
+unauthenticated RPC calls, pre-hex Morph identity material, prior identity-ID encodings, or the former profile-root
+`auth.db` after the new boundary is enabled. Only the normalized schema in `<profile>/data/auth.db` is authoritative;
+existing Morph capabilities continue to work through the new authenticated client path, but no legacy RPC
+authentication or storage fallback is retained.
 
 Local usability remains automatic:
 
@@ -30,20 +32,21 @@ Local usability remains automatic:
 
 ## Problem Frame
 
-Morph currently has two different RPC trust levels:
+Before the cutover, Morph had two different RPC trust levels:
 
 - most RPC methods run without application authentication;
 - selected owner-sensitive paths recognize an optional HMAC proof loaded from `rpc-owner.key`.
 
-The current proof is method-bound, request-bound, short-lived, and replay checked, but it is not a general identity or
+That proof was method-bound, request-bound, short-lived, and replay checked, but it was not a general identity or
 authorization system. A caller without a proof can still reach ordinary RPC methods, the proof has one implicit profile
 owner, there are no inspectable auth sessions, and revocation means rotating a shared file and restarting clients.
 Transport is also plaintext gRPC, so an RPC endpoint exposed beyond loopback has neither encrypted transport nor a
 general application identity boundary.
 
-The main integration points are already centralized enough to replace this cleanly:
+The cutover used these centralized integration points:
 
-- `internal/rpc/server/auth.go` and `internal/rpc/client/owner_auth.go` own the current interceptors;
+- `internal/rpc/server/auth.go`, `internal/rpc/client/auth.go`, `internal/rpc/client/auth_interceptor.go`, and
+  `internal/rpc/client/auth_resolver.go` own the current authentication path;
 - `internal/rpc/rpcmeta/permissions.go` turns authenticated RPC context into a permission actor;
 - `internal/rpc/client/client.go` is the common client constructor used by CLI, TUI, session, gateway, automation,
   permission, browser, and end-to-end clients;
@@ -66,8 +69,12 @@ operation.
 - The new protocol has no unauthenticated compatibility mode.
 - Provider credentials already stored in `auth.json` remain functional; the file gains a reserved Morph auth section
   without converting provider credentials into RPC identities.
-- `auth.key` is Ed25519 private signing material or a key reference. Its derived public key is the identity. No separate
+- `auth.key` is Ed25519 private signing material or a key reference. Raw private keys use lowercase hex: the canonical
+  stored form is the 32-byte seed (64 characters), while a 64-byte private key (128 characters) is accepted as input.
+  PEM and other encodings are rejected without fallback. The derived public key is the identity. No separate
   HS256-style JWT secret is introduced because the identity key is the signing secret.
+- Pre-hex Morph identities, prior identity IDs, and the former `<profile>/auth.db` are not migrated. Recovery means
+  reinitializing only the Morph RPC identity state while preserving provider credential records in `auth.json`.
 - JWT character count is not an independent security control. Token generation supports configurable lifetime, claim
   scope, and bounded nonce entropy; the encoded token length follows from those claims and Ed25519's fixed signature.
 - JWT is mandatory even when mTLS is enabled. mTLS provides transport confidentiality, peer authentication, and
@@ -82,12 +89,14 @@ operation.
 ### Identity and secret handling
 
 - R1. Every Morph profile must have one root Ed25519 identity. The identity ID and JWT `kid` must be derived from the
-  final 20 bytes of a SHA-256 digest of its raw Ed25519 public key, encoded as lowercase hex; profile names, filenames, or caller-provided labels are not identity
-  proof.
+  final 20 bytes of a SHA-256 digest of its raw Ed25519 public key, encoded as lowercase hex; profile names, filenames,
+  or caller-provided labels are not identity proof.
 - R2. When no effective key exists, profile setup or first daemon initialization must generate the key pair atomically
   with cryptographically secure randomness and owner-only permissions on Unix and Windows.
 - R3. The effective private key may come from an explicit flag, profile config `auth.key`, or the reserved Morph record
-  in profile `auth.json`. The effective public key must always be derived and checked against any configured identity
+  in profile `auth.json`. Its canonical stored form must be a lowercase-hex 32-byte Ed25519 seed. A lowercase-hex
+  64-byte Ed25519 private key may be accepted as input and normalized to the seed form; PEM and other encodings must
+  fail without fallback. The effective public key must always be derived and checked against configured identity
   metadata.
 - R4. The effective access token may come from an explicit flag, profile config `auth.token`, or `auth.json`. Secrets
   must be redacted from logs, traces, errors, status output, effective config, crash diagnostics, and process listings
@@ -97,7 +106,7 @@ operation.
   visible source.
 - R6. Provider login, refresh, status, and logout must continue to preserve their own records while Morph identity data
   is read or written in the same `auth.json` document.
-- R7. Identity rotation must use a recoverable staged protocol across `auth.json` and `auth.db`: prepare the new key,
+- R7. Identity rotation must use a recoverable staged protocol across `auth.json` and `data/auth.db`: prepare the new key,
   journal the transition, transactionally advance the identity generation and revoke prior sessions/tokens, then
   activate the new key and clear the journal. Startup recovery must complete or roll back an interrupted transition
   without accepting both generations. Browser attachment fingerprints derived from the old owner secret must stop
@@ -178,8 +187,9 @@ operation.
 - R33. Crashed CLI/TUI processes rely on idle and absolute session expiry; cleanup must not require the client to run.
 - R34. Explicit tokens must never be automatically replaced, broadened, renewed, or revoked by client shutdown. Their
   expiry and lifecycle remain operator-managed.
-- R35. `morph auth` must retain provider credential commands and add identity, token, session, authorization, audit, and
-  mTLS status commands. Token, session, authorization, and audit management operations must go through authenticated
+- R35. `morph provider login|status|logout|configure` must own model-provider credentials, with no compatibility aliases
+  under `morph auth`. `morph auth` is reserved for Morph RPC identity, token, session, authorization, audit, and mTLS
+  status commands. Token, session, authorization, and audit management operations must go through authenticated
   `AuthService` RPC methods.
 - R36. Identity initialization and local key inspection may run before a daemon exists. Commands that change server
   authorization, active sessions, or token state require a reachable authenticated daemon.
@@ -223,8 +233,8 @@ operation.
   raw Ed25519 public key, encoded as lowercase hex, provide a compact deterministic `kid` and identity identifier
   that cannot be forged by changing a label.
 - KTD2a. **Use lowercase hex for Morph-owned byte strings.** Generated session IDs, JWT IDs, nonces, identity IDs, and
-  CLI public-key input use hexadecimal text. JWT compact segments and signatures, public JWK members, and
-  `x5t#S256` retain their standards-required unpadded Base64URL encoding.
+  raw public/private key input and output use hexadecimal text. JWT compact segments and signatures, public JWK
+  members, and `x5t#S256` retain their standards-required unpadded Base64URL encoding.
 - KTD3. **Adopt the JWT access-token validation profile, not a general JWT parser.** Tokens use `typ: at+jwt`, required
   issuer, subject, audience, time, and JWT ID validation, explicit EdDSA-only algorithms, strict decoding, small clock
   skew, and mutually exclusive validation rules for any future token type.
@@ -243,10 +253,10 @@ operation.
   credential entries while identity code updates only the reserved Morph record. Both paths reuse one file lock,
   atomic replacement, redaction, and platform protection boundary.
 - KTD9. **Persist production auth state independently of the selected application storage backend.** Auth sessions,
-  token metadata, authorizations, tombstones, and audit events live in a profile-owned `auth.db` opened by the daemon
-  before RPC starts. Selecting `storage.backend: memory` must not erase revocation after restart. An in-memory AuthStore
-  exists only as a deterministic test double. Auth sessions are not chat sessions and are not embedded in conversation
-  traces.
+  token metadata, authorizations, tombstones, and audit events live at `<profile>/data/auth.db`, resolved through
+  `datadir.AuthDBPath()` and opened by the daemon before RPC starts. Selecting `storage.backend: memory` must not erase
+  revocation after restart. An in-memory AuthStore exists only as a deterministic test double. Auth sessions are not
+  chat sessions and are not embedded in conversation traces.
 - KTD10. **Make authorization grants cap token claims.** On first auth-store initialization, the daemon derives the
   configured root public identity and transactionally seeds its owner authorization before serving RPC. Delegated
   identities receive bounded records that include their public key. A signed token cannot promote itself to owner, add
@@ -276,9 +286,9 @@ operation.
 - KTD19. **Cut over once and delete the old path.** New components may be built behind tests on the feature branch, but
   the merged runtime never accepts both HMAC owner proofs and JWT. `internal/rpc/rpcauth`, owner interceptors, legacy
   metadata, and `browser auth rotate` disappear in the enforcement phase.
-- KTD20. **Preserve provider auth while expanding the `auth` command.** Existing `login`, `status`, and `logout`
-  behavior remains. New grouped commands own Morph identity and RPC auth so provider credentials and daemon authority
-  are visibly distinct.
+- KTD20. **Separate provider credentials from RPC authentication.** `morph provider` owns provider `login`, `status`,
+  `logout`, and `configure`; `morph auth` owns Morph identity and RPC authorization operations. The breaking namespace
+  split has no compatibility aliases, keeping provider credentials visibly distinct from daemon authority.
 - KTD21. **Journal identity rotation across the secret file and auth database.** A filesystem replace and SQLite
   transaction cannot be one atomic commit. Rotation therefore stages the new key under owner-only protection, records
   a database transition with old/new generations, commits revocation and authorization changes, switches the active
@@ -452,8 +462,8 @@ Tasks:
 
 - [x] Add auth configuration, defaults, normalization, environment and CLI overrides, validation, cloning, and
   redaction.
-- [x] Add Ed25519 key generation, canonical seed-hex encoding, public JWK representation, 20-byte hex public-key identity IDs, identity generation,
-  and domain-separated subkey derivation.
+- [x] Add Ed25519 key generation, canonical seed-hex encoding, public JWK representation, 20-byte hex public-key
+  identity IDs, identity generation, and domain-separated subkey derivation.
 - [x] Refactor the `auth.json` file layer to preserve provider records and a reserved Morph auth object atomically.
 - [x] Protect identity material with existing Unix mode and Windows ACL patterns.
 - [x] Provision a root profile identity during setup or daemon initialization when no explicit key exists.
@@ -466,7 +476,8 @@ Exit criteria:
 - [x] A new profile receives exactly one valid Ed25519 identity under concurrent initialization.
 - [x] Provider credential operations cannot erase, list as a provider, or corrupt the reserved Morph auth record.
 - [x] Config, logs, errors, status, and JSON output never expose the private key or stored token.
-- [x] Identity rotation changes the public-key identity digest and browser attachment identity generation atomically.
+- [x] Identity rotation uses a crash-consistent staged cutover so recovery leaves exactly one public-key identity
+  generation and its matching browser attachment generation active.
 
 ### Phase 2: JWT, authorization, session, token, and audit state
 
@@ -477,14 +488,14 @@ Implement strict JWT construction/validation and durable auth-domain stores befo
 Tasks:
 
 - [x] Define identity authorization, auth session, token metadata, revocation tombstone, audit event, status, query,
-  retention, and error contracts.
+  initial fixed-retention, and error contracts.
 - [x] Implement EdDSA-only access token signing and parsing with required standard and Morph claims.
 - [x] Build the canonical protobuf descriptor-backed service/method scope catalog and subset checks.
 - [x] Enforce role, owner, user, service, method, TTL, nonce, identity-generation, and authorization-revision caps.
 - [x] Add a dedicated AuthStore contract, a production profile-owned SQLite implementation, and an in-memory test
   implementation independent of the configured application state backend.
 - [x] Add transactional session/token activation, renewal, use accounting, revocation, expiry, and bounded pruning.
-- [x] Preserve revoked session and token tombstones through the maximum replay and retention windows.
+- [x] Preserve revoked session and token tombstones through the initial fixed replay and retention window.
 - [x] Add safe authentication audit recording and queries without raw credentials.
 - [x] Add bounded per-token/per-method use accounting and retention so routine authenticated calls do not grow one
   audit row per invocation.
@@ -510,14 +521,14 @@ Add the authenticated bootstrap and operator management surface needed before gl
 
 Tasks:
 
-- [x] Add AuthService RPC messages and methods for session open/list/get/revoke, token register/list/get/revoke,
-  authorization list/grant/revoke, audit list/prune, and identity status.
+- [x] Add AuthService RPC messages and methods for session open/close/list/revoke, token list/revoke, authorization
+  list/grant/revoke, audit list/prune, and identity rotation; keep identity inspection local to the CLI.
 - [x] Permit inactive-session validation only for the exact OpenSession method and reject it everywhere else.
 - [x] Ensure OpenSession activates the presented token and session in one transaction after complete authorization
   validation.
 - [x] Add client types and safe proto/domain conversions that never return raw stored tokens or keys.
-- [x] Expand `morph auth` with identity, token, session, authorization, audit, and mTLS status command groups while
-  retaining provider login/status/logout.
+- [x] Add identity, token, session, authorization, audit, and mTLS status groups under `morph auth`; move provider
+  login, status, logout, and configure to `morph provider` with no compatibility aliases.
 - [x] Add token generation controls for TTL, nonce bytes, owner, user, roles, services, methods, session, and explicit
   output destination.
 - [x] Make identity authorization changes advance a revision and revoke or reject affected sessions immediately.
@@ -601,21 +612,24 @@ Tasks:
 
 - [ ] Add rate and size limits for session opening, JWT parsing, failed authentication, nonce/tombstone storage, and
   audit retention.
+- [ ] Add validated, configurable session/token tombstone and audit-retention settings, replacing the daemon's fixed
+  retention window while preserving bounded pruning.
 - [ ] Add doctor checks for identity readiness, key permissions, effective token source, token expiry, auth store,
   authorization revision, TLS posture, certificates, and non-loopback plaintext rejection.
 - [x] Verify authentication errors are stable, redacted, and do not reveal whether an unknown identity or JWT ID exists.
 - [ ] Cover config reload, daemon restart, clock skew, token expiry during streams, concurrent revocation, identity
   rotation, certificate rotation, and SQLite reopen.
-- [x] Update RPC, daemon, security, config, CLI, profile, permissions, browser, architecture, troubleshooting, FAQ, and
-  testing documentation.
+- [ ] Complete the RPC-auth documentation audit across daemon, security, config, CLI, profile, permissions, browser,
+  architecture, troubleshooting, FAQ, and testing guidance, including the breaking command, encoding, and database
+  location contracts.
 - [ ] Add cross-platform tests for auth file permissions and replacement on Unix and Windows.
 - [ ] Add end-to-end parity tests for every registered gRPC method and first-party command.
 
 Exit criteria:
 
 - [x] The full project test suite passes with no unprotected RPC service or first-party unauthenticated client.
-- [x] Documentation contains no plaintext/no-auth, loopback-is-owner, HMAC owner-proof, `rpc-owner.key`, or browser-auth
-  rotation assumptions.
+- [ ] Documentation contains no plaintext/no-auth, loopback-is-owner, HMAC owner-proof, `rpc-owner.key`, browser-auth
+  rotation, pre-hex identity, prior identity-ID, or profile-root `auth.db` assumptions.
 - [ ] Operators can identify the effective identity and token source, inspect active sessions and tokens, revoke access,
   and diagnose TLS failures without viewing a secret.
 
@@ -628,8 +642,8 @@ Exit criteria:
 - **Goal:** Define the profile identity, secret-source precedence, auth settings, redaction, and key lifecycle.
 - **Requirements:** R1-R7, R14-R15, R38-R39.
 - **Dependencies:** None.
-- **Files:** `internal/auth/identity.go`, `internal/auth/jwk.go`, `internal/auth/secret.go`,
-  `internal/auth/identity_test.go`, `internal/config/auth.go`, `internal/config/config.go`,
+- **Files:** `internal/auth/identity.go`, `internal/auth/secret.go`, `internal/auth/identity_test.go`,
+  `internal/config/auth.go`, `internal/config/config.go`,
   `internal/config/runtime.go`, `internal/config/defaults.go`, `internal/config/normalize.go`,
   `internal/config/validation.go`, `internal/config/env.go`, related config tests, `internal/cli/flags.go`, `example.yaml`.
 - **Approach:** Use `crypto/ed25519`, canonical seed-hex encoding with full private-key hex accepted as input, public OKP JWKs, trailing-20-byte lowercase hex SHA-256 public-key identity IDs, explicit identity generations, and
@@ -650,7 +664,7 @@ Exit criteria:
 - **Dependencies:** U1.
 - **Files:** `internal/credential/document.go`, `internal/credential/file.go`,
   `internal/credential/morph_auth.go`, related credential tests, `cmd/auth/auth.go`,
-  `cmd/auth/identity.go`, `cmd/auth/identity_test.go`.
+  `cmd/auth/morph.go`, `cmd/auth/auth_test.go`, `cmd/provider/provider.go`, `cmd/provider/provider_test.go`.
 - **Approach:** Read the file as a locked raw JSON document, reserve a validated Morph auth key, and let provider and
   identity adapters update only their own entries before one atomic write. Reject provider names that collide with the
   reserved key.
@@ -666,7 +680,7 @@ Exit criteria:
 - **Goal:** Produce and validate strict Morph access tokens whose claims are bounded and structurally scoped.
 - **Requirements:** R8-R15.
 - **Dependencies:** U1.
-- **Files:** `internal/auth/token.go`, `internal/auth/claims.go`, `internal/auth/scope.go`,
+- **Files:** `internal/auth/token.go`, `internal/auth/token_test.go`, `internal/auth/scope.go`,
   `internal/auth/catalog.go`, related tests, `go.mod`, `go.sum`, `internal/rpc/proto/morph.proto`, generated proto files.
 - **Approach:** Wrap `github.com/golang-jwt/jwt/v5`; allow only EdDSA; require explicit token type, audience, issuer,
   expiry and strict decoding; derive method catalog from descriptors; validate all custom claims before producing a
@@ -686,17 +700,24 @@ Exit criteria:
 - **Dependencies:** U1, U3.
 - **Files:** `internal/auth/store.go`, `internal/auth/storememory/store.go`,
   `internal/auth/storememory/store_test.go`, `internal/auth/storesqlite/store.go`,
-  `internal/auth/storesqlite/store_test.go`, and daemon auth-store assembly tests.
+  `internal/auth/storesqlite/persistence.go`, `internal/auth/storesqlite/store_test.go`,
+  `internal/datadir/datadir.go`,
+  `internal/datadir/datadir_test.go`, and daemon auth-store assembly tests.
 - **Approach:** Add a focused AuthStore contract. The daemon always opens a profile-owned SQLite auth database before
-  serving RPC, regardless of the chat/session storage backend. SQLite transactions own activate, renew, revoke,
-  revision, root-authorization bootstrap, rotation journal, and tombstone invariants. Store safe claim summaries and
-  IDs, never raw JWT or private keys. Keep the memory implementation semantically identical as a test double.
+  serving RPC, regardless of the chat/session storage backend. Resolve the path only through `datadir.AuthDBPath()` to
+  `<profile>/data/auth.db`. The data directory and database must receive platform-appropriate owner-only protection;
+  unsafe symlinks or special files and protection failures must abort startup before RPC begins. Use normalized tables
+  for authorizations and scopes, sessions and roles, token metadata and scopes, per-method usage, and audit events.
+  SQLite transactions own activate, renew, revoke, revision, root-authorization bootstrap, rotation journal, and
+  tombstone invariants. Store safe claim summaries and IDs, never raw JWT or private keys. Keep the memory
+  implementation semantically identical as a test double.
 - **Patterns to follow:** Permission request/grant stores, automation run state, trace pagination, and bounded permission
   pruning.
 - **Test scenarios:** Atomic root authorization bootstrap; atomic first activation; idempotent repeated OpenSession;
   concurrent open/revoke; revoked-token reopen; session-wide revoke; token-only revoke; authorization revision;
   interruption at each identity-rotation journal stage; idle/absolute expiry; ordering/filtering/pagination; audit
-  retention; bounded per-method usage accounting; SQLite reopen and query failures.
+  retention; bounded per-method usage accounting; owner-only directory/database protection; symlink and special-file
+  rejection; SQLite reopen and query failures.
 - **Verification:** Store contract tests run unchanged against memory and SQLite, production assembly never selects the
   memory store, and revocation survives daemon and SQLite restart.
 
@@ -706,8 +727,9 @@ Exit criteria:
 - **Requirements:** R17-R23, R35-R37, R44.
 - **Dependencies:** U3, U4.
 - **Files:** `internal/rpc/auth_service.go`, `internal/rpc/auth_service_test.go`,
-  `internal/rpc/client/auth.go`, `internal/rpc/client/auth_test.go`, `internal/rpc/proto/morph.proto`, generated files,
-  `cmd/auth/token.go`, `cmd/auth/session.go`, `cmd/auth/authorization.go`, `cmd/auth/audit.go`, and command tests.
+  `internal/rpc/client/auth.go`, `internal/rpc/client/auth_interceptor_test.go`,
+  `internal/rpc/client/auth_resolver_test.go`, `internal/rpc/proto/morph.proto`, generated files,
+  `cmd/auth/morph.go`, and `cmd/auth/auth_test.go`.
 - **Approach:** Keep RPC adapters thin and place lifecycle rules in `internal/auth.Service`. OpenSession receives special
   bootstrap validation; every management operation uses ordinary active-token validation and exact management scopes.
 - **Patterns to follow:** PermissionService and approval management commands; browser RPC safe proto conversion; local
@@ -728,8 +750,8 @@ Exit criteria:
 - **Approach:** Chain strict token parsing, identity authorization, live-state lookup, exact method scope, optional
   certificate binding, and principal context. Wrap stream contexts in expiry/revocation cancellation. Map auth errors to
   stable `Unauthenticated` and method authorization to `PermissionDenied` without revealing lookup details.
-- **Patterns to follow:** Current owner proof interceptors for unary/stream request plumbing; permission context
-  derivation; browser artifact stream cancellation; trace safe-payload allowlists.
+- **Patterns to follow:** Current JWT unary/stream interceptor plumbing; permission context derivation; browser artifact
+  stream cancellation; trace safe-payload allowlists.
 - **Test scenarios:** Every registered method without JWT; wrong service/method; inactive/revoked token; revoked session;
   permission actor owner versus rpc client; spoofed surface/preset; token expiry and revocation during both streams;
   concurrent calls; audit failure behavior; health authentication.
@@ -779,7 +801,7 @@ Exit criteria:
 - **Dependencies:** U1, U6, U7.
 - **Files:** `internal/config/auth.go`, config tests, `internal/rpc/tlsconfig/config.go`,
   `internal/rpc/tlsconfig/config_test.go`, `internal/rpc/server/server.go`, `internal/rpc/client/client.go`,
-  `internal/diagnostics/readiness/rpc_auth.go`, readiness tests, `cmd/auth/mtls.go`, command tests.
+  `internal/diagnostics/readiness/rpc_auth.go`, readiness tests, `cmd/auth/morph.go`, `cmd/auth/auth_test.go`.
 - **Approach:** Build server/client `crypto/tls` configurations from validated files or references, require TLS for
   non-loopback, use gRPC transport credentials, verify client-auth certificate policy, and compare `cnf.x5t#S256` with
   the observed peer leaf certificate.
@@ -853,14 +875,18 @@ Exit criteria:
   bodies, or certificate private material.
 - AE15. **Complete cutover:** Given `rpc-owner.key` and old proof headers, when the new daemon starts and a legacy client
   connects, then the file is ignored and every legacy-only call is rejected.
+- AE16. **Representation cutover:** Given pre-hex Morph identity material or a prior identity ID, when the new runtime
+  starts, then it neither decodes nor migrates that state and reports the documented RPC-auth reset path without
+  modifying provider credentials. A former profile-root `auth.db` is outside the active path and is ignored without
+  migration, fallback, or a compatibility check.
 
 ---
 
 ## System-Wide Impact
 
-- **Configuration:** Adds auth identity, token, TTL, authorization, audit retention, TLS, and mTLS settings plus global
-  flags and redaction rules.
-- **Profile storage:** Extends `auth.json` with a reserved Morph record and adds a dedicated `auth.db` for identities,
+- **Configuration:** Adds auth identity, token, TTL, authorization, TLS, and mTLS settings plus global flags and
+  redaction rules; configurable auth-state and audit retention remains Phase 6 work.
+- **Profile storage:** Extends `auth.json` with a reserved Morph record and adds a dedicated `data/auth.db` for identities,
   authorizations, sessions, tokens, tombstones, and audit events, independent of the application storage backend.
 - **RPC contract:** Adds AuthService and mandatory interceptors across Morph, Session, Model, Gateway, Automation,
   Permission, Browser, and health services.
@@ -892,7 +918,8 @@ Exit criteria:
 - **auth.json corruption:** Provider and Morph auth writers could overwrite each other. Mitigation: one shared raw
   document lock and atomic update layer with reserved-key validation and mixed-record tests.
 - **Identity rotation blast radius:** Rotation invalidates JWTs and browser approvals. Mitigation: explicit command
-  confirmation, impact preview, atomic generation change, audit record, and clear reauthentication diagnostics.
+  confirmation, impact preview, crash-consistent staged generation cutover, audit record, and clear reauthentication
+  diagnostics.
 - **JWT parser confusion:** Flexible libraries can accept unexpected algorithms or token types. Mitigation: EdDSA-only
   allowlist, explicit `typ`, strict decoding, required claims, exact issuer/audience, bounded size, and adversarial tests.
 - **Method scope drift:** New proto methods could be left unprotected or absent from scope bundles. Mitigation:
@@ -908,14 +935,18 @@ Exit criteria:
   Mitigation: prefer server TLS where practical, minimize TTL and scopes, protect profile secrets, and document the
   local-account threat model honestly.
 - **Breaking cutover:** Old clients stop working immediately. Mitigation: update all first-party clients and e2e
-  harnesses in the same change, but deliberately provide no legacy runtime fallback or migration logic.
+  harnesses in the same change, document RPC-auth reset and obsolete database cleanup, but deliberately provide no
+  legacy runtime fallback or migration logic.
 
 ---
 
 ## Documentation and Operational Notes
 
 - Explain Morph identity separately from model-provider credentials even though both use `auth.json`.
-- Document the exact token/key source precedence and the danger of raw secret flags and config values.
+- Document the exact token/key source precedence, canonical 32-byte seed-hex storage, accepted 64-byte private-key hex
+  input, rejected PEM/other encodings, and the danger of raw secret flags and config values.
+- Document that `<profile>/data/auth.db` is authoritative; the former `<profile>/auth.db` is ignored without migration,
+  fallback, or a compatibility check.
 - Explain automatic CLI and TUI token lifetimes, renewal, process-only storage, and clean/crash session behavior.
 - Document auth roles and RPC method scopes separately from permission presets, rules, approvals, and Full access.
 - State clearly that unbound JWTs are bearer credentials and that nonce/jti do not make a reusable token
@@ -934,18 +965,22 @@ Exit criteria:
 
 ### Morph sources
 
-- `internal/rpc/rpcauth`: current HMAC credential, method/request binding, nonce replay window, and platform file
-  protection to replace.
-- `internal/rpc/server/auth.go` and `internal/rpc/client/owner_auth.go`: current unary and stream interceptor seams.
+- Removed legacy sources: `internal/rpc/rpcauth`, `internal/rpc/client/owner_auth.go`, `rpc-owner.key`, and
+  `x-morph-owner-*` metadata. They defined the pre-cutover HMAC proof and are historical context only.
+- `internal/rpc/server/auth.go`: mandatory JWT unary and stream authentication.
+- `internal/rpc/client/auth.go`, `internal/rpc/client/auth_interceptor.go`, and
+  `internal/rpc/client/auth_resolver.go`: centralized first-party authentication and token/session lifecycle.
 - `internal/rpc/client/client.go`: common first-party client construction and permission metadata.
-- `internal/rpc/rpcmeta/permissions.go`: current local-owner and RPC-client actor classification.
-- `internal/rpc/proto/morph.proto`: complete RPC service and method catalog plus the future AuthService contract.
+- `internal/rpc/rpcmeta/permissions.go`: authenticated principal to permission-actor mapping.
+- `internal/rpc/proto/morph.proto`: complete RPC service/method catalog and current AuthService contract.
 - `internal/credential/file.go`: `auth.json` locking, atomic replacement, and provider credential persistence.
 - `internal/state/storememory` and `internal/state/storesqlite`: memory/SQLite lifecycle and contract-test patterns to
   follow without coupling auth persistence to the selected application backend.
 - `internal/permissions/approval.go` and permission stores: expiring, revocable state and bounded cleanup patterns.
-- `internal/cli/daemon/rpc.go`: server assembly, owner credential loading, browser attachment identity, and shutdown.
-- `cmd/auth`: existing provider credential UX to preserve and extend.
+- `internal/cli/daemon/rpc.go`: server assembly, identity/auth-store initialization, browser attachment identity, and
+  shutdown.
+- `cmd/auth`: Morph RPC identity and authorization commands.
+- `cmd/provider`: provider credential and configuration command surface.
 - `docs/permissions-system-study.md`: current actor, RPC trust, owner-required, approval, and trace semantics.
 - `docs/browser-automation-study.md`: current owner credential derivation and browser attachment consequences.
 

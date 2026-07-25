@@ -8,6 +8,7 @@ import (
 	"slices"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	morphauth "github.com/wandxy/morph/internal/auth"
@@ -15,12 +16,15 @@ import (
 
 const maximumAuditEvents = 10000
 
+var auditIDSequence atomic.Uint64
+
 type Store struct {
 	mu             sync.RWMutex
 	authorizations map[string]morphauth.Authorization
 	sessions       map[string]morphauth.Session
 	tokens         map[string]morphauth.Token
 	audit          []morphauth.AuditEvent
+	auditStart     int
 }
 
 type Snapshot struct {
@@ -49,7 +53,11 @@ func NewFromSnapshot(snapshot Snapshot) *Store {
 	for id, token := range snapshot.Tokens {
 		store.tokens[id] = cloneToken(token)
 	}
-	store.audit = append([]morphauth.AuditEvent(nil), snapshot.Audit...)
+	audit := snapshot.Audit
+	if len(audit) > maximumAuditEvents {
+		audit = audit[len(audit)-maximumAuditEvents:]
+	}
+	store.audit = append([]morphauth.AuditEvent(nil), audit...)
 
 	return store
 }
@@ -61,7 +69,7 @@ func (s *Store) Snapshot() Snapshot {
 		Authorizations: make(map[string]morphauth.Authorization, len(s.authorizations)),
 		Sessions:       make(map[string]morphauth.Session, len(s.sessions)),
 		Tokens:         make(map[string]morphauth.Token, len(s.tokens)),
-		Audit:          append([]morphauth.AuditEvent(nil), s.audit...),
+		Audit:          s.auditSnapshotLocked(),
 	}
 	for id, authorization := range s.authorizations {
 		snapshot.Authorizations[id] = cloneAuthorization(authorization)
@@ -463,11 +471,18 @@ func (s *Store) RevokeToken(
 }
 
 func (s *Store) AppendAudit(_ context.Context, event morphauth.AuditEvent) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.appendAuditLocked(event)
+	s.AppendAuditChange(event)
 
 	return nil
+}
+
+func (s *Store) AppendAuditChange(
+	event morphauth.AuditEvent,
+) (morphauth.AuditEvent, *morphauth.AuditEvent) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.appendAuditChangeLocked(event)
 }
 
 func (s *Store) ListAudit(_ context.Context, limit int) ([]morphauth.AuditEvent, error) {
@@ -477,7 +492,8 @@ func (s *Store) ListAudit(_ context.Context, limit int) ([]morphauth.AuditEvent,
 		limit = len(s.audit)
 	}
 	result := make([]morphauth.AuditEvent, 0, limit)
-	for index := len(s.audit) - 1; index >= len(s.audit)-limit; index-- {
+	for offset := range limit {
+		index := (s.auditStart + len(s.audit) - 1 - offset) % len(s.audit)
 		result = append(result, s.audit[index])
 	}
 
@@ -551,8 +567,8 @@ func (s *Store) pruneSessions(before time.Time, limit int) int {
 
 func (s *Store) pruneAudit(before time.Time, limit int) int {
 	pruned := 0
-	kept := s.audit[:0]
-	for _, event := range s.audit {
+	kept := make([]morphauth.AuditEvent, 0, len(s.audit))
+	for _, event := range s.auditSnapshotLocked() {
 		if pruned < limit && event.CreatedAt.Before(before) {
 			pruned++
 			continue
@@ -560,6 +576,7 @@ func (s *Store) pruneAudit(before time.Time, limit int) int {
 		kept = append(kept, event)
 	}
 	s.audit = kept
+	s.auditStart = 0
 
 	return pruned
 }
@@ -639,15 +656,40 @@ func cloneToken(value morphauth.Token) morphauth.Token {
 }
 
 func (s *Store) appendAuditLocked(event morphauth.AuditEvent) {
+	s.appendAuditChangeLocked(event)
+}
+
+func (s *Store) appendAuditChangeLocked(
+	event morphauth.AuditEvent,
+) (morphauth.AuditEvent, *morphauth.AuditEvent) {
 	if event.CreatedAt.IsZero() {
 		event.CreatedAt = time.Now().UTC()
 	}
 	if event.ID == "" {
-		event.ID = fmt.Sprintf("audit-%d-%d", event.CreatedAt.UnixNano(), len(s.audit)+1)
+		event.ID = fmt.Sprintf(
+			"audit-%d-%d",
+			time.Now().UTC().UnixNano(),
+			auditIDSequence.Add(1),
+		)
 	}
+	var evicted *morphauth.AuditEvent
 	if len(s.audit) >= maximumAuditEvents {
-		copy(s.audit, s.audit[len(s.audit)-maximumAuditEvents+1:])
-		s.audit = s.audit[:maximumAuditEvents-1]
+		oldest := s.audit[s.auditStart]
+		evicted = &oldest
+		s.audit[s.auditStart] = event
+		s.auditStart = (s.auditStart + 1) % len(s.audit)
+		return event, evicted
 	}
 	s.audit = append(s.audit, event)
+
+	return event, evicted
+}
+
+func (s *Store) auditSnapshotLocked() []morphauth.AuditEvent {
+	result := make([]morphauth.AuditEvent, len(s.audit))
+	for offset := range len(s.audit) {
+		result[offset] = s.audit[(s.auditStart+offset)%len(s.audit)]
+	}
+
+	return result
 }
