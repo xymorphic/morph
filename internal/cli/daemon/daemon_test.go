@@ -1369,6 +1369,7 @@ func TestRunDaemonOnceStartsWhenRerankerAuthFails(t *testing.T) {
 }
 
 func TestServeRPC_ReturnsWhenGRPCServeFails(t *testing.T) {
+	setTestActiveProfile(t)
 	origListen := listenFunc
 	origServe := grpcServerServe
 	t.Cleanup(func() {
@@ -1754,6 +1755,7 @@ func TestServeRPC_ClosesBrowserRuntimeDuringShutdown(t *testing.T) {
 }
 
 func TestServeRPC_ReturnsNilWhenGRPCServeReturnsServerStopped(t *testing.T) {
+	setTestActiveProfile(t)
 	origListen := listenFunc
 	origServe := grpcServerServe
 	t.Cleanup(func() {
@@ -1773,6 +1775,7 @@ func TestServeRPC_ReturnsNilWhenGRPCServeReturnsServerStopped(t *testing.T) {
 }
 
 func TestServeRPC_WiresApprovalServiceIntoBrowserRuntime(t *testing.T) {
+	setTestActiveProfile(t)
 	originalService := newBrowserService
 	originalServe := grpcServerServe
 	t.Cleanup(func() {
@@ -1854,6 +1857,7 @@ func TestNewAgentRunnerImpl_ReturnsAgent(t *testing.T) {
 }
 
 func TestServeRPC_StopsWhenContextCancelled(t *testing.T) {
+	setTestActiveProfile(t)
 	orig := listenFunc
 	t.Cleanup(func() { listenFunc = orig })
 
@@ -1876,6 +1880,7 @@ func TestServeRPC_StopsWhenContextCancelled(t *testing.T) {
 }
 
 func TestServeRPC_ReturnsPostShutdownServeError(t *testing.T) {
+	setTestActiveProfile(t)
 	origListen := listenFunc
 	origServe := grpcServerServe
 	origPost := postShutdownServeErrHook
@@ -1912,6 +1917,7 @@ func TestServeRPC_ReturnsPostShutdownServeError(t *testing.T) {
 }
 
 func TestServeRPC_ForcesStopWhenGracefulShutdownSlow(t *testing.T) {
+	setTestActiveProfile(t)
 	origListen := listenFunc
 	origServe := grpcServerServe
 	origTimeout := serveRPCShutdownTimeout
@@ -2215,6 +2221,15 @@ func openTestRPCListener(t *testing.T, cfg *config.Config) net.Listener {
 	require.NoError(t, err)
 
 	return lis
+}
+
+func setTestActiveProfile(t *testing.T) {
+	t.Helper()
+	original := profile.Active()
+	profile.SetActive(profile.Profile{Name: "test", HomeDir: t.TempDir()})
+	t.Cleanup(func() {
+		profile.SetActive(original)
+	})
 }
 
 func stubOpenRPCListener(t *testing.T) {

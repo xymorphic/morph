@@ -12,7 +12,7 @@ account. Prefer API keys for OpenRouter, service accounts, servers, CI, shared d
 Authentication happens at the provider level. Once a provider credential is available, your model configuration decides
 which models and API mode Morph uses for each role.
 
-Credentials are [profile](../concepts/profiles)-local. By default, `morph auth login` stores them in:
+Credentials are [profile](../concepts/profiles)-local. By default, `morph provider login` stores them in:
 
 ```text
 ~/.morph/profiles/<profile>/auth.json
@@ -21,17 +21,17 @@ Credentials are [profile](../concepts/profiles)-local. By default, `morph auth l
 Do not commit `auth.json`, `.env`, or real provider tokens.
 
 Local providers are different. Ollama does not require a real secret for the default local runtime, so Morph uses a
-non-secret local auth marker internally. You do not need to run `morph auth login ollama`; configure it through
-`morph setup provider` or TUI `/setup` instead. See [Local Models](./local-models).
+non-secret local auth marker internally. You do not need to run `morph provider login ollama`; configure it through
+`morph provider configure` or TUI `/setup` instead. See [Local Models](./local-models).
 
 ## Subscription Login
 
 Subscription login stores an OAuth credential. Run the login command without `--api-key`:
 
 ```bash
-morph auth login openai-codex
-morph auth login anthropic
-morph auth login github-copilot
+morph provider login openai-codex
+morph provider login anthropic
+morph provider login github-copilot
 ```
 
 Use the provider you selected in config:
@@ -56,9 +56,9 @@ for that provider.
 API key login stores a static provider key:
 
 ```bash
-morph auth login openrouter --api-key "<openrouter-api-key>"
-morph auth login openai --api-key "<openai-api-key>"
-morph auth login anthropic --api-key "<anthropic-api-key>"
+morph provider login openrouter --api-key "<openrouter-api-key>"
+morph provider login openai --api-key "<openai-api-key>"
+morph provider login anthropic --api-key "<anthropic-api-key>"
 ```
 
 Provider API key pages:
@@ -73,19 +73,19 @@ Provider API key pages:
 Show every provider Morph can see:
 
 ```bash
-morph auth status
+morph provider status
 ```
 
 Check one provider:
 
 ```bash
-morph auth status openai-codex
+morph provider status openai-codex
 ```
 
 Remove a stored credential:
 
 ```bash
-morph auth logout openai-codex
+morph provider logout openai-codex
 ```
 
 ## Model Roles
@@ -110,7 +110,7 @@ set of model keys and defaults, see the [Config Reference](../reference/config).
 For each model request, Morph resolves a credential for the role's provider and uses the first source it finds:
 
 1. **Role-specific config**: the API key set directly on the role, such as `models.main.apiKey`.
-2. **Stored credential**: a credential saved by `morph auth login` in the profile's `auth.json`. OAuth tokens here are
+2. **Stored credential**: a credential saved by `morph provider login` in the profile's `auth.json`. OAuth tokens here are
    refreshed automatically when they expire.
 3. **Environment variables** for the provider: an OAuth token variable for provider subscription auth
    (`ANTHROPIC_OAUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`, or `COPILOT_GITHUB_TOKEN`), a custom variable named by
@@ -119,7 +119,7 @@ For each model request, Morph resolves a credential for the role's provider and 
 4. **Provider config**: `models.providers.<provider>.apiKey`.
 5. **Local provider marker**: for local providers such as Ollama when no real auth is required.
 
-Two consequences are worth knowing. A stored credential from `morph auth login` ranks **above** environment variables,
+Two consequences are worth knowing. A stored credential from `morph provider login` ranks **above** environment variables,
 so once you have logged in you do not also need to export a key, and a stored credential takes precedence over an
 ambient one in your shell. If Morph finds an OAuth credential for a model that is not available through OAuth, it skips
 that credential and checks later API-key sources. If none exist, it reports that the selected model is not available

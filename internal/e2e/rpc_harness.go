@@ -46,6 +46,11 @@ func NewRPCHarness(ctx context.Context, opts HarnessOptions) (*RPCHarness, error
 	if err != nil {
 		return nil, err
 	}
+	serviceAPI, ok := base.agent.(morphagent.ServiceAPI)
+	if !ok {
+		_ = base.Close()
+		return nil, errors.New("e2e rpc harness requires a full agent service")
+	}
 	activeProfile := profile.Active()
 	identity, err := credential.NewFileStore("").LoadOrCreateIdentity()
 	if err != nil {
@@ -66,12 +71,6 @@ func NewRPCHarness(ctx context.Context, opts HarnessOptions) (*RPCHarness, error
 		return nil, errors.New("e2e rpc listener must be tcp")
 	}
 
-	serviceAPI, ok := base.agent.(morphagent.ServiceAPI)
-	if !ok {
-		_ = lis.Close()
-		_ = base.Close()
-		return nil, errors.New("e2e rpc harness requires a full agent service")
-	}
 	authService, err := morphauth.NewService(morphauth.ServiceOptions{
 		Audience:       base.cfg.Auth.Audience,
 		Store:          storememory.New(),

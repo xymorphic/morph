@@ -58,7 +58,7 @@ Use that base URL for native Ollama mode. Do not add `/v1` unless you intentiona
 The guided setup command can configure the active profile:
 
 ```bash
-morph setup provider
+morph provider configure
 ```
 
 Choose **Ollama**, then choose an installed or suggested model. The interactive CLI setup uses the configured Ollama
@@ -67,7 +67,7 @@ base URL, or the default `http://127.0.0.1:11434` when none is set.
 Pass `--base-url` when you want CLI setup to use and persist a different endpoint:
 
 ```bash
-morph setup provider \
+morph provider configure \
   --provider ollama \
   --base-url http://127.0.0.1:11434 \
   --model <model-id> \
@@ -78,7 +78,7 @@ Use `--pull` to install the selected chat model when it is missing. Use `--pull-
 without progress output:
 
 ```bash
-morph setup provider \
+morph provider configure \
   --provider ollama \
   --base-url http://127.0.0.1:11434 \
   --model <model-id> \

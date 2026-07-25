@@ -46,7 +46,7 @@ for day-to-day use):
 ~/.morph/profiles/<name>/
   config.yaml              # profile settings (morph config set)
   .env                     # optional env overrides (not watched for reload)
-  auth.json                # model credentials from morph auth login
+  auth.json                # model credentials from morph provider login
   auth.json.lock           # transient lock while auth.json is updated
   runtime.json             # daemon RPC endpoint, pid, start time (not durable state)
   memory.md                # optional pinned memory file (see Memory Guide)
@@ -148,7 +148,7 @@ the profile home is safer than copying live WAL files, but stopping the daemon i
 1. Install Morph on the target machine.
 2. Copy the profile home into `~/.morph/profiles/<name>/` on the target.
 3. `morph profile use <name>` (or pass `--profile` on each command).
-4. Re-authenticate if credentials expired: `morph auth status`, then `morph auth login` as needed. OAuth tokens may
+4. Re-authenticate if credentials expired: `morph provider status`, then `morph provider login` as needed. OAuth tokens may
    need refresh; API keys in `auth.json` usually move as-is.
 5. Start the daemon and run `morph doctor`.
 
@@ -193,7 +193,7 @@ There is no `morph profile reset` command. Stop the daemon, then delete or repla
 | --- | --- |
 | **Fresh conversations, keep config and auth** | Remove `data/state.db` and sidecar WAL files; remove `traces/` if present |
 | **Clear traces only** | Remove files under `traces/`; or disable disk tracing and trim DB trace tables (simplest: delete `traces/` and rely on new turns) |
-| **Reset credentials** | `morph auth logout <provider>` or delete `auth.json` (daemon stopped) |
+| **Reset credentials** | `morph provider logout <provider>` or delete `auth.json` (daemon stopped) |
 | **Reset config to starter** | Replace `config.yaml` (or re-run `morph profile init` on a new name) |
 | **Remove profile entirely** | Stop daemon; delete `~/.morph/profiles/<name>/`; `morph profile use default` if it was current |
 
@@ -227,7 +227,7 @@ morph profile current
 morph profile doctor
 morph doctor
 morph session list
-morph auth status
+morph provider status
 ```
 
 For gateway profiles, also `morph gateway status` and `morph gateway pairing list`. Fix **FAIL** items from

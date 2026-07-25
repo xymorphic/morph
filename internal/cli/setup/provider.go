@@ -615,7 +615,7 @@ func (m *setupWizardModel) advanceAfterModel() error {
 	choices := m.runner.getSetupAuthChoices(provider, m.selection)
 	if len(choices) == 0 {
 		return fmt.Errorf(
-			"model API key is required for provider %q; run morph auth login or set a provider API key",
+			"model API key is required for provider %q; run morph provider login or set a provider API key",
 			m.selection.provider,
 		)
 	}
@@ -1086,7 +1086,7 @@ func (r providerRunner) getSetupAuthMethod(
 	choices := r.getSetupAuthChoices(provider, selection)
 	if len(choices) == 0 {
 		return "", fmt.Errorf(
-			"model API key is required for provider %q; run morph auth login or set a provider API key",
+			"model API key is required for provider %q; run morph provider login or set a provider API key",
 			selection.provider,
 		)
 	}

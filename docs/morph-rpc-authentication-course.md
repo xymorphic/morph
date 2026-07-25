@@ -40,7 +40,8 @@ The short version is:
 
 RPC authentication and provider authentication are unrelated:
 
-- `morph auth login`, `status`, and `logout` manage model or web-provider credentials.
+- `morph provider login`, `morph provider status`, and `morph provider logout` manage model or web-provider
+  credentials.
 - `morph auth identity`, `token`, `session`, `authorization`, `audit`, and `mtls` manage Morph RPC authentication.
 
 They share `auth.json`, but provider records and Morph's reserved `_morph` record are preserved independently.
@@ -111,6 +112,16 @@ The common client resolver follows this precedence:
 5. A newly generated profile identity.
 
 An explicitly supplied but invalid value fails. Morph does not silently fall through to a weaker source.
+
+Morph stores RPC private keys canonically as the 32-byte Ed25519 seed encoded as 64 hexadecimal characters. Explicit
+inputs may also use Go's 64-byte Ed25519 private-key representation encoded as 128 hexadecimal characters. New
+identities and rotations always write the smaller seed form. This is a breaking format: PKCS#8 PEM identity keys are
+rejected rather than migrated automatically.
+
+Morph-owned byte strings use lowercase hexadecimal text: identity IDs, generated session IDs, JWT IDs, nonces, and
+CLI authorization public keys. Standard-defined encodings remain unchanged: JWT compact segments and signatures,
+public JWK members, and the `x5t#S256` certificate confirmation value use unpadded Base64URL as required by their
+respective standards.
 
 When signing automatically, the client:
 
@@ -248,10 +259,10 @@ morph_lab auth identity show
 morph_lab profile doctor rpc-auth-lab
 ```
 
-Expected identity output has a stable URL-safe ID and generation 1:
+Expected identity output has a stable lowercase hexadecimal ID and generation 1:
 
 ```text
-identity: <43-character JWK thumbprint>
+identity: <40-character truncated public-key SHA-256 digest>
 generation: 1
 ```
 
@@ -291,7 +302,7 @@ morph_lab auth --json authorization list
 The first authorization should contain:
 
 ```text
-identity_id:        the thumbprint shown by identity show
+identity_id:        the hex identity digest shown by identity show
 owner_id:           rpc-auth-lab
 user_id:            the root identity ID
 roles:              ["owner"]
@@ -437,21 +448,21 @@ Important fields:
 
 | Claim | Meaning |
 | --- | --- |
-| `kid` header | Public-key thumbprint used to find the authorization |
+| `kid` header | Final 20 bytes of the raw public key's SHA-256 digest, encoded as hex and used to find the authorization |
 | `typ` header | Must be `at+jwt` |
 | `alg` header | Must be `EdDSA` |
 | `iss` | Signing identity ID; must agree with `kid` |
 | `sub` | Authorized user ID |
 | `aud` | Exact Morph RPC audience |
 | `iat`, `nbf`, `exp` | Issued, not-before, and expiry times |
-| `jti` | Unique token record ID |
-| `sid` | Durable auth session ID |
+| `jti` | Unique generated token record ID in lowercase hex |
+| `sid` | Durable generated auth session ID in lowercase hex |
 | `owner_id` | Authorization owner boundary |
 | `roles` | Requested subset of authorized roles |
 | `services`, `methods` | Requested RPC scopes |
 | `identity_generation` | Invalidates credentials after identity rotation |
 | `authorization_revision` | Invalidates credentials after authorization changes |
-| `nonce` | Bounded uniqueness value; not proof against theft |
+| `nonce` | Bounded lowercase-hex uniqueness value; not proof against theft |
 | `cnf` | Optional mTLS client-certificate thumbprint |
 
 The nonce and `jti` do not make an active JWT non-replayable. This remains a bearer token unless it has a verified
@@ -572,8 +583,8 @@ morph_delegate auth identity init
 morph_delegate auth identity show
 ```
 
-The grant command needs the raw public key. Create a small helper that reads the delegate's private record but prints
-only its safe identity ID and public key:
+The grant command needs the raw public key encoded as 64 lowercase hexadecimal characters. Create a small helper that
+reads the delegate's private record but prints only its safe identity ID and public key:
 
 ```console
 cat > "$MORPH_LAB_ROOT/export-public.go" <<'GO'
@@ -581,10 +592,8 @@ package main
 
 import (
 	"crypto/ed25519"
-	"crypto/x509"
-	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"os"
 )
@@ -608,17 +617,16 @@ func main() {
 		panic(err)
 	}
 
-	block, _ := pem.Decode([]byte(record.PrivateKey))
-	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	key, err := hex.DecodeString(record.PrivateKey)
 	if err != nil {
 		panic(err)
 	}
 
-	privateKey := key.(ed25519.PrivateKey)
+	privateKey := ed25519.NewKeyFromSeed(key)
 	publicKey := privateKey.Public().(ed25519.PublicKey)
 	fmt.Printf("%s %s\n",
 		record.IdentityID,
-		base64.RawURLEncoding.EncodeToString(publicKey),
+		hex.EncodeToString(publicKey),
 	)
 }
 GO
@@ -1081,7 +1089,7 @@ Read the implementation in this order:
 
 | Stop | File | What to look for |
 | --- | --- | --- |
-| 1 | [`internal/auth/identity.go`](../internal/auth/identity.go) | Ed25519 generation, PKCS#8 PEM, JWK thumbprint IDs, domain-separated secrets |
+| 1 | [`internal/auth/identity.go`](../internal/auth/identity.go) | Ed25519 generation, canonical seed-hex encoding, 20-byte public-key identity IDs, domain-separated secrets |
 | 2 | [`internal/auth/token.go`](../internal/auth/token.go) | Required claims, strict EdDSA parsing, nonce and scope validation |
 | 3 | [`internal/auth/scope.go`](../internal/auth/scope.go) | Canonical method/service forms and exact matching |
 | 4 | [`internal/auth/store.go`](../internal/auth/store.go) | Authorization, session, token, audit, and principal data contracts |

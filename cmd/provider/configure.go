@@ -1,4 +1,4 @@
-package setupcmd
+package providercmd
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/wandxy/morph/internal/cli/setup"
 )
 
-func NewCommand(input io.Reader, output io.Writer) *cli.Command {
+func NewProviderConfigureCommand(input io.Reader, output io.Writer) *cli.Command {
 	if input == nil {
 		input = os.Stdin
 	}
@@ -22,20 +22,7 @@ func NewCommand(input io.Reader, output io.Writer) *cli.Command {
 	}
 
 	return &cli.Command{
-		Name:  "setup",
-		Usage: "Configure Morph",
-		Commands: []*cli.Command{
-			newProviderCommand(input, output),
-		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			return cli.ShowSubcommandHelp(cmd)
-		},
-	}
-}
-
-func newProviderCommand(input io.Reader, output io.Writer) *cli.Command {
-	return &cli.Command{
-		Name:      "provider",
+		Name:      "configure",
 		Usage:     "Configure the default model provider",
 		ArgsUsage: "[provider]",
 		Flags: []cli.Flag{

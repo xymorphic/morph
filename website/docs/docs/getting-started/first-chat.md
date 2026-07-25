@@ -16,10 +16,10 @@ Before sending a message, check the active profile:
 
 ```bash
 morph doctor
-morph auth status
+morph provider status
 ```
 
-You are ready when `morph doctor` exits cleanly and `morph auth status` shows credentials for the provider in
+You are ready when `morph doctor` exits cleanly and `morph provider status` shows credentials for the provider in
 `models.main.provider`.
 
 If the provider, model, or API looks wrong, check the active config:
@@ -130,7 +130,7 @@ Use the error message to narrow the problem:
 
 - `connection refused`: the configured RPC endpoint could not be reached. Check custom RPC address or port settings.
 - Authentication errors: the selected provider is missing credentials or the credential belongs to a different provider.
-  Run `morph config get models.main.provider models.main.name models.main.api` and `morph auth status`.
+  Run `morph config get models.main.provider models.main.name models.main.api` and `morph provider status`.
 - Model errors: the configured model name or API mode does not match the provider. Recheck the provider examples in the
   [Quickstart](./quickstart).
 - No visible streaming: streaming may be disabled in config. Check the daemonup details or run

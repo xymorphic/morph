@@ -34,7 +34,7 @@ current:
     default/                 # the default profile home
       config.yaml            # profile-local configuration
       .env                   # optional environment overrides
-      auth.json              # credentials stored by morph auth login
+      auth.json              # credentials stored by morph provider login
       runtime.json           # daemon runtime metadata: RPC endpoint, pid, start time
       data/                  # SQLite store (state.db; WAL sidecars while in use)
       traces/                # on-disk trace files
@@ -213,7 +213,7 @@ morph doctor
 ```
 
 `morph doctor` exits cleanly when the selected profile is ready. If it reports a problem, recheck the provider routing
-keys above and confirm credentials with `morph auth status`.
+keys above and confirm credentials with `morph provider status`.
 
 ## Where To Go Next
 

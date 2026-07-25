@@ -153,7 +153,7 @@ See [Security](../operations/security) and [Daemon and RPC](../concepts/daemon-a
 
 ### Where should I put API keys?
 
-Prefer `morph auth login` and profile `auth.json` over committing keys to YAML. Env vars are supported for CI and local
+Prefer `morph provider login` and profile `auth.json` over committing keys to YAML. Env vars are supported for CI and local
 dev. See [Provider Auth](../guides/provider-auth) and [Environment Variables](./environment-variables#secret-handling).
 
 ## Documentation map

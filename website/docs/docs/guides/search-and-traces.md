@@ -52,7 +52,7 @@ It requires an **embedding** model:
 ```bash
 morph config set models.embedding.provider openai
 morph config set models.embedding.name text-embedding-3-small
-morph auth login openai --api-key "<key>"
+morph provider login openai --api-key "<key>"
 ```
 
 Vector search defaults to **on** and **required** (`search.vector.enabled` and `search.vector.required`). When

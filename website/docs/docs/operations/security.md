@@ -60,24 +60,24 @@ Morph resolves model credentials from several sources, in the precedence order d
 [Provider Auth](../guides/provider-auth):
 
 1. **Role config**: `models.main.apiKey`, `models.summary.apiKey`, and similar
-2. **Stored credential**: `morph auth login` in `~/.morph/profiles/<profile>/auth.json`
+2. **Stored credential**: `morph provider login` in `~/.morph/profiles/<profile>/auth.json`
 3. **Environment**: provider OAuth/key variables, including variables loaded from profile `.env`
 4. **Provider config**: `models.providers.<provider>.apiKey`
 
-Prefer `morph auth login` for interactive setup. For servers, inject secrets through profile-local `.env` or deployment
+Prefer `morph provider login` for interactive setup. For servers, inject secrets through profile-local `.env` or deployment
 environment variables, not checked-in YAML.
 
 ### File permissions
 
-`morph auth login` writes `auth.json` with mode **0600** and creates the profile directory with **0700**. Keep profile
+`morph provider login` writes `auth.json` with mode **0600** and creates the profile directory with **0700**. Keep profile
 homes on local disks you control; network filesystems and shared home directories increase leak risk.
 
 ### Operational rules
 
 - Do **not** commit `auth.json`, `.env`, or `config.yaml` that contains real keys.
-- Run `morph auth logout <provider>` when rotating or decommissioning a machine.
-- After credential changes, run `morph auth status` and `morph doctor`: the **models** group confirms each role resolves.
-- Stored credentials from `morph auth login` take precedence over ambient environment keys, but role-level `apiKey`
+- Run `morph provider logout <provider>` when rotating or decommissioning a machine.
+- After credential changes, run `morph provider status` and `morph doctor`: the **models** group confirms each role resolves.
+- Stored credentials from `morph provider login` take precedence over ambient environment keys, but role-level `apiKey`
   config still overrides them. Be explicit about which profile is active (`morph profile current`) on shared shells.
 
 See [Troubleshooting: Provider auth](../guides/troubleshooting#provider-auth-and-model-errors) when turns fail before
@@ -428,7 +428,7 @@ Use this checklist before binding gateways broadly or morphing out pairing codes
 ```bash
 morph profile current
 morph doctor
-morph auth status
+morph provider status
 ```
 
 1. **Doctor exits cleanly**: no **FAIL** items; review **WARN** (daemon down, vector off, gateway tokens missing,
@@ -449,7 +449,7 @@ running process. See [Gateway Management](./gateway-management).
 
 ### Personal workstation
 
-Defaults are usually sufficient: loopback RPC and gateway, `morph auth login`, doctor before first gateway enable.
+Defaults are usually sufficient: loopback RPC and gateway, `morph provider login`, doctor before first gateway enable.
 Temporary daemons from the TUI stop when you exit; use `morph daemon` for long-running gateways.
 
 ### Shared server or VM

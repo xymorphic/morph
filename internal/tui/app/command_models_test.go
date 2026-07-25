@@ -783,7 +783,7 @@ func TestModel_ProviderAPIKeyPromptEdgeCases(t *testing.T) {
 func TestModel_ModelSelectionReportsOAuthLoginCommand(t *testing.T) {
 	runModel := newModel()
 	updated, cmd := runModel.completeSelectModel(modelSelectedMsg{
-		Err: errors.New(`model API key is required for provider "openai-codex"; set a provider API key, provider env var, role apiKey, or run morph auth login openai-codex`),
+		Err: errors.New(`model API key is required for provider "openai-codex"; set a provider API key, provider env var, role apiKey, or run morph provider login openai-codex`),
 	})
 
 	require.NotNil(t, cmd)
@@ -791,7 +791,7 @@ func TestModel_ModelSelectionReportsOAuthLoginCommand(t *testing.T) {
 	require.Equal(t, "model authentication required", runModel.status.Text())
 	require.Equal(
 		t,
-		[]string{"Error: run morph auth login openai-codex in a new terminal"},
+		[]string{"Error: run morph provider login openai-codex in a new terminal"},
 		transcriptCellPlainTexts(runModel.messages),
 	)
 	require.Contains(
@@ -802,7 +802,7 @@ func TestModel_ModelSelectionReportsOAuthLoginCommand(t *testing.T) {
 	require.Contains(
 		t,
 		stripANSI(runModel.transcript.GetContent()),
-		"morph auth login openai-codex",
+		"morph provider login openai-codex",
 	)
 	require.Contains(
 		t,
@@ -812,7 +812,7 @@ func TestModel_ModelSelectionReportsOAuthLoginCommand(t *testing.T) {
 	require.NotContains(
 		t,
 		stripANSI(runModel.transcript.GetContent()),
-		"run morph auth login openai-codex in a new terminal",
+		"run morph provider login openai-codex in a new terminal",
 	)
 	require.NotContains(
 		t,

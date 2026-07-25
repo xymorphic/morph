@@ -69,7 +69,7 @@ morph config set models.main.name gpt-5.5
 morph config set models.main.api openai-responses
 ```
 
-After changing providers, confirm credentials resolve with `morph auth status` and `morph doctor`. See
+After changing providers, confirm credentials resolve with `morph provider status` and `morph doctor`. See
 [Provider Auth](./provider-auth).
 
 ### Use a cheaper summary model

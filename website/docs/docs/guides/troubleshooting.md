@@ -55,7 +55,7 @@ When something misbehaves:
 1. Run `morph doctor` and fix any **FAIL** items (follow suggested commands when shown).
 2. Confirm the **daemon** is running if the feature needs it: TUI with an existing daemon, `morph daemon`, or a
    long-lived `morph` session. See [Daemon and RPC](../concepts/daemon-and-rpc).
-3. Confirm **model auth** for the role involved (`morph auth status`, then `morph doctor` **models** group).
+3. Confirm **model auth** for the role involved (`morph provider status`, then `morph doctor` **models** group).
 4. Turn up logging if you need more detail (`log.level debug`); see [Logging and Debug](#logging-and-debug).
 5. For gateway, search, memory, or session issues, use the focused section below or the platform guide.
 
@@ -111,14 +111,14 @@ Symptoms: turns fail immediately; doctor **config validation** or **models** che
 ### Check what Morph resolved
 
 ```bash
-morph auth status
-morph auth status <provider>
+morph provider status
+morph provider status <provider>
 morph doctor
 ```
 
 Doctor's **models** group reports **main**, **summary**, and **embedding** (when vector search is on) with the provider,
 model name, and credential source. Readiness failures often include the exact next command, for example
-`morph auth login openai-codex` or setting a role-specific API key.
+`morph provider login openai-codex` or setting a role-specific API key.
 
 Morph resolves credentials in order: role config → stored `auth.json` → environment → provider config. See
 [Provider Auth](./provider-auth).
@@ -127,7 +127,7 @@ Morph resolves credentials in order: role config → stored `auth.json` → envi
 
 | Problem | What to do |
 | --- | --- |
-| No credential for provider | `morph auth login <provider>` or `morph auth login <provider> --api-key "<key>"` |
+| No credential for provider | `morph provider login <provider>` or `morph provider login <provider> --api-key "<key>"` |
 | Wrong provider in config | `morph config set models.main.provider …` and `models.main.name …`; see [Config Guide](./config) |
 | OAuth model not available on subscription | Pick a model that provider supports via OAuth, or use API key auth |
 | Summary/embedding failures | Set `models.summary` / `models.embedding` and auth for those providers: background memory and vector search depend on them |
@@ -144,7 +144,7 @@ requiring a real API key.
 | Ollama not reachable | Start Ollama with `ollama serve`, or edit the base URL in `/setup` or config |
 | Native Ollama base URL ends with `/v1` | Use `http://127.0.0.1:11434` for `ollama-native` |
 | OpenAI-compatible base URL is missing `/v1` | Use `http://127.0.0.1:11434/v1` for `openai-completions` |
-| Selected chat model missing | Run `ollama pull <model>` or `morph setup provider --provider ollama --model <model> --pull` |
+| Selected chat model missing | Run `ollama pull <model>` or `morph provider configure --provider ollama --model <model> --pull` |
 | Embedding model missing | Run `ollama pull nomic-embed-text`, or choose another installed embedding model |
 | Tool calls fail or appear as raw JSON | Try a model with stronger tool-call support or switch that workflow to a hosted/tool-capable model |
 

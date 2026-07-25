@@ -1,4 +1,4 @@
-package setupcmd
+package providercmd
 
 import (
 	"bytes"
@@ -17,13 +17,11 @@ import (
 	"github.com/wandxy/morph/internal/profile"
 )
 
-func TestNewCommandHandlesNilIOAndShowsHelp(t *testing.T) {
-	cmd := NewCommand(nil, nil)
-	cmd.Writer = io.Discard
+func TestProviderConfigureCommandHandlesNilIO(t *testing.T) {
+	cmd := NewProviderConfigureCommand(nil, nil)
 
-	err := cmd.Run(context.Background(), []string{"setup"})
-
-	require.NoError(t, err)
+	require.Equal(t, "configure", cmd.Name)
+	require.NotNil(t, cmd.Action)
 }
 
 func TestProviderCommandPassesFlagsToSetupRunner(t *testing.T) {
@@ -31,11 +29,10 @@ func TestProviderCommandPassesFlagsToSetupRunner(t *testing.T) {
 	t.Setenv("HOME", home)
 
 	var output bytes.Buffer
-	cmd := NewCommand(strings.NewReader(""), &output)
+	cmd := NewProviderConfigureCommand(strings.NewReader(""), &output)
 
 	err := cmd.Run(context.Background(), []string{
-		"setup",
-		"provider",
+		"configure",
 		"--profile", "work",
 		"openai",
 		"--model", "gpt-5.5",
@@ -60,11 +57,10 @@ func TestProviderCommandReadsProviderFlag(t *testing.T) {
 	t.Setenv("HOME", home)
 
 	var output bytes.Buffer
-	cmd := NewCommand(strings.NewReader(""), &output)
+	cmd := NewProviderConfigureCommand(strings.NewReader(""), &output)
 
 	err := cmd.Run(context.Background(), []string{
-		"setup",
-		"provider",
+		"configure",
 		"--profile", "work",
 		"--provider", constants.ModelProviderOpenAI,
 		"--model", "gpt-5.5",
@@ -84,11 +80,10 @@ func TestProviderCommandProviderArgumentTakesPrecedenceOverFlag(t *testing.T) {
 	t.Setenv("HOME", home)
 
 	var output bytes.Buffer
-	cmd := NewCommand(strings.NewReader(""), &output)
+	cmd := NewProviderConfigureCommand(strings.NewReader(""), &output)
 
 	err := cmd.Run(context.Background(), []string{
-		"setup",
-		"provider",
+		"configure",
 		"--profile", "work",
 		"--provider", constants.ModelProviderOllama,
 		constants.ModelProviderOpenAI,
@@ -106,10 +101,10 @@ func TestProviderCommandProviderArgumentTakesPrecedenceOverFlag(t *testing.T) {
 
 func TestProviderCommandHelpShowsAPIFlag(t *testing.T) {
 	var output bytes.Buffer
-	cmd := NewCommand(strings.NewReader(""), io.Discard)
+	cmd := NewProviderConfigureCommand(strings.NewReader(""), io.Discard)
 	cmd.Writer = &output
 
-	err := cmd.Run(context.Background(), []string{"setup", "provider", "--help"})
+	err := cmd.Run(context.Background(), []string{"configure", "--help"})
 
 	require.NoError(t, err)
 	require.Contains(t, output.String(), "--provider")

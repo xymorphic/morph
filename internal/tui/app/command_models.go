@@ -814,7 +814,7 @@ func getModelSelectionLoginCommand(err error) string {
 	}
 
 	message := err.Error()
-	index := strings.Index(message, "morph auth login ")
+	index := strings.Index(message, "morph provider login ")
 	if index < 0 {
 		return ""
 	}

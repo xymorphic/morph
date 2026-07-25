@@ -108,13 +108,14 @@ session limits, trace disk/database paths, and more. Prefer `morph config set` f
 
 ## Subcommands
 
-### `auth`: provider credentials
+### `provider`: provider configuration and credentials
 
 | Subcommand | Usage | Notes |
 | --- | --- | --- |
-| `auth login` | `morph auth login <provider>` | `--api-key`, `--token`, `--refresh-token`, `--expires-at`, `--scope` |
-| `auth status` | `morph auth status [provider…]` | Shows credential sources |
-| `auth logout` | `morph auth logout <provider>` | Removes stored credentials |
+| `provider login` | `morph provider login <provider>` | `--api-key`, `--token`, `--refresh-token`, `--expires-at`, `--scope` |
+| `provider status` | `morph provider status [provider…]` | Shows credential sources |
+| `provider logout` | `morph provider logout <provider>` | Removes stored credentials |
+| `provider configure` | `morph provider configure [provider]` | Configures the default provider and model |
 
 See [Provider Auth](../guides/provider-auth).
 
@@ -134,10 +135,10 @@ See [Provider Auth](../guides/provider-auth).
 
 Full flag and enum reference: [Automation Reference](./automation). Walkthrough: [Automation Guide](../guides/automation).
 
-### `auth`: provider credentials and RPC identity
+### `auth`: RPC authentication and identity
 
-Provider commands remain `auth login`, `auth status`, and `auth logout`. RPC identity and authorization commands are
-grouped separately:
+Provider credentials and configuration are managed by `morph provider`. The `auth` command is reserved for Morph RPC
+identity and authorization:
 
 | Subcommand | Purpose |
 | --- | --- |
@@ -151,6 +152,7 @@ grouped separately:
 Identity initialization and inspection work without a daemon. Session, token metadata, authorization, and audit
 operations require a reachable authenticated daemon. Add `--json` to the `auth` command for machine-readable output.
 Raw tokens are displayed only by `auth token generate`; use `--output` to write one with owner-only permissions.
+`auth authorization grant --public-key` accepts the raw 32-byte Ed25519 public key as 64 hexadecimal characters.
 
 ### `browser`: managed browser runtime
 
@@ -296,15 +298,7 @@ Profile subcommands do **not** take `--profile`; they manage which profile is ac
 
 See [Profiles](../concepts/profiles) and [Profiles and Config](../getting-started/profiles-and-config).
 
-### `setup`: guided provider setup
-
-| Invocation | Behavior |
-| --- | --- |
-| `morph setup provider` | Interactive provider and model setup |
-| `morph setup provider ollama` | Start setup with Ollama selected |
-| `morph setup provider --provider ollama --model <model>` | Non-interactive local provider setup |
-
-Local provider flags:
+Provider configuration flags:
 
 | Flag | Description |
 | --- | --- |
@@ -356,7 +350,7 @@ Prints version and commit hash.
 | Command | Purpose |
 | --- | --- |
 | *(default)* | TUI |
-| `auth` | Provider login / status / logout |
+| `auth` | RPC identities, sessions, tokens, authorizations, audits, and mTLS |
 | `automation` | Scheduled agent jobs, runs, delivery |
 | `config` | Get/set profile config |
 | `daemon` | Run daemon or check status |
@@ -365,6 +359,7 @@ Prints version and commit hash.
 | `gateway` | Gateway runtime, webhooks, pairing |
 | `permissions` | Approval requests, grants, and preset |
 | `profile` | Profile create, select, inspect |
+| `provider` | Provider configuration and credentials |
 | `session` | Session CRUD and maintenance |
 | `trace` | Trace viewer |
 | `version` | Version info |
@@ -391,7 +386,7 @@ morph --provider ollama \
   -c "hello"
 
 # Local Ollama setup
-morph setup provider \
+morph provider configure \
   --provider ollama \
   --base-url http://127.0.0.1:11434 \
   --model <model-id> \

@@ -628,7 +628,7 @@ func prepareIdentityRotationApply(
 func loadRPCIdentity(cfg *config.Config, store *credential.FileStore) (morphauth.Identity, error) {
 	if cfg != nil && strings.TrimSpace(cfg.Auth.Key) != "" {
 		key := []byte(cfg.Auth.Key)
-		if !strings.Contains(cfg.Auth.Key, "-----BEGIN") {
+		if !morphauth.IsEncodedIdentity(key) {
 			var err error
 			key, err = os.ReadFile(cfg.Auth.Key)
 			if err != nil {

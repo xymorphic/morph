@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/ed25519"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"testing"
@@ -52,7 +54,7 @@ func TestConfig_ResolvesAuthKeyAndTLSPaths(t *testing.T) {
 	directory := t.TempDir()
 	configPath := filepath.Join(directory, "config.yaml")
 	cfg := NewDefaultConfig()
-	cfg.Auth.Key = "identity.pem"
+	cfg.Auth.Key = "identity.hex"
 	cfg.Auth.TLS = AuthTLSConfig{
 		Mode: AuthTLSServer, ServerCertificate: "server.pem",
 		ServerKey: "server-key.pem", ServerCA: "ca.pem",
@@ -64,9 +66,31 @@ func TestConfig_ResolvesAuthKeyAndTLSPaths(t *testing.T) {
 
 	loaded, err := loadConfigFile(configPath)
 	require.NoError(t, err)
-	require.Equal(t, filepath.Join(directory, "identity.pem"), loaded.Auth.Key)
+	require.Equal(t, filepath.Join(directory, "identity.hex"), loaded.Auth.Key)
 	require.Equal(t, filepath.Join(directory, "server.pem"), loaded.Auth.TLS.ServerCertificate)
 	require.Equal(t, filepath.Join(directory, "client-key.pem"), loaded.Auth.TLS.ClientKey)
+}
+
+func TestConfig_PreservesInlineHexAuthKey(t *testing.T) {
+	privateKey := ed25519.NewKeyFromSeed(make([]byte, ed25519.SeedSize))
+	for name, key := range map[string]string{
+		"seed":     hex.EncodeToString(privateKey.Seed()),
+		"full key": hex.EncodeToString(privateKey),
+	} {
+		t.Run(name, func(t *testing.T) {
+			directory := t.TempDir()
+			configPath := filepath.Join(directory, "config.yaml")
+			cfg := NewDefaultConfig()
+			cfg.Auth.Key = key
+			body, err := cfg.ToYAML()
+			require.NoError(t, err)
+			require.NoError(t, writeAuthTestFile(configPath, body))
+
+			loaded, err := loadConfigFile(configPath)
+			require.NoError(t, err)
+			require.Equal(t, cfg.Auth.Key, loaded.Auth.Key)
+		})
+	}
 }
 
 func writeAuthTestFile(path string, body []byte) error {

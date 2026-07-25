@@ -53,7 +53,7 @@ Runs the same compaction path as `morph session compact` on the current session,
 ### `/models` and `/providers`
 
 The catalog is loaded locally. Selecting a model or entering an API key may call RPC `ModelService.SelectModel` or
-`SetProviderAPIKey`. For credential setup outside the TUI, use `morph auth login`; see
+`SetProviderAPIKey`. For credential setup outside the TUI, use `morph provider login`; see
 [Provider Auth](../guides/provider-auth).
 
 For Ollama, the catalog includes installed models discovered from the local runtime and suggested models that may need

@@ -320,7 +320,7 @@ func TestRenderReadinessReport(t *testing.T) {
 					Status:  readiness.StatusWarn,
 					Message: "missing",
 					Actions: []readiness.Action{
-						{Command: "morph auth login openai", Description: "login"},
+						{Command: "morph provider login openai", Description: "login"},
 						{Command: "/models"},
 					},
 				},
@@ -332,12 +332,12 @@ func TestRenderReadinessReport(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Contains(t, output.String(), "models:")
-	require.Contains(t, output.String(), "fix: \x1b[97mmorph auth login openai\x1b[0m\x1b[90m - login\x1b[0m")
+	require.Contains(t, output.String(), "fix: \x1b[97mmorph provider login openai\x1b[0m\x1b[90m - login\x1b[0m")
 	require.Contains(t, output.String(), "fix: \x1b[97m/models\x1b[0m")
 	require.Equal(
 		t,
-		"`morph auth login openai` - login",
-		formatAction(readiness.Action{Command: "morph auth login openai", Description: "login"}, &config.Config{Log: config.LogConfig{NoColor: true}}),
+		"`morph provider login openai` - login",
+		formatAction(readiness.Action{Command: "morph provider login openai", Description: "login"}, &config.Config{Log: config.LogConfig{NoColor: true}}),
 	)
 	require.Equal(
 		t,

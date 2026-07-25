@@ -312,7 +312,7 @@ func (s *AuthService) RotateIdentity(
 		return nil, status.Error(codes.PermissionDenied, "root identity rotation is not authorized")
 	}
 	publicKey := append(ed25519.PublicKey(nil), request.GetNextPublicKey()...)
-	identityID, err := morphauth.PublicKeyThumbprint(publicKey)
+	identityID, err := morphauth.PublicKeyIdentityID(publicKey)
 	if err != nil || identityID != strings.TrimSpace(request.GetNextIdentityId()) {
 		return nil, status.Error(codes.InvalidArgument, "next identity ID must match the public key")
 	}
@@ -476,7 +476,7 @@ func authAuthorizationFromProto(
 		return morphauth.Authorization{}, errors.New("valid identity authorization is required")
 	}
 	publicKey := append(ed25519.PublicKey(nil), authorization.GetPublicKey()...)
-	identityID, err := morphauth.PublicKeyThumbprint(publicKey)
+	identityID, err := morphauth.PublicKeyIdentityID(publicKey)
 	if err != nil || identityID != strings.TrimSpace(authorization.GetIdentityId()) {
 		return morphauth.Authorization{}, errors.New("identity ID must match the public key")
 	}

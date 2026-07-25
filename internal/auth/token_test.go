@@ -1,6 +1,7 @@
 package auth_test
 
 import (
+	"encoding/hex"
 	"testing"
 	"time"
 
@@ -39,6 +40,12 @@ func TestAccessToken_SignsAndVerifiesStrictClaims(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, signedClaims.ID, claims.ID)
+	require.Len(t, claims.ID, 48)
+	_, err = hex.DecodeString(claims.ID)
+	require.NoError(t, err)
+	require.Len(t, claims.Nonce, morphauth.DefaultNonceBytes*2)
+	_, err = hex.DecodeString(claims.Nonce)
+	require.NoError(t, err)
 	require.Equal(t, "session", claims.SessionID)
 	require.Equal(t, "rpc", claims.Source)
 	require.Equal(t, "certificate", claims.Confirmation.CertificateThumbprint)

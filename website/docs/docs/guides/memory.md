@@ -225,7 +225,7 @@ morph doctor
 - Episodic extraction requires idle time and enough messages; adjust `idleAfter` and `minMessages` if sessions are
   always active.
 - Episodic, reflection, and flush call the summary model; verify `models.summary` and provider credentials with
-  `morph auth status` and `morph doctor`.
+  `morph provider status` and `morph doctor`.
 
 Trace files under the profile's `traces/` directory record memory events (`memory.retrieved`, `memory.flush.*`,
 `memory.extraction.*`, `memory.promotion.*`). See [Search and Traces](./search-and-traces) for inspecting traces.

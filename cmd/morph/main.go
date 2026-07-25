@@ -17,9 +17,9 @@ import (
 	doctorcmd "github.com/wandxy/morph/cmd/doctor"
 	gatewaycmd "github.com/wandxy/morph/cmd/gateway"
 	configcmd "github.com/wandxy/morph/cmd/morph/configcmd"
-	setupcmd "github.com/wandxy/morph/cmd/morph/setupcmd"
 	permissionscmd "github.com/wandxy/morph/cmd/permissions"
 	profilecmd "github.com/wandxy/morph/cmd/profile"
+	providercmd "github.com/wandxy/morph/cmd/provider"
 	sessioncmd "github.com/wandxy/morph/cmd/session"
 	tracecmd "github.com/wandxy/morph/cmd/trace"
 	tuicmd "github.com/wandxy/morph/cmd/tui"
@@ -132,8 +132,8 @@ func newCommand() *cli.Command {
 			doctorcmd.NewCommand(),
 			gatewaycmd.NewCommand(),
 			profilecmd.NewCommand(),
+			providercmd.NewCommand(os.Stdin, rootOutput),
 			permissionscmd.NewCommand(),
-			setupcmd.NewCommand(os.Stdin, rootOutput),
 			sessioncmd.NewCommand(),
 			tracecmd.NewCommand(),
 			daemoncmd.NewCommand(),

@@ -341,7 +341,7 @@ func TestBuild_WarnsWhenOllamaEmbeddingModelIsMissing(t *testing.T) {
 	require.Contains(t, embeddings.Message, "is not installed")
 	require.Equal(
 		t,
-		"morph setup provider --provider ollama --base-url http://127.0.0.1:11435 --model nomic-embed-text --pull",
+		"morph provider configure --provider ollama --base-url http://127.0.0.1:11435 --model nomic-embed-text --pull",
 		embeddings.Actions[0].Command,
 	)
 }
@@ -426,7 +426,7 @@ func TestBuild_ReportsMissingOllamaModel(t *testing.T) {
 	require.Contains(t, model.Message, `model "missing:latest" is not installed`)
 	require.Equal(
 		t,
-		"morph setup provider --provider ollama --base-url http://127.0.0.1:11434 --model missing:latest --pull",
+		"morph provider configure --provider ollama --base-url http://127.0.0.1:11434 --model missing:latest --pull",
 		model.Actions[0].Command,
 	)
 }
@@ -586,12 +586,12 @@ func TestBuild_CoversModelAndCapabilityBranches(t *testing.T) {
 	require.True(t, report.HasFailures())
 	embedding := findReadinessCheck(t, report, "models", "embedding")
 	require.Equal(t, StatusFail, embedding.Status)
-	require.Equal(t, "morph auth login openai --api-key <api-key>", embedding.Actions[0].Command)
+	require.Equal(t, "morph provider login openai --api-key <api-key>", embedding.Actions[0].Command)
 	require.Equal(t, "morph config set models.providers.openai.apiKey <api-key>", embedding.Actions[1].Command)
 	vector := findReadinessCheck(t, report, "search", "vector")
 	require.Equal(t, StatusFail, vector.Status)
 	require.Contains(t, vector.Message, `auth=missing for provider "openai"`)
-	require.Equal(t, "morph auth login openai --api-key <api-key>", vector.Actions[0].Command)
+	require.Equal(t, "morph provider login openai --api-key <api-key>", vector.Actions[0].Command)
 	require.Equal(t, "morph config set models.providers.openai.apiKey <api-key>", vector.Actions[1].Command)
 	require.Equal(t, StatusWarn, findReadinessCheck(t, report, "memory", "status").Status)
 	require.Equal(t, StatusWarn, findReadinessCheck(t, report, "memory", "retrieval").Status)
@@ -1013,11 +1013,11 @@ func TestBuild_CoversRerankDisabledBySearch(t *testing.T) {
 
 func TestMissingAuthActionAndCredentialSourceFormatting(t *testing.T) {
 	modelMissingAuthActions := modelErrorActions(constants.ModelProviderOpenRouter, errors.New("model API key is required for provider"))
-	require.Equal(t, "morph auth login openrouter --api-key <api-key>", modelMissingAuthActions[0].Command)
+	require.Equal(t, "morph provider login openrouter --api-key <api-key>", modelMissingAuthActions[0].Command)
 	require.Equal(t, "morph config set models.providers.openrouter.apiKey <api-key>", modelMissingAuthActions[1].Command)
 
 	embeddingMissingAuthActions := embeddingModelErrorActions(constants.ModelProviderOpenAI, errors.New("embedding API key is required for provider"))
-	require.Equal(t, "morph auth login openai --api-key <api-key>", embeddingMissingAuthActions[0].Command)
+	require.Equal(t, "morph provider login openai --api-key <api-key>", embeddingMissingAuthActions[0].Command)
 	require.Equal(t, "morph config set models.providers.openai.apiKey <api-key>", embeddingMissingAuthActions[1].Command)
 
 	modelSelectionActions := modelErrorActions(constants.ModelProviderOpenRouter, errors.New("model provider must be one of: openrouter"))
@@ -1026,10 +1026,10 @@ func TestMissingAuthActionAndCredentialSourceFormatting(t *testing.T) {
 	require.Equal(t, "/models", modelSelectionActions[1].Command)
 
 	require.False(t, isMissingAuthError(nil))
-	require.Equal(t, "morph auth login openai", missingAuthActions(constants.ModelProviderOpenAI)[0].Command)
+	require.Equal(t, "morph provider login openai", missingAuthActions(constants.ModelProviderOpenAI)[0].Command)
 	require.Equal(
 		t,
-		"morph auth login openrouter --api-key <api-key>",
+		"morph provider login openrouter --api-key <api-key>",
 		missingAuthActions(constants.ModelProviderOpenRouter)[0].Command,
 	)
 	require.Equal(

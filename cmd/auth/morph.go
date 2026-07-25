@@ -2,8 +2,9 @@ package authcmd
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/rand"
-	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -351,7 +352,7 @@ func newAuthorizationCommand() *cli.Command {
 						if err != nil {
 							return err
 						}
-						return writeJSONValue(authorizations)
+						return writeJSONValue(getAuthorizationOutputs(authorizations))
 					})
 				},
 			},
@@ -389,7 +390,7 @@ func newAuthorizationCommand() *cli.Command {
 						if err != nil {
 							return err
 						}
-						return writeJSONValue(authorization)
+						return writeJSONValue(getAuthorizationOutput(authorization))
 					})
 				},
 			},
@@ -590,7 +591,7 @@ func getEffectiveIdentity(cmd *cli.Command, create bool) (morphauth.Identity, er
 	key := strings.TrimSpace(cfg.Auth.Key)
 	if key != "" {
 		body := []byte(key)
-		if !strings.Contains(key, "-----BEGIN") {
+		if !morphauth.IsEncodedIdentity(body) {
 			body, err = os.ReadFile(key)
 			if err != nil {
 				return morphauth.Identity{}, fmt.Errorf("read Morph identity key: %w", err)
@@ -613,9 +614,9 @@ func getEffectiveIdentity(cmd *cli.Command, create bool) (morphauth.Identity, er
 }
 
 func grantAuthorization(ctx context.Context, cmd *cli.Command) error {
-	publicKey, err := base64.RawURLEncoding.DecodeString(strings.TrimSpace(cmd.String("public-key")))
-	if err != nil {
-		return errors.New("public key must be base64url encoded")
+	publicKey, err := hex.DecodeString(strings.TrimSpace(cmd.String("public-key")))
+	if err != nil || len(publicKey) != ed25519.PublicKeySize {
+		return errors.New("public key must be 64 hexadecimal characters")
 	}
 	authorization := &morphpb.AuthAuthorization{
 		IdentityId: strings.TrimSpace(cmd.String("identity")),
@@ -632,7 +633,7 @@ func grantAuthorization(ctx context.Context, cmd *cli.Command) error {
 		if err != nil {
 			return err
 		}
-		return writeJSONValue(result)
+		return writeJSONValue(getAuthorizationOutput(result))
 	})
 }
 
@@ -642,7 +643,7 @@ func randomAuthID() (string, error) {
 		return "", err
 	}
 
-	return base64.RawURLEncoding.EncodeToString(body), nil
+	return hex.EncodeToString(body), nil
 }
 
 func writeIdentityResult(cmd *cli.Command, identity morphauth.Identity) error {
@@ -669,6 +670,31 @@ func writeJSONValue(value any) error {
 	encoder := json.NewEncoder(authOutput)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(value)
+}
+
+type authorizationOutput struct {
+	*morphpb.AuthAuthorization
+	PublicKey string `json:"public_key"`
+}
+
+func getAuthorizationOutput(
+	authorization *morphpb.AuthAuthorization,
+) authorizationOutput {
+	return authorizationOutput{
+		AuthAuthorization: authorization,
+		PublicKey:         hex.EncodeToString(authorization.GetPublicKey()),
+	}
+}
+
+func getAuthorizationOutputs(
+	authorizations []*morphpb.AuthAuthorization,
+) []authorizationOutput {
+	outputs := make([]authorizationOutput, 0, len(authorizations))
+	for _, authorization := range authorizations {
+		outputs = append(outputs, getAuthorizationOutput(authorization))
+	}
+
+	return outputs
 }
 
 func formatProtoTime(value *timestamppb.Timestamp) string {

@@ -20,7 +20,7 @@ Gateways run inside the [daemon](../../concepts/daemon-and-rpc) for the active [
 Before you enable one:
 
 - A daemon must be running for the profile (`morph daemon`, or keep `morph` open).
-- Model credentials must work (`morph auth status`, `morph doctor`); gateway turns use the same agent runtime as the TUI.
+- Model credentials must work (`morph provider status`, `morph doctor`); gateway turns use the same agent runtime as the TUI.
 - Gateway bot tokens and signing secrets come from profile **config**, environment variables, or CLI flags, not from
   `auth.json`, which is for model providers only. See [Provider Auth](../provider-auth) for model auth and
   [Safety and Guardrails](../../concepts/safety-and-guardrails) for how gateway secrets are handled in logs and traces.
@@ -178,7 +178,7 @@ daemon to restart, or restart the daemon manually after saving valid config.
 
 ### Messages arrive but get no reply
 
-- Confirm model auth works (`morph auth status`, `morph doctor`).
+- Confirm model auth works (`morph provider status`, `morph doctor`).
 - For Slack/Telegram, confirm the sender is allowlisted or paired (`morph gateway pairing list`).
 - For generic HTTP, confirm the bearer token matches `gateway.authToken` when one is configured.
 

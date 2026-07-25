@@ -69,7 +69,7 @@ from `.env`, when you want the YAML/default value to win. `MORPH_LOG_NO_COLOR`, 
 | `MORPH_MODEL_EMBEDDING_PROVIDER` | `models.embedding.provider` |
 | `MORPH_MODEL_EMBEDDING_MODEL` | `models.embedding.name` |
 
-Role `apiKey` fields and `models.providers.*` are **not** overridden by `MORPH_*`; use YAML, `morph auth login`, or
+Role `apiKey` fields and `models.providers.*` are **not** overridden by `MORPH_*`; use YAML, `morph provider login`, or
 provider env vars below.
 
 ## RPC
@@ -295,7 +295,7 @@ Firecrawl base URL: `MORPH_FIRECRAWL_API_URL`. Details: [Provider Auth](../guide
 
 ## Secret handling
 
-- Prefer **`morph auth login`** or profile `auth.json` over long-lived shell exports for OAuth and API keys.
+- Prefer **`morph provider login`** or profile `auth.json` over long-lived shell exports for OAuth and API keys.
 - Do not commit `.env` files with secrets. See [Security](../operations/security).
 - Gateway tokens in env (`MORPH_GATEWAY_*`) are as sensitive as YAML values: restrict file permissions on profile home.
 

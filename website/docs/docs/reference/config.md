@@ -112,7 +112,7 @@ See [Daemon and RPC](../concepts/daemon-and-rpc) and [RPC Reference](./rpc).
 
 | Key | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `key` | string | `""` | Ed25519 PKCS#8 PEM or key-file reference; otherwise `auth.json` is used |
+| `key` | string | `""` | Ed25519 seed as 64 hex characters or full private key as 128 hex characters, directly or from a file; otherwise `auth.json` is used |
 | `generation` | uint | `1` | Generation of an externally configured key; increment by one with each key replacement |
 | `token` | string | `""` | Explicit operator-managed access token |
 | `audience` | string | `morph-rpc:<profile>` | Expected JWT audience |

@@ -19,7 +19,7 @@ control after config is ready, see [Gateway Management](./gateway-management).
 | Situation | Why doctor helps |
 | --- | --- |
 | First install or new profile | Catches missing config, auth, and paths before you open the TUI |
-| After `morph config set` or `morph auth login` | Confirms the active profile still validates and model roles resolve credentials |
+| After `morph config set` or `morph provider login` | Confirms the active profile still validates and model roles resolve credentials |
 | RPC or gateway commands fail | **daemon** group shows whether `runtime.json` exists and RPC is reachable |
 | Gateway tokens or modes changed | **gateway** group lists missing bot tokens, webhook secrets, or auth on non-loopback binds |
 | Memory or search seems inactive | **memory** and **search** groups show effective feature flags and embedding auth |
@@ -226,14 +226,14 @@ Resolves credentials the same way the daemon does at startup:
 
 | Check | PASS message | FAIL / actions |
 | --- | --- | --- |
-| main | `main model "…" on provider "…" using … auth` | Missing provider or auth; fix with `morph auth login`, `morph config set models.providers.…`, or TUI `/providers` |
+| main | `main model "…" on provider "…" using … auth` | Missing provider or auth; fix with `morph provider login`, `morph config set models.providers.…`, or TUI `/providers` |
 | summary | Same pattern for the summary role (falls back to main when unset) | Same fix actions for the summary provider when auth is missing |
 | embedding | Resolves when `search.vector.enabled` is true | FAIL when vector search is required and auth is missing; WARN when vector search is off but an embedding model is configured |
 
 Credential source labels in PASS lines include `token-store`, `environment`, `role-config`, `provider-config`, and
 OAuth variants. Resolution order is documented in [Provider Auth](../guides/provider-auth).
 
-`morph auth status` lists stored credentials per provider; doctor verifies they satisfy the **configured model roles**.
+`morph provider status` lists stored credentials per provider; doctor verifies they satisfy the **configured model roles**.
 
 For local Ollama, model checks also probe the configured base URL. Doctor reports whether Ollama is reachable, whether
 the selected chat model is installed, whether selected-model context metadata is available, and whether a configured
@@ -272,7 +272,7 @@ run memory jobs. It only reports config. Background work still needs a running d
 Vector **WARN** means hybrid/semantic search is off; lexical search may still work. See
 [Search and Traces](../guides/search-and-traces).
 
-When vector search is required, fix embedding auth with the same commands doctor suggests (`morph auth login …`,
+When vector search is required, fix embedding auth with the same commands doctor suggests (`morph provider login …`,
 `morph config set models.providers.…`).
 
 For Ollama embeddings, doctor checks the local runtime and selected embedding model instead of asking for a hosted API
@@ -356,7 +356,7 @@ Reports web search / extraction readiness with one check named **web tools**:
 | --- | --- |
 | `morph doctor` | Full profile readiness: config validation, auth resolution, daemon probe, subsystem flags |
 | `morph profile doctor` | Profile name and filesystem paths only, no model or daemon checks |
-| `morph auth status` | Stored provider credentials, not whether they match configured model roles |
+| `morph provider status` | Stored provider credentials, not whether they match configured model roles |
 | `morph daemon status` | Short daemon running/stopped summary for the profile |
 | `morph gateway status` | Live gateway listener and platform connection state via RPC |
 | Daemon startup banner | What the running process chose at boot (may differ until you reload config) |

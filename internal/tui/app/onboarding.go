@@ -2560,7 +2560,7 @@ func renderProfileModelSetupNoticeMessage(message string, width int) string {
 }
 
 func renderProfileModelSetupNoticeMessageLine(line string) string {
-	command := getProfileModelSetupNoticeAuthCommand(line)
+	command := getProfileModelSetupNoticeProviderCommand(line)
 	mutedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(defaultTUITheme.MutedText))
 	if command == "" {
 		return mutedStyle.Render(line)
@@ -2576,10 +2576,10 @@ func renderProfileModelSetupNoticeMessageLine(line string) string {
 	}, "")
 }
 
-func getProfileModelSetupNoticeAuthCommand(line string) string {
+func getProfileModelSetupNoticeProviderCommand(line string) string {
 	fields := strings.Fields(line)
 	for index := 0; index+3 < len(fields); index++ {
-		if fields[index] == "morph" && fields[index+1] == "auth" && fields[index+2] == "login" {
+		if fields[index] == "morph" && fields[index+1] == "provider" && fields[index+2] == "login" {
 			return strings.Join(fields[index:index+4], " ")
 		}
 	}

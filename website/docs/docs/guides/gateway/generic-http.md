@@ -231,7 +231,7 @@ Check that `conversation_id` and `message` are non-empty strings and the body is
 
 ### 500 internal_error
 
-Check model credentials (`morph auth status`, `morph doctor`) and daemon logs. The HTTP response intentionally omits
+Check model credentials (`morph provider status`, `morph doctor`) and daemon logs. The HTTP response intentionally omits
 internal details. Use [Search and Traces](../search-and-traces) to inspect trace events for the bound session.
 
 ### Slow or timed-out requests

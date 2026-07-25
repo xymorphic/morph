@@ -82,7 +82,7 @@ operation.
 ### Identity and secret handling
 
 - R1. Every Morph profile must have one root Ed25519 identity. The identity ID and JWT `kid` must be derived from the
-  public key using a stable SHA-256 JWK thumbprint; profile names, filenames, or caller-provided labels are not identity
+  final 20 bytes of a SHA-256 digest of its raw Ed25519 public key, encoded as lowercase hex; profile names, filenames, or caller-provided labels are not identity
   proof.
 - R2. When no effective key exists, profile setup or first daemon initialization must generate the key pair atomically
   with cryptographically secure randomness and owner-only permissions on Unix and Windows.
@@ -219,8 +219,12 @@ operation.
 - KTD1. **Use Ed25519 self-signed Morph access tokens.** Each authorized user identity signs its own token. The daemon
   trusts public keys through root profile identity and explicit authorization records, then limits claims to that
   server-side authorization. This satisfies portable offline signing without introducing a shared symmetric secret.
-- KTD2. **Use JWK thumbprints as stable identity IDs.** RFC 7638 SHA-256 thumbprints over the public OKP JWK provide a
-  deterministic `kid` and identity identifier that cannot be forged by changing a label.
+- KTD2. **Use truncated public-key digests as stable identity IDs.** The final 20 bytes of a SHA-256 digest over the
+  raw Ed25519 public key, encoded as lowercase hex, provide a compact deterministic `kid` and identity identifier
+  that cannot be forged by changing a label.
+- KTD2a. **Use lowercase hex for Morph-owned byte strings.** Generated session IDs, JWT IDs, nonces, identity IDs, and
+  CLI public-key input use hexadecimal text. JWT compact segments and signatures, public JWK members, and
+  `x5t#S256` retain their standards-required unpadded Base64URL encoding.
 - KTD3. **Adopt the JWT access-token validation profile, not a general JWT parser.** Tokens use `typ: at+jwt`, required
   issuer, subject, audience, time, and JWT ID validation, explicit EdDSA-only algorithms, strict decoding, small clock
   skew, and mutually exclusive validation rules for any future token type.
@@ -396,7 +400,7 @@ stateDiagram-v2
 | --- | --- | --- |
 | `alg` | EdDSA only | Fixed server allowlist |
 | `typ` | `at+jwt` | Fixed token-type validator |
-| `kid` | SHA-256 JWK thumbprint | Authorized Ed25519 public key |
+| `kid` | Final 20 bytes of raw-public-key SHA-256, lowercase hex | Authorized Ed25519 public key |
 | `iss` | Morph identity ID | Must agree with `kid` and authorization record |
 | `sub` | Stable user identity | Authorization record |
 | `aud` | Profile RPC audience | Active profile and daemon configuration |
@@ -439,145 +443,157 @@ runtime switch that accepts the legacy proof alongside JWT.
 
 ### Phase 1: Identity, configuration, and secret storage
 
+Status: Complete.
+
 Build the Ed25519 identity domain, config contract, `auth.json` reserved record, source precedence, safe generation,
 redaction, and key rotation primitives.
 
 Tasks:
 
-- [ ] Add auth configuration, defaults, normalization, environment and CLI overrides, validation, cloning, and
+- [x] Add auth configuration, defaults, normalization, environment and CLI overrides, validation, cloning, and
   redaction.
-- [ ] Add Ed25519 key generation, PKCS#8 encoding, public JWK representation, RFC 7638 thumbprints, identity generation,
+- [x] Add Ed25519 key generation, canonical seed-hex encoding, public JWK representation, 20-byte hex public-key identity IDs, identity generation,
   and domain-separated subkey derivation.
-- [ ] Refactor the `auth.json` file layer to preserve provider records and a reserved Morph auth object atomically.
-- [ ] Protect identity material with existing Unix mode and Windows ACL patterns.
-- [ ] Provision a root profile identity during setup or daemon initialization when no explicit key exists.
-- [ ] Replace browser attachment HMAC input with a domain-separated key derived from the new identity.
-- [ ] Add identity init, show, and rotate command foundations without retaining `browser auth rotate`.
-- [ ] Define staged key records and crash-recovery inputs needed for the later cross-file/database rotation protocol.
+- [x] Refactor the `auth.json` file layer to preserve provider records and a reserved Morph auth object atomically.
+- [x] Protect identity material with existing Unix mode and Windows ACL patterns.
+- [x] Provision a root profile identity during setup or daemon initialization when no explicit key exists.
+- [x] Replace browser attachment HMAC input with a domain-separated key derived from the new identity.
+- [x] Add identity init, show, and rotate command foundations without retaining `browser auth rotate`.
+- [x] Define staged key records and crash-recovery inputs needed for the later cross-file/database rotation protocol.
 
 Exit criteria:
 
-- [ ] A new profile receives exactly one valid Ed25519 identity under concurrent initialization.
-- [ ] Provider credential operations cannot erase, list as a provider, or corrupt the reserved Morph auth record.
-- [ ] Config, logs, errors, status, and JSON output never expose the private key or stored token.
-- [ ] Identity rotation changes the public thumbprint and browser attachment identity generation atomically.
+- [x] A new profile receives exactly one valid Ed25519 identity under concurrent initialization.
+- [x] Provider credential operations cannot erase, list as a provider, or corrupt the reserved Morph auth record.
+- [x] Config, logs, errors, status, and JSON output never expose the private key or stored token.
+- [x] Identity rotation changes the public-key identity digest and browser attachment identity generation atomically.
 
 ### Phase 2: JWT, authorization, session, token, and audit state
+
+Status: Complete.
 
 Implement strict JWT construction/validation and durable auth-domain stores before any RPC method depends on them.
 
 Tasks:
 
-- [ ] Define identity authorization, auth session, token metadata, revocation tombstone, audit event, status, query,
+- [x] Define identity authorization, auth session, token metadata, revocation tombstone, audit event, status, query,
   retention, and error contracts.
-- [ ] Implement EdDSA-only access token signing and parsing with required standard and Morph claims.
-- [ ] Build the canonical protobuf descriptor-backed service/method scope catalog and subset checks.
-- [ ] Enforce role, owner, user, service, method, TTL, nonce, identity-generation, and authorization-revision caps.
-- [ ] Add a dedicated AuthStore contract, a production profile-owned SQLite implementation, and an in-memory test
+- [x] Implement EdDSA-only access token signing and parsing with required standard and Morph claims.
+- [x] Build the canonical protobuf descriptor-backed service/method scope catalog and subset checks.
+- [x] Enforce role, owner, user, service, method, TTL, nonce, identity-generation, and authorization-revision caps.
+- [x] Add a dedicated AuthStore contract, a production profile-owned SQLite implementation, and an in-memory test
   implementation independent of the configured application state backend.
-- [ ] Add transactional session/token activation, renewal, use accounting, revocation, expiry, and bounded pruning.
-- [ ] Preserve revoked session and token tombstones through the maximum replay and retention windows.
-- [ ] Add safe authentication audit recording and queries without raw credentials.
-- [ ] Add bounded per-token/per-method use accounting and retention so routine authenticated calls do not grow one
+- [x] Add transactional session/token activation, renewal, use accounting, revocation, expiry, and bounded pruning.
+- [x] Preserve revoked session and token tombstones through the maximum replay and retention windows.
+- [x] Add safe authentication audit recording and queries without raw credentials.
+- [x] Add bounded per-token/per-method use accounting and retention so routine authenticated calls do not grow one
   audit row per invocation.
-- [ ] Seed the root public identity and owner authorization transactionally on first auth database initialization.
-- [ ] Add a rotation journal that can complete or roll back staged identity changes after process or filesystem failure.
+- [x] Seed the root public identity and owner authorization transactionally on first auth database initialization.
+- [x] Add a rotation journal that can complete or roll back staged identity changes after process or filesystem failure.
 
 Exit criteria:
 
-- [ ] Signature validity alone never admits a token whose server-side authorization, session, token, or generation is
+- [x] Signature validity alone never admits a token whose server-side authorization, session, token, or generation is
   invalid.
-- [ ] The in-memory test store and production SQLite store produce the same lifecycle, ordering, filtering, revocation,
+- [x] The in-memory test store and production SQLite store produce the same lifecycle, ordering, filtering, revocation,
   and pruning behavior.
-- [ ] Concurrent activation, renewal, use, revoke, and expiry operations are atomic and idempotent.
-- [ ] Restart at every identity-rotation stage leaves exactly one accepted identity generation and all prior tokens
+- [x] Concurrent activation, renewal, use, revoke, and expiry operations are atomic and idempotent.
+- [x] Restart at every identity-rotation stage leaves exactly one accepted identity generation and all prior tokens
   revoked once the new generation activates.
-- [ ] Adversarial JWT algorithm, type, audience, time, scope, and claim-confusion cases fail closed.
+- [x] Adversarial JWT algorithm, type, audience, time, scope, and claim-confusion cases fail closed.
 
 ### Phase 3: AuthService and management commands
+
+Status: Complete.
 
 Add the authenticated bootstrap and operator management surface needed before global enforcement.
 
 Tasks:
 
-- [ ] Add AuthService RPC messages and methods for session open/list/get/revoke, token register/list/get/revoke,
+- [x] Add AuthService RPC messages and methods for session open/list/get/revoke, token register/list/get/revoke,
   authorization list/grant/revoke, audit list/prune, and identity status.
-- [ ] Permit inactive-session validation only for the exact OpenSession method and reject it everywhere else.
-- [ ] Ensure OpenSession activates the presented token and session in one transaction after complete authorization
+- [x] Permit inactive-session validation only for the exact OpenSession method and reject it everywhere else.
+- [x] Ensure OpenSession activates the presented token and session in one transaction after complete authorization
   validation.
-- [ ] Add client types and safe proto/domain conversions that never return raw stored tokens or keys.
-- [ ] Expand `morph auth` with identity, token, session, authorization, audit, and mTLS status command groups while
+- [x] Add client types and safe proto/domain conversions that never return raw stored tokens or keys.
+- [x] Expand `morph auth` with identity, token, session, authorization, audit, and mTLS status command groups while
   retaining provider login/status/logout.
-- [ ] Add token generation controls for TTL, nonce bytes, owner, user, roles, services, methods, session, and explicit
+- [x] Add token generation controls for TTL, nonce bytes, owner, user, roles, services, methods, session, and explicit
   output destination.
-- [ ] Make identity authorization changes advance a revision and revoke or reject affected sessions immediately.
-- [ ] Finish identity rotation through the staged key, database journal, session/token revocation, browser generation,
+- [x] Make identity authorization changes advance a revision and revoke or reject affected sessions immediately.
+- [x] Finish identity rotation through the staged key, database journal, session/token revocation, browser generation,
   and startup-recovery protocol.
 
 Exit criteria:
 
-- [ ] A root owner can provision an identity, generate and activate a bounded token, inspect it, and revoke either the
+- [x] A root owner can provision an identity, generate and activate a bounded token, inspect it, and revoke either the
   token or its whole session.
-- [ ] A delegated identity cannot mint a token outside its role, service, method, owner, user, or TTL authorization.
-- [ ] Revoked tokens and sessions remain inspectable without exposing their original JWT.
-- [ ] Every management mutation produces a safe audit event.
+- [x] A delegated identity cannot mint a token outside its role, service, method, owner, user, or TTL authorization.
+- [x] Revoked tokens and sessions remain inspectable without exposing their original JWT.
+- [x] Every management mutation produces a safe audit event.
 
 ### Phase 4: Mandatory RPC cutover and first-party client integration
+
+Status: Complete.
 
 Replace the optional owner proof with mandatory JWT interceptors, update every Morph client, and delete the legacy path
 in the same change.
 
 Tasks:
 
-- [ ] Replace server owner interceptors with mandatory unary and stream authentication, live-state validation, exact
+- [x] Replace server owner interceptors with mandatory unary and stream authentication, live-state validation, exact
   method scopes, stable gRPC errors, and principal context.
-- [ ] Replace client owner-proof interceptors with centralized bearer-token resolution, session activation, metadata,
+- [x] Replace client owner-proof interceptors with centralized bearer-token resolution, session activation, metadata,
   TUI renewal, and automatic-session cleanup.
-- [ ] Require each first-party command to declare the exact RPC scopes its client may need.
-- [ ] Update daemon health and startup readiness to bootstrap authentication before calling gRPC health.
-- [ ] Derive permission actors and trusted owner role from the authenticated principal rather than proof presence and
+- [x] Require each first-party command to declare the exact RPC scopes its client may need.
+- [x] Update daemon health and startup readiness to bootstrap authentication before calling gRPC health.
+- [x] Derive permission actors and trusted owner role from the authenticated principal rather than proof presence and
   loopback.
-- [ ] Preserve surface and preset metadata as non-authoritative permission context.
-- [ ] Update root chat, TUI, session, model, gateway, automation, permissions, browser, and end-to-end clients.
-- [ ] Cancel active server streams when their token or session expires or is revoked.
-- [ ] Remove `internal/rpc/rpcauth`, `rpc-owner.key`, `x-morph-owner-*`, owner client/server interceptors, old tests, and
+- [x] Preserve surface and preset metadata as non-authoritative permission context.
+- [x] Update root chat, TUI, session, model, gateway, automation, permissions, browser, and end-to-end clients.
+- [x] Cancel active server streams when their token or session expires or is revoked.
+- [x] Remove `internal/rpc/rpcauth`, `rpc-owner.key`, `x-morph-owner-*`, owner client/server interceptors, old tests, and
   `browser auth rotate`.
-- [ ] Make missing JWT fail every registered Morph and health RPC in service-catalog parity tests.
+- [x] Make missing JWT fail every registered Morph and health RPC in service-catalog parity tests.
 
 Exit criteria:
 
-- [ ] No registered RPC handler runs without a valid, active, correctly scoped JWT.
-- [ ] CLI commands auto-use short-lived in-memory tokens only when no explicit token exists.
-- [ ] TUI uses and renews a long-lived in-memory token without persisting it.
-- [ ] Every existing first-party RPC workflow works through the new boundary, and no legacy credential or metadata is
+- [x] No registered RPC handler runs without a valid, active, correctly scoped JWT.
+- [x] CLI commands auto-use short-lived in-memory tokens only when no explicit token exists.
+- [x] TUI uses and renews a long-lived in-memory token without persisting it.
+- [x] Every existing first-party RPC workflow works through the new boundary, and no legacy credential or metadata is
   read or accepted.
 
 ### Phase 5: TLS, mTLS, and certificate-bound tokens
+
+Status: In progress.
 
 Add encrypted transport, client-certificate authentication, and optional JWT sender constraint.
 
 Tasks:
 
-- [ ] Add disabled, server-TLS, and mutual-TLS config with certificate, key, CA, server-name, and minimum-version
+- [x] Add disabled, server-TLS, and mutual-TLS config with certificate, key, CA, server-name, and minimum-version
   validation.
-- [ ] Reject non-loopback plaintext listeners and clients that attempt to send tokens over an unapproved plaintext
+- [x] Reject non-loopback plaintext listeners and clients that attempt to send tokens over an unapproved plaintext
   channel.
-- [ ] Configure gRPC server and client transport credentials from the normalized TLS policy.
-- [ ] Verify client certificate chain, validity, EKU, and trusted roots in mutual mode.
-- [ ] Generate and validate optional `cnf.x5t#S256` claims against the observed leaf certificate.
+- [x] Configure gRPC server and client transport credentials from the normalized TLS policy.
+- [x] Verify client certificate chain, validity, EKU, and trusted roots in mutual mode.
+- [x] Generate and validate optional `cnf.x5t#S256` claims against the observed leaf certificate.
 - [ ] Add certificate status and safe thumbprint reporting to auth commands and doctor.
-- [ ] Define controlled restart or atomic reload behavior for CA, server certificate, client certificate, and identity
+- [x] Define controlled restart or atomic reload behavior for CA, server certificate, client certificate, and identity
   changes.
 - [ ] Audit TLS mode and certificate-binding failures without logging certificate private material or tokens.
 
 Exit criteria:
 
-- [ ] Remote RPC cannot run over plaintext.
-- [ ] Mutual TLS rejects missing, untrusted, expired, wrong-EKU, or mismatched certificates before handler execution.
-- [ ] A stolen certificate-bound JWT cannot be used without the matching client certificate.
-- [ ] A valid client certificate without a valid JWT still cannot invoke any RPC method.
+- [x] Remote RPC cannot run over plaintext.
+- [x] Mutual TLS rejects missing, untrusted, expired, wrong-EKU, or mismatched certificates before handler execution.
+- [x] A stolen certificate-bound JWT cannot be used without the matching client certificate.
+- [x] A valid client certificate without a valid JWT still cannot invoke any RPC method.
 
 ### Phase 6: Hardening, operations, documentation, and complete verification
+
+Status: In progress.
 
 Finish retention, diagnostics, denial resilience, documentation, and full-system proof.
 
@@ -587,18 +603,18 @@ Tasks:
   audit retention.
 - [ ] Add doctor checks for identity readiness, key permissions, effective token source, token expiry, auth store,
   authorization revision, TLS posture, certificates, and non-loopback plaintext rejection.
-- [ ] Verify authentication errors are stable, redacted, and do not reveal whether an unknown identity or JWT ID exists.
+- [x] Verify authentication errors are stable, redacted, and do not reveal whether an unknown identity or JWT ID exists.
 - [ ] Cover config reload, daemon restart, clock skew, token expiry during streams, concurrent revocation, identity
   rotation, certificate rotation, and SQLite reopen.
-- [ ] Update RPC, daemon, security, config, CLI, profile, permissions, browser, architecture, troubleshooting, FAQ, and
+- [x] Update RPC, daemon, security, config, CLI, profile, permissions, browser, architecture, troubleshooting, FAQ, and
   testing documentation.
 - [ ] Add cross-platform tests for auth file permissions and replacement on Unix and Windows.
 - [ ] Add end-to-end parity tests for every registered gRPC method and first-party command.
 
 Exit criteria:
 
-- [ ] The full project test suite passes with no unprotected RPC service or first-party unauthenticated client.
-- [ ] Documentation contains no plaintext/no-auth, loopback-is-owner, HMAC owner-proof, `rpc-owner.key`, or browser-auth
+- [x] The full project test suite passes with no unprotected RPC service or first-party unauthenticated client.
+- [x] Documentation contains no plaintext/no-auth, loopback-is-owner, HMAC owner-proof, `rpc-owner.key`, or browser-auth
   rotation assumptions.
 - [ ] Operators can identify the effective identity and token source, inspect active sessions and tokens, revoke access,
   and diagnose TLS failures without viewing a secret.
@@ -616,14 +632,14 @@ Exit criteria:
   `internal/auth/identity_test.go`, `internal/config/auth.go`, `internal/config/config.go`,
   `internal/config/runtime.go`, `internal/config/defaults.go`, `internal/config/normalize.go`,
   `internal/config/validation.go`, `internal/config/env.go`, related config tests, `internal/cli/flags.go`, `example.yaml`.
-- **Approach:** Use `crypto/ed25519`, PKCS#8, public OKP JWKs, RFC 7638 thumbprints, explicit identity generations, and
+- **Approach:** Use `crypto/ed25519`, canonical seed-hex encoding with full private-key hex accepted as input, public OKP JWKs, trailing-20-byte lowercase hex SHA-256 public-key identity IDs, explicit identity generations, and
   one normalized source resolver. Keep all secret-bearing values in redacted wrapper types at config and status
   boundaries.
 - **Patterns to follow:** Browser config normalization and validation; profile initialization; current credential
   permission helpers; permission fingerprint domain separation.
 - **Test scenarios:** Concurrent missing-key initialization; valid flag/config/file precedence; explicit invalid source
-  without fallback; mismatched public/private key; malformed PKCS#8; weak permissions; redacted formatting and cloning;
-  deterministic public thumbprint; domain-separated subkeys.
+  without fallback; mismatched public/private key; malformed private-key hex; weak permissions; redacted formatting and cloning;
+  deterministic public-key identity digest; domain-separated subkeys.
 - **Verification:** One effective identity is produced deterministically without exposing or ambiguously sourcing its
   private key.
 
@@ -805,7 +821,7 @@ Exit criteria:
 ## Acceptance Examples
 
 - AE1. **New profile bootstrap:** Given a profile with no identity, when the daemon initializes, then exactly one
-  Ed25519 key is stored safely, the public thumbprint becomes the root identity, and no legacy owner file is created.
+  Ed25519 key is stored safely, the public-key digest becomes the root identity, and no legacy owner file is created.
 - AE2. **Short-lived CLI token:** Given no configured token, when `morph session list` runs, then the CLI mints a
   five-minute in-memory token limited to its required methods, activates it, completes the call, and revokes its
   automatic session on clean exit.
@@ -939,7 +955,6 @@ Exit criteria:
   subject, audience, expiry, not-before, issued-at, and JWT ID.
 - [RFC 8037: EdDSA in JOSE](https://www.rfc-editor.org/rfc/rfc8037.html): Ed25519/OKP representation and EdDSA JOSE
   algorithm.
-- [RFC 7638: JWK Thumbprint](https://www.rfc-editor.org/rfc/rfc7638.html): stable SHA-256 identity and key IDs.
 - [RFC 8725: JWT Best Current Practices](https://www.rfc-editor.org/rfc/rfc8725.html): algorithm allowlists, issuer,
   audience, explicit typing, and cross-JWT confusion defenses.
 - [RFC 9068: JWT Access Token Profile](https://www.rfc-editor.org/rfc/rfc9068.html): `at+jwt`, required access-token

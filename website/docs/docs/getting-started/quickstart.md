@@ -75,7 +75,7 @@ Common profile files:
 
 - `config.yaml`: profile-local configuration.
 - `.env`: optional environment overrides.
-- `auth.json`: credentials stored by `morph auth login`.
+- `auth.json`: credentials stored by `morph provider login`.
 - `runtime.json`: daemon runtime metadata.
 
 ## Choose A Provider
@@ -165,14 +165,14 @@ In another terminal, let Morph configure the profile. Replace `<model-id>` with 
 [Ollama model library](https://ollama.com/library):
 
 ```bash
-morph setup provider \
+morph provider configure \
   --provider ollama \
   --base-url http://127.0.0.1:11434 \
   --model <model-id> \
   --pull
 ```
 
-You can also choose Ollama from TUI `/setup`. Local Ollama does not require `morph auth login`. For details, see
+You can also choose Ollama from TUI `/setup`. Local Ollama does not require `morph provider login`. For details, see
 [Local Models](../guides/local-models).
 
 ## Store Credentials
@@ -185,19 +185,19 @@ Store credentials in the active profile. Do not put real keys in shared docs, ti
 For subscription login, run only the command for your configured provider and omit `--api-key`:
 
 ```bash
-morph auth login openai-codex
+morph provider login openai-codex
 ```
 
 For Claude subscription login:
 
 ```bash
-morph auth login anthropic
+morph provider login anthropic
 ```
 
 For GitHub Copilot:
 
 ```bash
-morph auth login github-copilot
+morph provider login github-copilot
 ```
 
 For API key auth, run only the command for your configured provider:
@@ -205,25 +205,25 @@ For API key auth, run only the command for your configured provider:
 OpenRouter:
 
 ```bash
-morph auth login openrouter --api-key "<openrouter-api-key>"
+morph provider login openrouter --api-key "<openrouter-api-key>"
 ```
 
 OpenAI:
 
 ```bash
-morph auth login openai --api-key "<openai-api-key>"
+morph provider login openai --api-key "<openai-api-key>"
 ```
 
 Anthropic:
 
 ```bash
-morph auth login anthropic --api-key "<anthropic-api-key>"
+morph provider login anthropic --api-key "<anthropic-api-key>"
 ```
 
 Verify:
 
 ```bash
-morph auth status
+morph provider status
 morph doctor
 ```
 

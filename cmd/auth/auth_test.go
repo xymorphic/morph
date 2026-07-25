@@ -3,6 +3,7 @@ package authcmd
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	cli "github.com/urfave/cli/v3"
 
 	morphauth "github.com/wandxy/morph/internal/auth"
 	"github.com/wandxy/morph/internal/config"
@@ -23,6 +25,18 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+func newProviderTestCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "provider",
+		Flags: []cli.Flag{&cli.BoolFlag{Name: "json"}},
+		Commands: []*cli.Command{
+			NewProviderLoginCommand(),
+			NewProviderStatusCommand(),
+			NewProviderLogoutCommand(),
+		},
+	}
+}
 
 func setAuthTestSubscriptionProviderLookup(t *testing.T) {
 	t.Helper()
@@ -42,7 +56,7 @@ func TestCommand_LoginStoresAPIKeyWithoutPrintingSecret(t *testing.T) {
 	restore := SetOutput(&output)
 	t.Cleanup(func() { SetOutput(restore) })
 
-	err := NewCommand().Run(context.Background(), []string{"auth", "login", "openai", "--api-key", "sk-secret-value"})
+	err := newProviderTestCommand().Run(context.Background(), []string{"provider", "login", "openai", "--api-key", "sk-secret-value"})
 	require.NoError(t, err)
 	require.NotContains(t, output.String(), "sk-secret-value")
 	require.Contains(t, output.String(), "openai credential stored")
@@ -61,15 +75,15 @@ func TestCommand_ProviderCommandsHonorJSONOutput(t *testing.T) {
 	restore := SetOutput(&output)
 	t.Cleanup(func() { SetOutput(restore) })
 
-	err := NewCommand().Run(context.Background(), []string{
-		"auth", "--json", "login", "openai", "--api-key", "secret",
+	err := newProviderTestCommand().Run(context.Background(), []string{
+		"provider", "--json", "login", "openai", "--api-key", "secret",
 	})
 	require.NoError(t, err)
 	require.JSONEq(t, `{"provider":"openai","status":"stored"}`, output.String())
 
 	output.Reset()
-	err = NewCommand().Run(context.Background(), []string{
-		"auth", "--json", "status", "openai",
+	err = newProviderTestCommand().Run(context.Background(), []string{
+		"provider", "--json", "status", "openai",
 	})
 	require.NoError(t, err)
 	var statuses []map[string]string
@@ -80,8 +94,8 @@ func TestCommand_ProviderCommandsHonorJSONOutput(t *testing.T) {
 	}}, statuses)
 
 	output.Reset()
-	err = NewCommand().Run(context.Background(), []string{
-		"auth", "--json", "logout", "openai",
+	err = newProviderTestCommand().Run(context.Background(), []string{
+		"provider", "--json", "logout", "openai",
 	})
 	require.NoError(t, err)
 	require.JSONEq(t, `{"provider":"openai","status":"removed"}`, output.String())
@@ -92,8 +106,8 @@ func TestCommand_LoginStoresOAuthTokenWithExpiry(t *testing.T) {
 	home := setAuthTestProfile(t)
 	expiresAt := time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
 
-	err := NewCommand().Run(context.Background(), []string{
-		"auth", "login", "github-copilot",
+	err := newProviderTestCommand().Run(context.Background(), []string{
+		"provider", "login", "github-copilot",
 		"--token", "token-secret",
 		"--refresh-token", "refresh-secret",
 		"--expires-at", expiresAt,
@@ -116,20 +130,20 @@ func TestCommand_LoginValidatesCredentialFlags(t *testing.T) {
 	setAuthTestSubscriptionProviderLookup(t)
 	setAuthTestProfile(t)
 
-	err := NewCommand().Run(context.Background(), []string{"auth", "login", "openai"})
+	err := newProviderTestCommand().Run(context.Background(), []string{"provider", "login", "openai"})
 	require.EqualError(t, err, "credential is required; pass --api-key or --token, or use a provider with subscription login")
 
-	err = NewCommand().Run(context.Background(), []string{
-		"auth", "login", "openai", "--api-key", "key", "--token", "token",
+	err = newProviderTestCommand().Run(context.Background(), []string{
+		"provider", "login", "openai", "--api-key", "key", "--token", "token",
 	})
 	require.EqualError(t, err, "use either --api-key or --token, not both")
 
-	err = NewCommand().Run(context.Background(), []string{
-		"auth", "login", "openai", "--token", "token", "--expires-at", "not-time",
+	err = newProviderTestCommand().Run(context.Background(), []string{
+		"provider", "login", "openai", "--token", "token", "--expires-at", "not-time",
 	})
 	require.ErrorContains(t, err, "parse --expires-at")
 
-	err = NewCommand().Run(context.Background(), []string{"auth", "login"})
+	err = newProviderTestCommand().Run(context.Background(), []string{"provider", "login"})
 	require.EqualError(t, err, "provider is required")
 }
 
@@ -152,7 +166,7 @@ func TestCommand_LoginUsesSubscriptionProviderWhenNoCredentialFlags(t *testing.T
 	}
 	t.Cleanup(func() { getSubscriptionProvider = previousProvider })
 
-	err := NewCommand().Run(context.Background(), []string{"auth", "login", "openai"})
+	err := newProviderTestCommand().Run(context.Background(), []string{"provider", "login", "openai"})
 	require.NoError(t, err)
 	require.NotContains(t, output.String(), "subscription-secret")
 
@@ -169,7 +183,7 @@ func TestCommand_LoginReturnsOutputError(t *testing.T) {
 	restore := SetOutput(errorWriter{})
 	t.Cleanup(func() { SetOutput(restore) })
 
-	err := NewCommand().Run(context.Background(), []string{"auth", "login", "openai", "--api-key", "key"})
+	err := newProviderTestCommand().Run(context.Background(), []string{"provider", "login", "openai", "--api-key", "key"})
 	require.EqualError(t, err, "write failed")
 }
 
@@ -188,7 +202,7 @@ models:
 	store := appcredential.NewFileStore(filepath.Join(home, "auth.json"))
 	require.NoError(t, store.Set("openai", appcredential.StoredCredential{Type: appcredential.TypeAPIKey, Key: "stored-secret"}))
 
-	err := NewCommand().Run(context.Background(), []string{"auth", "status", "openai", "anthropic", "openrouter"})
+	err := newProviderTestCommand().Run(context.Background(), []string{"provider", "status", "openai", "anthropic", "openrouter"})
 	require.NoError(t, err)
 	requireAuthStatusRow(t, output.String(), "openai", "stored api_key")
 	requireAuthStatusRow(t, output.String(), "anthropic", "environment")
@@ -215,7 +229,7 @@ web:
 		Key:  "firecrawl-stored-secret",
 	}))
 
-	err := NewCommand().Run(context.Background(), []string{"auth", "status", "firecrawl", "exa", "tavily"})
+	err := newProviderTestCommand().Run(context.Background(), []string{"provider", "status", "firecrawl", "exa", "tavily"})
 	require.NoError(t, err)
 	requireAuthStatusRow(t, output.String(), "firecrawl", "stored api_key")
 	requireAuthStatusRow(t, output.String(), "exa", "environment")
@@ -245,7 +259,7 @@ func TestCommand_StatusReportsStoredOAuthExpiryStates(t *testing.T) {
 		ExpiresAt: &fresh,
 	}))
 
-	err := NewCommand().Run(context.Background(), []string{"auth", "status", "openai", "anthropic"})
+	err := newProviderTestCommand().Run(context.Background(), []string{"provider", "status", "openai", "anthropic"})
 	require.NoError(t, err)
 	requireAuthStatusRow(t, output.String(), "openai", "stored oauth expired")
 	requireAuthStatusRow(t, output.String(), "anthropic", "stored oauth refreshable")
@@ -267,7 +281,7 @@ models:
         - CUSTOM_PROVIDER_KEY
 `), 0o600))
 
-	err := NewCommand().Run(context.Background(), []string{"auth", "status", "custom"})
+	err := newProviderTestCommand().Run(context.Background(), []string{"provider", "status", "custom"})
 	require.NoError(t, err)
 	requireAuthStatusRow(t, output.String(), "custom", "environment")
 	require.NotContains(t, output.String(), "custom-secret")
@@ -279,7 +293,7 @@ func TestCommand_StatusReportsAllKnownProviders(t *testing.T) {
 	restore := SetOutput(&output)
 	t.Cleanup(func() { SetOutput(restore) })
 
-	err := NewCommand().Run(context.Background(), []string{"auth", "status"})
+	err := newProviderTestCommand().Run(context.Background(), []string{"provider", "status"})
 	require.NoError(t, err)
 	requireAuthStatusRow(t, output.String(), "anthropic", "missing")
 	requireAuthStatusRow(t, output.String(), "github-copilot", "missing")
@@ -308,7 +322,7 @@ models:
 		Key:  "stored-secret",
 	}))
 
-	err := NewCommand().Run(context.Background(), []string{"auth", "status"})
+	err := newProviderTestCommand().Run(context.Background(), []string{"provider", "status"})
 	require.NoError(t, err)
 	requireAuthStatusRow(t, output.String(), "custom-config", "provider-config")
 	requireAuthStatusRow(t, output.String(), "custom-stored", "stored api_key")
@@ -321,7 +335,7 @@ func TestCommand_StatusReturnsCredentialStoreParseError(t *testing.T) {
 	require.NoError(t, os.Chmod(home, 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(home, "auth.json"), []byte("{"), 0o600))
 
-	err := NewCommand().Run(context.Background(), []string{"auth", "status", "openai"})
+	err := newProviderTestCommand().Run(context.Background(), []string{"provider", "status", "openai"})
 	require.ErrorContains(t, err, "parse credential store")
 }
 
@@ -330,7 +344,7 @@ func TestCommand_StatusReturnsOutputError(t *testing.T) {
 	restore := SetOutput(errorWriter{})
 	t.Cleanup(func() { SetOutput(restore) })
 
-	err := NewCommand().Run(context.Background(), []string{"auth", "status", "openai"})
+	err := newProviderTestCommand().Run(context.Background(), []string{"provider", "status", "openai"})
 	require.EqualError(t, err, "write failed")
 }
 
@@ -473,7 +487,7 @@ func TestCheckPendingIdentityActive_UsesPendingKey(t *testing.T) {
 		cfg *config.Config,
 		methods []string,
 	) (morphAuthClient, error) {
-		require.Contains(t, cfg.Auth.Key, "PRIVATE KEY")
+		require.Equal(t, hex.EncodeToString(identity.PrivateKey.Seed()), cfg.Auth.Key)
 		require.Equal(t, identity.Generation, cfg.Auth.Generation)
 		require.Equal(t, []string{
 			morphpb.AuthService_IdentityStatus_FullMethodName,
@@ -499,7 +513,7 @@ func TestCommand_LogoutRemovesStoredCredential(t *testing.T) {
 	store := appcredential.NewFileStore(filepath.Join(home, "auth.json"))
 	require.NoError(t, store.Set("openai", appcredential.StoredCredential{Type: appcredential.TypeAPIKey, Key: "stored-secret"}))
 
-	err := NewCommand().Run(context.Background(), []string{"auth", "logout", "openai"})
+	err := newProviderTestCommand().Run(context.Background(), []string{"provider", "logout", "openai"})
 	require.NoError(t, err)
 
 	_, ok, err := store.Get("openai")
@@ -510,7 +524,7 @@ func TestCommand_LogoutRemovesStoredCredential(t *testing.T) {
 func TestCommand_LogoutValidatesProviderArg(t *testing.T) {
 	setAuthTestProfile(t)
 
-	err := NewCommand().Run(context.Background(), []string{"auth", "logout"})
+	err := newProviderTestCommand().Run(context.Background(), []string{"provider", "logout"})
 	require.EqualError(t, err, "provider is required")
 }
 
@@ -521,7 +535,7 @@ func TestCommand_LogoutReturnsOutputError(t *testing.T) {
 	restore := SetOutput(errorWriter{})
 	t.Cleanup(func() { SetOutput(restore) })
 
-	err := NewCommand().Run(context.Background(), []string{"auth", "logout", "openai"})
+	err := newProviderTestCommand().Run(context.Background(), []string{"provider", "logout", "openai"})
 	require.EqualError(t, err, "write failed")
 }
 
@@ -530,6 +544,23 @@ func TestCommand_ShowsHelpWithoutSubcommand(t *testing.T) {
 
 	err := NewCommand().Run(context.Background(), []string{"auth"})
 	require.NoError(t, err)
+}
+
+func TestCommand_ExposesOnlyRPCAuthenticationOperations(t *testing.T) {
+	command := NewCommand()
+	names := make([]string, 0, len(command.Commands))
+	for _, child := range command.Commands {
+		names = append(names, child.Name)
+	}
+
+	require.Equal(t, []string{
+		"identity",
+		"session",
+		"token",
+		"authorization",
+		"audit",
+		"mtls",
+	}, names)
 }
 
 func TestLoadAuthConfig_ReturnsConfigLoadError(t *testing.T) {
@@ -545,6 +576,32 @@ func TestSetOutput_NilDiscardsOutput(t *testing.T) {
 	t.Cleanup(func() { SetOutput(previous) })
 
 	require.Equal(t, io.Discard, authOutput)
+}
+
+func TestAuthorizationOutput_EncodesPublicKeyAsHex(t *testing.T) {
+	identity, err := morphauth.GenerateIdentity(1)
+	require.NoError(t, err)
+	output := &bytes.Buffer{}
+	restore := SetOutput(output)
+	t.Cleanup(func() { SetOutput(restore) })
+
+	err = writeJSONValue(getAuthorizationOutput(&morphpb.AuthAuthorization{
+		IdentityId: identity.ID,
+		PublicKey:  identity.PublicKey,
+	}))
+	require.NoError(t, err)
+
+	var value map[string]any
+	require.NoError(t, json.Unmarshal(output.Bytes(), &value))
+	require.Equal(t, hex.EncodeToString(identity.PublicKey), value["public_key"])
+}
+
+func TestRandomAuthID_UsesHexEncoding(t *testing.T) {
+	id, err := randomAuthID()
+	require.NoError(t, err)
+	require.Len(t, id, 48)
+	_, err = hex.DecodeString(id)
+	require.NoError(t, err)
 }
 
 func TestFormatAuthStatus_ReturnsUnknownSourceValue(t *testing.T) {
@@ -567,7 +624,7 @@ func requireAuthStatusRow(t *testing.T, output string, provider string, status s
 		}
 	}
 
-	t.Fatalf("auth status row for %q not found in:\n%s", provider, output)
+	t.Fatalf("provider status row for %q not found in:\n%s", provider, output)
 }
 
 func TestGetFirstEnvValue_SkipsBlankAndMissingKeys(t *testing.T) {

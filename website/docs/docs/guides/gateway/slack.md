@@ -295,7 +295,7 @@ errors (rate limits, missing scopes, or workspace restrictions on streaming).
 
 ### Agent errors with no user-visible reply
 
-Check model credentials (`morph auth status`, `morph doctor`) and inspect traces for the bound session. See
+Check model credentials (`morph provider status`, `morph doctor`) and inspect traces for the bound session. See
 [Search and Traces](../search-and-traces).
 
 ## Where To Go Next

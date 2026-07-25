@@ -2176,24 +2176,24 @@ func TestModel_CompleteSetupOAuthLoginIgnoresStaleMessage(t *testing.T) {
 	require.Equal(t, "anthropic", runModel.setupOAuthProvider)
 }
 
-func TestRenderProfileModelSetupNoticeMessageStylesAuthCommand(t *testing.T) {
-	rendered := renderProfileModelSetupNoticeMessage("run morph auth login anthropic in a new terminal", 80)
+func TestRenderProfileModelSetupNoticeMessageStylesProviderCommand(t *testing.T) {
+	rendered := renderProfileModelSetupNoticeMessage("run morph provider login anthropic in a new terminal", 80)
 
 	require.Contains(
 		t,
 		rendered,
 		lipgloss.NewStyle().
 			Foreground(lipgloss.Color(defaultTUITheme.MarkdownLinkForeground)).
-			Render("morph auth login anthropic"),
+			Render("morph provider login anthropic"),
 	)
-	require.Contains(t, stripANSI(rendered), "run morph auth login anthropic in a new terminal")
+	require.Contains(t, stripANSI(rendered), "run morph provider login anthropic in a new terminal")
 	require.Equal(
 		t,
 		"first line\nsecond line",
 		stripANSI(renderProfileModelSetupNoticeMessage("first line\nsecond line", 80)),
 	)
 	require.Empty(t, renderProfileModelSetupNoticeMessage("", 80))
-	require.Empty(t, getProfileModelSetupNoticeAuthCommand("run something else"))
+	require.Empty(t, getProfileModelSetupNoticeProviderCommand("run something else"))
 }
 
 func TestModel_SetupOpenRouterSelectionSetsEmbeddingModel(t *testing.T) {

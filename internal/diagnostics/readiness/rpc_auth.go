@@ -30,7 +30,7 @@ func buildRPCIdentityCheck(cfg *config.Config, active profile.Profile) Check {
 	if strings.TrimSpace(cfg.Auth.Key) != "" {
 		var identity morphauth.Identity
 		var err error
-		if strings.Contains(cfg.Auth.Key, "-----BEGIN") {
+		if morphauth.IsEncodedIdentity([]byte(cfg.Auth.Key)) {
 			identity, err = morphauth.ParseIdentity([]byte(cfg.Auth.Key), 1)
 		} else {
 			var body []byte

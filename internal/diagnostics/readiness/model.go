@@ -64,7 +64,7 @@ func buildOllamaReadinessChecks(ctx context.Context, cfg *config.Config) []Check
 			StatusFail,
 			err.Error(),
 			commandAction("ollama serve", "start Ollama"),
-			commandAction("morph setup provider --provider ollama --base-url "+baseURL, "update Ollama base URL"),
+			commandAction("morph provider configure --provider ollama --base-url "+baseURL, "update Ollama base URL"),
 		)}
 	}
 
@@ -215,7 +215,7 @@ func buildOllamaEmbeddingCheck(cfg *config.Config, models []modelprovider.ModelD
 }
 
 func ollamaSetupPullCommand(baseURL string, modelID string) string {
-	parts := []string{"morph setup provider --provider ollama"}
+	parts := []string{"morph provider configure --provider ollama"}
 	baseURLValue5 := str.String(baseURL)
 	if baseURLValue5.Trim() != "" {
 		baseURLValue6 := str.String(baseURL)
@@ -324,7 +324,7 @@ func isMissingAuthError(err error) bool {
 	errorValue := str.String(err.Error())
 	message := errorValue.Normalized()
 	return strings.Contains(message, "api key is required") ||
-		strings.Contains(message, "morph auth login")
+		strings.Contains(message, "morph provider login")
 }
 
 func missingAuthActions(provider string) []Action {
@@ -336,7 +336,7 @@ func missingAuthActions(provider string) []Action {
 	switch provider {
 	case constants.ModelProviderOpenAI, constants.ModelProviderOpenAICodex,
 		constants.ModelProviderAnthropic, constants.ModelProviderGitHubCopilot:
-		return []Action{commandAction("morph auth login "+provider, "store OAuth credentials for this provider")}
+		return []Action{commandAction("morph provider login "+provider, "store OAuth credentials for this provider")}
 	default:
 		return providerAPIKeyActions(provider)
 	}
@@ -351,7 +351,7 @@ func providerAPIKeyActions(provider string) []Action {
 
 	return []Action{
 		commandAction(
-			fmt.Sprintf("morph auth login %s --api-key <api-key>", provider),
+			fmt.Sprintf("morph provider login %s --api-key <api-key>", provider),
 			"store a provider API key",
 		),
 		commandAction(

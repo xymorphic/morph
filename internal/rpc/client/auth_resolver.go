@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 	"crypto/rand"
-	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
@@ -105,7 +105,7 @@ func (r *authResolver) resolveToken() {
 	var err error
 	if len(r.options.AuthKey) > 0 {
 		key := r.options.AuthKey
-		if !strings.Contains(string(key), "-----BEGIN") {
+		if !morphauth.IsEncodedIdentity(key) {
 			key, err = os.ReadFile(strings.TrimSpace(string(key)))
 			if err != nil {
 				r.tokenErr = err
@@ -331,5 +331,5 @@ func randomClientID() (string, error) {
 		return "", err
 	}
 
-	return base64.RawURLEncoding.EncodeToString(body), nil
+	return hex.EncodeToString(body), nil
 }

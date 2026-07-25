@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	morphauth "github.com/wandxy/morph/internal/auth"
 	"gopkg.in/yaml.v3"
 
 	"github.com/wandxy/morph/internal/datadir"
@@ -228,7 +229,7 @@ func (c *Config) resolvePaths(baseDir string) {
 	c.Browser.ProfileRoot = getPathFromBase(c.Browser.ProfileRoot, baseDir)
 	c.Browser.TemporaryRoot = getPathFromBase(c.Browser.TemporaryRoot, baseDir)
 	c.Browser.Artifacts.Root = getPathFromBase(c.Browser.Artifacts.Root, baseDir)
-	if c.Auth.Key != "" && !strings.Contains(c.Auth.Key, "-----BEGIN") {
+	if c.Auth.Key != "" && !morphauth.IsEncodedIdentity([]byte(c.Auth.Key)) {
 		c.Auth.Key = getPathFromBase(c.Auth.Key, baseDir)
 	}
 	c.Auth.TLS.ServerCertificate = getPathFromBase(c.Auth.TLS.ServerCertificate, baseDir)

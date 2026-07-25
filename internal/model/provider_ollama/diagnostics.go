@@ -165,5 +165,5 @@ func isOllamaToolMessage(detail string) bool {
 
 func ollamaPullCommand(model string) string {
 	modelValue4 := str.String(model)
-	return fmt.Sprintf("morph setup provider --provider ollama --model %s --pull", modelValue4.Trim())
+	return fmt.Sprintf("morph provider configure --provider ollama --model %s --pull", modelValue4.Trim())
 }

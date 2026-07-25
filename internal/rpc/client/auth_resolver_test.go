@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -17,6 +18,14 @@ import (
 	morphpb "github.com/wandxy/morph/internal/rpc/proto"
 	"google.golang.org/grpc"
 )
+
+func TestRandomClientID_UsesHexEncoding(t *testing.T) {
+	id, err := randomClientID()
+	require.NoError(t, err)
+	require.Len(t, id, 48)
+	_, err = hex.DecodeString(id)
+	require.NoError(t, err)
+}
 
 func TestAuthResolver_UsesExplicitThenStoredTokenPrecedence(t *testing.T) {
 	home := setResolverProfile(t)

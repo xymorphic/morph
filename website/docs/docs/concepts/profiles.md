@@ -33,7 +33,7 @@ selector is per machine, not per shell, so the stored current profile persists a
 A profile home holds everything Morph needs and produces for that profile, kept separate from every other profile:
 
 - **Configuration**: `config.yaml` for profile-local settings and an optional `.env` for environment overrides.
-- **Credentials**: `auth.json`, written by `morph auth login`.
+- **Credentials**: `auth.json`, written by `morph provider login`.
 - **State**: conversations, memory, and the search index in a per-profile SQLite store under `data/`.
 - **Traces**: recorded agent activity under `traces/`.
 - **Runtime identity**: `runtime.json`, recording the daemon's RPC endpoint, process id, and start time.

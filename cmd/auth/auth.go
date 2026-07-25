@@ -40,14 +40,11 @@ func SetOutput(w io.Writer) io.Writer {
 func NewCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "auth",
-		Usage: "Manage provider credentials and Morph RPC identity",
+		Usage: "Manage Morph RPC authentication and identity",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "json", Usage: "Print machine-readable JSON"},
 		},
 		Commands: []*cli.Command{
-			newLoginCommand(),
-			newStatusCommand(),
-			newLogoutCommand(),
 			newIdentityCommand(),
 			newSessionCommand(),
 			newTokenCommand(),
@@ -61,7 +58,7 @@ func NewCommand() *cli.Command {
 	}
 }
 
-func newLoginCommand() *cli.Command {
+func NewProviderLoginCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "login",
 		Usage:     "Store credentials for a model or web provider",
@@ -102,7 +99,7 @@ func newLoginCommand() *cli.Command {
 	}
 }
 
-func newStatusCommand() *cli.Command {
+func NewProviderStatusCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "status",
 		Usage:     "Show configured provider credential sources",
@@ -153,7 +150,7 @@ func newStatusCommand() *cli.Command {
 	}
 }
 
-func newLogoutCommand() *cli.Command {
+func NewProviderLogoutCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "logout",
 		Usage:     "Remove stored credentials for a model or web provider",

@@ -42,7 +42,9 @@ func TestNewCommand_RegistersDaemonCommand(t *testing.T) {
 	require.Contains(t, names, "daemon")
 	require.Contains(t, names, "browser")
 	require.Contains(t, names, "config")
+	require.Contains(t, names, "provider")
 	require.Contains(t, names, "version")
+	require.NotContains(t, names, "setup")
 }
 
 func TestNewCommand_UsesConfigFileValues(t *testing.T) {

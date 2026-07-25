@@ -3,7 +3,7 @@ package auth
 import (
 	"crypto/ed25519"
 	"crypto/rand"
-	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -233,7 +233,7 @@ func validateAccessClaims(claims AccessClaims) error {
 	if err := validateTokenAuthorization(claims.Roles, claims.Services, claims.Methods); err != nil {
 		return err
 	}
-	nonce, err := base64.RawURLEncoding.DecodeString(claims.Nonce)
+	nonce, err := hex.DecodeString(claims.Nonce)
 	if err != nil || len(nonce) < 16 || len(nonce) > 64 {
 		return errors.New("access token nonce is invalid")
 	}
@@ -273,5 +273,5 @@ func randomID(size int) (string, error) {
 		return "", fmt.Errorf("generate random identifier: %w", err)
 	}
 
-	return base64.RawURLEncoding.EncodeToString(body), nil
+	return hex.EncodeToString(body), nil
 }

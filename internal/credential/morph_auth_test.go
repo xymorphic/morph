@@ -1,6 +1,7 @@
 package credential
 
 import (
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"sync"
@@ -27,6 +28,7 @@ func TestFileStore_MorphIdentityPreservesProviderCredentials(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, identity.ID, record.IdentityID)
+	require.Equal(t, hex.EncodeToString(identity.PrivateKey.Seed()), record.PrivateKey)
 }
 
 func TestFileStore_LoadOrCreateIdentityIsConcurrentAndStable(t *testing.T) {
@@ -98,6 +100,7 @@ func TestFileStore_IdentityRotationCanActivateOrRecoverByAbort(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, found)
 	require.Equal(t, pending.ID, record.Pending.IdentityID)
+	require.Equal(t, hex.EncodeToString(pending.PrivateKey.Seed()), record.Pending.PrivateKey)
 
 	require.NoError(t, store.AbortIdentityRotation(pending.ID))
 	record, found, err = store.LoadMorphAuth()

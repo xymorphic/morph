@@ -192,7 +192,7 @@ func TestOllamaClient_CompleteReturnsProviderStatusError(t *testing.T) {
 	require.EqualError(
 		t,
 		err,
-		`ollama model "missing" is not installed or could not be found; run morph setup provider --provider ollama --model missing --pull or ollama pull missing: ollama request failed with status 404: model not found`,
+		`ollama model "missing" is not installed or could not be found; run morph provider configure --provider ollama --model missing --pull or ollama pull missing: ollama request failed with status 404: model not found`,
 	)
 }
 
