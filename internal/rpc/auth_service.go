@@ -121,14 +121,20 @@ func (s *AuthService) RevokeSession(
 
 func (s *AuthService) ListTokens(
 	ctx context.Context,
-	_ *morphpb.ListAuthTokensRequest,
+	request *morphpb.ListAuthTokensRequest,
 ) (*morphpb.ListAuthTokensResponse, error) {
 	if err := requireOwner(ctx); err != nil {
 		return nil, err
 	}
+	if request.GetLimit() < 0 {
+		return nil, status.Error(codes.InvalidArgument, "token list limit must not be negative")
+	}
 	tokens, err := s.auth.Store().ListTokens(ctx)
 	if err != nil {
 		return nil, authStoreErrorToStatus(err)
+	}
+	if limit := int(request.GetLimit()); limit > 0 && len(tokens) > limit {
+		tokens = tokens[:limit]
 	}
 	response := &morphpb.ListAuthTokensResponse{
 		Tokens: make([]*morphpb.AuthToken, 0, len(tokens)),

@@ -918,7 +918,7 @@ message RevokeAuthSessionResponse {
   AuthSession session = 1;
 }
 
-message ListAuthTokensRequest {}
+message ListAuthTokensRequest { int32 limit = 1; }
 message ListAuthTokensResponse {
   repeated AuthToken tokens = 1;
 }

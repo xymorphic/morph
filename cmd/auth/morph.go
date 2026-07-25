@@ -288,26 +288,22 @@ func newTokenCommand() *cli.Command {
 			},
 			{
 				Name: "list", Usage: "List safe RPC token metadata",
-				Flags: []cli.Flag{morphcli.ProfileFlag()},
+				Flags: []cli.Flag{
+					morphcli.ProfileFlag(),
+					&cli.IntFlag{Name: "limit", Value: 25},
+				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					return withMorphAuthAPI(ctx, cmd, []string{
 						morphpb.AuthService_ListTokens_FullMethodName,
 					}, func(api rpcclient.AuthAPI) error {
-						tokens, err := api.ListTokens(ctx)
+						tokens, err := api.ListTokens(ctx, int32(cmd.Int("limit")))
 						if err != nil {
 							return err
 						}
 						if cmd.Bool("json") {
 							return writeJSONValue(tokens)
 						}
-						writer := tabwriter.NewWriter(authOutput, 0, 4, 2, ' ', 0)
-						_, _ = fmt.Fprintln(writer, "ID\tSESSION\tSTATUS\tEXPIRES")
-						for _, token := range tokens {
-							_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%s\n",
-								token.GetId(), token.GetSessionId(), token.GetStatus(),
-								formatProtoTime(token.GetExpiresAt()))
-						}
-						return writer.Flush()
+						return writeTokenList(tokens)
 					})
 				},
 			},
@@ -680,13 +676,46 @@ func writeAuditList(events []*morphpb.AuthAuditEvent) error {
 	return err
 }
 
+func writeTokenList(tokens []*morphpb.AuthToken) error {
+	_, err := fmt.Fprint(authOutput, tokenListToText(tokens))
+	return err
+}
+
+func tokenListToText(tokens []*morphpb.AuthToken) string {
+	if len(tokens) == 0 {
+		return "No RPC access tokens found.\n"
+	}
+
+	var output strings.Builder
+	for index, token := range tokens {
+		if index > 0 {
+			output.WriteByte('\n')
+		}
+		fmt.Fprintf(
+			&output,
+			"[%s] %s\n",
+			getAuthDisplayText(token.GetStatus()),
+			getAuthDisplayText(token.GetId()),
+		)
+		appendAuthField(&output, "Session", token.GetSessionId())
+		appendAuthField(&output, "Identity", token.GetIdentityId())
+		appendAuthField(&output, "User", token.GetUserId())
+		appendAuthField(&output, "Expires", formatProtoTime(token.GetExpiresAt()))
+		appendAuthField(&output, "Last used", formatProtoTime(token.GetLastUsedAt()))
+		appendAuthField(&output, "Uses", strconv.FormatUint(token.GetUseCount(), 10))
+		appendAuthField(&output, "Revoked at", formatProtoTime(token.GetRevokedAt()))
+		appendAuthField(&output, "Reason", token.GetRevocationNote())
+	}
+
+	return output.String()
+}
+
 func auditListToText(events []*morphpb.AuthAuditEvent) string {
 	if len(events) == 0 {
 		return "No RPC authentication audit events found.\n"
 	}
 
 	var output strings.Builder
-	output.WriteString("RPC authentication audit\n")
 	for index, event := range events {
 		if index > 0 {
 			output.WriteByte('\n')
@@ -697,18 +726,18 @@ func auditListToText(events []*morphpb.AuthAuditEvent) string {
 			getAuthDisplayText(event.GetType()),
 			getAuthDisplayText(formatProtoTime(event.GetCreatedAt())),
 		)
-		appendAuditField(&output, "Event ID", event.GetId())
-		appendAuditField(&output, "Identity", event.GetIdentityId())
-		appendAuditField(&output, "Session", event.GetSessionId())
-		appendAuditField(&output, "Token", event.GetTokenId())
-		appendAuditField(&output, "Method", event.GetMethod())
-		appendAuditField(&output, "Reason", event.GetReason())
+		appendAuthField(&output, "Event ID", event.GetId())
+		appendAuthField(&output, "Identity", event.GetIdentityId())
+		appendAuthField(&output, "Session", event.GetSessionId())
+		appendAuthField(&output, "Token", event.GetTokenId())
+		appendAuthField(&output, "Method", event.GetMethod())
+		appendAuthField(&output, "Reason", event.GetReason())
 	}
 
 	return output.String()
 }
 
-func appendAuditField(output *strings.Builder, label, value string) {
+func appendAuthField(output *strings.Builder, label, value string) {
 	if strings.TrimSpace(value) == "" {
 		return
 	}

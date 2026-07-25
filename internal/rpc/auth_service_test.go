@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -135,6 +136,49 @@ func TestAuthService_ClosesOnlyAuthenticatedSession(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "current-session", response.GetSession().GetId())
 	require.Equal(t, morphauth.StatusRevoked, response.GetSession().GetStatus())
+}
+
+func TestAuthService_ListTokensAppliesLimit(t *testing.T) {
+	service, store := newRPCAuthService(t)
+	now := time.Now().UTC()
+	for index := range 3 {
+		id := strconv.Itoa(index)
+		require.NoError(t, store.Activate(
+			context.Background(),
+			morphauth.Session{
+				ID: "session-" + id, IdentityID: "identity",
+				Status: morphauth.StatusActive, CreatedAt: now.Add(time.Duration(index) * time.Second),
+				AbsoluteExpiresAt: now.Add(time.Hour),
+			},
+			morphauth.Token{
+				ID: "token-" + id, SessionID: "session-" + id, IdentityID: "identity",
+				Status: morphauth.StatusActive, IssuedAt: now.Add(time.Duration(index) * time.Second),
+				ExpiresAt: now.Add(time.Hour),
+			},
+		))
+	}
+
+	response, err := service.ListTokens(
+		ownerAuthContext(),
+		&morphpb.ListAuthTokensRequest{Limit: 2},
+	)
+	require.NoError(t, err)
+	require.Len(t, response.GetTokens(), 2)
+	require.Equal(t, "token-2", response.GetTokens()[0].GetId())
+	require.Equal(t, "token-1", response.GetTokens()[1].GetId())
+
+	response, err = service.ListTokens(
+		ownerAuthContext(),
+		&morphpb.ListAuthTokensRequest{},
+	)
+	require.NoError(t, err)
+	require.Len(t, response.GetTokens(), 3)
+
+	_, err = service.ListTokens(
+		ownerAuthContext(),
+		&morphpb.ListAuthTokensRequest{Limit: -1},
+	)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
 func TestAuthService_RejectsInvalidSessionClose(t *testing.T) {

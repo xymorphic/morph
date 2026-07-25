@@ -15,7 +15,7 @@ type AuthService struct {
 type AuthAPI interface {
 	ListSessions(context.Context) ([]*morphpb.AuthSession, error)
 	RevokeSession(context.Context, string, string) (*morphpb.AuthSession, error)
-	ListTokens(context.Context) ([]*morphpb.AuthToken, error)
+	ListTokens(context.Context, int32) ([]*morphpb.AuthToken, error)
 	RevokeToken(context.Context, string, string) (*morphpb.AuthToken, error)
 	ListAuthorizations(context.Context) ([]*morphpb.AuthAuthorization, error)
 	GrantAuthorization(context.Context, *morphpb.AuthAuthorization) (*morphpb.AuthAuthorization, error)
@@ -53,8 +53,13 @@ func (s *AuthService) RevokeSession(
 	return response.GetSession(), nil
 }
 
-func (s *AuthService) ListTokens(ctx context.Context) ([]*morphpb.AuthToken, error) {
-	response, err := s.client.ListTokens(ctx, &morphpb.ListAuthTokensRequest{})
+func (s *AuthService) ListTokens(
+	ctx context.Context,
+	limit int32,
+) ([]*morphpb.AuthToken, error) {
+	response, err := s.client.ListTokens(ctx, &morphpb.ListAuthTokensRequest{
+		Limit: limit,
+	})
 	if err != nil {
 		return nil, err
 	}

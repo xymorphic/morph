@@ -639,7 +639,7 @@ func TestCommand_AuditListHonorsTextAndJSONOutput(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, []int32{25}, requestedLimits)
-	require.True(t, strings.HasPrefix(output.String(), "RPC authentication audit\n"))
+	require.True(t, strings.HasPrefix(output.String(), "[scope_denied] "))
 	require.Contains(
 		t,
 		output.String(),
@@ -664,12 +664,78 @@ func TestCommand_AuditListHonorsTextAndJSONOutput(t *testing.T) {
 	require.Equal(t, "audit-1", decoded[0]["id"])
 }
 
+func TestCommand_TokenListHonorsTextAndJSONOutput(t *testing.T) {
+	setAuthTestProfile(t)
+	expiresAt := timestamppb.New(time.Date(2026, 7, 25, 19, 0, 0, 0, time.UTC))
+	lastUsedAt := timestamppb.New(time.Date(2026, 7, 25, 18, 45, 0, 0, time.UTC))
+	tokens := []*morphpb.AuthToken{{
+		Id:         "token-1",
+		SessionId:  "session-1",
+		IdentityId: "identity-1",
+		UserId:     "user-1",
+		Status:     morphauth.StatusActive,
+		ExpiresAt:  expiresAt,
+		LastUsedAt: lastUsedAt,
+		UseCount:   3,
+	}}
+	var requestedLimits []int32
+	originalClient := newMorphAuthClient
+	t.Cleanup(func() { newMorphAuthClient = originalClient })
+	newMorphAuthClient = func(
+		_ context.Context,
+		_ *config.Config,
+		methods []string,
+	) (morphAuthClient, error) {
+		require.Equal(t, []string{
+			morphpb.AuthService_ListTokens_FullMethodName,
+		}, methods)
+		return morphAuthClientStub{api: authAPIStub{
+			tokens: tokens,
+			tokenLimit: func(limit int32) {
+				requestedLimits = append(requestedLimits, limit)
+			},
+		}}, nil
+	}
+	output := &bytes.Buffer{}
+	restoreOutput := SetOutput(output)
+	t.Cleanup(func() { SetOutput(restoreOutput) })
+
+	err := NewCommand().Run(context.Background(), []string{
+		"auth", "token", "list",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []int32{25}, requestedLimits)
+	require.True(t, strings.HasPrefix(output.String(), "[active] token-1\n"))
+	require.Contains(t, output.String(), "[active] token-1")
+	require.Contains(t, output.String(), "Session:     session-1")
+	require.Contains(t, output.String(), "Identity:    identity-1")
+	require.Contains(t, output.String(), "User:        user-1")
+	require.Contains(t, output.String(), "Expires:     "+formatProtoTime(expiresAt))
+	require.Contains(t, output.String(), "Last used:   "+formatProtoTime(lastUsedAt))
+	require.Contains(t, output.String(), "Uses:        3")
+
+	output.Reset()
+	err = NewCommand().Run(context.Background(), []string{
+		"auth", "--json", "token", "list", "--limit", "3",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []int32{25, 3}, requestedLimits)
+	var decoded []map[string]any
+	require.NoError(t, json.Unmarshal(output.Bytes(), &decoded))
+	require.Len(t, decoded, 1)
+	require.Equal(t, "token-1", decoded[0]["id"])
+}
+
 func TestAuditListToText_FormatsEmptyState(t *testing.T) {
 	require.Equal(
 		t,
 		"No RPC authentication audit events found.\n",
 		auditListToText(nil),
 	)
+}
+
+func TestTokenListToText_FormatsEmptyState(t *testing.T) {
+	require.Equal(t, "No RPC access tokens found.\n", tokenListToText(nil))
 }
 
 func TestRandomAuthID_UsesHexEncoding(t *testing.T) {
@@ -765,6 +831,9 @@ type authAPIStub struct {
 	auditEvents    []*morphpb.AuthAuditEvent
 	auditErr       error
 	auditLimit     func(int32)
+	tokens         []*morphpb.AuthToken
+	tokenErr       error
+	tokenLimit     func(int32)
 }
 
 func (s authAPIStub) IdentityStatus(
@@ -781,6 +850,16 @@ func (s authAPIStub) ListAudit(
 		s.auditLimit(limit)
 	}
 	return s.auditEvents, s.auditErr
+}
+
+func (s authAPIStub) ListTokens(
+	_ context.Context,
+	limit int32,
+) ([]*morphpb.AuthToken, error) {
+	if s.tokenLimit != nil {
+		s.tokenLimit(limit)
+	}
+	return s.tokens, s.tokenErr
 }
 
 func (errorWriter) Write([]byte) (int, error) {

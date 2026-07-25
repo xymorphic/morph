@@ -8663,6 +8663,7 @@ func (x *RevokeAuthSessionResponse) GetSession() *AuthSession {
 
 type ListAuthTokensRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8695,6 +8696,13 @@ func (x *ListAuthTokensRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListAuthTokensRequest.ProtoReflect.Descriptor instead.
 func (*ListAuthTokensRequest) Descriptor() ([]byte, []int) {
 	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{132}
+}
+
+func (x *ListAuthTokensRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
 }
 
 type ListAuthTokensResponse struct {
@@ -10319,8 +10327,9 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\"L\n" +
 	"\x19RevokeAuthSessionResponse\x12/\n" +
-	"\asession\x18\x01 \x01(\v2\x15.morph.v1.AuthSessionR\asession\"\x17\n" +
-	"\x15ListAuthTokensRequest\"E\n" +
+	"\asession\x18\x01 \x01(\v2\x15.morph.v1.AuthSessionR\asession\"-\n" +
+	"\x15ListAuthTokensRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\"E\n" +
 	"\x16ListAuthTokensResponse\x12+\n" +
 	"\x06tokens\x18\x01 \x03(\v2\x13.morph.v1.AuthTokenR\x06tokens\"@\n" +
 	"\x16RevokeAuthTokenRequest\x12\x0e\n" +
