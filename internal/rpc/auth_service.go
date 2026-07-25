@@ -58,6 +58,25 @@ func (s *AuthService) OpenSession(
 	}, nil
 }
 
+func (s *AuthService) CloseSession(
+	ctx context.Context,
+	_ *morphpb.CloseAuthSessionRequest,
+) (*morphpb.CloseAuthSessionResponse, error) {
+	principal, err := requireAuthPrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.auth.RevokeSession(ctx, principal.SessionID, "authenticated client closed"); err != nil {
+		return nil, authStoreErrorToStatus(err)
+	}
+	session, err := s.auth.Store().GetSession(ctx, principal.SessionID)
+	if err != nil {
+		return nil, authStoreErrorToStatus(err)
+	}
+
+	return &morphpb.CloseAuthSessionResponse{Session: authSessionToProto(session)}, nil
+}
+
 func (s *AuthService) ListSessions(
 	ctx context.Context,
 	_ *morphpb.ListAuthSessionsRequest,
@@ -192,7 +211,7 @@ func (s *AuthService) RevokeAuthorization(
 	if err != nil {
 		return nil, err
 	}
-	if !principal.HasRole(morphauth.RoleOwner) {
+	if !principal.IsRootOwner() {
 		return nil, status.Error(codes.PermissionDenied, "owner authorization is required")
 	}
 	if request != nil && strings.TrimSpace(request.GetIdentityId()) == principal.IdentityID {
@@ -279,7 +298,7 @@ func (s *AuthService) RotateIdentity(
 	if err != nil {
 		return nil, err
 	}
-	if !principal.HasRole(morphauth.RoleOwner) || request == nil ||
+	if !principal.IsRootOwner() || request == nil ||
 		strings.TrimSpace(request.GetCurrentIdentityId()) != principal.IdentityID ||
 		len(request.GetNextPublicKey()) != ed25519.PublicKeySize {
 		return nil, status.Error(codes.PermissionDenied, "root identity rotation is not authorized")
@@ -369,7 +388,7 @@ func requireOwner(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if !principal.HasRole(morphauth.RoleOwner) {
+	if !principal.IsRootOwner() {
 		return status.Error(codes.PermissionDenied, "owner authorization is required")
 	}
 

@@ -2261,6 +2261,7 @@ var BrowserService_ServiceDesc = grpc.ServiceDesc{
 
 const (
 	AuthService_OpenSession_FullMethodName         = "/morph.v1.AuthService/OpenSession"
+	AuthService_CloseSession_FullMethodName        = "/morph.v1.AuthService/CloseSession"
 	AuthService_ListSessions_FullMethodName        = "/morph.v1.AuthService/ListSessions"
 	AuthService_RevokeSession_FullMethodName       = "/morph.v1.AuthService/RevokeSession"
 	AuthService_ListTokens_FullMethodName          = "/morph.v1.AuthService/ListTokens"
@@ -2279,6 +2280,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AuthServiceClient interface {
 	OpenSession(ctx context.Context, in *OpenAuthSessionRequest, opts ...grpc.CallOption) (*OpenAuthSessionResponse, error)
+	CloseSession(ctx context.Context, in *CloseAuthSessionRequest, opts ...grpc.CallOption) (*CloseAuthSessionResponse, error)
 	ListSessions(ctx context.Context, in *ListAuthSessionsRequest, opts ...grpc.CallOption) (*ListAuthSessionsResponse, error)
 	RevokeSession(ctx context.Context, in *RevokeAuthSessionRequest, opts ...grpc.CallOption) (*RevokeAuthSessionResponse, error)
 	ListTokens(ctx context.Context, in *ListAuthTokensRequest, opts ...grpc.CallOption) (*ListAuthTokensResponse, error)
@@ -2304,6 +2306,16 @@ func (c *authServiceClient) OpenSession(ctx context.Context, in *OpenAuthSession
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(OpenAuthSessionResponse)
 	err := c.cc.Invoke(ctx, AuthService_OpenSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) CloseSession(ctx context.Context, in *CloseAuthSessionRequest, opts ...grpc.CallOption) (*CloseAuthSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CloseAuthSessionResponse)
+	err := c.cc.Invoke(ctx, AuthService_CloseSession_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2425,6 +2437,7 @@ func (c *authServiceClient) IdentityStatus(ctx context.Context, in *GetAuthIdent
 // for forward compatibility.
 type AuthServiceServer interface {
 	OpenSession(context.Context, *OpenAuthSessionRequest) (*OpenAuthSessionResponse, error)
+	CloseSession(context.Context, *CloseAuthSessionRequest) (*CloseAuthSessionResponse, error)
 	ListSessions(context.Context, *ListAuthSessionsRequest) (*ListAuthSessionsResponse, error)
 	RevokeSession(context.Context, *RevokeAuthSessionRequest) (*RevokeAuthSessionResponse, error)
 	ListTokens(context.Context, *ListAuthTokensRequest) (*ListAuthTokensResponse, error)
@@ -2448,6 +2461,9 @@ type UnimplementedAuthServiceServer struct{}
 
 func (UnimplementedAuthServiceServer) OpenSession(context.Context, *OpenAuthSessionRequest) (*OpenAuthSessionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method OpenSession not implemented")
+}
+func (UnimplementedAuthServiceServer) CloseSession(context.Context, *CloseAuthSessionRequest) (*CloseAuthSessionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CloseSession not implemented")
 }
 func (UnimplementedAuthServiceServer) ListSessions(context.Context, *ListAuthSessionsRequest) (*ListAuthSessionsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListSessions not implemented")
@@ -2517,6 +2533,24 @@ func _AuthService_OpenSession_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AuthServiceServer).OpenSession(ctx, req.(*OpenAuthSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_CloseSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CloseAuthSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).CloseSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_CloseSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).CloseSession(ctx, req.(*CloseAuthSessionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2729,6 +2763,10 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "OpenSession",
 			Handler:    _AuthService_OpenSession_Handler,
+		},
+		{
+			MethodName: "CloseSession",
+			Handler:    _AuthService_CloseSession_Handler,
 		},
 		{
 			MethodName: "ListSessions",

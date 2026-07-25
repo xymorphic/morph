@@ -76,6 +76,7 @@ service BrowserService {
 
 service AuthService {
   rpc OpenSession(OpenAuthSessionRequest) returns (OpenAuthSessionResponse);
+  rpc CloseSession(CloseAuthSessionRequest) returns (CloseAuthSessionResponse);
   rpc ListSessions(ListAuthSessionsRequest) returns (ListAuthSessionsResponse);
   rpc RevokeSession(RevokeAuthSessionRequest) returns (RevokeAuthSessionResponse);
   rpc ListTokens(ListAuthTokensRequest) returns (ListAuthTokensResponse);
@@ -898,6 +899,11 @@ message OpenAuthSessionRequest {
 message OpenAuthSessionResponse {
   AuthPrincipal principal = 1;
   AuthSession session = 2;
+}
+
+message CloseAuthSessionRequest {}
+message CloseAuthSessionResponse {
+  AuthSession session = 1;
 }
 
 message ListAuthSessionsRequest {}

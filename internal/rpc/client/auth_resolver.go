@@ -36,6 +36,7 @@ type authResolver struct {
 
 	activationMu sync.Mutex
 	active       atomic.Bool
+	closing      atomic.Bool
 	authClient   morphpb.AuthServiceClient
 }
 
@@ -178,13 +179,7 @@ func (r *authResolver) signAutomaticToken(
 	if source == "" {
 		source = "rpc"
 	}
-	services := append([]string(nil), r.options.AuthServices...)
-	methods := append([]string(nil), r.options.AuthMethods...)
-	if len(services) == 0 && len(methods) == 0 {
-		services = []string{morphauth.RootScope}
-	} else {
-		methods = appendMissing(methods, openSessionMethod)
-	}
+	services, methods := r.getAutomaticTokenScopes()
 
 	return morphauth.SignAccessToken(identity, morphauth.TokenRequest{
 		Audience:              audience,
@@ -203,7 +198,7 @@ func (r *authResolver) signAutomaticToken(
 }
 
 func (r *authResolver) shouldRenew() bool {
-	if r.explicit || r.options.PermissionSurface != "tui" ||
+	if r.closing.Load() || r.explicit || r.options.PermissionSurface != "tui" ||
 		len(r.identity.PrivateKey) == 0 || r.claims.ExpiresAt == nil {
 		return false
 	}
@@ -216,7 +211,7 @@ func (r *authResolver) shouldRenew() bool {
 }
 
 func (r *authResolver) shouldRefreshIdleSession() bool {
-	if r.explicit || !r.active.Load() || r.lastUse.IsZero() ||
+	if r.closing.Load() || r.explicit || !r.active.Load() || r.lastUse.IsZero() ||
 		len(r.identity.PrivateKey) == 0 || r.options.AuthSessionIdleTTL <= 0 {
 		return false
 	}
@@ -247,11 +242,42 @@ func appendMissing(values []string, targets ...string) []string {
 	return values
 }
 
-func (r *authResolver) ensureActive(ctx context.Context) error {
+func (r *authResolver) getAutomaticTokenScopes() ([]string, []string) {
+	services := append([]string(nil), r.options.AuthServices...)
+	methods := append([]string(nil), r.options.AuthMethods...)
+	if len(services) == 0 && len(methods) == 0 {
+		return []string{morphauth.RootScope}, nil
+	}
+
+	return services, appendMissing(methods, openSessionMethod, closeSessionMethod)
+}
+
+func (r *authResolver) prepareAuthenticatedRequest(
+	ctx context.Context,
+	method string,
+) (string, error) {
 	r.activationMu.Lock()
 	defer r.activationMu.Unlock()
+	if r.closing.Load() && method != closeSessionMethod {
+		return "", errors.New("RPC auth resolver is closing")
+	}
+	token, err := r.getToken()
+	if err != nil {
+		return "", err
+	}
+	if err := r.ensureActiveLocked(ctx); err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+func (r *authResolver) ensureActiveLocked(ctx context.Context) error {
 	if r.active.Load() {
 		return nil
+	}
+	if r.closing.Load() {
+		return errors.New("RPC auth resolver is closing")
 	}
 	if r.authClient == nil {
 		return errors.New("RPC auth client is unavailable")
@@ -273,28 +299,30 @@ func (r *authResolver) ensureActive(ctx context.Context) error {
 }
 
 func (r *authResolver) close(ctx context.Context) error {
-	if r == nil || r.explicit || !r.active.Load() || r.claims.SessionID == "" ||
-		r.authClient == nil || !r.canRevokeSession() {
+	if r == nil {
 		return nil
 	}
-	_, err := r.authClient.RevokeSession(ctx, &morphpb.RevokeAuthSessionRequest{
-		Id: r.claims.SessionID, Reason: "automatic client closed",
-	})
-	return err
-}
+	r.activationMu.Lock()
+	r.tokenMu.Lock()
+	if r.explicit || r.claims.SessionID == "" ||
+		r.authClient == nil {
+		r.tokenMu.Unlock()
+		r.activationMu.Unlock()
+		return nil
+	}
+	r.closing.Store(true)
+	r.tokenMu.Unlock()
+	active := r.active.Load()
+	r.activationMu.Unlock()
+	if !active {
+		return nil
+	}
 
-func (r *authResolver) canRevokeSession() bool {
-	for _, service := range r.options.AuthServices {
-		if service == morphauth.RootScope || service == "/morph.v1.AuthService" {
-			return true
-		}
+	_, err := r.authClient.CloseSession(ctx, &morphpb.CloseAuthSessionRequest{})
+	if err == nil {
+		r.active.Store(false)
 	}
-	for _, method := range r.options.AuthMethods {
-		if method == revokeSessionMethod {
-			return true
-		}
-	}
-	return false
+	return err
 }
 
 func randomClientID() (string, error) {

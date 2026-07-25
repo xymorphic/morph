@@ -10,7 +10,7 @@ import (
 const (
 	authorizationMetadataKey = "authorization"
 	openSessionMethod        = "/morph.v1.AuthService/OpenSession"
-	revokeSessionMethod      = "/morph.v1.AuthService/RevokeSession"
+	closeSessionMethod       = "/morph.v1.AuthService/CloseSession"
 )
 
 func authUnaryClientInterceptor(resolver *authResolver) grpc.UnaryClientInterceptor {
@@ -23,16 +23,17 @@ func authUnaryClientInterceptor(resolver *authResolver) grpc.UnaryClientIntercep
 		invoke grpc.UnaryInvoker,
 		callOptions ...grpc.CallOption,
 	) error {
-		token, err := resolver.getToken()
+		var token string
+		var err error
+		if method == openSessionMethod {
+			token, err = resolver.getToken()
+		} else {
+			token, err = resolver.prepareAuthenticatedRequest(ctx, method)
+		}
 		if err != nil {
 			return err
 		}
 		authenticated := withBearerToken(ctx, token)
-		if method != openSessionMethod {
-			if err := resolver.ensureActive(ctx); err != nil {
-				return err
-			}
-		}
 
 		err = invoke(authenticated, method, request, reply, connection, callOptions...)
 		if err == nil {
@@ -51,14 +52,11 @@ func authStreamClientInterceptor(resolver *authResolver) grpc.StreamClientInterc
 		stream grpc.Streamer,
 		callOptions ...grpc.CallOption,
 	) (grpc.ClientStream, error) {
-		token, err := resolver.getToken()
+		token, err := resolver.prepareAuthenticatedRequest(ctx, method)
 		if err != nil {
 			return nil, err
 		}
 		authenticated := withBearerToken(ctx, token)
-		if err := resolver.ensureActive(ctx); err != nil {
-			return nil, err
-		}
 
 		clientStream, err := stream(
 			authenticated, description, connection, method, callOptions...,

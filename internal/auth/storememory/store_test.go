@@ -2,6 +2,7 @@ package storememory_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -77,6 +78,61 @@ func TestStore_RejectsSecondRootIdentity(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, authorizations, 1)
 	require.Equal(t, current.ID, authorizations[0].IdentityID)
+}
+
+func TestStore_PruneSharesBudgetAcrossRecordCategories(t *testing.T) {
+	before := time.Now().UTC()
+	expired := before.Add(-time.Hour)
+	snapshot := storememory.Snapshot{
+		Sessions: make(map[string]morphauth.Session),
+		Tokens:   make(map[string]morphauth.Token),
+		Audit:    make([]morphauth.AuditEvent, 0, 6),
+	}
+	for index := range 6 {
+		id := fmt.Sprintf("record-%d", index)
+		snapshot.Tokens[id] = morphauth.Token{ID: id, ExpiresAt: expired}
+		snapshot.Sessions[id] = morphauth.Session{ID: id, AbsoluteExpiresAt: expired}
+		snapshot.Audit = append(snapshot.Audit, morphauth.AuditEvent{
+			ID: id, CreatedAt: expired,
+		})
+	}
+	store := storememory.NewFromSnapshot(snapshot)
+
+	pruned, err := store.Prune(context.Background(), before, 6)
+	require.NoError(t, err)
+	require.Equal(t, 6, pruned)
+	remaining := store.Snapshot()
+	require.Len(t, remaining.Tokens, 4)
+	require.Len(t, remaining.Sessions, 4)
+	require.Len(t, remaining.Audit, 4)
+}
+
+func TestStore_PruneRedistributesUnusedBudget(t *testing.T) {
+	before := time.Now().UTC()
+	expired := before.Add(-time.Hour)
+	snapshot := storememory.Snapshot{
+		Sessions: make(map[string]morphauth.Session),
+		Tokens:   make(map[string]morphauth.Token),
+	}
+	for index := range 6 {
+		id := fmt.Sprintf("token-%d", index)
+		snapshot.Tokens[id] = morphauth.Token{ID: id, ExpiresAt: expired}
+	}
+	store := storememory.NewFromSnapshot(snapshot)
+
+	pruned, err := store.Prune(context.Background(), before, 6)
+	require.NoError(t, err)
+	require.Equal(t, 6, pruned)
+	require.Empty(t, store.Snapshot().Tokens)
+}
+
+func TestStore_PruneStopsForCancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	pruned, err := storememory.New().Prune(ctx, time.Now(), 1)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Zero(t, pruned)
 }
 
 func newService(

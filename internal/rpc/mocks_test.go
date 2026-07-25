@@ -41,7 +41,8 @@ func newAllowedServiceWithOptions(api agentapi.ServiceAPI, opts ServiceOptions) 
 func withTestPrincipal(ctx context.Context, source string) context.Context {
 	return rpcmeta.WithAuthenticatedPrincipal(ctx, morphauth.Principal{
 		IdentityID: "identity", OwnerID: "default", UserID: "identity",
-		Roles: []string{morphauth.RoleOwner}, SessionID: "session", TokenID: "token",
+		Roles: []string{morphauth.RoleOwner}, RootAuthorization: true,
+		SessionID: "session", TokenID: "token",
 		Source: source, IdentityGeneration: 1, AuthorizationRevision: 1,
 	})
 }

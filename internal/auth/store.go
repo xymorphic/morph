@@ -106,6 +106,7 @@ type Principal struct {
 	OwnerID               string
 	UserID                string
 	Roles                 []string
+	RootAuthorization     bool
 	SessionID             string
 	TokenID               string
 	Services              []string
@@ -124,6 +125,10 @@ func (p Principal) HasRole(role string) bool {
 	}
 
 	return false
+}
+
+func (p Principal) IsRootOwner() bool {
+	return p.RootAuthorization && p.HasRole(RoleOwner)
 }
 
 type Store interface {

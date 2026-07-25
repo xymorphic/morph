@@ -3,7 +3,6 @@ package rpcmeta
 import (
 	"context"
 
-	morphauth "github.com/wandxy/morph/internal/auth"
 	"github.com/wandxy/morph/internal/permissions"
 	"google.golang.org/grpc/metadata"
 )
@@ -73,7 +72,7 @@ func PermissionActorFromIncomingContext(ctx context.Context) permissions.Actor {
 	if ctx != nil {
 		if principal, ok := AuthenticatedPrincipal(ctx); ok {
 			surface := PermissionSurfaceFromIncomingContext(ctx)
-			if principal.HasRole(morphauth.RoleOwner) && isSupportedClientSurface(surface) &&
+			if principal.IsRootOwner() && isSupportedClientSurface(surface) &&
 				principal.Source == string(surface) {
 				return permissions.Actor{Kind: permissions.ActorLocalOwner, ID: principal.OwnerID}
 			}

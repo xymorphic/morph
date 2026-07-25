@@ -77,13 +77,13 @@ func TestAuthService_RejectsIdentityMismatchUnknownScopeAndExcessiveTTL(t *testi
 
 	request.Authorization.MaximumTtlSeconds = 300
 	request.Authorization.Roles = []string{morphauth.RoleOwner}
-	request.Authorization.Services = []string{morphauth.RootScope}
-	request.Authorization.Methods = nil
+	request.Authorization.Services = nil
+	request.Authorization.Methods = []string{morphpb.BrowserService_Status_FullMethodName}
 	_, err = service.GrantAuthorization(ctx, request)
 	require.Equal(t, codes.PermissionDenied, status.Code(err))
 }
 
-func TestAuthService_RejectsRevokingRootThroughGenericAuthorizationAPI(t *testing.T) {
+func TestAuthService_RejectsDelegatedOwnerAdministration(t *testing.T) {
 	service, store := newRPCAuthService(t)
 	authorizations, err := store.ListAuthorizations(context.Background())
 	require.NoError(t, err)
@@ -96,11 +96,70 @@ func TestAuthService_RejectsRevokingRootThroughGenericAuthorizationAPI(t *testin
 	_, err = service.RevokeAuthorization(ctx, &morphpb.RevokeAuthAuthorizationRequest{
 		IdentityId: authorizations[0].IdentityID,
 	})
-	require.Equal(t, codes.FailedPrecondition, status.Code(err))
+	require.Equal(t, codes.PermissionDenied, status.Code(err))
 
 	stored, err := store.GetAuthorization(context.Background(), authorizations[0].IdentityID)
 	require.NoError(t, err)
 	require.Equal(t, morphauth.StatusActive, stored.Status)
+
+	_, err = service.ListSessions(ctx, &morphpb.ListAuthSessionsRequest{})
+	require.Equal(t, codes.PermissionDenied, status.Code(err))
+}
+
+func TestAuthService_ClosesOnlyAuthenticatedSession(t *testing.T) {
+	service, store := newRPCAuthService(t)
+	now := time.Now().UTC()
+	require.NoError(t, store.Activate(
+		context.Background(),
+		morphauth.Session{
+			ID: "current-session", IdentityID: "identity", OwnerID: "owner",
+			UserID: "user", Roles: []string{morphauth.RoleOperator}, Source: "cli",
+			Status: morphauth.StatusActive, CreatedAt: now, LastSeenAt: now,
+			IdleExpiresAt: now.Add(time.Minute), AbsoluteExpiresAt: now.Add(time.Hour),
+		},
+		morphauth.Token{
+			ID: "current-token", SessionID: "current-session", IdentityID: "identity",
+			OwnerID: "owner", UserID: "user", Roles: []string{morphauth.RoleOperator},
+			Methods: []string{morphpb.AuthService_CloseSession_FullMethodName},
+			Status:  morphauth.StatusActive, IssuedAt: now, NotBefore: now,
+			ExpiresAt: now.Add(time.Hour),
+		},
+	))
+	ctx := rpcmeta.WithAuthenticatedPrincipal(context.Background(), morphauth.Principal{
+		IdentityID: "identity", OwnerID: "owner", UserID: "user",
+		Roles:     []string{morphauth.RoleOperator},
+		SessionID: "current-session", TokenID: "current-token",
+	})
+
+	response, err := service.CloseSession(ctx, &morphpb.CloseAuthSessionRequest{})
+	require.NoError(t, err)
+	require.Equal(t, "current-session", response.GetSession().GetId())
+	require.Equal(t, morphauth.StatusRevoked, response.GetSession().GetStatus())
+}
+
+func TestAuthService_RejectsInvalidSessionClose(t *testing.T) {
+	service, _ := newRPCAuthService(t)
+	_, err := service.CloseSession(context.Background(), &morphpb.CloseAuthSessionRequest{})
+	require.Equal(t, codes.Unauthenticated, status.Code(err))
+
+	ctx := rpcmeta.WithAuthenticatedPrincipal(context.Background(), morphauth.Principal{
+		IdentityID: "identity", SessionID: "missing-session", TokenID: "token",
+	})
+	_, err = service.CloseSession(ctx, &morphpb.CloseAuthSessionRequest{})
+	require.Equal(t, codes.NotFound, status.Code(err))
+
+	store := &closeSessionStoreStub{
+		Store:         storememory.New(),
+		getSessionErr: morphauth.ErrNotFound,
+	}
+	authService, err := morphauth.NewService(morphauth.ServiceOptions{
+		Audience: "morph-rpc:test",
+		Store:    store,
+	})
+	require.NoError(t, err)
+	service = NewAuthService(authService)
+	_, err = service.CloseSession(ctx, &morphpb.CloseAuthSessionRequest{})
+	require.Equal(t, codes.NotFound, status.Code(err))
 }
 
 func TestAuthService_RotatesOnlyTheAuthenticatedRootIdentity(t *testing.T) {
@@ -119,7 +178,8 @@ func TestAuthService_RotatesOnlyTheAuthenticatedRootIdentity(t *testing.T) {
 	current := authorizations[0]
 	ctx := rpcmeta.WithAuthenticatedPrincipal(context.Background(), morphauth.Principal{
 		IdentityID: current.IdentityID, OwnerID: current.OwnerID, UserID: current.UserID,
-		Roles: []string{morphauth.RoleOwner}, SessionID: "session", TokenID: "token",
+		Roles: []string{morphauth.RoleOwner}, RootAuthorization: true,
+		SessionID: "session", TokenID: "token",
 	})
 	next, err := morphauth.GenerateIdentity(current.Generation + 1)
 	require.NoError(t, err)
@@ -163,6 +223,28 @@ func newRPCAuthService(
 func ownerAuthContext() context.Context {
 	return rpcmeta.WithAuthenticatedPrincipal(context.Background(), morphauth.Principal{
 		IdentityID: "root", OwnerID: "owner", UserID: "root",
-		Roles: []string{morphauth.RoleOwner}, SessionID: "session", TokenID: "token",
+		Roles: []string{morphauth.RoleOwner}, RootAuthorization: true,
+		SessionID: "session", TokenID: "token",
 	})
+}
+
+type closeSessionStoreStub struct {
+	morphauth.Store
+	getSessionErr error
+}
+
+func (s *closeSessionStoreStub) RevokeSession(
+	context.Context,
+	string,
+	string,
+	time.Time,
+) error {
+	return nil
+}
+
+func (s *closeSessionStoreStub) GetSession(
+	context.Context,
+	string,
+) (morphauth.Session, error) {
+	return morphauth.Session{}, s.getSessionErr
 }

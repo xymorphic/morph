@@ -206,10 +206,30 @@ func (s *Store) KeepAliveSession(
 ) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	persistInterval := recordUsePersistInterval
+	if leaseInterval := idleExpiresAt.Sub(now) / 3; leaseInterval < persistInterval {
+		persistInterval = leaseInterval
+	}
+	shouldPersist := s.lastUsePersist.IsZero() ||
+		now.Before(s.lastUsePersist) ||
+		persistInterval <= 0 ||
+		now.Sub(s.lastUsePersist) >= persistInterval
+	var before storememory.Snapshot
+	if shouldPersist {
+		before = s.memory.Snapshot()
+	}
 	if err := s.memory.KeepAliveSession(ctx, sessionID, now, idleExpiresAt); err != nil {
 		return err
 	}
 	s.useDirty = true
+	if !shouldPersist {
+		return nil
+	}
+	if err := s.persistOrRestore(ctx, before); err != nil {
+		return err
+	}
+	s.lastUsePersist = now
+	s.useDirty = false
 
 	return nil
 }
@@ -262,21 +282,40 @@ func (s *Store) ListAudit(ctx context.Context, limit int) ([]morphauth.AuditEven
 }
 
 func (s *Store) Prune(ctx context.Context, cutoff time.Time, limit int) (int, error) {
+	return s.PruneBatches(ctx, cutoff, limit, 1)
+}
+
+func (s *Store) PruneBatches(
+	ctx context.Context,
+	cutoff time.Time,
+	limit, maximumBatches int,
+) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	before := s.memory.Snapshot()
-	count, err := s.memory.Prune(ctx, cutoff, limit)
-	if err != nil {
-		return 0, err
+	if limit <= 0 || maximumBatches <= 0 {
+		return 0, nil
 	}
-	if count == 0 {
+	before := s.memory.Snapshot()
+	total := 0
+	for range maximumBatches {
+		count, err := s.memory.Prune(ctx, cutoff, limit)
+		if err != nil {
+			s.memory = storememory.NewFromSnapshot(before)
+			return 0, err
+		}
+		total += count
+		if count < limit {
+			break
+		}
+	}
+	if total == 0 {
 		return 0, nil
 	}
 	if err := s.persistOrRestore(ctx, before); err != nil {
 		return 0, err
 	}
 
-	return count, nil
+	return total, nil
 }
 
 func (s *Store) Close() error {

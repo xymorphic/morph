@@ -484,12 +484,40 @@ func (s *Store) ListAudit(_ context.Context, limit int) ([]morphauth.AuditEvent,
 	return result, nil
 }
 
-func (s *Store) Prune(_ context.Context, before time.Time, limit int) (int, error) {
+func (s *Store) Prune(ctx context.Context, before time.Time, limit int) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if limit <= 0 {
 		return 0, nil
 	}
+
+	budgets := [3]int{limit / 3, limit / 3, limit / 3}
+	for index := 0; index < limit%len(budgets); index++ {
+		budgets[index]++
+	}
+	pruned := s.pruneTokens(before, budgets[0])
+	pruned += s.pruneSessions(before, budgets[1])
+	pruned += s.pruneAudit(before, budgets[2])
+	for pruned < limit {
+		remaining := limit - pruned
+		additional := s.pruneTokens(before, remaining)
+		remaining -= additional
+		additional += s.pruneSessions(before, remaining)
+		remaining = limit - pruned - additional
+		additional += s.pruneAudit(before, remaining)
+		if additional == 0 {
+			break
+		}
+		pruned += additional
+	}
+
+	return pruned, nil
+}
+
+func (s *Store) pruneTokens(before time.Time, limit int) int {
 	pruned := 0
 	for id, token := range s.tokens {
 		if pruned >= limit {
@@ -501,6 +529,12 @@ func (s *Store) Prune(_ context.Context, before time.Time, limit int) (int, erro
 		delete(s.tokens, id)
 		pruned++
 	}
+
+	return pruned
+}
+
+func (s *Store) pruneSessions(before time.Time, limit int) int {
+	pruned := 0
 	for id, session := range s.sessions {
 		if pruned >= limit {
 			break
@@ -511,19 +545,23 @@ func (s *Store) Prune(_ context.Context, before time.Time, limit int) (int, erro
 		delete(s.sessions, id)
 		pruned++
 	}
-	if pruned < limit {
-		kept := s.audit[:0]
-		for _, event := range s.audit {
-			if pruned < limit && event.CreatedAt.Before(before) {
-				pruned++
-				continue
-			}
-			kept = append(kept, event)
-		}
-		s.audit = kept
-	}
 
-	return pruned, nil
+	return pruned
+}
+
+func (s *Store) pruneAudit(before time.Time, limit int) int {
+	pruned := 0
+	kept := s.audit[:0]
+	for _, event := range s.audit {
+		if pruned < limit && event.CreatedAt.Before(before) {
+			pruned++
+			continue
+		}
+		kept = append(kept, event)
+	}
+	s.audit = kept
+
+	return pruned
 }
 
 func (s *Store) Close() error {

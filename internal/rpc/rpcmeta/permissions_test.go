@@ -100,6 +100,16 @@ func TestPermissionActor_RequiresMatchingAuthenticatedOwnerSource(t *testing.T) 
 			expects: permissions.ActorRPCClient,
 		},
 		{
+			name: "delegated owner role",
+			ctx: incomingPermissionContext(
+				permissions.SurfaceTUI,
+				"tui",
+				true,
+				false,
+			),
+			expects: permissions.ActorRPCClient,
+		},
+		{
 			name:    "generic RPC",
 			ctx:     context.Background(),
 			expects: permissions.ActorRPCClient,
@@ -127,7 +137,12 @@ func TestPermissionActor_UsesAuthenticatedPrincipalWithoutGrantingOwnerAuthority
 	require.Equal(t, permissions.ActorRPCClient, PermissionActorFromIncomingContext(nilContext).Kind)
 }
 
-func incomingPermissionContext(surface permissions.Surface, source string, owner bool) context.Context {
+func incomingPermissionContext(
+	surface permissions.Surface,
+	source string,
+	owner bool,
+	rootAuthorization ...bool,
+) context.Context {
 	outgoing := WithOutgoingPermissionSurface(context.Background(), surface)
 	outgoingMetadata, _ := metadata.FromOutgoingContext(outgoing)
 	ctx := metadata.NewIncomingContext(context.Background(), outgoingMetadata)
@@ -135,8 +150,13 @@ func incomingPermissionContext(surface permissions.Surface, source string, owner
 	if owner {
 		roles = []string{morphauth.RoleOwner}
 	}
+	root := owner
+	if len(rootAuthorization) > 0 {
+		root = rootAuthorization[0]
+	}
 	return WithAuthenticatedPrincipal(ctx, morphauth.Principal{
 		IdentityID: "identity", OwnerID: "default", UserID: "user",
-		Roles: roles, SessionID: "session", TokenID: "token", Source: source,
+		Roles: roles, RootAuthorization: root,
+		SessionID: "session", TokenID: "token", Source: source,
 	})
 }

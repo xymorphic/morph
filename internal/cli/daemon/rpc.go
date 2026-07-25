@@ -91,10 +91,16 @@ var stopGatewayTimeout = 5 * time.Second
 var stopBrowserTimeout = 5 * time.Second
 
 const (
-	rpcAuthRetention     = 30 * 24 * time.Hour
-	rpcAuthPruneInterval = 24 * time.Hour
-	rpcAuthPruneLimit    = 1000
+	rpcAuthRetention           = 30 * 24 * time.Hour
+	rpcAuthPruneInterval       = time.Hour
+	rpcAuthPruneTimeout        = 30 * time.Second
+	rpcAuthPruneLimit          = 1000
+	rpcAuthPruneMaximumBatches = 10
 )
+
+type rpcAuthBatchPruner interface {
+	PruneBatches(context.Context, time.Time, int, int) (int, error)
+}
 
 type browserService interface {
 	Close(context.Context) error
@@ -478,25 +484,53 @@ var serveRPC = func(
 }
 
 func pruneRPCAuthState(ctx context.Context, store morphauth.Store) {
-	prune := func() {
-		_, err := store.Prune(
-			ctx,
-			time.Now().UTC().Add(-rpcAuthRetention),
-			rpcAuthPruneLimit,
-		)
-		if err != nil && ctx.Err() == nil {
-			daemonLog.Warn().Err(err).Msg("RPC auth retention pruning failed")
-		}
-	}
-	prune()
-	ticker := time.NewTicker(rpcAuthPruneInterval)
+	pruneRPCAuthStateAtInterval(ctx, store, rpcAuthPruneInterval)
+}
+
+func pruneRPCAuthStateAtInterval(
+	ctx context.Context,
+	store morphauth.Store,
+	interval time.Duration,
+) {
+	pruneRPCAuthStateOnce(ctx, store)
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			prune()
+			pruneRPCAuthStateOnce(ctx, store)
+		}
+	}
+}
+
+func pruneRPCAuthStateOnce(ctx context.Context, store morphauth.Store) {
+	pruneCtx, cancel := context.WithTimeout(ctx, rpcAuthPruneTimeout)
+	defer cancel()
+	cutoff := time.Now().UTC().Add(-rpcAuthRetention)
+	if batchStore, ok := store.(rpcAuthBatchPruner); ok {
+		_, err := batchStore.PruneBatches(
+			pruneCtx,
+			cutoff,
+			rpcAuthPruneLimit,
+			rpcAuthPruneMaximumBatches,
+		)
+		if err != nil && ctx.Err() == nil {
+			daemonLog.Warn().Err(err).Msg("RPC auth retention pruning failed")
+		}
+		return
+	}
+	for range rpcAuthPruneMaximumBatches {
+		pruned, err := store.Prune(pruneCtx, cutoff, rpcAuthPruneLimit)
+		if err != nil {
+			if ctx.Err() == nil {
+				daemonLog.Warn().Err(err).Msg("RPC auth retention pruning failed")
+			}
+			return
+		}
+		if pruned < rpcAuthPruneLimit {
+			return
 		}
 	}
 }

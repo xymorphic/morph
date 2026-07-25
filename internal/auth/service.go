@@ -3,12 +3,16 @@ package auth
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/sha256"
 	"errors"
 	"slices"
 	"strings"
 	"sync"
 	"time"
 )
+
+const auditCoalesceWindow = time.Second
+const maximumFailureAuditsPerWindow = 128
 
 type ServiceOptions struct {
 	Audience         string
@@ -32,6 +36,9 @@ type Service struct {
 	sessionMaxTTL    time.Duration
 	auditMu          sync.Mutex
 	auditLast        map[string]time.Time
+	auditWindowStart time.Time
+	failureAudits    int
+	suppressionAudit bool
 }
 
 func NewService(options ServiceOptions) (*Service, error) {
@@ -126,7 +133,7 @@ func (s *Service) OpenSessionBound(
 ) (Principal, error) {
 	authorization, claims, err := s.validateSignedToken(ctx, raw)
 	if err != nil {
-		s.auditFailure(ctx, "session_open_rejected", "", "", "", err.Error())
+		s.auditUnverifiedFailure(ctx, "session_open_rejected", raw, err.Error())
 		return Principal{}, ErrUnauthenticated
 	}
 	if err := checkClaimsWithinAuthorization(
@@ -183,7 +190,12 @@ func (s *Service) OpenSessionBound(
 		s.auditFailure(ctx, "session_open_rejected", authorization.IdentityID, claims.SessionID, claims.ID, err.Error())
 		return Principal{}, ErrUnauthenticated
 	}
-	return principalFromClaims(claims, authorization.IdentityID, claims.Source), nil
+	return principalFromClaims(
+		claims,
+		authorization.IdentityID,
+		claims.Source,
+		containsScope(authorization.Services, RootScope),
+	), nil
 }
 
 func (s *Service) Authenticate(
@@ -194,7 +206,7 @@ func (s *Service) Authenticate(
 ) (Principal, error) {
 	authorization, claims, err := s.validateSignedToken(ctx, raw)
 	if err != nil {
-		s.auditFailure(ctx, "authentication_rejected", "", "", "", method)
+		s.auditUnverifiedFailure(ctx, "authentication_rejected", raw, method)
 		return Principal{}, ErrUnauthenticated
 	}
 	if err := checkClaimsWithinAuthorization(
@@ -238,7 +250,12 @@ func (s *Service) Authenticate(
 		return Principal{}, ErrUnauthenticated
 	}
 
-	return principalFromClaims(claims, authorization.IdentityID, session.Source), nil
+	return principalFromClaims(
+		claims,
+		authorization.IdentityID,
+		session.Source,
+		containsScope(authorization.Services, RootScope),
+	), nil
 }
 
 func (s *Service) RevokeSession(ctx context.Context, id, reason string) error {
@@ -253,7 +270,8 @@ func (s *Service) GrantAuthorization(
 	ctx context.Context,
 	authorization Authorization,
 ) (Authorization, error) {
-	if containsScope(authorization.Services, RootScope) ||
+	if hasRole(authorization.Roles, RoleOwner) ||
+		containsScope(authorization.Services, RootScope) ||
 		authorization.MaxTTL <= 0 || authorization.MaxTTL > s.maximumTokenTTL {
 		return Authorization{}, ErrPermissionDenied
 	}
@@ -401,12 +419,17 @@ func tokenFromClaims(claims AccessClaims, identityID string) Token {
 	return token
 }
 
-func principalFromClaims(claims AccessClaims, identityID, source string) Principal {
+func principalFromClaims(
+	claims AccessClaims,
+	identityID, source string,
+	rootAuthorization bool,
+) Principal {
 	principal := Principal{
 		IdentityID:            identityID,
 		OwnerID:               claims.OwnerID,
 		UserID:                claims.Subject,
 		Roles:                 append([]string(nil), claims.Roles...),
+		RootAuthorization:     rootAuthorization,
 		SessionID:             claims.SessionID,
 		TokenID:               claims.ID,
 		Services:              append([]string(nil), claims.Services...),
@@ -463,17 +486,99 @@ func (s *Service) auditFailure(
 	eventType, identityID, sessionID, tokenID, reason string,
 ) {
 	now := s.clock().UTC()
-	key := eventType + "\x00" + identityID + "\x00" + reason
-	s.auditMu.Lock()
-	last := s.auditLast[key]
-	if !last.IsZero() && now.Sub(last) < time.Second {
-		s.auditMu.Unlock()
+	key := strings.Join([]string{
+		eventType,
+		identityID,
+		sessionID,
+		tokenID,
+		reason,
+	}, "\x00")
+	shouldAppend, reportSuppression := s.reserveFailureAudit(now, key)
+	s.appendFailureAudit(
+		ctx,
+		now,
+		reportSuppression,
+		AuditEvent{
+			Type: eventType, IdentityID: identityID, SessionID: sessionID,
+			TokenID: tokenID, Reason: reason, CreatedAt: now,
+		},
+		shouldAppend,
+	)
+}
+
+func (s *Service) auditUnverifiedFailure(
+	ctx context.Context,
+	eventType, raw, reason string,
+) {
+	digest := sha256.Sum256([]byte(raw))
+	now := s.clock().UTC()
+	key := strings.Join([]string{
+		eventType,
+		reason,
+		string(digest[:]),
+	}, "\x00")
+	shouldAppend, reportSuppression := s.reserveFailureAudit(now, key)
+	s.appendFailureAudit(
+		ctx,
+		now,
+		reportSuppression,
+		AuditEvent{Type: eventType, Reason: reason, CreatedAt: now},
+		shouldAppend,
+	)
+}
+
+func (s *Service) appendFailureAudit(
+	ctx context.Context,
+	now time.Time,
+	reportSuppression bool,
+	event AuditEvent,
+	shouldAppend bool,
+) {
+	if reportSuppression {
+		_ = s.store.AppendAudit(ctx, AuditEvent{
+			Type:      "authentication_audit_rate_limited",
+			Reason:    "additional authentication failures suppressed",
+			CreatedAt: now,
+		})
+	}
+	if !shouldAppend {
 		return
 	}
+	_ = s.store.AppendAudit(ctx, event)
+}
+
+func (s *Service) reserveFailureAudit(now time.Time, key string) (bool, bool) {
+	s.auditMu.Lock()
+	defer s.auditMu.Unlock()
+
+	s.evictStaleAuditKeys(now)
+	if s.auditWindowStart.IsZero() || now.Before(s.auditWindowStart) ||
+		now.Sub(s.auditWindowStart) >= auditCoalesceWindow {
+		s.auditWindowStart = now
+		s.failureAudits = 0
+		s.suppressionAudit = false
+	}
+	if last := s.auditLast[key]; !last.IsZero() &&
+		now.Sub(last) < auditCoalesceWindow {
+		return false, false
+	}
+	if s.failureAudits >= maximumFailureAuditsPerWindow-1 {
+		if !s.suppressionAudit {
+			s.suppressionAudit = true
+			return false, true
+		}
+		return false, false
+	}
 	s.auditLast[key] = now
-	s.auditMu.Unlock()
-	_ = s.store.AppendAudit(ctx, AuditEvent{
-		Type: eventType, IdentityID: identityID, SessionID: sessionID,
-		TokenID: tokenID, Reason: reason, CreatedAt: now,
-	})
+	s.failureAudits++
+
+	return true, false
+}
+
+func (s *Service) evictStaleAuditKeys(now time.Time) {
+	for key, last := range s.auditLast {
+		if now.Before(last) || now.Sub(last) >= auditCoalesceWindow {
+			delete(s.auditLast, key)
+		}
+	}
 }

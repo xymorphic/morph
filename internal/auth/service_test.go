@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -23,10 +24,12 @@ func TestService_ActivatesAuthenticatesAndRevokesToken(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, identity.ID, principal.IdentityID)
 	require.Equal(t, "cli", principal.Source)
+	require.True(t, principal.IsRootOwner())
 
 	principal, err = service.Authenticate(ctx, raw, "/morph.v1.SessionService/List", "")
 	require.NoError(t, err)
 	require.Equal(t, claims.ID, principal.TokenID)
+	require.True(t, principal.IsRootOwner())
 	token, err := store.GetToken(ctx, claims.ID)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), token.UseCount)
@@ -115,6 +118,67 @@ func TestService_UsesMaximumTokenTTLIndependentlyFromSessionTTL(t *testing.T) {
 	require.ErrorIs(t, err, morphauth.ErrUnauthenticated)
 }
 
+func TestService_RejectsDelegatedOwnerAuthorization(t *testing.T) {
+	store := storememory.New()
+	service, _ := newAuthService(t, store)
+	delegated, err := morphauth.GenerateIdentity(1)
+	require.NoError(t, err)
+
+	_, err = service.GrantAuthorization(context.Background(), morphauth.Authorization{
+		IdentityID: delegated.ID, PublicKey: delegated.PublicKey,
+		OwnerID: "owner", UserID: delegated.ID,
+		Roles: []string{morphauth.RoleOwner},
+		Methods: []string{
+			"/morph.v1.AuthService/OpenSession",
+			"/morph.v1.SessionService/List",
+		},
+		MaxTTL: time.Hour, Generation: 1, Status: morphauth.StatusActive,
+	})
+	require.ErrorIs(t, err, morphauth.ErrPermissionDenied)
+}
+
+func TestService_DoesNotDeriveRootAuthorityFromDelegatedToken(t *testing.T) {
+	ctx := context.Background()
+	store := storememory.New()
+	service, _ := newAuthService(t, store)
+	delegated, err := morphauth.GenerateIdentity(1)
+	require.NoError(t, err)
+	authorization, err := store.PutAuthorization(ctx, morphauth.Authorization{
+		IdentityID: delegated.ID, PublicKey: delegated.PublicKey,
+		OwnerID: "owner", UserID: delegated.ID,
+		Roles: []string{morphauth.RoleOperator},
+		Methods: []string{
+			"/morph.v1.AuthService/OpenSession",
+			"/morph.v1.SessionService/List",
+		},
+		MaxTTL: time.Hour, Generation: 1, Revision: 1,
+		Status: morphauth.StatusActive, CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+	})
+	require.NoError(t, err)
+	raw, _, err := morphauth.SignAccessToken(delegated, morphauth.TokenRequest{
+		Audience: "morph-rpc:test", Subject: delegated.ID,
+		SessionID: "delegated-session", TokenID: "delegated-token",
+		OwnerID: "owner", Source: "cli",
+		Roles: authorization.Roles, Methods: authorization.Methods,
+		TTL: time.Minute, NotBefore: time.Now().Add(-time.Second),
+		AuthorizationRevision: authorization.Revision,
+	})
+	require.NoError(t, err)
+
+	principal, err := service.OpenSession(ctx, raw, "cli")
+	require.NoError(t, err)
+	require.False(t, principal.IsRootOwner())
+	principal, err = service.Authenticate(
+		ctx,
+		raw,
+		"/morph.v1.SessionService/List",
+		"",
+	)
+	require.NoError(t, err)
+	require.False(t, principal.IsRootOwner())
+}
+
 func TestService_RejectsExpiredTokenAndExpiredSessionDeadlines(t *testing.T) {
 	now := time.Now().UTC()
 	clock := func() time.Time { return now }
@@ -184,6 +248,102 @@ func TestService_CoalescesRepeatedAuthenticationFailureAudit(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, events, 1)
 	require.Equal(t, "session_open_rejected", events[0].Type)
+
+	_, err = service.OpenSession(context.Background(), "different-invalid", "cli")
+	require.ErrorIs(t, err, morphauth.ErrUnauthenticated)
+	events, err = store.ListAudit(context.Background(), 10)
+	require.NoError(t, err)
+	require.Len(t, events, 2)
+
+	now = now.Add(2 * time.Second)
+	_, err = service.OpenSession(context.Background(), "invalid", "cli")
+	require.ErrorIs(t, err, morphauth.ErrUnauthenticated)
+	events, err = store.ListAudit(context.Background(), 10)
+	require.NoError(t, err)
+	require.Len(t, events, 3)
+}
+
+func TestService_AuditsUnverifiedAuthenticationFailure(t *testing.T) {
+	store := storememory.New()
+	service, err := morphauth.NewService(morphauth.ServiceOptions{
+		Audience: "morph-rpc:test", Store: store,
+	})
+	require.NoError(t, err)
+
+	_, err = service.Authenticate(
+		context.Background(),
+		"invalid",
+		"/morph.v1.SessionService/List",
+		"",
+	)
+	require.ErrorIs(t, err, morphauth.ErrUnauthenticated)
+	events, err := store.ListAudit(context.Background(), 10)
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	require.Equal(t, "authentication_rejected", events[0].Type)
+	require.Equal(t, "/morph.v1.SessionService/List", events[0].Reason)
+}
+
+func TestService_RateLimitsDistinctUnverifiedFailureAudit(t *testing.T) {
+	now := time.Now().UTC()
+	store := storememory.New()
+	service, err := morphauth.NewService(morphauth.ServiceOptions{
+		Audience: "morph-rpc:test", Store: store,
+		Clock: func() time.Time { return now },
+	})
+	require.NoError(t, err)
+
+	for index := 0; index < 256; index++ {
+		_, err = service.OpenSession(
+			context.Background(),
+			"invalid-"+strconv.Itoa(index),
+			"cli",
+		)
+		require.ErrorIs(t, err, morphauth.ErrUnauthenticated)
+	}
+	events, err := store.ListAudit(context.Background(), 300)
+	require.NoError(t, err)
+	require.Len(t, events, 128)
+
+	now = now.Add(2 * time.Second)
+	_, err = service.OpenSession(context.Background(), "next-window", "cli")
+	require.ErrorIs(t, err, morphauth.ErrUnauthenticated)
+	events, err = store.ListAudit(context.Background(), 300)
+	require.NoError(t, err)
+	require.Len(t, events, 129)
+	require.Equal(t, "session_open_rejected", events[0].Type)
+	require.Equal(t, "authentication_audit_rate_limited", events[1].Type)
+	require.Equal(t, "additional authentication failures suppressed", events[1].Reason)
+}
+
+func TestService_RateLimitsDistinctVerifiedFailureAudit(t *testing.T) {
+	now := time.Now().UTC()
+	store := storememory.New()
+	service, err := morphauth.NewService(morphauth.ServiceOptions{
+		Audience: "morph-rpc:test", Store: store,
+		Clock: func() time.Time { return now }, Leeway: time.Minute,
+	})
+	require.NoError(t, err)
+	identity, err := morphauth.GenerateIdentity(1)
+	require.NoError(t, err)
+	_, err = service.SeedRoot(context.Background(), identity, "owner")
+	require.NoError(t, err)
+
+	for index := 0; index < 256; index++ {
+		request := ownerTokenRequest("session-"+strconv.Itoa(index), "token-"+strconv.Itoa(index))
+		request.Subject = identity.ID
+		request.Services = nil
+		request.Methods = []string{"/morph.v1.SessionService/List"}
+		request.NotBefore = now.Add(-time.Second)
+		raw, _, err := morphauth.SignAccessToken(identity, request)
+		require.NoError(t, err)
+		_, err = service.OpenSession(context.Background(), raw, "cli")
+		require.ErrorIs(t, err, morphauth.ErrPermissionDenied)
+	}
+	events, err := store.ListAudit(context.Background(), 300)
+	require.NoError(t, err)
+	require.Len(t, events, 129)
+	require.Equal(t, "authentication_audit_rate_limited", events[0].Type)
 }
 
 func TestService_KeepAliveExtendsActiveStreamSession(t *testing.T) {
