@@ -100,7 +100,11 @@ const (
 )
 
 type rpcAuthBatchPruner interface {
-	PruneBatches(context.Context, time.Time, int, int) (int, error)
+	PruneBatches(
+		context.Context,
+		morphauth.PruneOptions,
+		int,
+	) (morphauth.PruneResult, error)
 }
 
 type browserService interface {
@@ -510,11 +514,14 @@ func pruneRPCAuthStateOnce(ctx context.Context, store morphauth.Store) {
 	pruneCtx, cancel := context.WithTimeout(ctx, rpcAuthPruneTimeout)
 	defer cancel()
 	cutoff := time.Now().UTC().Add(-rpcAuthRetention)
+	options := morphauth.PruneOptions{
+		Before: cutoff,
+		Limit:  rpcAuthPruneLimit,
+	}
 	if batchStore, ok := store.(rpcAuthBatchPruner); ok {
 		_, err := batchStore.PruneBatches(
 			pruneCtx,
-			cutoff,
-			rpcAuthPruneLimit,
+			options,
 			rpcAuthPruneMaximumBatches,
 		)
 		if err != nil && ctx.Err() == nil {
@@ -523,14 +530,14 @@ func pruneRPCAuthStateOnce(ctx context.Context, store morphauth.Store) {
 		return
 	}
 	for range rpcAuthPruneMaximumBatches {
-		pruned, err := store.Prune(pruneCtx, cutoff, rpcAuthPruneLimit)
+		pruned, err := store.Prune(pruneCtx, options)
 		if err != nil {
 			if ctx.Err() == nil {
 				daemonLog.Warn().Err(err).Msg("RPC auth retention pruning failed")
 			}
 			return
 		}
-		if pruned < rpcAuthPruneLimit {
+		if pruned.Total() < rpcAuthPruneLimit {
 			return
 		}
 	}

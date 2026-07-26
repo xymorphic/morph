@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -48,6 +49,21 @@ func TestAuthService_ListRequestsIncludeFilters(t *testing.T) {
 	require.Equal(t, "token-1", stub.auditRequest.GetTokenId())
 	require.Equal(t, "/morph.v1.AuthService/ListTokens", stub.auditRequest.GetMethod())
 	require.Equal(t, since, stub.auditRequest.GetSince().AsTime())
+
+	pruned, err := service.Prune(context.Background(), AuthPruneOptions{
+		Before: since,
+		Limit:  100,
+		DryRun: true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, since, stub.pruneRequest.GetBefore().AsTime())
+	require.Equal(t, int32(100), stub.pruneRequest.GetLimit())
+	require.True(t, stub.pruneRequest.GetDryRun())
+	require.Equal(t, int32(2), pruned.GetTokens())
+
+	stub.pruneErr = errors.New("prune failed")
+	_, err = service.Prune(context.Background(), AuthPruneOptions{Before: since, Limit: 1})
+	require.ErrorContains(t, err, "prune failed")
 }
 
 type authListServiceClientStub struct {
@@ -56,6 +72,8 @@ type authListServiceClientStub struct {
 	tokenRequest         *morphpb.ListAuthTokensRequest
 	authorizationRequest *morphpb.ListAuthAuthorizationsRequest
 	auditRequest         *morphpb.ListAuthAuditRequest
+	pruneRequest         *morphpb.PruneAuthRequest
+	pruneErr             error
 }
 
 func (s *authListServiceClientStub) ListSessions(
@@ -92,4 +110,16 @@ func (s *authListServiceClientStub) ListAudit(
 ) (*morphpb.ListAuthAuditResponse, error) {
 	s.auditRequest = request
 	return &morphpb.ListAuthAuditResponse{}, nil
+}
+
+func (s *authListServiceClientStub) Prune(
+	_ context.Context,
+	request *morphpb.PruneAuthRequest,
+	_ ...grpc.CallOption,
+) (*morphpb.PruneAuthResponse, error) {
+	s.pruneRequest = request
+	if s.pruneErr != nil {
+		return nil, s.pruneErr
+	}
+	return &morphpb.PruneAuthResponse{Tokens: 2}, nil
 }

@@ -42,7 +42,8 @@ RPC authentication and provider authentication are unrelated:
 
 - `morph provider login`, `morph provider status`, and `morph provider logout` manage model or web-provider
   credentials.
-- `morph auth identity`, `token`, `session`, `authorization`, `audit`, and `mtls` manage Morph RPC authentication.
+- `morph auth genkey`, `identity`, `token`, `session`, `authorization`, `audit`, `prune`, and `mtls` manage Morph RPC
+  authentication.
 
 They share `auth.json`, but provider records and Morph's reserved `_morph` record are preserved independently.
 
@@ -122,6 +123,10 @@ Morph-owned byte strings use lowercase hexadecimal text: identity IDs, generated
 CLI authorization public keys. Standard-defined encodings remain unchanged: JWT compact segments and signatures,
 public JWK members, and the `x5t#S256` certificate confirmation value use unpadded Base64URL as required by their
 respective standards.
+
+`morph auth genkey` generates a standalone identity without reading or modifying a profile. Its text and JSON output
+include the same private key as both a 32-byte seed and Go's expanded 64-byte Ed25519 representation, plus the public
+key and derived identity ID. Treat both private-key fields as secrets; the command does not save them.
 
 When signing automatically, the client:
 
@@ -225,6 +230,7 @@ morph_lab() {
 
 morph_delegate() {
   HOME="$MORPH_LAB_HOME" \
+    MORPH_AUTH_KEY="${MORPH_DELEGATE_AUTH_KEY:-}" \
     MORPH_AUTH_AUDIENCE=morph-rpc:rpc-auth-lab \
     "$MORPH_BIN" --profile rpc-auth-delegate "$@"
 }
@@ -296,10 +302,31 @@ You should see `running`, `SERVING`, profile `rpc-auth-lab`, and `127.0.0.1:5099
 List the daemon's authorizations:
 
 ```console
+morph_lab auth authorization list
+```
+
+The default output uses the same headerless card style as session and token listings:
+
+```text
+[active] <identity-id>
+  Public key:  <public-key>
+  Owner:       rpc-auth-lab
+  User:        <identity-id>
+  Roles:       owner
+  Services:    *
+  Maximum TTL: 86400s
+  Generation:  1
+  Revision:    1
+  ...
+```
+
+Use JSON when you need stable field names for scripts:
+
+```console
 morph_lab auth --json authorization list
 ```
 
-The first authorization should contain:
+The first JSON authorization should contain:
 
 ```text
 identity_id:        the hex identity digest shown by identity show
@@ -368,8 +395,8 @@ Now inspect tokens:
 morph_lab auth token list
 ```
 
-Session and token text listings use headerless cards. The status and record ID form the first line, followed by the
-safe metadata that is useful during an incident:
+Authorization, session, and token text listings use headerless cards. The status and record ID form the first line,
+followed by the safe metadata that is useful during an incident:
 
 ```text
 [active] <record-id>
@@ -635,7 +662,33 @@ This distinction matters:
 This lab creates a second Ed25519 identity, grants it two exact application methods, and proves that method scope still
 does not grant root-management authority.
 
-Initialize the delegate profile:
+Generate a standalone delegate identity. `auth genkey` prints a 32-byte private-key seed, the equivalent expanded
+64-byte private key, the 32-byte public key, and Morph's 20-byte identity ID, all in lowercase hexadecimal:
+
+```console
+DELEGATE_KEYS_JSON="$(morph_lab auth --json genkey)"
+
+DELEGATE_ID="$(
+  printf '%s' "$DELEGATE_KEYS_JSON" |
+    python3 -c 'import json, sys; print(json.load(sys.stdin)["identity_id"])'
+)"
+MORPH_DELEGATE_AUTH_KEY="$(
+  printf '%s' "$DELEGATE_KEYS_JSON" |
+    python3 -c 'import json, sys; print(json.load(sys.stdin)["private_key_32"])'
+)"
+DELEGATE_PUBLIC_KEY="$(
+  printf '%s' "$DELEGATE_KEYS_JSON" |
+    python3 -c 'import json, sys; print(json.load(sys.stdin)["public_key"])'
+)"
+
+unset DELEGATE_KEYS_JSON
+export MORPH_DELEGATE_AUTH_KEY
+
+printf 'Delegate identity: %s\n' "$DELEGATE_ID"
+```
+
+The private seed is now held only in this disposable shell environment. The `morph_delegate` helper maps it to
+`MORPH_AUTH_KEY`, while the root profile remains unchanged. Initialize and inspect the delegate profile:
 
 ```console
 morph_delegate profile init rpc-auth-delegate
@@ -643,61 +696,7 @@ morph_delegate auth identity init
 morph_delegate auth identity show
 ```
 
-The grant command needs the raw public key encoded as 64 lowercase hexadecimal characters. Create a small helper that
-reads the delegate's private record but prints only its safe identity ID and public key:
-
-```console
-cat > "$MORPH_LAB_ROOT/export-public.go" <<'GO'
-package main
-
-import (
-	"crypto/ed25519"
-	"encoding/hex"
-	"encoding/json"
-	"fmt"
-	"os"
-)
-
-func main() {
-	body, err := os.ReadFile(os.Args[1])
-	if err != nil {
-		panic(err)
-	}
-
-	var document map[string]json.RawMessage
-	if err := json.Unmarshal(body, &document); err != nil {
-		panic(err)
-	}
-
-	var record struct {
-		IdentityID string `json:"identityId"`
-		PrivateKey string `json:"privateKey"`
-	}
-	if err := json.Unmarshal(document["_morph"], &record); err != nil {
-		panic(err)
-	}
-
-	key, err := hex.DecodeString(record.PrivateKey)
-	if err != nil {
-		panic(err)
-	}
-
-	privateKey := ed25519.NewKeyFromSeed(key)
-	publicKey := privateKey.Public().(ed25519.PublicKey)
-	fmt.Printf("%s %s\n",
-		record.IdentityID,
-		hex.EncodeToString(publicKey),
-	)
-}
-GO
-
-DELEGATE_AUTH_JSON="$MORPH_LAB_HOME/.morph/profiles/rpc-auth-delegate/auth.json"
-read -r DELEGATE_ID DELEGATE_PUBLIC_KEY < <(
-  go run "$MORPH_LAB_ROOT/export-public.go" "$DELEGATE_AUTH_JSON"
-)
-
-printf 'Delegate identity: %s\n' "$DELEGATE_ID"
-```
+The grant command needs `DELEGATE_PUBLIC_KEY`, the raw public key encoded as 64 hexadecimal characters.
 
 First try to delegate `owner`:
 
@@ -906,6 +905,106 @@ requires it.
 If `auth.key` points to externally managed key material, `morph auth identity rotate` refuses to replace it. Rotate
 that key at its source and follow the configured-identity generation protocol.
 
+### Demo: rotate an externally managed root key
+
+Use a separate profile and port so this exercise does not alter the main lab identity:
+
+```console
+morph_external() {
+  HOME="$MORPH_LAB_HOME" \
+    MORPH_RPC_PORT=50992 \
+    "$MORPH_BIN" --profile rpc-auth-external "$@"
+}
+
+EXTERNAL_PROFILE_HOME="$MORPH_LAB_HOME/.morph/profiles/rpc-auth-external"
+if [ ! -d "$EXTERNAL_PROFILE_HOME" ]; then
+  morph_external profile init rpc-auth-external
+fi
+
+EXTERNAL_KEY_1="$MORPH_LAB_ROOT/external-generation-1.key"
+if [ ! -f "$EXTERNAL_KEY_1" ]; then
+  (
+    umask 077
+    morph_lab auth --json genkey |
+      python3 -c 'import json, sys; print(json.load(sys.stdin)["private_key_32"])' \
+      > "$EXTERNAL_KEY_1"
+  )
+fi
+
+morph_external config set auth.key "$EXTERNAL_KEY_1"
+morph_external config set auth.generation 1
+```
+
+Start the external-key daemon in a third terminal:
+
+```console
+source "$MORPH_LAB_ROOT/lab.env"
+
+morph_external() {
+  HOME="$MORPH_LAB_HOME" \
+    MORPH_RPC_PORT=50992 \
+    "$MORPH_BIN" --profile rpc-auth-external "$@"
+}
+
+morph_external daemon
+```
+
+In the original terminal, inspect the configured identity and prove that Morph will not overwrite its key source:
+
+```console
+morph_external auth identity show
+morph_external auth identity rotate
+```
+
+The rotate command fails with:
+
+```text
+configured Morph identity keys must be rotated at their source
+```
+
+Generate the replacement at the external source:
+
+```console
+EXTERNAL_KEY_2="$MORPH_LAB_ROOT/external-generation-2.key"
+(
+  umask 077
+  morph_lab auth --json genkey |
+    python3 -c 'import json, sys; print(json.load(sys.stdin)["private_key_32"])' \
+    > "$EXTERNAL_KEY_2"
+)
+```
+
+Stop the external-key daemon with `Ctrl-C`. Change only the configured key and try to restart:
+
+```console
+morph_external config set auth.key "$EXTERNAL_KEY_2"
+morph_external daemon
+```
+
+Startup refuses the replacement because the new identity still claims generation 1:
+
+```text
+configured Morph identity replacement must use a new key and the next auth generation
+```
+
+Advance the generation and start the daemon again:
+
+```console
+morph_external config set auth.generation 2
+morph_external daemon
+```
+
+In another terminal, verify the result:
+
+```console
+morph_external auth identity show
+morph_external auth authorization list
+```
+
+The new identity is active at generation 2. The generation-1 root authorization and its sessions and tokens are
+revoked. The daemon accepts an externally managed replacement only when its public identity changes and its generation
+is exactly one greater than the current root.
+
 ## 12. Sessions, Streams, and Durability
 
 ### Session deadlines
@@ -1000,11 +1099,15 @@ morph_lab auth audit list --type scope_denied --limit 25
 Manual pruning:
 
 ```console
-morph_lab auth audit prune --older-than 1m --limit 1000
+morph_lab auth prune --older-than 1m --limit 1000 --dry-run
+morph_lab auth prune --older-than 1m --limit 1000
 ```
 
-Despite the command name, pruning covers eligible token records, session records, and audit history. Live records are
-not deleted merely because the audit cutoff is old.
+The dry run reports the same per-category counts without changing `auth.db`. Real pruning deletes eligible records in
+dependency order: tokens, sessions with no retained tokens, revoked authorizations with no retained sessions or tokens,
+and audit events. The limit is shared across all categories. Within a category, the oldest eligible records are
+removed first. Limits must be between 1 and 10,000. Active records and the current root authorization are never
+eligible.
 
 Daemon retention runs:
 
@@ -1014,15 +1117,16 @@ Daemon retention runs:
 - under a 30-second timeout;
 - in at most 10 batches of 1,000 records.
 
-Each in-memory prune batch initially divides its budget fairly among tokens, sessions, and audit events, then
-redistributes unused budget. SQLite performs multiple in-memory batches and persists one final snapshot.
+Each batch spends its bounded budget in dependency order. SQLite performs multiple in-memory batches and persists one
+final transaction.
 
 Validity and retention are separate clocks:
 
 | Record | Stops authenticating | Becomes eligible for automatic deletion |
 | --- | --- | --- |
-| Token | Expiry or immediate revocation | 30 days after `expires_at` |
-| Session | Idle expiry, absolute expiry, or immediate revocation | 30 days after `absolute_expires_at` |
+| Token | Expiry or immediate revocation | 30 days after `expires_at`, or 30 days after `revoked_at` when revoked |
+| Session | Idle expiry, absolute expiry, or immediate revocation | 30 days after the effective expiry, or 30 days after `revoked_at` when revoked, once its tokens are gone |
+| Authorization | Immediate revocation | 30 days after `revoked_at`, once its sessions and tokens are gone |
 | Audit event | Not applicable | 30 days after `created_at`, or earlier when the 10,000-event cap rolls over |
 | Authorization | Immediate revocation or supersession | Not automatically deleted |
 
@@ -1031,7 +1135,7 @@ move its deletion date forward: a token revoked today that was due to expire tom
 tomorrow. Session cleanup similarly uses the absolute deadline rather than the earlier idle or revocation time.
 
 The 30-day tombstone and audit windows are currently fixed daemon policy. The remaining hardening plan is to make them
-validated configuration while retaining bounded pruning. Revoked authorization records currently remain indefinitely.
+validated configuration while retaining bounded pruning.
 
 Exercise the controls directly:
 
@@ -1177,10 +1281,10 @@ Read the implementation in this order:
 | 8 | [`internal/rpc/server/auth.go`](../internal/rpc/server/auth.go) | Mandatory server interceptors, status mapping, stream cancellation |
 | 9 | [`internal/rpc/auth_service.go`](../internal/rpc/auth_service.go) | Root-only management and self-bound `CloseSession` |
 | 10 | [`internal/rpc/rpcmeta/permissions.go`](../internal/rpc/rpcmeta/permissions.go) | Principal-to-permission-actor mapping |
-| 11 | [`internal/auth/storememory/store.go`](../internal/auth/storememory/store.go) | Atomic activation, revocation cascade, usage, audit, fair pruning |
+| 11 | [`internal/auth/storememory/store.go`](../internal/auth/storememory/store.go) | Atomic activation, revocation cascade, usage, audit, dependency-safe pruning |
 | 12 | [`internal/auth/storesqlite/store.go`](../internal/auth/storesqlite/store.go) | Snapshot persistence, rollback, coalescing, durable leases |
 | 13 | [`internal/cli/daemon/rpc.go`](../internal/cli/daemon/rpc.go) | Identity loading, root seeding, TLS, store lifecycle, scheduled pruning |
-| 14 | [`cmd/auth/morph.go`](../cmd/auth/morph.go) | Human-facing identity, token, session, authorization, audit, and mTLS CLI |
+| 14 | [`cmd/auth/morph.go`](../cmd/auth/morph.go) | Human-facing identity, token, session, authorization, audit, pruning, and mTLS CLI |
 | 15 | [`internal/rpc/proto/morph.proto`](../internal/rpc/proto/morph.proto) | Wire contract and auth-management RPCs |
 
 Good tests to read as executable specifications:
@@ -1201,7 +1305,7 @@ The especially valuable cases are:
 - client activation/close races;
 - certificate binding;
 - keepalive durability across reopen;
-- fair and bounded pruning;
+- dependency-safe and bounded pruning;
 - failure-audit coalescing and global rate limiting.
 
 ## 16. Troubleshooting by Layer

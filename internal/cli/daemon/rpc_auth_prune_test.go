@@ -110,7 +110,10 @@ type pruneStoreStub struct {
 	cancelAt int
 }
 
-func (s *pruneStoreStub) Prune(context.Context, time.Time, int) (int, error) {
+func (s *pruneStoreStub) Prune(
+	_ context.Context,
+	_ morphauth.PruneOptions,
+) (morphauth.PruneResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.calls++
@@ -118,14 +121,14 @@ func (s *pruneStoreStub) Prune(context.Context, time.Time, int) (int, error) {
 		s.cancel()
 	}
 	if s.errAt == s.calls {
-		return 0, errors.New("prune failed")
+		return morphauth.PruneResult{}, errors.New("prune failed")
 	}
 	if s.calls > len(s.results) {
-		return 0, nil
+		return morphauth.PruneResult{}, nil
 	}
 	result := s.results[s.calls-1]
 
-	return result, nil
+	return morphauth.PruneResult{Tokens: result}, nil
 }
 
 func (s *pruneStoreStub) callCount() int {
@@ -145,11 +148,11 @@ type batchPruneStoreStub struct {
 
 func (s *batchPruneStoreStub) PruneBatches(
 	_ context.Context,
-	_ time.Time,
-	limit, maximumBatches int,
-) (int, error) {
+	options morphauth.PruneOptions,
+	maximumBatches int,
+) (morphauth.PruneResult, error) {
 	s.calls++
-	s.limit = limit
+	s.limit = options.Limit
 	s.maximumBatches = maximumBatches
-	return 0, s.err
+	return morphauth.PruneResult{}, s.err
 }

@@ -336,38 +336,63 @@ func (s *Store) ListAudit(ctx context.Context, limit int) ([]morphauth.AuditEven
 	return s.memory.ListAudit(ctx, limit)
 }
 
-func (s *Store) Prune(ctx context.Context, cutoff time.Time, limit int) (int, error) {
-	return s.PruneBatches(ctx, cutoff, limit, 1)
+func (s *Store) Prune(
+	ctx context.Context,
+	options morphauth.PruneOptions,
+) (morphauth.PruneResult, error) {
+	return s.PruneBatches(ctx, options, 1)
 }
 
 func (s *Store) PruneBatches(
 	ctx context.Context,
-	cutoff time.Time,
-	limit, maximumBatches int,
-) (int, error) {
+	options morphauth.PruneOptions,
+	maximumBatches int,
+) (morphauth.PruneResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if limit <= 0 || maximumBatches <= 0 {
-		return 0, nil
+	if options.Limit <= 0 || maximumBatches <= 0 {
+		return morphauth.PruneResult{}, nil
+	}
+	if options.DryRun {
+		working := storememory.NewFromSnapshot(s.memory.Snapshot())
+		options.DryRun = false
+		return pruneMemoryBatches(ctx, working, options, maximumBatches)
 	}
 	before := s.memory.Snapshot()
-	total := 0
-	for range maximumBatches {
-		count, err := s.memory.Prune(ctx, cutoff, limit)
-		if err != nil {
-			s.memory = storememory.NewFromSnapshot(before)
-			return 0, err
-		}
-		total += count
-		if count < limit {
-			break
-		}
+	total, err := pruneMemoryBatches(ctx, s.memory, options, maximumBatches)
+	if err != nil {
+		s.memory = storememory.NewFromSnapshot(before)
+		return morphauth.PruneResult{}, err
 	}
-	if total == 0 {
-		return 0, nil
+	if total.Total() == 0 {
+		return morphauth.PruneResult{}, nil
 	}
 	if err := s.persistOrRestore(ctx); err != nil {
-		return 0, err
+		return morphauth.PruneResult{}, err
+	}
+
+	return total, nil
+}
+
+func pruneMemoryBatches(
+	ctx context.Context,
+	store *storememory.Store,
+	options morphauth.PruneOptions,
+	maximumBatches int,
+) (morphauth.PruneResult, error) {
+	total := morphauth.PruneResult{}
+	for range maximumBatches {
+		result, err := store.Prune(ctx, options)
+		if err != nil {
+			return morphauth.PruneResult{}, err
+		}
+		total.Tokens += result.Tokens
+		total.Sessions += result.Sessions
+		total.Authorizations += result.Authorizations
+		total.AuditEvents += result.AuditEvents
+		if result.Total() < options.Limit {
+			break
+		}
 	}
 
 	return total, nil

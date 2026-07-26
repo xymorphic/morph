@@ -47,6 +47,46 @@ var newMorphAuthClient = func(
 	}, cfg))
 }
 
+var generateMorphIdentity = morphauth.GenerateIdentity
+
+type generatedKeyOutput struct {
+	IdentityID   string `json:"identity_id"`
+	PrivateKey32 string `json:"private_key_32"`
+	PrivateKey64 string `json:"private_key_64"`
+	PublicKey    string `json:"public_key"`
+}
+
+func newGenerateKeyCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "genkey",
+		Usage: "Generate and print an Ed25519 RPC identity keypair",
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			identity, err := generateMorphIdentity(1)
+			if err != nil {
+				return err
+			}
+			output := generatedKeyOutput{
+				IdentityID:   identity.ID,
+				PrivateKey32: hex.EncodeToString(identity.PrivateKey.Seed()),
+				PrivateKey64: hex.EncodeToString(identity.PrivateKey),
+				PublicKey:    hex.EncodeToString(identity.PublicKey),
+			}
+			if cmd.Bool("json") {
+				return writeJSONValue(output)
+			}
+			_, err = fmt.Fprintf(
+				authOutput,
+				"identity: %s\nprivate key (32-byte seed): %s\nprivate key (64 bytes): %s\npublic key (32 bytes): %s\n",
+				output.IdentityID,
+				output.PrivateKey32,
+				output.PrivateKey64,
+				output.PublicKey,
+			)
+			return err
+		},
+	}
+}
+
 func newIdentityCommand() *cli.Command {
 	return &cli.Command{
 		Name: "identity", Usage: "Manage the Morph profile identity",
@@ -355,7 +395,10 @@ func newAuthorizationCommand() *cli.Command {
 						if err != nil {
 							return err
 						}
-						return writeJSONValue(getAuthorizationOutputs(authorizations))
+						if cmd.Bool("json") {
+							return writeJSONValue(getAuthorizationOutputs(authorizations))
+						}
+						return writeAuthorizationList(authorizations)
 					})
 				},
 			},
@@ -451,34 +494,84 @@ func newAuditCommand() *cli.Command {
 					})
 				},
 			},
-			{
-				Name: "prune", Usage: "Prune expired authentication state and audit history",
-				Flags: []cli.Flag{
-					morphcli.ProfileFlag(),
-					&cli.DurationFlag{Name: "older-than", Value: 30 * 24 * time.Hour},
-					&cli.IntFlag{Name: "limit", Value: 1000},
-				},
-				Action: func(ctx context.Context, cmd *cli.Command) error {
-					return withMorphAuthAPI(ctx, cmd, []string{
-						morphpb.AuthService_PruneAudit_FullMethodName,
-					}, func(api rpcclient.AuthAPI) error {
-						pruned, err := api.PruneAudit(
-							ctx, time.Now().Add(-cmd.Duration("older-than")), int32(cmd.Int("limit")),
-						)
-						if err != nil {
-							return err
-						}
-						return writeSafeJSONOrText(cmd, map[string]any{
-							"pruned": pruned,
-						}, "pruned: %d\n", pruned)
-					})
-				},
-			},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			return cli.ShowSubcommandHelp(cmd)
 		},
 	}
+}
+
+type authPruneOutput struct {
+	Tokens         int32 `json:"tokens"`
+	Sessions       int32 `json:"sessions"`
+	Authorizations int32 `json:"authorizations"`
+	AuditEvents    int32 `json:"audit_events"`
+	Total          int32 `json:"total"`
+	DryRun         bool  `json:"dry_run"`
+}
+
+func newPruneCommand() *cli.Command {
+	return &cli.Command{
+		Name: "prune", Usage: "Prune old terminal RPC authentication records",
+		Flags: []cli.Flag{
+			morphcli.ProfileFlag(),
+			&cli.DurationFlag{Name: "older-than", Value: 30 * 24 * time.Hour},
+			&cli.IntFlag{Name: "limit", Value: 1000},
+			&cli.BoolFlag{Name: "dry-run"},
+		},
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			if cmd.Duration("older-than") < 0 {
+				return errors.New("auth prune older-than duration must not be negative")
+			}
+			if cmd.Int("limit") <= 0 || cmd.Int("limit") > morphauth.MaximumPruneLimit {
+				return fmt.Errorf(
+					"auth prune limit must be between 1 and %d",
+					morphauth.MaximumPruneLimit,
+				)
+			}
+			return withMorphAuthAPI(ctx, cmd, []string{
+				morphpb.AuthService_Prune_FullMethodName,
+			}, func(api rpcclient.AuthAPI) error {
+				result, err := api.Prune(ctx, rpcclient.AuthPruneOptions{
+					Before: time.Now().Add(-cmd.Duration("older-than")),
+					Limit:  int32(cmd.Int("limit")),
+					DryRun: cmd.Bool("dry-run"),
+				})
+				if err != nil {
+					return err
+				}
+				return writeAuthPruneResult(cmd, result)
+			})
+		},
+	}
+}
+
+func writeAuthPruneResult(cmd *cli.Command, result *morphpb.PruneAuthResponse) error {
+	output := authPruneOutput{
+		Tokens:         result.GetTokens(),
+		Sessions:       result.GetSessions(),
+		Authorizations: result.GetAuthorizations(),
+		AuditEvents:    result.GetAuditEvents(),
+		DryRun:         result.GetDryRun(),
+	}
+	output.Total = output.Tokens + output.Sessions + output.Authorizations + output.AuditEvents
+	if cmd.Bool("json") {
+		return writeJSONValue(output)
+	}
+	_, err := fmt.Fprintf(
+		authOutput,
+		"Tokens:         %d\nSessions:       %d\nAuthorizations: %d\nAudit events:   %d\nTotal:          %d\n",
+		output.Tokens,
+		output.Sessions,
+		output.Authorizations,
+		output.AuditEvents,
+		output.Total,
+	)
+	if err != nil || !output.DryRun {
+		return err
+	}
+	_, err = fmt.Fprintln(authOutput, "Dry run:        true")
+	return err
 }
 
 func newMTLSCommand() *cli.Command {
@@ -664,7 +757,11 @@ func grantAuthorization(ctx context.Context, cmd *cli.Command) error {
 		if err != nil {
 			return err
 		}
-		return writeJSONValue(getAuthorizationOutput(result))
+		if cmd.Bool("json") {
+			return writeJSONValue(getAuthorizationOutput(result))
+		}
+		_, err = fmt.Fprintf(authOutput, "authorization granted for %s\n", result.GetIdentityId())
+		return err
 	})
 }
 
@@ -706,6 +803,53 @@ func writeJSONValue(value any) error {
 func writeAuditList(events []*morphpb.AuthAuditEvent) error {
 	_, err := fmt.Fprint(authOutput, auditListToText(events))
 	return err
+}
+
+func writeAuthorizationList(authorizations []*morphpb.AuthAuthorization) error {
+	_, err := fmt.Fprint(authOutput, authorizationListToText(authorizations))
+	return err
+}
+
+func authorizationListToText(authorizations []*morphpb.AuthAuthorization) string {
+	if len(authorizations) == 0 {
+		return "No RPC identity authorizations found.\n"
+	}
+
+	var output strings.Builder
+	for index, authorization := range authorizations {
+		if index > 0 {
+			output.WriteByte('\n')
+		}
+		fmt.Fprintf(
+			&output,
+			"[%s] %s\n",
+			getAuthDisplayText(authorization.GetStatus()),
+			getAuthDisplayText(authorization.GetIdentityId()),
+		)
+		appendAuthField(&output, "Public key", hex.EncodeToString(authorization.GetPublicKey()))
+		appendAuthField(&output, "Owner", authorization.GetOwnerId())
+		appendAuthField(&output, "User", authorization.GetUserId())
+		appendAuthField(&output, "Roles", strings.Join(authorization.GetRoles(), ", "))
+		appendAuthList(&output, "Services", authorization.GetServices())
+		appendAuthList(&output, "Methods", authorization.GetMethods())
+		appendAuthField(
+			&output,
+			"Maximum TTL",
+			formatAuthSeconds(authorization.GetMaximumTtlSeconds()),
+		)
+		appendAuthField(
+			&output,
+			"Generation",
+			strconv.FormatUint(authorization.GetGeneration(), 10),
+		)
+		appendAuthField(&output, "Revision", strconv.FormatUint(authorization.GetRevision(), 10))
+		appendAuthField(&output, "Created", formatProtoTime(authorization.GetCreatedAt()))
+		appendAuthField(&output, "Updated", formatProtoTime(authorization.GetUpdatedAt()))
+		appendAuthField(&output, "Revoked at", formatProtoTime(authorization.GetRevokedAt()))
+		appendAuthField(&output, "Reason", authorization.GetRevocationNote())
+	}
+
+	return output.String()
 }
 
 func writeSessionList(sessions []*morphpb.AuthSession) error {
@@ -811,6 +955,16 @@ func appendAuthField(output *strings.Builder, label, value string) {
 	fmt.Fprintf(output, "  %-12s %s\n", label+":", getAuthDisplayText(value))
 }
 
+func appendAuthList(output *strings.Builder, label string, values []string) {
+	if len(values) == 0 {
+		return
+	}
+	fmt.Fprintf(output, "  %-12s %s\n", label+":", getAuthDisplayText(values[0]))
+	for _, value := range values[1:] {
+		fmt.Fprintf(output, "%15s%s\n", "", getAuthDisplayText(value))
+	}
+}
+
 func getAuthDisplayText(value string) string {
 	if value == "" {
 		return "-"
@@ -820,6 +974,13 @@ func getAuthDisplayText(value string) string {
 	}
 
 	return value
+}
+
+func formatAuthSeconds(value int64) string {
+	if value <= 0 {
+		return ""
+	}
+	return strconv.FormatInt(value, 10) + "s"
 }
 
 type authorizationOutput struct {

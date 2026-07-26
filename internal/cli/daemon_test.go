@@ -162,6 +162,61 @@ func TestGetDaemonStatus_ReturnsRunningStatus(t *testing.T) {
 	require.Equal(t, startedAt, status.StartedAt)
 }
 
+func TestGetDaemonStatus_UsesActiveProfileTLSConfig(t *testing.T) {
+	restore := replaceDaemonBootstrapHooks(t)
+	defer restore()
+
+	originalConfig := config.Get()
+	originalProfile := profile.Active()
+	t.Cleanup(func() {
+		config.Set(originalConfig)
+		profile.SetActive(originalProfile)
+	})
+
+	profileHome := t.TempDir()
+	activeProfile := profile.WithMetadataPaths(profile.Profile{
+		Name:    "work",
+		HomeDir: profileHome,
+	})
+	profile.SetActive(activeProfile)
+	config.Set(nil)
+
+	cfg := config.NewDefaultConfig()
+	cfg.Auth.TLS = config.AuthTLSConfig{
+		Mode:              config.AuthTLSMutual,
+		ServerCA:          "ca.pem",
+		ClientCertificate: "client.pem",
+		ClientKey:         "client-key.pem",
+		ServerName:        "localhost",
+	}
+	data, err := cfg.ToYAML()
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(activeProfile.ConfigPath, data, 0o600))
+
+	probeActiveRuntime = func(context.Context, profile.Profile) morphruntime.ProbeResult {
+		return morphruntime.ProbeResult{
+			State: morphruntime.ProbeStateReady,
+			Metadata: morphruntime.Metadata{
+				RPC: morphruntime.RPC{Address: "127.0.0.1", Port: 50051},
+			},
+		}
+	}
+	checkDaemonHealth = func(_ context.Context, got *config.Config, _ string, _ int) (string, error) {
+		require.Equal(t, config.AuthTLSMutual, got.Auth.TLS.Mode)
+		require.Equal(t, filepath.Join(profileHome, "ca.pem"), got.Auth.TLS.ServerCA)
+		require.Equal(t, filepath.Join(profileHome, "client.pem"), got.Auth.TLS.ClientCertificate)
+		require.Equal(t, filepath.Join(profileHome, "client-key.pem"), got.Auth.TLS.ClientKey)
+		require.Equal(t, "localhost", got.Auth.TLS.ServerName)
+		return "SERVING", nil
+	}
+
+	status, err := GetDaemonStatus(context.Background())
+
+	require.NoError(t, err)
+	require.Equal(t, "running", status.State)
+	require.Equal(t, "SERVING", status.Health)
+}
+
 func TestGetDaemonStatus_ReturnsMissingStatusWithoutError(t *testing.T) {
 	restore := replaceDaemonBootstrapHooks(t)
 	defer restore()

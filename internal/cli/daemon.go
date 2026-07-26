@@ -83,7 +83,8 @@ func RunDaemonOnce(ctx context.Context, cfg *config.Config) error {
 }
 
 func GetDaemonStatus(ctx context.Context) (DaemonStatus, error) {
-	probe := probeActiveRuntime(ctx, profile.Active())
+	activeProfile := profile.Active()
+	probe := probeActiveRuntime(ctx, activeProfile)
 	status := daemonStatusFromProbe(probe)
 	if probe.State == morphruntime.ProbeStateMissing {
 		return status, nil
@@ -96,7 +97,12 @@ func GetDaemonStatus(ctx context.Context) (DaemonStatus, error) {
 		return status, fmt.Errorf("daemon is %s", probe.State)
 	}
 
-	health, err := checkDaemonHealth(ctx, config.Get(), status.Address, status.Port)
+	cfg, err := config.Load(activeProfile.EnvPath, activeProfile.ConfigPath)
+	if err != nil {
+		return status, fmt.Errorf("load daemon health configuration: %w", err)
+	}
+
+	health, err := checkDaemonHealth(ctx, cfg, status.Address, status.Port)
 	if err != nil {
 		return status, fmt.Errorf("daemon health check failed: %w", err)
 	}

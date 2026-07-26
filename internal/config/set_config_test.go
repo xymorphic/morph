@@ -50,6 +50,33 @@ func TestSetConfigValue_UpdatesTypedValues(t *testing.T) {
 	require.Zero(t, *cfg.Reranker.Overrides["memory_reflection"].MaxCandidates)
 }
 
+func TestSetConfigValue_UpdatesUnsignedInteger(t *testing.T) {
+	clearEnvKeys(t, "MORPH_CONFIG", "MORPH_ENV_FILE", "MORPH_PROFILE", "OPENROUTER_API_KEY")
+	resetSetConfigProfileState(t)
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	configPath := writeSetConfigProfileConfig(t, home, "work")
+
+	updatedPath, err := SetConfigValue("", configPath, "auth.generation", "2")
+	require.NoError(t, err)
+	require.Equal(t, "auth.generation", updatedPath)
+
+	cfg, err := Load("", configPath)
+	require.NoError(t, err)
+	require.Equal(t, uint64(2), cfg.Auth.Generation)
+
+	beforeInvalid, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	_, err = SetConfigValue("", configPath, "auth.generation", "-1")
+	require.Error(t, err)
+	_, err = SetConfigValue("", configPath, "auth.generation", "18446744073709551616")
+	require.Error(t, err)
+	afterInvalid, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	require.Equal(t, beforeInvalid, afterInvalid)
+}
+
 func TestGetConfigValues_ReadsTypedValues(t *testing.T) {
 	clearEnvKeys(t, "MORPH_CONFIG", "MORPH_ENV_FILE", "MORPH_PROFILE", "OPENROUTER_API_KEY")
 	resetSetConfigProfileState(t)

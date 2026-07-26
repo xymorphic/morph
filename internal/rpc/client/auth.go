@@ -36,6 +36,12 @@ type AuthAuditListOptions struct {
 	Since      time.Time
 }
 
+type AuthPruneOptions struct {
+	Before time.Time
+	Limit  int32
+	DryRun bool
+}
+
 type AuthAPI interface {
 	ListSessions(context.Context, AuthSessionListOptions) ([]*morphpb.AuthSession, error)
 	RevokeSession(context.Context, string, string) (*morphpb.AuthSession, error)
@@ -45,7 +51,7 @@ type AuthAPI interface {
 	GrantAuthorization(context.Context, *morphpb.AuthAuthorization) (*morphpb.AuthAuthorization, error)
 	RevokeAuthorization(context.Context, string, string) (*morphpb.AuthAuthorization, error)
 	ListAudit(context.Context, AuthAuditListOptions) ([]*morphpb.AuthAuditEvent, error)
-	PruneAudit(context.Context, time.Time, int32) (int32, error)
+	Prune(context.Context, AuthPruneOptions) (*morphpb.PruneAuthResponse, error)
 	RotateIdentity(context.Context, string, string, []byte, uint64) (*morphpb.AuthAuthorization, error)
 	IdentityStatus(context.Context) (*morphpb.GetAuthIdentityStatusResponse, error)
 }
@@ -175,19 +181,20 @@ func (s *AuthService) ListAudit(
 	return response.GetEvents(), nil
 }
 
-func (s *AuthService) PruneAudit(
+func (s *AuthService) Prune(
 	ctx context.Context,
-	before time.Time,
-	limit int32,
-) (int32, error) {
-	response, err := s.client.PruneAudit(ctx, &morphpb.PruneAuthAuditRequest{
-		Before: timestamppb.New(before), Limit: limit,
+	options AuthPruneOptions,
+) (*morphpb.PruneAuthResponse, error) {
+	response, err := s.client.Prune(ctx, &morphpb.PruneAuthRequest{
+		Before: timestamppb.New(options.Before),
+		Limit:  options.Limit,
+		DryRun: options.DryRun,
 	})
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return response.GetPruned(), nil
+	return response, nil
 }
 
 func (s *AuthService) IdentityStatus(

@@ -14,6 +14,8 @@ const (
 	StatusActive  = "active"
 	StatusRevoked = "revoked"
 	StatusExpired = "expired"
+
+	MaximumPruneLimit = 10000
 )
 
 var (
@@ -101,6 +103,23 @@ type AuditEvent struct {
 	CreatedAt  time.Time
 }
 
+type PruneOptions struct {
+	Before time.Time
+	Limit  int
+	DryRun bool
+}
+
+type PruneResult struct {
+	Tokens         int
+	Sessions       int
+	Authorizations int
+	AuditEvents    int
+}
+
+func (r PruneResult) Total() int {
+	return r.Tokens + r.Sessions + r.Authorizations + r.AuditEvents
+}
+
 type Principal struct {
 	IdentityID            string
 	OwnerID               string
@@ -148,6 +167,6 @@ type Store interface {
 	RevokeToken(context.Context, string, string, time.Time) error
 	AppendAudit(context.Context, AuditEvent) error
 	ListAudit(context.Context, int) ([]AuditEvent, error)
-	Prune(context.Context, time.Time, int) (int, error)
+	Prune(context.Context, PruneOptions) (PruneResult, error)
 	Close() error
 }

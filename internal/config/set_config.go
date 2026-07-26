@@ -447,6 +447,13 @@ func configValueToYAMLNode(value string, target reflect.Type) (*yaml.Node, error
 		}
 
 		return scalarYAMLNode("!!int", strconv.FormatInt(parsed, 10)), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		parsed, err := strconv.ParseUint(value, 10, target.Bits())
+		if err != nil {
+			return nil, err
+		}
+
+		return scalarYAMLNode("!!int", strconv.FormatUint(parsed, 10)), nil
 	case reflect.Float32, reflect.Float64:
 		parsed, err := strconv.ParseFloat(value, target.Bits())
 		if err != nil {

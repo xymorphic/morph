@@ -185,7 +185,8 @@ the server then atomically activates safe session and token metadata. The remain
 | `ListSessions` / `RevokeSession` | Inspect or revoke auth sessions |
 | `ListTokens` / `RevokeToken` | Inspect safe token metadata or revoke a token |
 | `ListAuthorizations` / `GrantAuthorization` / `RevokeAuthorization` | Manage bounded public-key authorizations |
-| `ListAudit` / `PruneAudit` | Inspect or prune credential-safe auth audit data |
+| `ListAudit` | Inspect credential-safe auth audit data |
+| `Prune` | Preview or remove old terminal tokens, sessions, authorizations, and audit events |
 | `RotateIdentity` | Atomically advance the root identity and revoke the prior generation |
 | `IdentityStatus` | Return the caller's identity generation and authorization revision |
 

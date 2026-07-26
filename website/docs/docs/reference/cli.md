@@ -142,17 +142,20 @@ identity and authorization:
 
 | Subcommand | Purpose |
 | --- | --- |
+| `auth genkey` | Generate a standalone RPC identity keypair without modifying a profile |
 | `auth identity init\|show\|rotate` | Initialize, inspect, or rotate the safe profile identity |
 | `auth token generate\|list\|revoke` | Generate an explicitly requested token or manage safe token metadata |
 | `auth session list\|revoke` | Inspect or revoke RPC auth sessions |
 | `auth authorization list\|grant\|revoke` | Manage bounded public-key authorizations |
-| `auth audit list\|prune` | Inspect or prune credential-safe auth audit events |
+| `auth audit list` | Inspect credential-safe auth audit events |
+| `auth prune` | Preview or remove old terminal tokens, sessions, authorizations, and audit events |
 | `auth mtls status` | Show the effective RPC TLS mode and server name |
 
-Identity initialization and inspection work without a daemon. Session, token metadata, authorization, and audit
-operations require a reachable authenticated daemon. Add `--json` to the `auth` command for machine-readable output.
-Raw tokens are displayed only by `auth token generate`; use `--output` to write one with owner-only permissions.
-`auth authorization grant --public-key` accepts the raw 32-byte Ed25519 public key as 64 hexadecimal characters.
+Key generation, identity initialization, and identity inspection work without a daemon. Session, token metadata,
+authorization, audit, and prune operations require a reachable authenticated daemon. Add `--json` to the `auth`
+command for machine-readable output. Raw tokens are displayed only by `auth token generate`; use `--output` to write
+one with owner-only permissions. `auth authorization grant --public-key` accepts the raw 32-byte Ed25519 public key as
+64 hexadecimal characters.
 
 ### `browser`: managed browser runtime
 

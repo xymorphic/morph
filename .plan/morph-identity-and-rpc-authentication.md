@@ -154,8 +154,8 @@ operation.
   metadata.
 - R22. Token and session revocation must take effect for new calls immediately. Active server streams must receive a
   cancelled authenticated context when their token or session is revoked or expires.
-- R23. Cleanup must expire sessions and tokens in bounded batches while retaining revocation tombstones and audit
-  history for configured windows.
+- R23. Cleanup must remove terminal tokens, sessions, and authorizations in bounded dependency order while retaining
+  revocation tombstones and audit history for configured windows.
 
 ### Mandatory RPC enforcement
 
@@ -494,8 +494,10 @@ Tasks:
 - [x] Enforce role, owner, user, service, method, TTL, nonce, identity-generation, and authorization-revision caps.
 - [x] Add a dedicated AuthStore contract, a production profile-owned SQLite implementation, and an in-memory test
   implementation independent of the configured application state backend.
-- [x] Add transactional session/token activation, renewal, use accounting, revocation, expiry, and bounded pruning.
-- [x] Preserve revoked session and token tombstones through the initial fixed replay and retention window.
+- [x] Add transactional session/token activation, renewal, use accounting, revocation, expiry, and bounded
+  dependency-safe pruning.
+- [x] Preserve revoked authorization, session, and token tombstones through the initial fixed replay and retention
+  window.
 - [x] Add safe authentication audit recording and queries without raw credentials.
 - [x] Add bounded per-token/per-method use accounting and retention so routine authenticated calls do not grow one
   audit row per invocation.
@@ -522,12 +524,13 @@ Add the authenticated bootstrap and operator management surface needed before gl
 Tasks:
 
 - [x] Add AuthService RPC messages and methods for session open/close/list/revoke, token list/revoke, authorization
-  list/grant/revoke, audit list/prune, and identity rotation; keep identity inspection local to the CLI.
+  list/grant/revoke, audit listing, dependency-safe auth pruning, and identity rotation; keep identity inspection local
+  to the CLI.
 - [x] Permit inactive-session validation only for the exact OpenSession method and reject it everywhere else.
 - [x] Ensure OpenSession activates the presented token and session in one transaction after complete authorization
   validation.
 - [x] Add client types and safe proto/domain conversions that never return raw stored tokens or keys.
-- [x] Add identity, token, session, authorization, audit, and mTLS status groups under `morph auth`; move provider
+- [x] Add identity, token, session, authorization, audit, prune, and mTLS operations under `morph auth`; move provider
   login, status, logout, and configure to `morph provider` with no compatibility aliases.
 - [x] Add token generation controls for TTL, nonce bytes, owner, user, roles, services, methods, session, and explicit
   output destination.
@@ -612,8 +615,8 @@ Tasks:
 
 - [ ] Add rate and size limits for session opening, JWT parsing, failed authentication, nonce/tombstone storage, and
   audit retention.
-- [ ] Add validated, configurable session/token tombstone and audit-retention settings, replacing the daemon's fixed
-  retention window while preserving bounded pruning.
+- [ ] Add validated, configurable authorization/session/token tombstone and audit-retention settings, replacing the
+  daemon's fixed retention window while preserving bounded pruning.
 - [ ] Add doctor checks for identity readiness, key permissions, effective token source, token expiry, auth store,
   authorization revision, TLS posture, certificates, and non-loopback plaintext rejection.
 - [x] Verify authentication errors are stable, redacted, and do not reveal whether an unknown identity or JWT ID exists.

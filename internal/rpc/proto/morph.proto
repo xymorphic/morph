@@ -85,7 +85,7 @@ service AuthService {
   rpc GrantAuthorization(GrantAuthAuthorizationRequest) returns (GrantAuthAuthorizationResponse);
   rpc RevokeAuthorization(RevokeAuthAuthorizationRequest) returns (RevokeAuthAuthorizationResponse);
   rpc ListAudit(ListAuthAuditRequest) returns (ListAuthAuditResponse);
-  rpc PruneAudit(PruneAuthAuditRequest) returns (PruneAuthAuditResponse);
+  rpc Prune(PruneAuthRequest) returns (PruneAuthResponse);
   rpc RotateIdentity(RotateAuthIdentityRequest) returns (RotateAuthIdentityResponse);
   rpc IdentityStatus(GetAuthIdentityStatusRequest) returns (GetAuthIdentityStatusResponse);
 }
@@ -968,12 +968,17 @@ message ListAuthAuditRequest {
 message ListAuthAuditResponse {
   repeated AuthAuditEvent events = 1;
 }
-message PruneAuthAuditRequest {
+message PruneAuthRequest {
   google.protobuf.Timestamp before = 1;
   int32 limit = 2;
+  bool dry_run = 3;
 }
-message PruneAuthAuditResponse {
-  int32 pruned = 1;
+message PruneAuthResponse {
+  int32 tokens = 1;
+  int32 sessions = 2;
+  int32 authorizations = 3;
+  int32 audit_events = 4;
+  bool dry_run = 5;
 }
 
 message RotateAuthIdentityRequest {

@@ -783,9 +783,12 @@ func TestStore_PrunesMultipleBatchesInOneOperation(t *testing.T) {
 		))
 	}
 
-	pruned, err := store.PruneBatches(ctx, before, 2, 3)
+	pruned, err := store.PruneBatches(ctx, morphauth.PruneOptions{
+		Before: before,
+		Limit:  2,
+	}, 3)
 	require.NoError(t, err)
-	require.Equal(t, 6, pruned)
+	require.Equal(t, morphauth.PruneResult{Tokens: 6}, pruned)
 	require.NoError(t, store.Close())
 
 	reopened, err := storesqlite.Open(path)
@@ -795,8 +798,105 @@ func TestStore_PrunesMultipleBatchesInOneOperation(t *testing.T) {
 	require.NoError(t, err)
 	tokens, err := reopened.ListTokens(ctx)
 	require.NoError(t, err)
-	require.Len(t, sessions, 3)
-	require.Len(t, tokens, 3)
+	require.Len(t, sessions, 6)
+	require.Empty(t, tokens)
+}
+
+func TestStore_PruneDryRunPreservesNormalizedRecords(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "auth.db")
+	store, err := storesqlite.Open(path)
+	require.NoError(t, err)
+	terminalAt := time.Now().UTC().Add(-2 * time.Hour)
+	cutoff := terminalAt.Add(time.Hour)
+	identity, err := morphauth.GenerateIdentity(1)
+	require.NoError(t, err)
+	_, err = store.PutAuthorization(ctx, morphauth.Authorization{
+		IdentityID: identity.ID,
+		PublicKey:  identity.PublicKey,
+		Status:     morphauth.StatusRevoked,
+		CreatedAt:  terminalAt,
+		UpdatedAt:  terminalAt,
+		RevokedAt:  &terminalAt,
+	})
+	require.NoError(t, err)
+	require.NoError(t, store.Activate(
+		ctx,
+		morphauth.Session{
+			ID: "session", IdentityID: identity.ID,
+			Status: morphauth.StatusRevoked, CreatedAt: terminalAt,
+			IdleExpiresAt: terminalAt, AbsoluteExpiresAt: terminalAt,
+			RevokedAt: &terminalAt,
+		},
+		morphauth.Token{
+			ID: "token", SessionID: "session", IdentityID: identity.ID,
+			Status: morphauth.StatusRevoked, IssuedAt: terminalAt,
+			ExpiresAt: terminalAt, RevokedAt: &terminalAt,
+		},
+	))
+
+	preview, err := store.Prune(ctx, morphauth.PruneOptions{
+		Before: cutoff,
+		Limit:  100,
+		DryRun: true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, morphauth.PruneResult{
+		Tokens: 1, Sessions: 1, Authorizations: 1, AuditEvents: 3,
+	}, preview)
+	_, err = store.GetAuthorization(ctx, identity.ID)
+	require.NoError(t, err)
+	_, err = store.GetSession(ctx, "session")
+	require.NoError(t, err)
+	_, err = store.GetToken(ctx, "token")
+	require.NoError(t, err)
+
+	pruned, err := store.Prune(ctx, morphauth.PruneOptions{
+		Before: cutoff,
+		Limit:  100,
+	})
+	require.NoError(t, err)
+	require.Equal(t, preview, pruned)
+	require.NoError(t, store.Close())
+
+	reopened, err := storesqlite.Open(path)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, reopened.Close()) })
+	_, err = reopened.GetAuthorization(ctx, identity.ID)
+	require.ErrorIs(t, err, morphauth.ErrNotFound)
+	_, err = reopened.GetSession(ctx, "session")
+	require.ErrorIs(t, err, morphauth.ErrNotFound)
+	_, err = reopened.GetToken(ctx, "token")
+	require.ErrorIs(t, err, morphauth.ErrNotFound)
+}
+
+func TestStore_PruneRestoresRecordsWhenPersistenceFails(t *testing.T) {
+	ctx := context.Background()
+	store, err := storesqlite.Open(filepath.Join(t.TempDir(), "auth.db"))
+	require.NoError(t, err)
+	expired := time.Now().UTC().Add(-time.Hour)
+	require.NoError(t, store.Activate(
+		ctx,
+		morphauth.Session{
+			ID: "session", IdentityID: "identity",
+			Status: morphauth.StatusActive, AbsoluteExpiresAt: expired,
+		},
+		morphauth.Token{
+			ID: "token", SessionID: "session", IdentityID: "identity",
+			Status: morphauth.StatusActive, ExpiresAt: expired,
+		},
+	))
+	require.NoError(t, store.Close())
+
+	_, err = store.Prune(ctx, morphauth.PruneOptions{
+		Before: time.Now().UTC(),
+		Limit:  10,
+	})
+	require.ErrorContains(t, err, "auth database is closed")
+	_, err = store.GetToken(ctx, "token")
+	require.NoError(t, err)
+	_, err = store.GetSession(ctx, "session")
+	require.NoError(t, err)
 }
 
 func TestStore_PruneBatchesHandlesBoundsCancellationAndEmptyState(t *testing.T) {
@@ -806,21 +906,32 @@ func TestStore_PruneBatchesHandlesBoundsCancellationAndEmptyState(t *testing.T) 
 	t.Cleanup(func() { require.NoError(t, store.Close()) })
 	cutoff := time.Now().UTC()
 
-	pruned, err := store.Prune(context.Background(), cutoff, 10)
+	pruned, err := store.Prune(context.Background(), morphauth.PruneOptions{
+		Before: cutoff,
+		Limit:  10,
+	})
 	require.NoError(t, err)
-	require.Zero(t, pruned)
-	pruned, err = store.PruneBatches(context.Background(), cutoff, 0, 1)
+	require.Zero(t, pruned.Total())
+	pruned, err = store.PruneBatches(context.Background(), morphauth.PruneOptions{
+		Before: cutoff,
+	}, 1)
 	require.NoError(t, err)
-	require.Zero(t, pruned)
-	pruned, err = store.PruneBatches(context.Background(), cutoff, 1, 0)
+	require.Zero(t, pruned.Total())
+	pruned, err = store.PruneBatches(context.Background(), morphauth.PruneOptions{
+		Before: cutoff,
+		Limit:  1,
+	}, 0)
 	require.NoError(t, err)
-	require.Zero(t, pruned)
+	require.Zero(t, pruned.Total())
 
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
-	pruned, err = store.PruneBatches(cancelled, cutoff, 1, 1)
+	pruned, err = store.PruneBatches(cancelled, morphauth.PruneOptions{
+		Before: cutoff,
+		Limit:  1,
+	}, 1)
 	require.ErrorIs(t, err, context.Canceled)
-	require.Zero(t, pruned)
+	require.Zero(t, pruned.Total())
 }
 
 func TestStore_CancelledPrunePreservesDeferredUsage(t *testing.T) {
@@ -860,7 +971,10 @@ func TestStore_CancelledPrunePreservesDeferredUsage(t *testing.T) {
 	))
 	cancelled, cancel := context.WithCancel(ctx)
 	cancel()
-	_, err = store.PruneBatches(cancelled, time.Now().UTC(), 10, 1)
+	_, err = store.PruneBatches(cancelled, morphauth.PruneOptions{
+		Before: time.Now().UTC(),
+		Limit:  10,
+	}, 1)
 	require.ErrorIs(t, err, context.Canceled)
 	require.NoError(t, store.Close())
 
@@ -896,7 +1010,10 @@ func TestStore_CancelledLaterPruneBatchRestoresEarlierRemovals(t *testing.T) {
 		))
 	}
 	cancelled := &cancelAfterFirstCheckContext{Context: ctx}
-	_, err = store.PruneBatches(cancelled, cutoff, 1, 2)
+	_, err = store.PruneBatches(cancelled, morphauth.PruneOptions{
+		Before: cutoff,
+		Limit:  1,
+	}, 2)
 	require.ErrorIs(t, err, context.Canceled)
 	sessions, err := store.ListSessions(ctx)
 	require.NoError(t, err)

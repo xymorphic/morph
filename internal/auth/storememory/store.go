@@ -65,6 +65,10 @@ func NewFromSnapshot(snapshot Snapshot) *Store {
 func (s *Store) Snapshot() Snapshot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	return s.getSnapshotLocked()
+}
+
+func (s *Store) getSnapshotLocked() Snapshot {
 	snapshot := Snapshot{
 		Authorizations: make(map[string]morphauth.Authorization, len(s.authorizations)),
 		Sessions:       make(map[string]morphauth.Session, len(s.sessions)),
@@ -500,69 +504,158 @@ func (s *Store) ListAudit(_ context.Context, limit int) ([]morphauth.AuditEvent,
 	return result, nil
 }
 
-func (s *Store) Prune(ctx context.Context, before time.Time, limit int) (int, error) {
+func (s *Store) Prune(
+	ctx context.Context,
+	options morphauth.PruneOptions,
+) (morphauth.PruneResult, error) {
 	if err := ctx.Err(); err != nil {
-		return 0, err
+		return morphauth.PruneResult{}, err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if options.Limit <= 0 {
+		return morphauth.PruneResult{}, nil
+	}
+	target := s
+	if options.DryRun {
+		target = NewFromSnapshot(s.getSnapshotLocked())
+	}
+
+	return target.pruneLocked(options.Before, options.Limit), nil
+}
+
+func (s *Store) pruneLocked(before time.Time, limit int) morphauth.PruneResult {
+	result := morphauth.PruneResult{}
+	result.Tokens = s.pruneTokens(before, limit)
+	remaining := limit - result.Total()
+	result.Sessions = s.pruneSessions(before, remaining)
+	remaining = limit - result.Total()
+	result.Authorizations = s.pruneAuthorizations(before, remaining)
+	remaining = limit - result.Total()
+	result.AuditEvents = s.pruneAudit(before, remaining)
+
+	return result
+}
+
+type pruneCandidate struct {
+	id      string
+	pruneAt time.Time
+}
+
+func pruneCandidates(
+	candidates []pruneCandidate,
+	limit int,
+	remove func(string),
+) int {
 	if limit <= 0 {
-		return 0, nil
+		return 0
 	}
-
-	budgets := [3]int{limit / 3, limit / 3, limit / 3}
-	for index := 0; index < limit%len(budgets); index++ {
-		budgets[index]++
-	}
-	pruned := s.pruneTokens(before, budgets[0])
-	pruned += s.pruneSessions(before, budgets[1])
-	pruned += s.pruneAudit(before, budgets[2])
-	for pruned < limit {
-		remaining := limit - pruned
-		additional := s.pruneTokens(before, remaining)
-		remaining -= additional
-		additional += s.pruneSessions(before, remaining)
-		remaining = limit - pruned - additional
-		additional += s.pruneAudit(before, remaining)
-		if additional == 0 {
-			break
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].pruneAt.Equal(candidates[j].pruneAt) {
+			return candidates[i].id < candidates[j].id
 		}
-		pruned += additional
+		return candidates[i].pruneAt.Before(candidates[j].pruneAt)
+	})
+	if len(candidates) > limit {
+		candidates = candidates[:limit]
+	}
+	for _, candidate := range candidates {
+		remove(candidate.id)
 	}
 
-	return pruned, nil
+	return len(candidates)
+}
+
+func getTokenPruneTime(token morphauth.Token) time.Time {
+	if token.Status == morphauth.StatusRevoked {
+		if token.RevokedAt == nil {
+			return time.Time{}
+		}
+		return *token.RevokedAt
+	}
+	return token.ExpiresAt
 }
 
 func (s *Store) pruneTokens(before time.Time, limit int) int {
-	pruned := 0
+	candidates := make([]pruneCandidate, 0, len(s.tokens))
 	for id, token := range s.tokens {
-		if pruned >= limit {
-			break
-		}
-		if !token.ExpiresAt.Before(before) {
+		pruneTime := getTokenPruneTime(token)
+		if pruneTime.IsZero() || !pruneTime.Before(before) {
 			continue
 		}
-		delete(s.tokens, id)
-		pruned++
+		candidates = append(candidates, pruneCandidate{id: id, pruneAt: pruneTime})
 	}
 
-	return pruned
+	return pruneCandidates(candidates, limit, func(id string) {
+		delete(s.tokens, id)
+	})
+}
+
+func getSessionPruneTime(session morphauth.Session) time.Time {
+	if session.Status == morphauth.StatusRevoked {
+		if session.RevokedAt == nil {
+			return time.Time{}
+		}
+		return *session.RevokedAt
+	}
+	if session.IdleExpiresAt.IsZero() {
+		return session.AbsoluteExpiresAt
+	}
+	if session.AbsoluteExpiresAt.IsZero() ||
+		session.IdleExpiresAt.Before(session.AbsoluteExpiresAt) {
+		return session.IdleExpiresAt
+	}
+	return session.AbsoluteExpiresAt
 }
 
 func (s *Store) pruneSessions(before time.Time, limit int) int {
-	pruned := 0
+	blocked := make(map[string]struct{}, len(s.tokens))
+	for _, token := range s.tokens {
+		blocked[token.SessionID] = struct{}{}
+	}
+	candidates := make([]pruneCandidate, 0, len(s.sessions))
 	for id, session := range s.sessions {
-		if pruned >= limit {
-			break
-		}
-		if !session.AbsoluteExpiresAt.Before(before) {
+		if _, exists := blocked[id]; exists {
 			continue
 		}
-		delete(s.sessions, id)
-		pruned++
+		pruneTime := getSessionPruneTime(session)
+		if pruneTime.IsZero() || !pruneTime.Before(before) {
+			continue
+		}
+		candidates = append(candidates, pruneCandidate{id: id, pruneAt: pruneTime})
 	}
 
-	return pruned
+	return pruneCandidates(candidates, limit, func(id string) {
+		delete(s.sessions, id)
+	})
+}
+
+func (s *Store) pruneAuthorizations(before time.Time, limit int) int {
+	blocked := make(map[string]struct{}, len(s.sessions)+len(s.tokens))
+	for _, session := range s.sessions {
+		blocked[session.IdentityID] = struct{}{}
+	}
+	for _, token := range s.tokens {
+		blocked[token.IdentityID] = struct{}{}
+	}
+	candidates := make([]pruneCandidate, 0, len(s.authorizations))
+	for id, authorization := range s.authorizations {
+		if authorization.Status != morphauth.StatusRevoked ||
+			authorization.RevokedAt == nil ||
+			!authorization.RevokedAt.Before(before) {
+			continue
+		}
+		if _, exists := blocked[id]; exists {
+			continue
+		}
+		candidates = append(candidates, pruneCandidate{
+			id: id, pruneAt: *authorization.RevokedAt,
+		})
+	}
+
+	return pruneCandidates(candidates, limit, func(id string) {
+		delete(s.authorizations, id)
+	})
 }
 
 func (s *Store) pruneAudit(before time.Time, limit int) int {

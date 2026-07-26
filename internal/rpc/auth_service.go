@@ -332,28 +332,43 @@ func (s *AuthService) ListAudit(
 	return response, nil
 }
 
-func (s *AuthService) PruneAudit(
+func (s *AuthService) Prune(
 	ctx context.Context,
-	request *morphpb.PruneAuthAuditRequest,
-) (*morphpb.PruneAuthAuditResponse, error) {
+	request *morphpb.PruneAuthRequest,
+) (*morphpb.PruneAuthResponse, error) {
 	if err := requireOwner(ctx); err != nil {
 		return nil, err
 	}
-	if request == nil || request.GetBefore() == nil || request.GetLimit() <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "audit prune cutoff and positive limit are required")
+	if request == nil || request.GetBefore() == nil ||
+		request.GetLimit() <= 0 || request.GetLimit() > morphauth.MaximumPruneLimit {
+		return nil, status.Errorf(
+			codes.InvalidArgument,
+			"auth prune cutoff and limit between 1 and %d are required",
+			morphauth.MaximumPruneLimit,
+		)
 	}
 	if err := request.GetBefore().CheckValid(); err != nil {
-		return nil, status.Error(codes.InvalidArgument, "audit prune cutoff is invalid")
+		return nil, status.Error(codes.InvalidArgument, "auth prune cutoff is invalid")
 	}
 	if request.GetBefore().AsTime().After(time.Now()) {
-		return nil, status.Error(codes.InvalidArgument, "audit prune cutoff must not be in the future")
+		return nil, status.Error(codes.InvalidArgument, "auth prune cutoff must not be in the future")
 	}
-	pruned, err := s.auth.Store().Prune(ctx, request.GetBefore().AsTime(), int(request.GetLimit()))
+	pruned, err := s.auth.Store().Prune(ctx, morphauth.PruneOptions{
+		Before: request.GetBefore().AsTime(),
+		Limit:  int(request.GetLimit()),
+		DryRun: request.GetDryRun(),
+	})
 	if err != nil {
 		return nil, authStoreErrorToStatus(err)
 	}
 
-	return &morphpb.PruneAuthAuditResponse{Pruned: int32(pruned)}, nil
+	return &morphpb.PruneAuthResponse{
+		Tokens:         int32(pruned.Tokens),
+		Sessions:       int32(pruned.Sessions),
+		Authorizations: int32(pruned.Authorizations),
+		AuditEvents:    int32(pruned.AuditEvents),
+		DryRun:         request.GetDryRun(),
+	}, nil
 }
 
 func (s *AuthService) RotateIdentity(
@@ -462,6 +477,9 @@ func requireOwner(ctx context.Context) error {
 }
 
 func authStoreErrorToStatus(err error) error {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return status.FromContextError(err).Err()
+	}
 	if errors.Is(err, morphauth.ErrNotFound) {
 		return status.Error(codes.NotFound, "auth record not found")
 	}

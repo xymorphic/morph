@@ -3,12 +3,14 @@ package authcmd
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -431,6 +433,49 @@ func TestCommand_ManagesLocalMorphIdentityAndGeneratesTokenFile(t *testing.T) {
 	require.Equal(t, record.Generation+1, rotated.Generation)
 }
 
+func TestCommand_GeneratesStandaloneIdentityKeypair(t *testing.T) {
+	output := &bytes.Buffer{}
+	restore := SetOutput(output)
+	t.Cleanup(func() { SetOutput(restore) })
+
+	err := NewCommand().Run(context.Background(), []string{"auth", "--json", "genkey"})
+	require.NoError(t, err)
+
+	var generated generatedKeyOutput
+	require.NoError(t, json.Unmarshal(output.Bytes(), &generated))
+	require.Len(t, generated.IdentityID, 40)
+	require.Len(t, generated.PrivateKey32, ed25519.SeedSize*2)
+	require.Len(t, generated.PrivateKey64, ed25519.PrivateKeySize*2)
+	require.Len(t, generated.PublicKey, ed25519.PublicKeySize*2)
+
+	fromSeed, err := morphauth.ParseIdentity([]byte(generated.PrivateKey32), 1)
+	require.NoError(t, err)
+	fromPrivateKey, err := morphauth.ParseIdentity([]byte(generated.PrivateKey64), 1)
+	require.NoError(t, err)
+	require.Equal(t, generated.IdentityID, fromSeed.ID)
+	require.Equal(t, generated.IdentityID, fromPrivateKey.ID)
+	require.Equal(t, generated.PublicKey, hex.EncodeToString(fromSeed.PublicKey))
+
+	output.Reset()
+	err = NewCommand().Run(context.Background(), []string{"auth", "genkey"})
+	require.NoError(t, err)
+	require.Contains(t, output.String(), "identity: ")
+	require.Contains(t, output.String(), "private key (32-byte seed): ")
+	require.Contains(t, output.String(), "private key (64 bytes): ")
+	require.Contains(t, output.String(), "public key (32 bytes): ")
+}
+
+func TestCommand_GenkeyReturnsGenerationFailure(t *testing.T) {
+	originalGenerate := generateMorphIdentity
+	t.Cleanup(func() { generateMorphIdentity = originalGenerate })
+	generateMorphIdentity = func(uint64) (morphauth.Identity, error) {
+		return morphauth.Identity{}, errors.New("generate failed")
+	}
+
+	err := NewCommand().Run(context.Background(), []string{"auth", "genkey"})
+	require.ErrorContains(t, err, "generate failed")
+}
+
 func TestRotateIdentity_RejectsAuthDatabaseStatFailureBeforePreparingKey(t *testing.T) {
 	home := setAuthTestProfile(t)
 	store := appcredential.NewFileStore(filepath.Join(home, "auth.json"))
@@ -557,11 +602,13 @@ func TestCommand_ExposesOnlyRPCAuthenticationOperations(t *testing.T) {
 	}
 
 	require.Equal(t, []string{
+		"genkey",
 		"identity",
 		"session",
 		"token",
 		"authorization",
 		"audit",
+		"prune",
 		"mtls",
 	}, names)
 }
@@ -811,8 +858,37 @@ func TestCommand_TokenListHonorsTextAndJSONOutput(t *testing.T) {
 	require.Equal(t, "token-1", decoded[0]["id"])
 }
 
-func TestCommand_AuthorizationListPassesStatusFilter(t *testing.T) {
+func TestCommand_AuthorizationListHonorsTextAndJSONOutput(t *testing.T) {
 	setAuthTestProfile(t)
+	createdAt := timestamppb.New(time.Date(2026, 7, 25, 18, 30, 0, 0, time.UTC))
+	updatedAt := timestamppb.New(time.Date(2026, 7, 25, 18, 45, 0, 0, time.UTC))
+	revokedAt := timestamppb.New(time.Date(2026, 7, 25, 19, 0, 0, 0, time.UTC))
+	authorizations := []*morphpb.AuthAuthorization{{
+		IdentityId: "identity-1",
+		PublicKey:  []byte{0x01, 0x02},
+		OwnerId:    "owner-1",
+		UserId:     "user-1",
+		Roles:      []string{"operator"},
+		Services: []string{
+			"morph.v1.SessionService",
+			"morph.v1.AuthService",
+		},
+		Methods: []string{
+			"/morph.v1.SessionService/List",
+			"/morph.v1.AuthService/OpenSession",
+		},
+		MaximumTtlSeconds: 1800,
+		Generation:        2,
+		Revision:          3,
+		Status:            morphauth.StatusActive,
+		CreatedAt:         createdAt,
+		UpdatedAt:         updatedAt,
+	}, {
+		IdentityId:     "identity-2",
+		Status:         morphauth.StatusRevoked,
+		RevokedAt:      revokedAt,
+		RevocationNote: "retired",
+	}}
 	var requestedOptions []rpcclient.AuthAuthorizationListOptions
 	originalClient := newMorphAuthClient
 	t.Cleanup(func() { newMorphAuthClient = originalClient })
@@ -825,6 +901,7 @@ func TestCommand_AuthorizationListPassesStatusFilter(t *testing.T) {
 			morphpb.AuthService_ListAuthorizations_FullMethodName,
 		}, methods)
 		return morphAuthClientStub{api: authAPIStub{
+			authorizations: authorizations,
 			authorizationOptions: func(options rpcclient.AuthAuthorizationListOptions) {
 				requestedOptions = append(requestedOptions, options)
 			},
@@ -839,7 +916,100 @@ func TestCommand_AuthorizationListPassesStatusFilter(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, []rpcclient.AuthAuthorizationListOptions{{Status: "active"}}, requestedOptions)
-	require.JSONEq(t, "[]", output.String())
+	require.True(t, strings.HasPrefix(output.String(), "[active] identity-1\n"))
+	require.Contains(t, output.String(), "Public key:  0102")
+	require.Contains(t, output.String(), "Owner:       owner-1")
+	require.Contains(t, output.String(), "User:        user-1")
+	require.Contains(t, output.String(), "Roles:       operator")
+	require.Contains(t, output.String(), "Services:    morph.v1.SessionService\n")
+	require.Contains(t, output.String(), "             morph.v1.AuthService\n")
+	require.Contains(t, output.String(), "Methods:     /morph.v1.SessionService/List\n")
+	require.Contains(t, output.String(), "             /morph.v1.AuthService/OpenSession\n")
+	require.Contains(t, output.String(), "Maximum TTL: 1800s")
+	require.Contains(t, output.String(), "Generation:  2")
+	require.Contains(t, output.String(), "Revision:    3")
+	require.Contains(t, output.String(), "Created:     "+formatProtoTime(createdAt))
+	require.Contains(t, output.String(), "Updated:     "+formatProtoTime(updatedAt))
+	require.Contains(t, output.String(), "\n[revoked] identity-2\n")
+	require.Contains(t, output.String(), "Revoked at:  "+formatProtoTime(revokedAt))
+	require.Contains(t, output.String(), "Reason:      retired")
+
+	output.Reset()
+	err = NewCommand().Run(context.Background(), []string{
+		"auth", "--json", "authorization", "list", "--status", "revoked",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []rpcclient.AuthAuthorizationListOptions{
+		{Status: "active"},
+		{Status: "revoked"},
+	}, requestedOptions)
+	var decoded []map[string]any
+	require.NoError(t, json.Unmarshal(output.Bytes(), &decoded))
+	require.Len(t, decoded, 2)
+	require.Equal(t, "identity-1", decoded[0]["identity_id"])
+	require.Equal(t, "0102", decoded[0]["public_key"])
+}
+
+func TestCommand_AuthorizationGrantUsesConciseTextAndDetailedJSON(t *testing.T) {
+	setAuthTestProfile(t)
+	publicKey := strings.Repeat("01", ed25519.PublicKeySize)
+	result := &morphpb.AuthAuthorization{
+		IdentityId:        "delegate-id",
+		PublicKey:         bytes.Repeat([]byte{0x01}, ed25519.PublicKeySize),
+		OwnerId:           "delegate-owner",
+		UserId:            "delegate-id",
+		Roles:             []string{"operator"},
+		Methods:           []string{"/morph.v1.SessionService/List"},
+		MaximumTtlSeconds: 1800,
+		Generation:        1,
+		Revision:          1,
+		Status:            morphauth.StatusActive,
+	}
+	originalClient := newMorphAuthClient
+	t.Cleanup(func() { newMorphAuthClient = originalClient })
+	newMorphAuthClient = func(
+		_ context.Context,
+		_ *config.Config,
+		methods []string,
+	) (morphAuthClient, error) {
+		require.Equal(t, []string{
+			morphpb.AuthService_GrantAuthorization_FullMethodName,
+		}, methods)
+		return morphAuthClientStub{api: authAPIStub{
+			grantedAuthorization: result,
+			grantAuthorization: func(request *morphpb.AuthAuthorization) {
+				require.Equal(t, "delegate-id", request.GetIdentityId())
+				require.Equal(t, "delegate-owner", request.GetOwnerId())
+				require.Equal(t, []string{"operator"}, request.GetRoles())
+			},
+		}}, nil
+	}
+	output := &bytes.Buffer{}
+	restoreOutput := SetOutput(output)
+	t.Cleanup(func() { SetOutput(restoreOutput) })
+	args := []string{
+		"auth", "authorization", "grant",
+		"--identity", "delegate-id",
+		"--public-key", publicKey,
+		"--owner", "delegate-owner",
+		"--user", "delegate-id",
+		"--role", "operator",
+		"--method", "/morph.v1.SessionService/List",
+		"--maximum-ttl", "30m",
+	}
+
+	err := NewCommand().Run(context.Background(), args)
+	require.NoError(t, err)
+	require.Equal(t, "authorization granted for delegate-id\n", output.String())
+
+	output.Reset()
+	jsonArgs := append([]string{"auth", "--json"}, args[1:]...)
+	err = NewCommand().Run(context.Background(), jsonArgs)
+	require.NoError(t, err)
+	var decoded map[string]any
+	require.NoError(t, json.Unmarshal(output.Bytes(), &decoded))
+	require.Equal(t, "delegate-id", decoded["identity_id"])
+	require.Equal(t, strings.Repeat("01", ed25519.PublicKeySize), decoded["public_key"])
 }
 
 func TestAuditListToText_FormatsEmptyState(t *testing.T) {
@@ -848,6 +1018,125 @@ func TestAuditListToText_FormatsEmptyState(t *testing.T) {
 		"No RPC authentication audit events found.\n",
 		auditListToText(nil),
 	)
+}
+
+func TestAuthorizationListToText_FormatsEmptyState(t *testing.T) {
+	require.Equal(
+		t,
+		"No RPC identity authorizations found.\n",
+		authorizationListToText(nil),
+	)
+}
+
+func TestFormatAuthSeconds_OmitsNonPositiveValues(t *testing.T) {
+	require.Empty(t, formatAuthSeconds(0))
+	require.Empty(t, formatAuthSeconds(-1))
+}
+
+func TestCommand_PruneHonorsTextJSONAndDryRunOptions(t *testing.T) {
+	setAuthTestProfile(t)
+	var requestedOptions []rpcclient.AuthPruneOptions
+	var pruneErr error
+	originalClient := newMorphAuthClient
+	t.Cleanup(func() { newMorphAuthClient = originalClient })
+	newMorphAuthClient = func(
+		_ context.Context,
+		_ *config.Config,
+		methods []string,
+	) (morphAuthClient, error) {
+		require.Equal(t, []string{
+			morphpb.AuthService_Prune_FullMethodName,
+		}, methods)
+		return morphAuthClientStub{api: authAPIStub{
+			pruneResult: &morphpb.PruneAuthResponse{
+				Tokens: 2, Sessions: 3, Authorizations: 4, AuditEvents: 5,
+			},
+			pruneOptions: func(options rpcclient.AuthPruneOptions) {
+				requestedOptions = append(requestedOptions, options)
+			},
+			pruneErr: pruneErr,
+		}}, nil
+	}
+	output := &bytes.Buffer{}
+	restoreOutput := SetOutput(output)
+	t.Cleanup(func() { SetOutput(restoreOutput) })
+
+	requestedAt := time.Now()
+	err := NewCommand().Run(context.Background(), []string{
+		"auth", "prune", "--older-than", "2h", "--limit", "50",
+	})
+	require.NoError(t, err)
+	require.Len(t, requestedOptions, 1)
+	require.WithinDuration(t, requestedAt.Add(-2*time.Hour), requestedOptions[0].Before, time.Second)
+	require.Equal(t, int32(50), requestedOptions[0].Limit)
+	require.False(t, requestedOptions[0].DryRun)
+	require.Equal(t, "Tokens:         2\n"+
+		"Sessions:       3\n"+
+		"Authorizations: 4\n"+
+		"Audit events:   5\n"+
+		"Total:          14\n", output.String())
+
+	output.Reset()
+	requestedAt = time.Now()
+	err = NewCommand().Run(context.Background(), []string{
+		"auth", "--json", "prune", "--older-than", "1h", "--limit", "25", "--dry-run",
+	})
+	require.NoError(t, err)
+	require.Len(t, requestedOptions, 2)
+	require.WithinDuration(t, requestedAt.Add(-time.Hour), requestedOptions[1].Before, time.Second)
+	require.Equal(t, int32(25), requestedOptions[1].Limit)
+	require.True(t, requestedOptions[1].DryRun)
+	var decoded authPruneOutput
+	require.NoError(t, json.Unmarshal(output.Bytes(), &decoded))
+	require.Equal(t, int32(14), decoded.Total)
+	require.True(t, decoded.DryRun)
+
+	output.Reset()
+	err = NewCommand().Run(context.Background(), []string{
+		"auth", "prune", "--dry-run",
+	})
+	require.NoError(t, err)
+	require.Contains(t, output.String(), "Dry run:        true\n")
+
+	pruneErr = errors.New("prune failed")
+	err = NewCommand().Run(context.Background(), []string{
+		"auth", "prune",
+	})
+	require.ErrorContains(t, err, "prune failed")
+}
+
+func TestCommand_PruneRejectsInvalidBounds(t *testing.T) {
+	for _, test := range []struct {
+		args []string
+		want string
+	}{
+		{
+			args: []string{"auth", "prune", "--older-than=-1s"},
+			want: "older-than duration must not be negative",
+		},
+		{
+			args: []string{"auth", "prune", "--limit", "0"},
+			want: "limit must be between 1 and " + strconv.Itoa(morphauth.MaximumPruneLimit),
+		},
+		{
+			args: []string{
+				"auth", "prune", "--limit",
+				strconv.Itoa(morphauth.MaximumPruneLimit + 1),
+			},
+			want: "limit must be between 1 and " + strconv.Itoa(morphauth.MaximumPruneLimit),
+		},
+	} {
+		err := NewCommand().Run(context.Background(), test.args)
+		require.ErrorContains(t, err, test.want)
+	}
+}
+
+func TestWriteAuthPruneResult_ReturnsWriteFailure(t *testing.T) {
+	restoreOutput := SetOutput(errorWriter{})
+	t.Cleanup(func() { SetOutput(restoreOutput) })
+
+	err := writeAuthPruneResult(&cli.Command{}, &morphpb.PruneAuthResponse{})
+	require.ErrorContains(t, err, "write failed")
 }
 
 func TestSessionListToText_FormatsEmptyState(t *testing.T) {
@@ -960,6 +1249,11 @@ type authAPIStub struct {
 	authorizations       []*morphpb.AuthAuthorization
 	authorizationErr     error
 	authorizationOptions func(rpcclient.AuthAuthorizationListOptions)
+	grantedAuthorization *morphpb.AuthAuthorization
+	grantAuthorization   func(*morphpb.AuthAuthorization)
+	pruneResult          *morphpb.PruneAuthResponse
+	pruneErr             error
+	pruneOptions         func(rpcclient.AuthPruneOptions)
 }
 
 func (s authAPIStub) IdentityStatus(
@@ -1006,6 +1300,29 @@ func (s authAPIStub) ListAuthorizations(
 		s.authorizationOptions(options)
 	}
 	return s.authorizations, s.authorizationErr
+}
+
+func (s authAPIStub) GrantAuthorization(
+	_ context.Context,
+	authorization *morphpb.AuthAuthorization,
+) (*morphpb.AuthAuthorization, error) {
+	if s.grantAuthorization != nil {
+		s.grantAuthorization(authorization)
+	}
+	return s.grantedAuthorization, s.authorizationErr
+}
+
+func (s authAPIStub) Prune(
+	_ context.Context,
+	options rpcclient.AuthPruneOptions,
+) (*morphpb.PruneAuthResponse, error) {
+	if s.pruneOptions != nil {
+		s.pruneOptions(options)
+	}
+	if s.pruneResult != nil {
+		s.pruneResult.DryRun = options.DryRun
+	}
+	return s.pruneResult, s.pruneErr
 }
 
 func (errorWriter) Write([]byte) (int, error) {

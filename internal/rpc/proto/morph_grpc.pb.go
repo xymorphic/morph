@@ -2270,7 +2270,7 @@ const (
 	AuthService_GrantAuthorization_FullMethodName  = "/morph.v1.AuthService/GrantAuthorization"
 	AuthService_RevokeAuthorization_FullMethodName = "/morph.v1.AuthService/RevokeAuthorization"
 	AuthService_ListAudit_FullMethodName           = "/morph.v1.AuthService/ListAudit"
-	AuthService_PruneAudit_FullMethodName          = "/morph.v1.AuthService/PruneAudit"
+	AuthService_Prune_FullMethodName               = "/morph.v1.AuthService/Prune"
 	AuthService_RotateIdentity_FullMethodName      = "/morph.v1.AuthService/RotateIdentity"
 	AuthService_IdentityStatus_FullMethodName      = "/morph.v1.AuthService/IdentityStatus"
 )
@@ -2289,7 +2289,7 @@ type AuthServiceClient interface {
 	GrantAuthorization(ctx context.Context, in *GrantAuthAuthorizationRequest, opts ...grpc.CallOption) (*GrantAuthAuthorizationResponse, error)
 	RevokeAuthorization(ctx context.Context, in *RevokeAuthAuthorizationRequest, opts ...grpc.CallOption) (*RevokeAuthAuthorizationResponse, error)
 	ListAudit(ctx context.Context, in *ListAuthAuditRequest, opts ...grpc.CallOption) (*ListAuthAuditResponse, error)
-	PruneAudit(ctx context.Context, in *PruneAuthAuditRequest, opts ...grpc.CallOption) (*PruneAuthAuditResponse, error)
+	Prune(ctx context.Context, in *PruneAuthRequest, opts ...grpc.CallOption) (*PruneAuthResponse, error)
 	RotateIdentity(ctx context.Context, in *RotateAuthIdentityRequest, opts ...grpc.CallOption) (*RotateAuthIdentityResponse, error)
 	IdentityStatus(ctx context.Context, in *GetAuthIdentityStatusRequest, opts ...grpc.CallOption) (*GetAuthIdentityStatusResponse, error)
 }
@@ -2402,10 +2402,10 @@ func (c *authServiceClient) ListAudit(ctx context.Context, in *ListAuthAuditRequ
 	return out, nil
 }
 
-func (c *authServiceClient) PruneAudit(ctx context.Context, in *PruneAuthAuditRequest, opts ...grpc.CallOption) (*PruneAuthAuditResponse, error) {
+func (c *authServiceClient) Prune(ctx context.Context, in *PruneAuthRequest, opts ...grpc.CallOption) (*PruneAuthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(PruneAuthAuditResponse)
-	err := c.cc.Invoke(ctx, AuthService_PruneAudit_FullMethodName, in, out, cOpts...)
+	out := new(PruneAuthResponse)
+	err := c.cc.Invoke(ctx, AuthService_Prune_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2446,7 +2446,7 @@ type AuthServiceServer interface {
 	GrantAuthorization(context.Context, *GrantAuthAuthorizationRequest) (*GrantAuthAuthorizationResponse, error)
 	RevokeAuthorization(context.Context, *RevokeAuthAuthorizationRequest) (*RevokeAuthAuthorizationResponse, error)
 	ListAudit(context.Context, *ListAuthAuditRequest) (*ListAuthAuditResponse, error)
-	PruneAudit(context.Context, *PruneAuthAuditRequest) (*PruneAuthAuditResponse, error)
+	Prune(context.Context, *PruneAuthRequest) (*PruneAuthResponse, error)
 	RotateIdentity(context.Context, *RotateAuthIdentityRequest) (*RotateAuthIdentityResponse, error)
 	IdentityStatus(context.Context, *GetAuthIdentityStatusRequest) (*GetAuthIdentityStatusResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
@@ -2489,8 +2489,8 @@ func (UnimplementedAuthServiceServer) RevokeAuthorization(context.Context, *Revo
 func (UnimplementedAuthServiceServer) ListAudit(context.Context, *ListAuthAuditRequest) (*ListAuthAuditResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListAudit not implemented")
 }
-func (UnimplementedAuthServiceServer) PruneAudit(context.Context, *PruneAuthAuditRequest) (*PruneAuthAuditResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method PruneAudit not implemented")
+func (UnimplementedAuthServiceServer) Prune(context.Context, *PruneAuthRequest) (*PruneAuthResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Prune not implemented")
 }
 func (UnimplementedAuthServiceServer) RotateIdentity(context.Context, *RotateAuthIdentityRequest) (*RotateAuthIdentityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RotateIdentity not implemented")
@@ -2699,20 +2699,20 @@ func _AuthService_ListAudit_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_PruneAudit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PruneAuthAuditRequest)
+func _AuthService_Prune_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PruneAuthRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServiceServer).PruneAudit(ctx, in)
+		return srv.(AuthServiceServer).Prune(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthService_PruneAudit_FullMethodName,
+		FullMethod: AuthService_Prune_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).PruneAudit(ctx, req.(*PruneAuthAuditRequest))
+		return srv.(AuthServiceServer).Prune(ctx, req.(*PruneAuthRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2801,8 +2801,8 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AuthService_ListAudit_Handler,
 		},
 		{
-			MethodName: "PruneAudit",
-			Handler:    _AuthService_PruneAudit_Handler,
+			MethodName: "Prune",
+			Handler:    _AuthService_Prune_Handler,
 		},
 		{
 			MethodName: "RotateIdentity",

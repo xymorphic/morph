@@ -45,11 +45,13 @@ func NewCommand() *cli.Command {
 			&cli.BoolFlag{Name: "json", Usage: "Print machine-readable JSON"},
 		},
 		Commands: []*cli.Command{
+			newGenerateKeyCommand(),
 			newIdentityCommand(),
 			newSessionCommand(),
 			newTokenCommand(),
 			newAuthorizationCommand(),
 			newAuditCommand(),
+			newPruneCommand(),
 			newMTLSCommand(),
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {

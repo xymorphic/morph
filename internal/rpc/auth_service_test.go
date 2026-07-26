@@ -127,6 +127,116 @@ func TestAuthService_RejectsDelegatedOwnerAdministration(t *testing.T) {
 	require.Equal(t, codes.PermissionDenied, status.Code(err))
 }
 
+func TestAuthService_PrunesTerminalAuthenticationStateAndSupportsDryRun(t *testing.T) {
+	service, store := newRPCAuthService(t)
+	now := time.Now().UTC()
+	terminalAt := now.Add(-2 * time.Hour)
+	cutoff := now.Add(-time.Hour)
+	delegated, err := morphauth.GenerateIdentity(1)
+	require.NoError(t, err)
+	_, err = store.PutAuthorization(context.Background(), morphauth.Authorization{
+		IdentityID: delegated.ID,
+		PublicKey:  delegated.PublicKey,
+		OwnerID:    "owner",
+		UserID:     delegated.ID,
+		Roles:      []string{morphauth.RoleOperator},
+		Methods:    []string{morphpb.SessionService_List_FullMethodName},
+		MaxTTL:     time.Hour,
+		Generation: 1,
+		Revision:   2,
+		Status:     morphauth.StatusRevoked,
+		CreatedAt:  terminalAt,
+		UpdatedAt:  terminalAt,
+		RevokedAt:  &terminalAt,
+	})
+	require.NoError(t, err)
+	require.NoError(t, store.Activate(
+		context.Background(),
+		morphauth.Session{
+			ID: "stale-session", IdentityID: delegated.ID,
+			Status: morphauth.StatusRevoked, CreatedAt: terminalAt,
+			IdleExpiresAt: terminalAt, AbsoluteExpiresAt: terminalAt,
+			RevokedAt: &terminalAt,
+		},
+		morphauth.Token{
+			ID: "stale-token", SessionID: "stale-session", IdentityID: delegated.ID,
+			Status: morphauth.StatusRevoked, IssuedAt: terminalAt,
+			ExpiresAt: terminalAt, RevokedAt: &terminalAt,
+		},
+	))
+
+	preview, err := service.Prune(ownerAuthContext(), &morphpb.PruneAuthRequest{
+		Before: timestamppb.New(cutoff),
+		Limit:  100,
+		DryRun: true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, int32(1), preview.GetTokens())
+	require.Equal(t, int32(1), preview.GetSessions())
+	require.Equal(t, int32(1), preview.GetAuthorizations())
+	require.Equal(t, int32(3), preview.GetAuditEvents())
+	require.True(t, preview.GetDryRun())
+	_, err = store.GetToken(context.Background(), "stale-token")
+	require.NoError(t, err)
+
+	pruned, err := service.Prune(ownerAuthContext(), &morphpb.PruneAuthRequest{
+		Before: timestamppb.New(cutoff),
+		Limit:  100,
+	})
+	require.NoError(t, err)
+	require.Equal(t, int32(1), pruned.GetTokens())
+	require.Equal(t, int32(1), pruned.GetSessions())
+	require.Equal(t, int32(1), pruned.GetAuthorizations())
+	require.Equal(t, int32(3), pruned.GetAuditEvents())
+	require.False(t, pruned.GetDryRun())
+	_, err = store.GetToken(context.Background(), "stale-token")
+	require.ErrorIs(t, err, morphauth.ErrNotFound)
+	_, err = store.GetSession(context.Background(), "stale-session")
+	require.ErrorIs(t, err, morphauth.ErrNotFound)
+	_, err = store.GetAuthorization(context.Background(), delegated.ID)
+	require.ErrorIs(t, err, morphauth.ErrNotFound)
+}
+
+func TestAuthService_PruneValidatesOwnerCutoffAndLimit(t *testing.T) {
+	service, _ := newRPCAuthService(t)
+	validBefore := timestamppb.New(time.Now().Add(-time.Hour))
+
+	_, err := service.Prune(context.Background(), &morphpb.PruneAuthRequest{
+		Before: validBefore, Limit: 1,
+	})
+	require.Equal(t, codes.Unauthenticated, status.Code(err))
+
+	for _, request := range []*morphpb.PruneAuthRequest{
+		nil,
+		{Limit: 1},
+		{Before: validBefore},
+		{Before: validBefore, Limit: morphauth.MaximumPruneLimit + 1},
+		{Before: &timestamppb.Timestamp{Seconds: 253402300800}, Limit: 1},
+		{Before: timestamppb.New(time.Now().Add(time.Hour)), Limit: 1},
+	} {
+		_, err = service.Prune(ownerAuthContext(), request)
+		require.Equal(t, codes.InvalidArgument, status.Code(err))
+	}
+
+	store := &pruneErrorStore{Store: storememory.New()}
+	auth, err := morphauth.NewService(morphauth.ServiceOptions{
+		Audience: "morph-rpc:test",
+		Store:    store,
+	})
+	require.NoError(t, err)
+	for storeErr, expectedCode := range map[error]codes.Code{
+		context.Canceled:         codes.Canceled,
+		context.DeadlineExceeded: codes.DeadlineExceeded,
+	} {
+		store.err = storeErr
+		_, err = NewAuthService(auth).Prune(ownerAuthContext(), &morphpb.PruneAuthRequest{
+			Before: validBefore,
+			Limit:  1,
+		})
+		require.Equal(t, expectedCode, status.Code(err))
+	}
+}
+
 func TestAuthService_ClosesOnlyAuthenticatedSession(t *testing.T) {
 	service, store := newRPCAuthService(t)
 	now := time.Now().UTC()
@@ -479,6 +589,18 @@ func ownerAuthContext() context.Context {
 type closeSessionStoreStub struct {
 	morphauth.Store
 	getSessionErr error
+}
+
+type pruneErrorStore struct {
+	morphauth.Store
+	err error
+}
+
+func (s *pruneErrorStore) Prune(
+	context.Context,
+	morphauth.PruneOptions,
+) (morphauth.PruneResult, error) {
+	return morphauth.PruneResult{}, s.err
 }
 
 func (s *closeSessionStoreStub) RevokeSession(
