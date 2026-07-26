@@ -223,6 +223,94 @@ func TestAgent_RespondPropagatesAuthorizationContextToTools(t *testing.T) {
 	}
 }
 
+func TestAgent_CloseReusesTrustedSessionAuthorizationForMemoryFlush(t *testing.T) {
+	core, client, registry := newMemoryFlushLifecycleAgent(t)
+	authorization := permissions.AuthorizationContext{
+		Actor:   permissions.Actor{Kind: permissions.ActorGatewayUser, ID: "telegram-user"},
+		Surface: permissions.SurfaceTelegram,
+	}
+
+	_, err := core.Respond(
+		permissions.WithContext(context.Background(), authorization),
+		"remember my preference",
+		agentcore.RespondOptions{},
+	)
+	require.NoError(t, err)
+	require.NoError(t, core.Close())
+	require.Len(t, client.Requests, 2)
+
+	flushedAuthorization, ok := permissions.FromContext(registry.InvokeContext)
+	require.True(t, ok)
+	require.Equal(t, permissions.ActorGatewayUser, flushedAuthorization.Actor.Kind)
+	require.Equal(t, "telegram-user", flushedAuthorization.Actor.ID)
+	require.Equal(t, permissions.SurfaceKindGateway, flushedAuthorization.SurfaceKind)
+	require.Equal(t, permissions.SurfaceTelegram, flushedAuthorization.Surface)
+	require.Equal(t, profile.DefaultName, flushedAuthorization.Profile)
+	require.Equal(t, storage.DefaultSessionID, flushedAuthorization.SessionID)
+}
+
+func TestAgent_CloseSkipsMemoryFlushWithoutTrustedSessionAuthorization(t *testing.T) {
+	core, client, registry := newMemoryFlushLifecycleAgent(t)
+
+	require.NoError(t, core.Close())
+	require.Empty(t, client.Requests)
+	require.Nil(t, registry.InvokeContext)
+}
+
+func newMemoryFlushLifecycleAgent(
+	t *testing.T,
+) (*Agent, *mocks.ModelClientStub, *mocks.ToolRegistryStub) {
+	t.Helper()
+
+	originalOpen := OpenStateStore
+	originalNewEnvironment := NewEnvironment
+	originalProfile := profile.Active()
+	t.Cleanup(func() {
+		OpenStateStore = originalOpen
+		NewEnvironment = originalNewEnvironment
+		profile.SetActive(originalProfile)
+	})
+
+	profile.SetActive(profile.Profile{Name: profile.DefaultName})
+	store := &stateStoreStub{
+		session:  storage.Session{ID: storage.DefaultSessionID},
+		messages: []morphmsg.Message{{Role: morphmsg.RoleUser, Content: "remember my preference"}},
+	}
+	OpenStateStore = func(*config.Config, models.Client) (storage.Store, error) {
+		return store, nil
+	}
+	registry := &mocks.ToolRegistryStub{
+		Definitions: morphtools.Definitions{{Name: "memory_add"}},
+		Result:      morphtools.Result{Output: "saved"},
+	}
+	NewEnvironment = func(context.Context, *config.Config) environment.Environment {
+		return &mocks.EnvironmentStub{
+			ToolRegistry:    registry,
+			IterationBudget: envbudget.New(2),
+		}
+	}
+	stream := false
+	client := &mocks.ModelClientStub{Responses: []*models.Response{
+		{OutputText: "noted"},
+		{
+			RequiresToolCalls: true,
+			ToolCalls: []models.ToolCall{{
+				ID: "flush-call", Name: "memory_add", Input: `{"kind":"semantic"}`,
+			}},
+		},
+	}}
+	cfg := &config.Config{
+		Models: config.ModelsConfig{Main: config.MainModelConfig{
+			Name: "model", API: models.APIOpenAIResponses, ContextLength: 8192, Stream: &stream,
+		}},
+	}
+	cfg.Memory.Flush.MaxCalls = 1
+	core := NewAgent(context.Background(), cfg, client)
+	require.NoError(t, core.Start(context.Background()))
+
+	return core, client, registry
+}
+
 func TestAgent_StartAndRespondValidationBranches(t *testing.T) {
 	require.EqualError(t, (*Agent)(nil).Start(context.Background()), "agent is required")
 	require.EqualError(t, (&Agent{}).Start(context.Background()), "config is required")

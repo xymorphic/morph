@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
 	"time"
 
 	agentsummary "github.com/wandxy/morph/internal/agent/context/summary"
@@ -78,6 +79,8 @@ type Agent struct {
 	turnScope          string
 	turnMessages       []morphmsg.Message
 	approvalService    *permissions.ApprovalService
+	authorizationMu    sync.RWMutex
+	sessionAuth        map[string]permissions.AuthorizationContext
 	initialized        bool
 }
 
@@ -590,13 +593,20 @@ func (a *Agent) Close() error {
 	sessionID, err := a.stateMgr.CurrentSession(ctx)
 	sessionIDValue := str.String(sessionID)
 	if err == nil && sessionIDValue.Trim() != "" {
-		// Controlled shutdown can lose recent context, so give memory extraction
-		// one last chance to preserve useful facts before closing storage.
 		traceSession := trace.NoopSession()
 		if a.env != nil {
 			traceSession = a.openTraceSessionForSession(sessionID)
 		}
-		a.maybeFlushMemoryBeforeContextLoss(ctx, sessionID, memoryFlushTriggerControlledExit, traceSession)
+		if authorization, ok := a.getSessionAuthorization(sessionID); ok {
+			ctx = permissions.WithContext(ctx, authorization)
+			a.maybeFlushMemoryBeforeContextLoss(ctx, sessionID, memoryFlushTriggerControlledExit, traceSession)
+		} else {
+			recordMemoryFlushSkipped(
+				traceSession,
+				memoryFlushTriggerControlledExit,
+				"missing_session_authorization",
+			)
+		}
 		traceSession.Close()
 	}
 
@@ -656,17 +666,18 @@ func (a *Agent) Respond(ctx context.Context, msg string, opts agentcore.RespondO
 	profileName := str.String(profile.Active().Name).Trim()
 	authorization, ok := permissions.FromContext(ctx)
 	if !ok {
-		ctx = permissions.WithContext(ctx, permissions.AuthorizationContext{
+		authorization = permissions.AuthorizationContext{
 			Actor:     permissions.Actor{Kind: permissions.ActorLocalOwner},
 			Surface:   permissions.SurfaceCLI,
 			Profile:   profileName,
 			SessionID: session.ID,
-		})
+		}
 	} else {
 		authorization.Profile = profileName
 		authorization.SessionID = session.ID
-		ctx = permissions.WithContext(ctx, authorization)
 	}
+	ctx = permissions.WithContext(ctx, authorization)
+	a.setSessionAuthorization(session.ID, authorization)
 
 	agentLog.Info().Str("session_id", opts.SessionID).
 		Str("model", a.cfg.Models.Main.Name).
@@ -682,6 +693,50 @@ func (a *Agent) Respond(ctx context.Context, msg string, opts agentcore.RespondO
 	}
 
 	return reply, err
+}
+
+func (a *Agent) setSessionAuthorization(
+	sessionID string,
+	authorization permissions.AuthorizationContext,
+) {
+	if a == nil {
+		return
+	}
+
+	normalized, err := authorization.Normalize()
+	if err != nil || normalized.SessionID != sessionID {
+		return
+	}
+
+	a.authorizationMu.Lock()
+	defer a.authorizationMu.Unlock()
+
+	if a.sessionAuth == nil {
+		a.sessionAuth = make(map[string]permissions.AuthorizationContext)
+	}
+	a.sessionAuth[sessionID] = normalized
+}
+
+func (a *Agent) getSessionAuthorization(
+	sessionID string,
+) (permissions.AuthorizationContext, bool) {
+	if a == nil {
+		return permissions.AuthorizationContext{}, false
+	}
+
+	a.authorizationMu.RLock()
+	authorization, ok := a.sessionAuth[sessionID]
+	a.authorizationMu.RUnlock()
+	if !ok {
+		return permissions.AuthorizationContext{}, false
+	}
+
+	normalized, err := authorization.Normalize()
+	if err != nil || normalized.SessionID != sessionID {
+		return permissions.AuthorizationContext{}, false
+	}
+
+	return normalized, true
 }
 
 // TurnMessages returns a defensive copy of messages emitted by the most recent turn.
