@@ -8487,6 +8487,8 @@ func (x *CloseAuthSessionResponse) GetSession() *AuthSession {
 
 type ListAuthSessionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8519,6 +8521,20 @@ func (x *ListAuthSessionsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListAuthSessionsRequest.ProtoReflect.Descriptor instead.
 func (*ListAuthSessionsRequest) Descriptor() ([]byte, []int) {
 	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{128}
+}
+
+func (x *ListAuthSessionsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListAuthSessionsRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
 }
 
 type ListAuthSessionsResponse struct {
@@ -8664,6 +8680,7 @@ func (x *RevokeAuthSessionResponse) GetSession() *AuthSession {
 type ListAuthTokensRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8703,6 +8720,13 @@ func (x *ListAuthTokensRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ListAuthTokensRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
 }
 
 type ListAuthTokensResponse struct {
@@ -8847,6 +8871,7 @@ func (x *RevokeAuthTokenResponse) GetToken() *AuthToken {
 
 type ListAuthAuthorizationsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8879,6 +8904,13 @@ func (x *ListAuthAuthorizationsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListAuthAuthorizationsRequest.ProtoReflect.Descriptor instead.
 func (*ListAuthAuthorizationsRequest) Descriptor() ([]byte, []int) {
 	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{136}
+}
+
+func (x *ListAuthAuthorizationsRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
 }
 
 type ListAuthAuthorizationsResponse struct {
@@ -9112,6 +9144,12 @@ func (x *RevokeAuthAuthorizationResponse) GetAuthorization() *AuthAuthorization 
 type ListAuthAuditRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	IdentityId    string                 `protobuf:"bytes,3,opt,name=identity_id,json=identityId,proto3" json:"identity_id,omitempty"`
+	SessionId     string                 `protobuf:"bytes,4,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	TokenId       string                 `protobuf:"bytes,5,opt,name=token_id,json=tokenId,proto3" json:"token_id,omitempty"`
+	Method        string                 `protobuf:"bytes,6,opt,name=method,proto3" json:"method,omitempty"`
+	Since         *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=since,proto3" json:"since,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -9151,6 +9189,48 @@ func (x *ListAuthAuditRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ListAuthAuditRequest) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *ListAuthAuditRequest) GetIdentityId() string {
+	if x != nil {
+		return x.IdentityId
+	}
+	return ""
+}
+
+func (x *ListAuthAuditRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *ListAuthAuditRequest) GetTokenId() string {
+	if x != nil {
+		return x.TokenId
+	}
+	return ""
+}
+
+func (x *ListAuthAuditRequest) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *ListAuthAuditRequest) GetSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Since
+	}
+	return nil
 }
 
 type ListAuthAuditResponse struct {
@@ -10319,25 +10399,29 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"\asession\x18\x02 \x01(\v2\x15.morph.v1.AuthSessionR\asession\"\x19\n" +
 	"\x17CloseAuthSessionRequest\"K\n" +
 	"\x18CloseAuthSessionResponse\x12/\n" +
-	"\asession\x18\x01 \x01(\v2\x15.morph.v1.AuthSessionR\asession\"\x19\n" +
-	"\x17ListAuthSessionsRequest\"M\n" +
+	"\asession\x18\x01 \x01(\v2\x15.morph.v1.AuthSessionR\asession\"G\n" +
+	"\x17ListAuthSessionsRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\"M\n" +
 	"\x18ListAuthSessionsResponse\x121\n" +
 	"\bsessions\x18\x01 \x03(\v2\x15.morph.v1.AuthSessionR\bsessions\"B\n" +
 	"\x18RevokeAuthSessionRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\"L\n" +
 	"\x19RevokeAuthSessionResponse\x12/\n" +
-	"\asession\x18\x01 \x01(\v2\x15.morph.v1.AuthSessionR\asession\"-\n" +
+	"\asession\x18\x01 \x01(\v2\x15.morph.v1.AuthSessionR\asession\"E\n" +
 	"\x15ListAuthTokensRequest\x12\x14\n" +
-	"\x05limit\x18\x01 \x01(\x05R\x05limit\"E\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\"E\n" +
 	"\x16ListAuthTokensResponse\x12+\n" +
 	"\x06tokens\x18\x01 \x03(\v2\x13.morph.v1.AuthTokenR\x06tokens\"@\n" +
 	"\x16RevokeAuthTokenRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\"D\n" +
 	"\x17RevokeAuthTokenResponse\x12)\n" +
-	"\x05token\x18\x01 \x01(\v2\x13.morph.v1.AuthTokenR\x05token\"\x1f\n" +
-	"\x1dListAuthAuthorizationsRequest\"e\n" +
+	"\x05token\x18\x01 \x01(\v2\x13.morph.v1.AuthTokenR\x05token\"7\n" +
+	"\x1dListAuthAuthorizationsRequest\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\"e\n" +
 	"\x1eListAuthAuthorizationsResponse\x12C\n" +
 	"\x0eauthorizations\x18\x01 \x03(\v2\x1b.morph.v1.AuthAuthorizationR\x0eauthorizations\"b\n" +
 	"\x1dGrantAuthAuthorizationRequest\x12A\n" +
@@ -10349,9 +10433,17 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"identityId\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\"d\n" +
 	"\x1fRevokeAuthAuthorizationResponse\x12A\n" +
-	"\rauthorization\x18\x01 \x01(\v2\x1b.morph.v1.AuthAuthorizationR\rauthorization\",\n" +
+	"\rauthorization\x18\x01 \x01(\v2\x1b.morph.v1.AuthAuthorizationR\rauthorization\"\xe5\x01\n" +
 	"\x14ListAuthAuditRequest\x12\x14\n" +
-	"\x05limit\x18\x01 \x01(\x05R\x05limit\"I\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x1f\n" +
+	"\videntity_id\x18\x03 \x01(\tR\n" +
+	"identityId\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x04 \x01(\tR\tsessionId\x12\x19\n" +
+	"\btoken_id\x18\x05 \x01(\tR\atokenId\x12\x16\n" +
+	"\x06method\x18\x06 \x01(\tR\x06method\x120\n" +
+	"\x05since\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x05since\"I\n" +
 	"\x15ListAuthAuditResponse\x120\n" +
 	"\x06events\x18\x01 \x03(\v2\x18.morph.v1.AuthAuditEventR\x06events\"a\n" +
 	"\x15PruneAuthAuditRequest\x122\n" +
@@ -10742,134 +10834,135 @@ var file_internal_rpc_proto_morph_proto_depIdxs = []int32{
 	125, // 117: morph.v1.GrantAuthAuthorizationRequest.authorization:type_name -> morph.v1.AuthAuthorization
 	125, // 118: morph.v1.GrantAuthAuthorizationResponse.authorization:type_name -> morph.v1.AuthAuthorization
 	125, // 119: morph.v1.RevokeAuthAuthorizationResponse.authorization:type_name -> morph.v1.AuthAuthorization
-	126, // 120: morph.v1.ListAuthAuditResponse.events:type_name -> morph.v1.AuthAuditEvent
-	155, // 121: morph.v1.PruneAuthAuditRequest.before:type_name -> google.protobuf.Timestamp
-	125, // 122: morph.v1.RotateAuthIdentityResponse.authorization:type_name -> morph.v1.AuthAuthorization
-	3,   // 123: morph.v1.MorphService.Respond:input_type -> morph.v1.RespondRequest
-	6,   // 124: morph.v1.SessionService.Create:input_type -> morph.v1.CreateSessionRequest
-	8,   // 125: morph.v1.SessionService.List:input_type -> morph.v1.ListSessionsRequest
-	10,  // 126: morph.v1.SessionService.Use:input_type -> morph.v1.UseSessionRequest
-	12,  // 127: morph.v1.SessionService.Archive:input_type -> morph.v1.ArchiveSessionRequest
-	14,  // 128: morph.v1.SessionService.Unarchive:input_type -> morph.v1.UnarchiveSessionRequest
-	16,  // 129: morph.v1.SessionService.Rename:input_type -> morph.v1.RenameSessionRequest
-	18,  // 130: morph.v1.SessionService.Current:input_type -> morph.v1.CurrentSessionRequest
-	20,  // 131: morph.v1.SessionService.Compact:input_type -> morph.v1.CompactSessionRequest
-	22,  // 132: morph.v1.SessionService.Repair:input_type -> morph.v1.RepairSessionRequest
-	27,  // 133: morph.v1.SessionService.Status:input_type -> morph.v1.GetSessionStatusRequest
-	29,  // 134: morph.v1.SessionService.Timeline:input_type -> morph.v1.GetSessionTimelineRequest
-	34,  // 135: morph.v1.ModelService.RuntimeModel:input_type -> morph.v1.RuntimeModelRequest
-	36,  // 136: morph.v1.ModelService.ListProviders:input_type -> morph.v1.ListProvidersRequest
-	39,  // 137: morph.v1.ModelService.ListModels:input_type -> morph.v1.ListModelsRequest
-	42,  // 138: morph.v1.ModelService.SelectModel:input_type -> morph.v1.SelectModelRequest
-	44,  // 139: morph.v1.ModelService.SetProviderAPIKey:input_type -> morph.v1.SetProviderAPIKeyRequest
-	47,  // 140: morph.v1.GatewayService.Status:input_type -> morph.v1.GetGatewayStatusRequest
-	49,  // 141: morph.v1.GatewayService.Start:input_type -> morph.v1.StartGatewayRequest
-	51,  // 142: morph.v1.GatewayService.Stop:input_type -> morph.v1.StopGatewayRequest
-	53,  // 143: morph.v1.GatewayService.Restart:input_type -> morph.v1.RestartGatewayRequest
-	57,  // 144: morph.v1.GatewayService.ListPairings:input_type -> morph.v1.ListGatewayPairingsRequest
-	59,  // 145: morph.v1.GatewayService.ApprovePairing:input_type -> morph.v1.ApproveGatewayPairingRequest
-	61,  // 146: morph.v1.GatewayService.RevokePairing:input_type -> morph.v1.RevokeGatewayPairingRequest
-	63,  // 147: morph.v1.GatewayService.ClearPendingPairings:input_type -> morph.v1.ClearPendingGatewayPairingsRequest
-	72,  // 148: morph.v1.AutomationService.Status:input_type -> morph.v1.GetAutomationStatusRequest
-	74,  // 149: morph.v1.AutomationService.ListJobs:input_type -> morph.v1.ListAutomationJobsRequest
-	76,  // 150: morph.v1.AutomationService.AddJob:input_type -> morph.v1.AddAutomationJobRequest
-	78,  // 151: morph.v1.AutomationService.UpdateJob:input_type -> morph.v1.UpdateAutomationJobRequest
-	80,  // 152: morph.v1.AutomationService.RemoveJob:input_type -> morph.v1.RemoveAutomationJobRequest
-	82,  // 153: morph.v1.AutomationService.RunJob:input_type -> morph.v1.RunAutomationJobRequest
-	84,  // 154: morph.v1.AutomationService.ListRuns:input_type -> morph.v1.ListAutomationRunsRequest
-	88,  // 155: morph.v1.PermissionService.ListRequests:input_type -> morph.v1.ListPermissionRequestsRequest
-	90,  // 156: morph.v1.PermissionService.GetRequest:input_type -> morph.v1.GetPermissionRequestRequest
-	92,  // 157: morph.v1.PermissionService.ResolveRequest:input_type -> morph.v1.ResolvePermissionRequestRequest
-	94,  // 158: morph.v1.PermissionService.ListGrants:input_type -> morph.v1.ListPermissionGrantsRequest
-	120, // 159: morph.v1.PermissionService.GetGrant:input_type -> morph.v1.GetPermissionGrantRequest
-	96,  // 160: morph.v1.PermissionService.RevokeGrant:input_type -> morph.v1.RevokePermissionGrantRequest
-	98,  // 161: morph.v1.PermissionService.DeleteRecord:input_type -> morph.v1.DeletePermissionRecordRequest
-	100, // 162: morph.v1.PermissionService.Prune:input_type -> morph.v1.PrunePermissionApprovalsRequest
-	106, // 163: morph.v1.BrowserService.Status:input_type -> morph.v1.GetBrowserStatusRequest
-	108, // 164: morph.v1.BrowserService.ListProfiles:input_type -> morph.v1.ListBrowserProfilesRequest
-	110, // 165: morph.v1.BrowserService.ListSessions:input_type -> morph.v1.ListBrowserSessionsRequest
-	112, // 166: morph.v1.BrowserService.Start:input_type -> morph.v1.StartBrowserRequest
-	114, // 167: morph.v1.BrowserService.Stop:input_type -> morph.v1.StopBrowserRequest
-	116, // 168: morph.v1.BrowserService.ReadArtifact:input_type -> morph.v1.ReadBrowserArtifactRequest
-	118, // 169: morph.v1.BrowserService.EffectiveConfig:input_type -> morph.v1.GetBrowserEffectiveConfigRequest
-	127, // 170: morph.v1.AuthService.OpenSession:input_type -> morph.v1.OpenAuthSessionRequest
-	129, // 171: morph.v1.AuthService.CloseSession:input_type -> morph.v1.CloseAuthSessionRequest
-	131, // 172: morph.v1.AuthService.ListSessions:input_type -> morph.v1.ListAuthSessionsRequest
-	133, // 173: morph.v1.AuthService.RevokeSession:input_type -> morph.v1.RevokeAuthSessionRequest
-	135, // 174: morph.v1.AuthService.ListTokens:input_type -> morph.v1.ListAuthTokensRequest
-	137, // 175: morph.v1.AuthService.RevokeToken:input_type -> morph.v1.RevokeAuthTokenRequest
-	139, // 176: morph.v1.AuthService.ListAuthorizations:input_type -> morph.v1.ListAuthAuthorizationsRequest
-	141, // 177: morph.v1.AuthService.GrantAuthorization:input_type -> morph.v1.GrantAuthAuthorizationRequest
-	143, // 178: morph.v1.AuthService.RevokeAuthorization:input_type -> morph.v1.RevokeAuthAuthorizationRequest
-	145, // 179: morph.v1.AuthService.ListAudit:input_type -> morph.v1.ListAuthAuditRequest
-	147, // 180: morph.v1.AuthService.PruneAudit:input_type -> morph.v1.PruneAuthAuditRequest
-	149, // 181: morph.v1.AuthService.RotateIdentity:input_type -> morph.v1.RotateAuthIdentityRequest
-	151, // 182: morph.v1.AuthService.IdentityStatus:input_type -> morph.v1.GetAuthIdentityStatusRequest
-	4,   // 183: morph.v1.MorphService.Respond:output_type -> morph.v1.RespondEvent
-	7,   // 184: morph.v1.SessionService.Create:output_type -> morph.v1.CreateSessionResponse
-	9,   // 185: morph.v1.SessionService.List:output_type -> morph.v1.ListSessionsResponse
-	11,  // 186: morph.v1.SessionService.Use:output_type -> morph.v1.UseSessionResponse
-	13,  // 187: morph.v1.SessionService.Archive:output_type -> morph.v1.ArchiveSessionResponse
-	15,  // 188: morph.v1.SessionService.Unarchive:output_type -> morph.v1.UnarchiveSessionResponse
-	17,  // 189: morph.v1.SessionService.Rename:output_type -> morph.v1.RenameSessionResponse
-	19,  // 190: morph.v1.SessionService.Current:output_type -> morph.v1.CurrentSessionResponse
-	21,  // 191: morph.v1.SessionService.Compact:output_type -> morph.v1.CompactSessionResponse
-	23,  // 192: morph.v1.SessionService.Repair:output_type -> morph.v1.RepairSessionResponse
-	28,  // 193: morph.v1.SessionService.Status:output_type -> morph.v1.GetSessionStatusResponse
-	33,  // 194: morph.v1.SessionService.Timeline:output_type -> morph.v1.GetSessionTimelineResponse
-	35,  // 195: morph.v1.ModelService.RuntimeModel:output_type -> morph.v1.RuntimeModelResponse
-	38,  // 196: morph.v1.ModelService.ListProviders:output_type -> morph.v1.ListProvidersResponse
-	41,  // 197: morph.v1.ModelService.ListModels:output_type -> morph.v1.ListModelsResponse
-	43,  // 198: morph.v1.ModelService.SelectModel:output_type -> morph.v1.SelectModelResponse
-	45,  // 199: morph.v1.ModelService.SetProviderAPIKey:output_type -> morph.v1.SetProviderAPIKeyResponse
-	48,  // 200: morph.v1.GatewayService.Status:output_type -> morph.v1.GetGatewayStatusResponse
-	50,  // 201: morph.v1.GatewayService.Start:output_type -> morph.v1.StartGatewayResponse
-	52,  // 202: morph.v1.GatewayService.Stop:output_type -> morph.v1.StopGatewayResponse
-	54,  // 203: morph.v1.GatewayService.Restart:output_type -> morph.v1.RestartGatewayResponse
-	58,  // 204: morph.v1.GatewayService.ListPairings:output_type -> morph.v1.ListGatewayPairingsResponse
-	60,  // 205: morph.v1.GatewayService.ApprovePairing:output_type -> morph.v1.ApproveGatewayPairingResponse
-	62,  // 206: morph.v1.GatewayService.RevokePairing:output_type -> morph.v1.RevokeGatewayPairingResponse
-	64,  // 207: morph.v1.GatewayService.ClearPendingPairings:output_type -> morph.v1.ClearPendingGatewayPairingsResponse
-	73,  // 208: morph.v1.AutomationService.Status:output_type -> morph.v1.GetAutomationStatusResponse
-	75,  // 209: morph.v1.AutomationService.ListJobs:output_type -> morph.v1.ListAutomationJobsResponse
-	77,  // 210: morph.v1.AutomationService.AddJob:output_type -> morph.v1.AddAutomationJobResponse
-	79,  // 211: morph.v1.AutomationService.UpdateJob:output_type -> morph.v1.UpdateAutomationJobResponse
-	81,  // 212: morph.v1.AutomationService.RemoveJob:output_type -> morph.v1.RemoveAutomationJobResponse
-	83,  // 213: morph.v1.AutomationService.RunJob:output_type -> morph.v1.RunAutomationJobResponse
-	85,  // 214: morph.v1.AutomationService.ListRuns:output_type -> morph.v1.ListAutomationRunsResponse
-	89,  // 215: morph.v1.PermissionService.ListRequests:output_type -> morph.v1.ListPermissionRequestsResponse
-	91,  // 216: morph.v1.PermissionService.GetRequest:output_type -> morph.v1.GetPermissionRequestResponse
-	93,  // 217: morph.v1.PermissionService.ResolveRequest:output_type -> morph.v1.ResolvePermissionRequestResponse
-	95,  // 218: morph.v1.PermissionService.ListGrants:output_type -> morph.v1.ListPermissionGrantsResponse
-	121, // 219: morph.v1.PermissionService.GetGrant:output_type -> morph.v1.GetPermissionGrantResponse
-	97,  // 220: morph.v1.PermissionService.RevokeGrant:output_type -> morph.v1.RevokePermissionGrantResponse
-	99,  // 221: morph.v1.PermissionService.DeleteRecord:output_type -> morph.v1.DeletePermissionRecordResponse
-	101, // 222: morph.v1.PermissionService.Prune:output_type -> morph.v1.PrunePermissionApprovalsResponse
-	107, // 223: morph.v1.BrowserService.Status:output_type -> morph.v1.GetBrowserStatusResponse
-	109, // 224: morph.v1.BrowserService.ListProfiles:output_type -> morph.v1.ListBrowserProfilesResponse
-	111, // 225: morph.v1.BrowserService.ListSessions:output_type -> morph.v1.ListBrowserSessionsResponse
-	113, // 226: morph.v1.BrowserService.Start:output_type -> morph.v1.StartBrowserResponse
-	115, // 227: morph.v1.BrowserService.Stop:output_type -> morph.v1.StopBrowserResponse
-	117, // 228: morph.v1.BrowserService.ReadArtifact:output_type -> morph.v1.ReadBrowserArtifactResponse
-	119, // 229: morph.v1.BrowserService.EffectiveConfig:output_type -> morph.v1.GetBrowserEffectiveConfigResponse
-	128, // 230: morph.v1.AuthService.OpenSession:output_type -> morph.v1.OpenAuthSessionResponse
-	130, // 231: morph.v1.AuthService.CloseSession:output_type -> morph.v1.CloseAuthSessionResponse
-	132, // 232: morph.v1.AuthService.ListSessions:output_type -> morph.v1.ListAuthSessionsResponse
-	134, // 233: morph.v1.AuthService.RevokeSession:output_type -> morph.v1.RevokeAuthSessionResponse
-	136, // 234: morph.v1.AuthService.ListTokens:output_type -> morph.v1.ListAuthTokensResponse
-	138, // 235: morph.v1.AuthService.RevokeToken:output_type -> morph.v1.RevokeAuthTokenResponse
-	140, // 236: morph.v1.AuthService.ListAuthorizations:output_type -> morph.v1.ListAuthAuthorizationsResponse
-	142, // 237: morph.v1.AuthService.GrantAuthorization:output_type -> morph.v1.GrantAuthAuthorizationResponse
-	144, // 238: morph.v1.AuthService.RevokeAuthorization:output_type -> morph.v1.RevokeAuthAuthorizationResponse
-	146, // 239: morph.v1.AuthService.ListAudit:output_type -> morph.v1.ListAuthAuditResponse
-	148, // 240: morph.v1.AuthService.PruneAudit:output_type -> morph.v1.PruneAuthAuditResponse
-	150, // 241: morph.v1.AuthService.RotateIdentity:output_type -> morph.v1.RotateAuthIdentityResponse
-	152, // 242: morph.v1.AuthService.IdentityStatus:output_type -> morph.v1.GetAuthIdentityStatusResponse
-	183, // [183:243] is the sub-list for method output_type
-	123, // [123:183] is the sub-list for method input_type
-	123, // [123:123] is the sub-list for extension type_name
-	123, // [123:123] is the sub-list for extension extendee
-	0,   // [0:123] is the sub-list for field type_name
+	155, // 120: morph.v1.ListAuthAuditRequest.since:type_name -> google.protobuf.Timestamp
+	126, // 121: morph.v1.ListAuthAuditResponse.events:type_name -> morph.v1.AuthAuditEvent
+	155, // 122: morph.v1.PruneAuthAuditRequest.before:type_name -> google.protobuf.Timestamp
+	125, // 123: morph.v1.RotateAuthIdentityResponse.authorization:type_name -> morph.v1.AuthAuthorization
+	3,   // 124: morph.v1.MorphService.Respond:input_type -> morph.v1.RespondRequest
+	6,   // 125: morph.v1.SessionService.Create:input_type -> morph.v1.CreateSessionRequest
+	8,   // 126: morph.v1.SessionService.List:input_type -> morph.v1.ListSessionsRequest
+	10,  // 127: morph.v1.SessionService.Use:input_type -> morph.v1.UseSessionRequest
+	12,  // 128: morph.v1.SessionService.Archive:input_type -> morph.v1.ArchiveSessionRequest
+	14,  // 129: morph.v1.SessionService.Unarchive:input_type -> morph.v1.UnarchiveSessionRequest
+	16,  // 130: morph.v1.SessionService.Rename:input_type -> morph.v1.RenameSessionRequest
+	18,  // 131: morph.v1.SessionService.Current:input_type -> morph.v1.CurrentSessionRequest
+	20,  // 132: morph.v1.SessionService.Compact:input_type -> morph.v1.CompactSessionRequest
+	22,  // 133: morph.v1.SessionService.Repair:input_type -> morph.v1.RepairSessionRequest
+	27,  // 134: morph.v1.SessionService.Status:input_type -> morph.v1.GetSessionStatusRequest
+	29,  // 135: morph.v1.SessionService.Timeline:input_type -> morph.v1.GetSessionTimelineRequest
+	34,  // 136: morph.v1.ModelService.RuntimeModel:input_type -> morph.v1.RuntimeModelRequest
+	36,  // 137: morph.v1.ModelService.ListProviders:input_type -> morph.v1.ListProvidersRequest
+	39,  // 138: morph.v1.ModelService.ListModels:input_type -> morph.v1.ListModelsRequest
+	42,  // 139: morph.v1.ModelService.SelectModel:input_type -> morph.v1.SelectModelRequest
+	44,  // 140: morph.v1.ModelService.SetProviderAPIKey:input_type -> morph.v1.SetProviderAPIKeyRequest
+	47,  // 141: morph.v1.GatewayService.Status:input_type -> morph.v1.GetGatewayStatusRequest
+	49,  // 142: morph.v1.GatewayService.Start:input_type -> morph.v1.StartGatewayRequest
+	51,  // 143: morph.v1.GatewayService.Stop:input_type -> morph.v1.StopGatewayRequest
+	53,  // 144: morph.v1.GatewayService.Restart:input_type -> morph.v1.RestartGatewayRequest
+	57,  // 145: morph.v1.GatewayService.ListPairings:input_type -> morph.v1.ListGatewayPairingsRequest
+	59,  // 146: morph.v1.GatewayService.ApprovePairing:input_type -> morph.v1.ApproveGatewayPairingRequest
+	61,  // 147: morph.v1.GatewayService.RevokePairing:input_type -> morph.v1.RevokeGatewayPairingRequest
+	63,  // 148: morph.v1.GatewayService.ClearPendingPairings:input_type -> morph.v1.ClearPendingGatewayPairingsRequest
+	72,  // 149: morph.v1.AutomationService.Status:input_type -> morph.v1.GetAutomationStatusRequest
+	74,  // 150: morph.v1.AutomationService.ListJobs:input_type -> morph.v1.ListAutomationJobsRequest
+	76,  // 151: morph.v1.AutomationService.AddJob:input_type -> morph.v1.AddAutomationJobRequest
+	78,  // 152: morph.v1.AutomationService.UpdateJob:input_type -> morph.v1.UpdateAutomationJobRequest
+	80,  // 153: morph.v1.AutomationService.RemoveJob:input_type -> morph.v1.RemoveAutomationJobRequest
+	82,  // 154: morph.v1.AutomationService.RunJob:input_type -> morph.v1.RunAutomationJobRequest
+	84,  // 155: morph.v1.AutomationService.ListRuns:input_type -> morph.v1.ListAutomationRunsRequest
+	88,  // 156: morph.v1.PermissionService.ListRequests:input_type -> morph.v1.ListPermissionRequestsRequest
+	90,  // 157: morph.v1.PermissionService.GetRequest:input_type -> morph.v1.GetPermissionRequestRequest
+	92,  // 158: morph.v1.PermissionService.ResolveRequest:input_type -> morph.v1.ResolvePermissionRequestRequest
+	94,  // 159: morph.v1.PermissionService.ListGrants:input_type -> morph.v1.ListPermissionGrantsRequest
+	120, // 160: morph.v1.PermissionService.GetGrant:input_type -> morph.v1.GetPermissionGrantRequest
+	96,  // 161: morph.v1.PermissionService.RevokeGrant:input_type -> morph.v1.RevokePermissionGrantRequest
+	98,  // 162: morph.v1.PermissionService.DeleteRecord:input_type -> morph.v1.DeletePermissionRecordRequest
+	100, // 163: morph.v1.PermissionService.Prune:input_type -> morph.v1.PrunePermissionApprovalsRequest
+	106, // 164: morph.v1.BrowserService.Status:input_type -> morph.v1.GetBrowserStatusRequest
+	108, // 165: morph.v1.BrowserService.ListProfiles:input_type -> morph.v1.ListBrowserProfilesRequest
+	110, // 166: morph.v1.BrowserService.ListSessions:input_type -> morph.v1.ListBrowserSessionsRequest
+	112, // 167: morph.v1.BrowserService.Start:input_type -> morph.v1.StartBrowserRequest
+	114, // 168: morph.v1.BrowserService.Stop:input_type -> morph.v1.StopBrowserRequest
+	116, // 169: morph.v1.BrowserService.ReadArtifact:input_type -> morph.v1.ReadBrowserArtifactRequest
+	118, // 170: morph.v1.BrowserService.EffectiveConfig:input_type -> morph.v1.GetBrowserEffectiveConfigRequest
+	127, // 171: morph.v1.AuthService.OpenSession:input_type -> morph.v1.OpenAuthSessionRequest
+	129, // 172: morph.v1.AuthService.CloseSession:input_type -> morph.v1.CloseAuthSessionRequest
+	131, // 173: morph.v1.AuthService.ListSessions:input_type -> morph.v1.ListAuthSessionsRequest
+	133, // 174: morph.v1.AuthService.RevokeSession:input_type -> morph.v1.RevokeAuthSessionRequest
+	135, // 175: morph.v1.AuthService.ListTokens:input_type -> morph.v1.ListAuthTokensRequest
+	137, // 176: morph.v1.AuthService.RevokeToken:input_type -> morph.v1.RevokeAuthTokenRequest
+	139, // 177: morph.v1.AuthService.ListAuthorizations:input_type -> morph.v1.ListAuthAuthorizationsRequest
+	141, // 178: morph.v1.AuthService.GrantAuthorization:input_type -> morph.v1.GrantAuthAuthorizationRequest
+	143, // 179: morph.v1.AuthService.RevokeAuthorization:input_type -> morph.v1.RevokeAuthAuthorizationRequest
+	145, // 180: morph.v1.AuthService.ListAudit:input_type -> morph.v1.ListAuthAuditRequest
+	147, // 181: morph.v1.AuthService.PruneAudit:input_type -> morph.v1.PruneAuthAuditRequest
+	149, // 182: morph.v1.AuthService.RotateIdentity:input_type -> morph.v1.RotateAuthIdentityRequest
+	151, // 183: morph.v1.AuthService.IdentityStatus:input_type -> morph.v1.GetAuthIdentityStatusRequest
+	4,   // 184: morph.v1.MorphService.Respond:output_type -> morph.v1.RespondEvent
+	7,   // 185: morph.v1.SessionService.Create:output_type -> morph.v1.CreateSessionResponse
+	9,   // 186: morph.v1.SessionService.List:output_type -> morph.v1.ListSessionsResponse
+	11,  // 187: morph.v1.SessionService.Use:output_type -> morph.v1.UseSessionResponse
+	13,  // 188: morph.v1.SessionService.Archive:output_type -> morph.v1.ArchiveSessionResponse
+	15,  // 189: morph.v1.SessionService.Unarchive:output_type -> morph.v1.UnarchiveSessionResponse
+	17,  // 190: morph.v1.SessionService.Rename:output_type -> morph.v1.RenameSessionResponse
+	19,  // 191: morph.v1.SessionService.Current:output_type -> morph.v1.CurrentSessionResponse
+	21,  // 192: morph.v1.SessionService.Compact:output_type -> morph.v1.CompactSessionResponse
+	23,  // 193: morph.v1.SessionService.Repair:output_type -> morph.v1.RepairSessionResponse
+	28,  // 194: morph.v1.SessionService.Status:output_type -> morph.v1.GetSessionStatusResponse
+	33,  // 195: morph.v1.SessionService.Timeline:output_type -> morph.v1.GetSessionTimelineResponse
+	35,  // 196: morph.v1.ModelService.RuntimeModel:output_type -> morph.v1.RuntimeModelResponse
+	38,  // 197: morph.v1.ModelService.ListProviders:output_type -> morph.v1.ListProvidersResponse
+	41,  // 198: morph.v1.ModelService.ListModels:output_type -> morph.v1.ListModelsResponse
+	43,  // 199: morph.v1.ModelService.SelectModel:output_type -> morph.v1.SelectModelResponse
+	45,  // 200: morph.v1.ModelService.SetProviderAPIKey:output_type -> morph.v1.SetProviderAPIKeyResponse
+	48,  // 201: morph.v1.GatewayService.Status:output_type -> morph.v1.GetGatewayStatusResponse
+	50,  // 202: morph.v1.GatewayService.Start:output_type -> morph.v1.StartGatewayResponse
+	52,  // 203: morph.v1.GatewayService.Stop:output_type -> morph.v1.StopGatewayResponse
+	54,  // 204: morph.v1.GatewayService.Restart:output_type -> morph.v1.RestartGatewayResponse
+	58,  // 205: morph.v1.GatewayService.ListPairings:output_type -> morph.v1.ListGatewayPairingsResponse
+	60,  // 206: morph.v1.GatewayService.ApprovePairing:output_type -> morph.v1.ApproveGatewayPairingResponse
+	62,  // 207: morph.v1.GatewayService.RevokePairing:output_type -> morph.v1.RevokeGatewayPairingResponse
+	64,  // 208: morph.v1.GatewayService.ClearPendingPairings:output_type -> morph.v1.ClearPendingGatewayPairingsResponse
+	73,  // 209: morph.v1.AutomationService.Status:output_type -> morph.v1.GetAutomationStatusResponse
+	75,  // 210: morph.v1.AutomationService.ListJobs:output_type -> morph.v1.ListAutomationJobsResponse
+	77,  // 211: morph.v1.AutomationService.AddJob:output_type -> morph.v1.AddAutomationJobResponse
+	79,  // 212: morph.v1.AutomationService.UpdateJob:output_type -> morph.v1.UpdateAutomationJobResponse
+	81,  // 213: morph.v1.AutomationService.RemoveJob:output_type -> morph.v1.RemoveAutomationJobResponse
+	83,  // 214: morph.v1.AutomationService.RunJob:output_type -> morph.v1.RunAutomationJobResponse
+	85,  // 215: morph.v1.AutomationService.ListRuns:output_type -> morph.v1.ListAutomationRunsResponse
+	89,  // 216: morph.v1.PermissionService.ListRequests:output_type -> morph.v1.ListPermissionRequestsResponse
+	91,  // 217: morph.v1.PermissionService.GetRequest:output_type -> morph.v1.GetPermissionRequestResponse
+	93,  // 218: morph.v1.PermissionService.ResolveRequest:output_type -> morph.v1.ResolvePermissionRequestResponse
+	95,  // 219: morph.v1.PermissionService.ListGrants:output_type -> morph.v1.ListPermissionGrantsResponse
+	121, // 220: morph.v1.PermissionService.GetGrant:output_type -> morph.v1.GetPermissionGrantResponse
+	97,  // 221: morph.v1.PermissionService.RevokeGrant:output_type -> morph.v1.RevokePermissionGrantResponse
+	99,  // 222: morph.v1.PermissionService.DeleteRecord:output_type -> morph.v1.DeletePermissionRecordResponse
+	101, // 223: morph.v1.PermissionService.Prune:output_type -> morph.v1.PrunePermissionApprovalsResponse
+	107, // 224: morph.v1.BrowserService.Status:output_type -> morph.v1.GetBrowserStatusResponse
+	109, // 225: morph.v1.BrowserService.ListProfiles:output_type -> morph.v1.ListBrowserProfilesResponse
+	111, // 226: morph.v1.BrowserService.ListSessions:output_type -> morph.v1.ListBrowserSessionsResponse
+	113, // 227: morph.v1.BrowserService.Start:output_type -> morph.v1.StartBrowserResponse
+	115, // 228: morph.v1.BrowserService.Stop:output_type -> morph.v1.StopBrowserResponse
+	117, // 229: morph.v1.BrowserService.ReadArtifact:output_type -> morph.v1.ReadBrowserArtifactResponse
+	119, // 230: morph.v1.BrowserService.EffectiveConfig:output_type -> morph.v1.GetBrowserEffectiveConfigResponse
+	128, // 231: morph.v1.AuthService.OpenSession:output_type -> morph.v1.OpenAuthSessionResponse
+	130, // 232: morph.v1.AuthService.CloseSession:output_type -> morph.v1.CloseAuthSessionResponse
+	132, // 233: morph.v1.AuthService.ListSessions:output_type -> morph.v1.ListAuthSessionsResponse
+	134, // 234: morph.v1.AuthService.RevokeSession:output_type -> morph.v1.RevokeAuthSessionResponse
+	136, // 235: morph.v1.AuthService.ListTokens:output_type -> morph.v1.ListAuthTokensResponse
+	138, // 236: morph.v1.AuthService.RevokeToken:output_type -> morph.v1.RevokeAuthTokenResponse
+	140, // 237: morph.v1.AuthService.ListAuthorizations:output_type -> morph.v1.ListAuthAuthorizationsResponse
+	142, // 238: morph.v1.AuthService.GrantAuthorization:output_type -> morph.v1.GrantAuthAuthorizationResponse
+	144, // 239: morph.v1.AuthService.RevokeAuthorization:output_type -> morph.v1.RevokeAuthAuthorizationResponse
+	146, // 240: morph.v1.AuthService.ListAudit:output_type -> morph.v1.ListAuthAuditResponse
+	148, // 241: morph.v1.AuthService.PruneAudit:output_type -> morph.v1.PruneAuthAuditResponse
+	150, // 242: morph.v1.AuthService.RotateIdentity:output_type -> morph.v1.RotateAuthIdentityResponse
+	152, // 243: morph.v1.AuthService.IdentityStatus:output_type -> morph.v1.GetAuthIdentityStatusResponse
+	184, // [184:244] is the sub-list for method output_type
+	124, // [124:184] is the sub-list for method input_type
+	124, // [124:124] is the sub-list for extension type_name
+	124, // [124:124] is the sub-list for extension extendee
+	0,   // [0:124] is the sub-list for field type_name
 }
 
 func init() { file_internal_rpc_proto_morph_proto_init() }

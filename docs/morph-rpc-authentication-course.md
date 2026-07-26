@@ -346,7 +346,7 @@ sqlite3 "$PROFILE_HOME/data/auth.db" \
 The SQLite store uses normalized tables for authorizations, their roles and scopes, sessions, session roles, tokens,
 token roles and scopes, per-method usage, and audit events. A store mutation writes one SQLite transaction, so related
 rows change together, and a revision check rejects stale concurrent writers. Usage and keepalive flushes update only
-dirty session and token rows. Audit rollover deletes the expired event and appends one stable sequence instead of
+dirty session and token rows. Audit rollover deletes the oldest event and appends one stable sequence instead of
 renumbering retained history. Token rows contain safe claim metadata and nonces, not raw JWT strings or private keys.
 
 ## 6. Watch Automatic CLI Credentials Live and Die
@@ -365,10 +365,43 @@ first command's revoked session plus its own currently active session.
 Now inspect tokens:
 
 ```console
-morph_lab auth --json token list
+morph_lab auth token list
 ```
 
-Find the token whose status is active while the response is being produced. Its methods should resemble:
+Session and token text listings use headerless cards. The status and record ID form the first line, followed by the
+safe metadata that is useful during an incident:
+
+```text
+[active] <record-id>
+  Identity:    <identity-id>
+  User:        <user-id>
+  ...
+```
+
+Both commands return at most 25 records by default. Override the limit or filter by effective status:
+
+```console
+morph_lab auth session list --status active --limit 10
+morph_lab auth session list --status revoked
+morph_lab auth session list --status expired
+
+morph_lab auth token list --status active --limit 10
+morph_lab auth token list --status revoked
+morph_lab auth token list --status expired
+```
+
+Morph computes `expired` while answering the request. A token is expired when its token deadline has passed. A session
+is expired when either its idle or absolute deadline has passed. Revocation takes precedence over expiration. Filtering
+happens before the limit, so `--status active --limit 10` means up to ten active records rather than ten arbitrary
+records filtered locally.
+
+Use JSON when you want to inspect scopes and other complete safe metadata:
+
+```console
+morph_lab auth --json token list --status active
+```
+
+Find the token whose effective status is active while the response is being produced. Its methods should resemble:
 
 ```text
 /morph.v1.AuthService/ListTokens
@@ -395,6 +428,26 @@ session_revoked   reason="authenticated client closed"
 
 The management command that reads the audit also creates and closes its own short-lived session.
 
+Audit listings also default to 25 records. Filters are combined and applied before the limit:
+
+```console
+morph_lab auth audit list \
+  --type scope_denied \
+  --identity <identity-id> \
+  --session <session-id> \
+  --token <token-id> \
+  --method /morph.v1.AuthService/ListTokens \
+  --since 24h \
+  --limit 25
+```
+
+Authorization records support their two durable states:
+
+```console
+morph_lab auth --json authorization list --status active
+morph_lab auth --json authorization list --status revoked
+```
+
 ### CLI and TUI lifecycle differences
 
 | Client | Default token TTL | Renewal | Clean shutdown |
@@ -414,7 +467,6 @@ Generate a token that can list auth sessions and nothing else:
 SCOPED_TOKEN="$MORPH_LAB_ROOT/list-sessions.jwt"
 
 morph_lab auth token generate \
-  --session course-list-sessions \
   --method /morph.v1.AuthService/ListSessions \
   --ttl 10m \
   --output "$SCOPED_TOKEN"
@@ -480,7 +532,9 @@ Use the explicit token:
 with_token "$SCOPED_TOKEN" auth session list
 ```
 
-It succeeds and leaves `course-list-sessions` active because Morph will not manage an explicit token's lifecycle.
+It succeeds and leaves the generated session active because Morph will not manage an explicit token's lifecycle.
+Omitting `--session` is intentional: it gives each run a fresh session ID instead of colliding with an expired or
+revoked tombstone from an earlier pass through the course.
 
 Now try an RPC outside its method scope:
 
@@ -939,7 +993,8 @@ The in-memory audit history also retains at most 10,000 events, dropping the old
 Manual inspection:
 
 ```console
-morph_lab auth --json audit list --limit 50
+morph_lab auth audit list --since 24h --limit 50
+morph_lab auth audit list --type scope_denied --limit 25
 ```
 
 Manual pruning:
@@ -961,6 +1016,22 @@ Daemon retention runs:
 
 Each in-memory prune batch initially divides its budget fairly among tokens, sessions, and audit events, then
 redistributes unused budget. SQLite performs multiple in-memory batches and persists one final snapshot.
+
+Validity and retention are separate clocks:
+
+| Record | Stops authenticating | Becomes eligible for automatic deletion |
+| --- | --- | --- |
+| Token | Expiry or immediate revocation | 30 days after `expires_at` |
+| Session | Idle expiry, absolute expiry, or immediate revocation | 30 days after `absolute_expires_at` |
+| Audit event | Not applicable | 30 days after `created_at`, or earlier when the 10,000-event cap rolls over |
+| Authorization | Immediate revocation or supersession | Not automatically deleted |
+
+The session and token rows act as replay tombstones after they stop authenticating. Revoking a token early does not
+move its deletion date forward: a token revoked today that was due to expire tomorrow remains until 30 days after
+tomorrow. Session cleanup similarly uses the absolute deadline rather than the earlier idle or revocation time.
+
+The 30-day tombstone and audit windows are currently fixed daemon policy. The remaining hardening plan is to make them
+validated configuration while retaining bounded pruning. Revoked authorization records currently remain indefinitely.
 
 Exercise the controls directly:
 
@@ -1162,10 +1233,10 @@ Useful commands:
 ```console
 morph_lab daemon status
 morph_lab auth identity show
-morph_lab auth --json authorization list
-morph_lab auth session list
-morph_lab auth token list
-morph_lab auth --json audit list --limit 50
+morph_lab auth --json authorization list --status active
+morph_lab auth session list --status active
+morph_lab auth token list --status active
+morph_lab auth audit list --since 1h --limit 50
 ```
 
 ### `RPC method is not authorized`

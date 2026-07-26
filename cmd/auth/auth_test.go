@@ -612,7 +612,7 @@ func TestCommand_AuditListHonorsTextAndJSONOutput(t *testing.T) {
 		Reason:     "method is not authorized",
 		CreatedAt:  createdAt,
 	}}
-	var requestedLimits []int32
+	var requestedOptions []rpcclient.AuthAuditListOptions
 	originalClient := newMorphAuthClient
 	t.Cleanup(func() { newMorphAuthClient = originalClient })
 	newMorphAuthClient = func(
@@ -625,8 +625,8 @@ func TestCommand_AuditListHonorsTextAndJSONOutput(t *testing.T) {
 		}, methods)
 		return morphAuthClientStub{api: authAPIStub{
 			auditEvents: events,
-			auditLimit: func(limit int32) {
-				requestedLimits = append(requestedLimits, limit)
+			auditOptions: func(options rpcclient.AuthAuditListOptions) {
+				requestedOptions = append(requestedOptions, options)
 			},
 		}}, nil
 	}
@@ -638,7 +638,7 @@ func TestCommand_AuditListHonorsTextAndJSONOutput(t *testing.T) {
 		"auth", "audit", "list",
 	})
 	require.NoError(t, err)
-	require.Equal(t, []int32{25}, requestedLimits)
+	require.Equal(t, int32(25), requestedOptions[0].Limit)
 	require.True(t, strings.HasPrefix(output.String(), "[scope_denied] "))
 	require.Contains(
 		t,
@@ -653,15 +653,97 @@ func TestCommand_AuditListHonorsTextAndJSONOutput(t *testing.T) {
 	require.Contains(t, output.String(), "Reason:      method is not authorized")
 
 	output.Reset()
+	requestedAt := time.Now()
 	err = NewCommand().Run(context.Background(), []string{
 		"auth", "--json", "audit", "list", "--limit", "1",
+		"--type", "scope_denied",
+		"--identity", "identity-1",
+		"--session", "session-1",
+		"--token", "token-1",
+		"--method", "/morph.v1.AuthService/ListTokens",
+		"--since", "1h",
 	})
 	require.NoError(t, err)
-	require.Equal(t, []int32{25, 1}, requestedLimits)
+	require.Len(t, requestedOptions, 2)
+	require.Equal(t, int32(1), requestedOptions[1].Limit)
+	require.Equal(t, "scope_denied", requestedOptions[1].Type)
+	require.Equal(t, "identity-1", requestedOptions[1].IdentityID)
+	require.Equal(t, "session-1", requestedOptions[1].SessionID)
+	require.Equal(t, "token-1", requestedOptions[1].TokenID)
+	require.Equal(t, "/morph.v1.AuthService/ListTokens", requestedOptions[1].Method)
+	require.WithinDuration(t, requestedAt.Add(-time.Hour), requestedOptions[1].Since, time.Second)
 	var decoded []map[string]any
 	require.NoError(t, json.Unmarshal(output.Bytes(), &decoded))
 	require.Len(t, decoded, 1)
 	require.Equal(t, "audit-1", decoded[0]["id"])
+}
+
+func TestCommand_SessionListHonorsTextAndJSONOutput(t *testing.T) {
+	setAuthTestProfile(t)
+	createdAt := timestamppb.New(time.Date(2026, 7, 25, 18, 30, 0, 0, time.UTC))
+	lastSeenAt := timestamppb.New(time.Date(2026, 7, 25, 18, 45, 0, 0, time.UTC))
+	idleExpiresAt := timestamppb.New(time.Date(2026, 7, 25, 19, 0, 0, 0, time.UTC))
+	absoluteExpiresAt := timestamppb.New(time.Date(2026, 7, 26, 18, 30, 0, 0, time.UTC))
+	sessions := []*morphpb.AuthSession{{
+		Id:                "session-1",
+		IdentityId:        "identity-1",
+		UserId:            "user-1",
+		Source:            "cli",
+		Status:            morphauth.StatusActive,
+		CreatedAt:         createdAt,
+		LastSeenAt:        lastSeenAt,
+		IdleExpiresAt:     idleExpiresAt,
+		AbsoluteExpiresAt: absoluteExpiresAt,
+	}}
+	var requestedOptions []rpcclient.AuthSessionListOptions
+	originalClient := newMorphAuthClient
+	t.Cleanup(func() { newMorphAuthClient = originalClient })
+	newMorphAuthClient = func(
+		_ context.Context,
+		_ *config.Config,
+		methods []string,
+	) (morphAuthClient, error) {
+		require.Equal(t, []string{
+			morphpb.AuthService_ListSessions_FullMethodName,
+		}, methods)
+		return morphAuthClientStub{api: authAPIStub{
+			sessions: sessions,
+			sessionOptions: func(options rpcclient.AuthSessionListOptions) {
+				requestedOptions = append(requestedOptions, options)
+			},
+		}}, nil
+	}
+	output := &bytes.Buffer{}
+	restoreOutput := SetOutput(output)
+	t.Cleanup(func() { SetOutput(restoreOutput) })
+
+	err := NewCommand().Run(context.Background(), []string{
+		"auth", "session", "list",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []rpcclient.AuthSessionListOptions{{Limit: 25}}, requestedOptions)
+	require.True(t, strings.HasPrefix(output.String(), "[active] session-1\n"))
+	require.Contains(t, output.String(), "Identity:    identity-1")
+	require.Contains(t, output.String(), "User:        user-1")
+	require.Contains(t, output.String(), "Source:      cli")
+	require.Contains(t, output.String(), "Created:     "+formatProtoTime(createdAt))
+	require.Contains(t, output.String(), "Last seen:   "+formatProtoTime(lastSeenAt))
+	require.Contains(t, output.String(), "Idle expires: "+formatProtoTime(idleExpiresAt))
+	require.Contains(t, output.String(), "Expires:     "+formatProtoTime(absoluteExpiresAt))
+
+	output.Reset()
+	err = NewCommand().Run(context.Background(), []string{
+		"auth", "--json", "session", "list", "--limit", "3", "--status", "expired",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []rpcclient.AuthSessionListOptions{
+		{Limit: 25},
+		{Limit: 3, Status: "expired"},
+	}, requestedOptions)
+	var decoded []map[string]any
+	require.NoError(t, json.Unmarshal(output.Bytes(), &decoded))
+	require.Len(t, decoded, 1)
+	require.Equal(t, "session-1", decoded[0]["id"])
 }
 
 func TestCommand_TokenListHonorsTextAndJSONOutput(t *testing.T) {
@@ -678,7 +760,7 @@ func TestCommand_TokenListHonorsTextAndJSONOutput(t *testing.T) {
 		LastUsedAt: lastUsedAt,
 		UseCount:   3,
 	}}
-	var requestedLimits []int32
+	var requestedOptions []rpcclient.AuthTokenListOptions
 	originalClient := newMorphAuthClient
 	t.Cleanup(func() { newMorphAuthClient = originalClient })
 	newMorphAuthClient = func(
@@ -691,8 +773,8 @@ func TestCommand_TokenListHonorsTextAndJSONOutput(t *testing.T) {
 		}, methods)
 		return morphAuthClientStub{api: authAPIStub{
 			tokens: tokens,
-			tokenLimit: func(limit int32) {
-				requestedLimits = append(requestedLimits, limit)
+			tokenOptions: func(options rpcclient.AuthTokenListOptions) {
+				requestedOptions = append(requestedOptions, options)
 			},
 		}}, nil
 	}
@@ -704,7 +786,7 @@ func TestCommand_TokenListHonorsTextAndJSONOutput(t *testing.T) {
 		"auth", "token", "list",
 	})
 	require.NoError(t, err)
-	require.Equal(t, []int32{25}, requestedLimits)
+	require.Equal(t, []rpcclient.AuthTokenListOptions{{Limit: 25}}, requestedOptions)
 	require.True(t, strings.HasPrefix(output.String(), "[active] token-1\n"))
 	require.Contains(t, output.String(), "[active] token-1")
 	require.Contains(t, output.String(), "Session:     session-1")
@@ -716,14 +798,48 @@ func TestCommand_TokenListHonorsTextAndJSONOutput(t *testing.T) {
 
 	output.Reset()
 	err = NewCommand().Run(context.Background(), []string{
-		"auth", "--json", "token", "list", "--limit", "3",
+		"auth", "--json", "token", "list", "--limit", "3", "--status", "revoked",
 	})
 	require.NoError(t, err)
-	require.Equal(t, []int32{25, 3}, requestedLimits)
+	require.Equal(t, []rpcclient.AuthTokenListOptions{
+		{Limit: 25},
+		{Limit: 3, Status: "revoked"},
+	}, requestedOptions)
 	var decoded []map[string]any
 	require.NoError(t, json.Unmarshal(output.Bytes(), &decoded))
 	require.Len(t, decoded, 1)
 	require.Equal(t, "token-1", decoded[0]["id"])
+}
+
+func TestCommand_AuthorizationListPassesStatusFilter(t *testing.T) {
+	setAuthTestProfile(t)
+	var requestedOptions []rpcclient.AuthAuthorizationListOptions
+	originalClient := newMorphAuthClient
+	t.Cleanup(func() { newMorphAuthClient = originalClient })
+	newMorphAuthClient = func(
+		_ context.Context,
+		_ *config.Config,
+		methods []string,
+	) (morphAuthClient, error) {
+		require.Equal(t, []string{
+			morphpb.AuthService_ListAuthorizations_FullMethodName,
+		}, methods)
+		return morphAuthClientStub{api: authAPIStub{
+			authorizationOptions: func(options rpcclient.AuthAuthorizationListOptions) {
+				requestedOptions = append(requestedOptions, options)
+			},
+		}}, nil
+	}
+	output := &bytes.Buffer{}
+	restoreOutput := SetOutput(output)
+	t.Cleanup(func() { SetOutput(restoreOutput) })
+
+	err := NewCommand().Run(context.Background(), []string{
+		"auth", "authorization", "list", "--status", "active",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []rpcclient.AuthAuthorizationListOptions{{Status: "active"}}, requestedOptions)
+	require.JSONEq(t, "[]", output.String())
 }
 
 func TestAuditListToText_FormatsEmptyState(t *testing.T) {
@@ -732,6 +848,10 @@ func TestAuditListToText_FormatsEmptyState(t *testing.T) {
 		"No RPC authentication audit events found.\n",
 		auditListToText(nil),
 	)
+}
+
+func TestSessionListToText_FormatsEmptyState(t *testing.T) {
+	require.Equal(t, "No RPC authentication sessions found.\n", sessionListToText(nil))
 }
 
 func TestTokenListToText_FormatsEmptyState(t *testing.T) {
@@ -826,14 +946,20 @@ func (s morphAuthClientStub) AuthAPI() rpcclient.AuthAPI {
 
 type authAPIStub struct {
 	rpcclient.AuthAPI
-	identityStatus *morphpb.GetAuthIdentityStatusResponse
-	identityErr    error
-	auditEvents    []*morphpb.AuthAuditEvent
-	auditErr       error
-	auditLimit     func(int32)
-	tokens         []*morphpb.AuthToken
-	tokenErr       error
-	tokenLimit     func(int32)
+	identityStatus       *morphpb.GetAuthIdentityStatusResponse
+	identityErr          error
+	auditEvents          []*morphpb.AuthAuditEvent
+	auditErr             error
+	auditOptions         func(rpcclient.AuthAuditListOptions)
+	sessions             []*morphpb.AuthSession
+	sessionErr           error
+	sessionOptions       func(rpcclient.AuthSessionListOptions)
+	tokens               []*morphpb.AuthToken
+	tokenErr             error
+	tokenOptions         func(rpcclient.AuthTokenListOptions)
+	authorizations       []*morphpb.AuthAuthorization
+	authorizationErr     error
+	authorizationOptions func(rpcclient.AuthAuthorizationListOptions)
 }
 
 func (s authAPIStub) IdentityStatus(
@@ -844,22 +970,42 @@ func (s authAPIStub) IdentityStatus(
 
 func (s authAPIStub) ListAudit(
 	_ context.Context,
-	limit int32,
+	options rpcclient.AuthAuditListOptions,
 ) ([]*morphpb.AuthAuditEvent, error) {
-	if s.auditLimit != nil {
-		s.auditLimit(limit)
+	if s.auditOptions != nil {
+		s.auditOptions(options)
 	}
 	return s.auditEvents, s.auditErr
 }
 
+func (s authAPIStub) ListSessions(
+	_ context.Context,
+	options rpcclient.AuthSessionListOptions,
+) ([]*morphpb.AuthSession, error) {
+	if s.sessionOptions != nil {
+		s.sessionOptions(options)
+	}
+	return s.sessions, s.sessionErr
+}
+
 func (s authAPIStub) ListTokens(
 	_ context.Context,
-	limit int32,
+	options rpcclient.AuthTokenListOptions,
 ) ([]*morphpb.AuthToken, error) {
-	if s.tokenLimit != nil {
-		s.tokenLimit(limit)
+	if s.tokenOptions != nil {
+		s.tokenOptions(options)
 	}
 	return s.tokens, s.tokenErr
+}
+
+func (s authAPIStub) ListAuthorizations(
+	_ context.Context,
+	options rpcclient.AuthAuthorizationListOptions,
+) ([]*morphpb.AuthAuthorization, error) {
+	if s.authorizationOptions != nil {
+		s.authorizationOptions(options)
+	}
+	return s.authorizations, s.authorizationErr
 }
 
 func (errorWriter) Write([]byte) (int, error) {

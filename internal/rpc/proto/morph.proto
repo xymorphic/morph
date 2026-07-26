@@ -906,7 +906,10 @@ message CloseAuthSessionResponse {
   AuthSession session = 1;
 }
 
-message ListAuthSessionsRequest {}
+message ListAuthSessionsRequest {
+  int32 limit = 1;
+  string status = 2;
+}
 message ListAuthSessionsResponse {
   repeated AuthSession sessions = 1;
 }
@@ -918,7 +921,10 @@ message RevokeAuthSessionResponse {
   AuthSession session = 1;
 }
 
-message ListAuthTokensRequest { int32 limit = 1; }
+message ListAuthTokensRequest {
+  int32 limit = 1;
+  string status = 2;
+}
 message ListAuthTokensResponse {
   repeated AuthToken tokens = 1;
 }
@@ -930,7 +936,9 @@ message RevokeAuthTokenResponse {
   AuthToken token = 1;
 }
 
-message ListAuthAuthorizationsRequest {}
+message ListAuthAuthorizationsRequest {
+  string status = 1;
+}
 message ListAuthAuthorizationsResponse {
   repeated AuthAuthorization authorizations = 1;
 }
@@ -950,6 +958,12 @@ message RevokeAuthAuthorizationResponse {
 
 message ListAuthAuditRequest {
   int32 limit = 1;
+  string type = 2;
+  string identity_id = 3;
+  string session_id = 4;
+  string token_id = 5;
+  string method = 6;
+  google.protobuf.Timestamp since = 7;
 }
 message ListAuthAuditResponse {
   repeated AuthAuditEvent events = 1;

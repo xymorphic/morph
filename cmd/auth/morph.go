@@ -11,7 +11,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	cli "github.com/urfave/cli/v3"
@@ -216,26 +215,25 @@ func newSessionCommand() *cli.Command {
 		Commands: []*cli.Command{
 			{
 				Name: "list", Usage: "List RPC auth sessions",
-				Flags: []cli.Flag{morphcli.ProfileFlag()},
+				Flags: []cli.Flag{
+					morphcli.ProfileFlag(),
+					&cli.IntFlag{Name: "limit", Value: 25},
+					&cli.StringFlag{Name: "status"},
+				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					return withMorphAuthAPI(ctx, cmd, []string{
 						morphpb.AuthService_ListSessions_FullMethodName,
 					}, func(api rpcclient.AuthAPI) error {
-						sessions, err := api.ListSessions(ctx)
+						sessions, err := api.ListSessions(ctx, rpcclient.AuthSessionListOptions{
+							Limit: int32(cmd.Int("limit")), Status: cmd.String("status"),
+						})
 						if err != nil {
 							return err
 						}
 						if cmd.Bool("json") {
 							return writeJSONValue(sessions)
 						}
-						writer := tabwriter.NewWriter(authOutput, 0, 4, 2, ' ', 0)
-						_, _ = fmt.Fprintln(writer, "ID\tIDENTITY\tSTATUS\tEXPIRES")
-						for _, session := range sessions {
-							_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%s\n",
-								session.GetId(), session.GetIdentityId(), session.GetStatus(),
-								formatProtoTime(session.GetAbsoluteExpiresAt()))
-						}
-						return writer.Flush()
+						return writeSessionList(sessions)
 					})
 				},
 			},
@@ -291,12 +289,15 @@ func newTokenCommand() *cli.Command {
 				Flags: []cli.Flag{
 					morphcli.ProfileFlag(),
 					&cli.IntFlag{Name: "limit", Value: 25},
+					&cli.StringFlag{Name: "status"},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					return withMorphAuthAPI(ctx, cmd, []string{
 						morphpb.AuthService_ListTokens_FullMethodName,
 					}, func(api rpcclient.AuthAPI) error {
-						tokens, err := api.ListTokens(ctx, int32(cmd.Int("limit")))
+						tokens, err := api.ListTokens(ctx, rpcclient.AuthTokenListOptions{
+							Limit: int32(cmd.Int("limit")), Status: cmd.String("status"),
+						})
 						if err != nil {
 							return err
 						}
@@ -339,12 +340,18 @@ func newAuthorizationCommand() *cli.Command {
 		Commands: []*cli.Command{
 			{
 				Name: "list", Usage: "List RPC identity authorizations",
-				Flags: []cli.Flag{morphcli.ProfileFlag()},
+				Flags: []cli.Flag{
+					morphcli.ProfileFlag(),
+					&cli.StringFlag{Name: "status"},
+				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					return withMorphAuthAPI(ctx, cmd, []string{
 						morphpb.AuthService_ListAuthorizations_FullMethodName,
 					}, func(api rpcclient.AuthAPI) error {
-						authorizations, err := api.ListAuthorizations(ctx)
+						authorizations, err := api.ListAuthorizations(
+							ctx,
+							rpcclient.AuthAuthorizationListOptions{Status: cmd.String("status")},
+						)
 						if err != nil {
 							return err
 						}
@@ -403,12 +410,37 @@ func newAuditCommand() *cli.Command {
 		Commands: []*cli.Command{
 			{
 				Name: "list", Usage: "List RPC authentication audit events",
-				Flags: []cli.Flag{morphcli.ProfileFlag(), &cli.IntFlag{Name: "limit", Value: 25}},
+				Flags: []cli.Flag{
+					morphcli.ProfileFlag(),
+					&cli.IntFlag{Name: "limit", Value: 25},
+					&cli.StringFlag{Name: "type"},
+					&cli.StringFlag{Name: "identity"},
+					&cli.StringFlag{Name: "session"},
+					&cli.StringFlag{Name: "token"},
+					&cli.StringFlag{Name: "method"},
+					&cli.DurationFlag{Name: "since"},
+				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
+					sinceDuration := cmd.Duration("since")
+					if sinceDuration < 0 {
+						return errors.New("audit since duration must not be negative")
+					}
+					var since time.Time
+					if sinceDuration > 0 {
+						since = time.Now().Add(-sinceDuration)
+					}
 					return withMorphAuthAPI(ctx, cmd, []string{
 						morphpb.AuthService_ListAudit_FullMethodName,
 					}, func(api rpcclient.AuthAPI) error {
-						events, err := api.ListAudit(ctx, int32(cmd.Int("limit")))
+						events, err := api.ListAudit(ctx, rpcclient.AuthAuditListOptions{
+							Limit:      int32(cmd.Int("limit")),
+							Type:       cmd.String("type"),
+							IdentityID: cmd.String("identity"),
+							SessionID:  cmd.String("session"),
+							TokenID:    cmd.String("token"),
+							Method:     cmd.String("method"),
+							Since:      since,
+						})
 						if err != nil {
 							return err
 						}
@@ -674,6 +706,41 @@ func writeJSONValue(value any) error {
 func writeAuditList(events []*morphpb.AuthAuditEvent) error {
 	_, err := fmt.Fprint(authOutput, auditListToText(events))
 	return err
+}
+
+func writeSessionList(sessions []*morphpb.AuthSession) error {
+	_, err := fmt.Fprint(authOutput, sessionListToText(sessions))
+	return err
+}
+
+func sessionListToText(sessions []*morphpb.AuthSession) string {
+	if len(sessions) == 0 {
+		return "No RPC authentication sessions found.\n"
+	}
+
+	var output strings.Builder
+	for index, session := range sessions {
+		if index > 0 {
+			output.WriteByte('\n')
+		}
+		fmt.Fprintf(
+			&output,
+			"[%s] %s\n",
+			getAuthDisplayText(session.GetStatus()),
+			getAuthDisplayText(session.GetId()),
+		)
+		appendAuthField(&output, "Identity", session.GetIdentityId())
+		appendAuthField(&output, "User", session.GetUserId())
+		appendAuthField(&output, "Source", session.GetSource())
+		appendAuthField(&output, "Created", formatProtoTime(session.GetCreatedAt()))
+		appendAuthField(&output, "Last seen", formatProtoTime(session.GetLastSeenAt()))
+		appendAuthField(&output, "Idle expires", formatProtoTime(session.GetIdleExpiresAt()))
+		appendAuthField(&output, "Expires", formatProtoTime(session.GetAbsoluteExpiresAt()))
+		appendAuthField(&output, "Revoked at", formatProtoTime(session.GetRevokedAt()))
+		appendAuthField(&output, "Reason", session.GetRevocationNote())
+	}
+
+	return output.String()
 }
 
 func writeTokenList(tokens []*morphpb.AuthToken) error {

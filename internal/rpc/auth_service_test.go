@@ -14,6 +14,7 @@ import (
 	"github.com/wandxy/morph/internal/rpc/rpcmeta"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestAuthService_GrantsListsAndRevokesBoundedAuthorization(t *testing.T) {
@@ -50,6 +51,25 @@ func TestAuthService_GrantsListsAndRevokesBoundedAuthorization(t *testing.T) {
 	stored, err := store.GetAuthorization(context.Background(), delegated.ID)
 	require.NoError(t, err)
 	require.Equal(t, morphauth.StatusRevoked, stored.Status)
+
+	listed, err = service.ListAuthorizations(ctx, &morphpb.ListAuthAuthorizationsRequest{
+		Status: morphauth.StatusActive,
+	})
+	require.NoError(t, err)
+	require.Len(t, listed.GetAuthorizations(), 1)
+	require.Equal(t, morphauth.StatusActive, listed.GetAuthorizations()[0].GetStatus())
+
+	listed, err = service.ListAuthorizations(ctx, &morphpb.ListAuthAuthorizationsRequest{
+		Status: morphauth.StatusRevoked,
+	})
+	require.NoError(t, err)
+	require.Len(t, listed.GetAuthorizations(), 1)
+	require.Equal(t, delegated.ID, listed.GetAuthorizations()[0].GetIdentityId())
+
+	_, err = service.ListAuthorizations(ctx, &morphpb.ListAuthAuthorizationsRequest{
+		Status: morphauth.StatusExpired,
+	})
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
 func TestAuthService_RejectsIdentityMismatchUnknownScopeAndExcessiveTTL(t *testing.T) {
@@ -138,6 +158,99 @@ func TestAuthService_ClosesOnlyAuthenticatedSession(t *testing.T) {
 	require.Equal(t, morphauth.StatusRevoked, response.GetSession().GetStatus())
 }
 
+func TestAuthService_ListSessionsAppliesLimit(t *testing.T) {
+	service, store := newRPCAuthService(t)
+	now := time.Now().UTC()
+	for index := range 3 {
+		id := strconv.Itoa(index)
+		require.NoError(t, store.Activate(
+			context.Background(),
+			morphauth.Session{
+				ID: "session-" + id, IdentityID: "identity",
+				Status: morphauth.StatusActive, CreatedAt: now.Add(time.Duration(index) * time.Second),
+				AbsoluteExpiresAt: now.Add(time.Hour),
+			},
+			morphauth.Token{
+				ID: "token-" + id, SessionID: "session-" + id, IdentityID: "identity",
+				Status: morphauth.StatusActive, IssuedAt: now.Add(time.Duration(index) * time.Second),
+				ExpiresAt: now.Add(time.Hour),
+			},
+		))
+	}
+
+	response, err := service.ListSessions(
+		ownerAuthContext(),
+		&morphpb.ListAuthSessionsRequest{Limit: 2},
+	)
+	require.NoError(t, err)
+	require.Len(t, response.GetSessions(), 2)
+	require.Equal(t, "session-2", response.GetSessions()[0].GetId())
+	require.Equal(t, "session-1", response.GetSessions()[1].GetId())
+
+	response, err = service.ListSessions(
+		ownerAuthContext(),
+		&morphpb.ListAuthSessionsRequest{},
+	)
+	require.NoError(t, err)
+	require.Len(t, response.GetSessions(), 3)
+
+	_, err = service.ListSessions(
+		ownerAuthContext(),
+		&morphpb.ListAuthSessionsRequest{Limit: -1},
+	)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
+func TestAuthService_ListSessionsFiltersEffectiveStatusBeforeLimit(t *testing.T) {
+	service, store := newRPCAuthService(t)
+	now := time.Now().UTC()
+	for _, session := range []morphauth.Session{
+		{
+			ID: "active-session", IdentityID: "identity", Status: morphauth.StatusActive,
+			CreatedAt: now.Add(-2 * time.Minute), IdleExpiresAt: now.Add(time.Hour),
+			AbsoluteExpiresAt: now.Add(2 * time.Hour),
+		},
+		{
+			ID: "expired-session", IdentityID: "identity", Status: morphauth.StatusActive,
+			CreatedAt: now.Add(-time.Minute), IdleExpiresAt: now.Add(-time.Second),
+			AbsoluteExpiresAt: now.Add(time.Hour),
+		},
+	} {
+		require.NoError(t, store.Activate(
+			context.Background(),
+			session,
+			morphauth.Token{
+				ID: "token-" + session.ID, SessionID: session.ID, IdentityID: "identity",
+				Status: morphauth.StatusActive, IssuedAt: session.CreatedAt,
+				ExpiresAt: now.Add(time.Hour),
+			},
+		))
+	}
+
+	response, err := service.ListSessions(
+		ownerAuthContext(),
+		&morphpb.ListAuthSessionsRequest{Limit: 1, Status: morphauth.StatusActive},
+	)
+	require.NoError(t, err)
+	require.Len(t, response.GetSessions(), 1)
+	require.Equal(t, "active-session", response.GetSessions()[0].GetId())
+
+	response, err = service.ListSessions(
+		ownerAuthContext(),
+		&morphpb.ListAuthSessionsRequest{Status: morphauth.StatusExpired},
+	)
+	require.NoError(t, err)
+	require.Len(t, response.GetSessions(), 1)
+	require.Equal(t, "expired-session", response.GetSessions()[0].GetId())
+	require.Equal(t, morphauth.StatusExpired, response.GetSessions()[0].GetStatus())
+
+	_, err = service.ListSessions(
+		ownerAuthContext(),
+		&morphpb.ListAuthSessionsRequest{Status: "unknown"},
+	)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
 func TestAuthService_ListTokensAppliesLimit(t *testing.T) {
 	service, store := newRPCAuthService(t)
 	now := time.Now().UTC()
@@ -178,6 +291,97 @@ func TestAuthService_ListTokensAppliesLimit(t *testing.T) {
 		ownerAuthContext(),
 		&morphpb.ListAuthTokensRequest{Limit: -1},
 	)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
+func TestAuthService_ListTokensFiltersEffectiveStatusBeforeLimit(t *testing.T) {
+	service, store := newRPCAuthService(t)
+	now := time.Now().UTC()
+	for _, token := range []morphauth.Token{
+		{
+			ID: "active-token", SessionID: "active-session", IdentityID: "identity",
+			Status: morphauth.StatusActive, IssuedAt: now.Add(-2 * time.Minute),
+			ExpiresAt: now.Add(time.Hour),
+		},
+		{
+			ID: "expired-token", SessionID: "expired-session", IdentityID: "identity",
+			Status: morphauth.StatusActive, IssuedAt: now.Add(-time.Minute),
+			ExpiresAt: now.Add(-time.Second),
+		},
+	} {
+		require.NoError(t, store.Activate(
+			context.Background(),
+			morphauth.Session{
+				ID: token.SessionID, IdentityID: "identity", Status: morphauth.StatusActive,
+				CreatedAt: token.IssuedAt, IdleExpiresAt: now.Add(time.Hour),
+				AbsoluteExpiresAt: now.Add(2 * time.Hour),
+			},
+			token,
+		))
+	}
+
+	response, err := service.ListTokens(
+		ownerAuthContext(),
+		&morphpb.ListAuthTokensRequest{Limit: 1, Status: morphauth.StatusActive},
+	)
+	require.NoError(t, err)
+	require.Len(t, response.GetTokens(), 1)
+	require.Equal(t, "active-token", response.GetTokens()[0].GetId())
+
+	response, err = service.ListTokens(
+		ownerAuthContext(),
+		&morphpb.ListAuthTokensRequest{Status: morphauth.StatusExpired},
+	)
+	require.NoError(t, err)
+	require.Len(t, response.GetTokens(), 1)
+	require.Equal(t, "expired-token", response.GetTokens()[0].GetId())
+	require.Equal(t, morphauth.StatusExpired, response.GetTokens()[0].GetStatus())
+
+	_, err = service.ListTokens(
+		ownerAuthContext(),
+		&morphpb.ListAuthTokensRequest{Status: "unknown"},
+	)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
+func TestAuthService_ListAuditAppliesFiltersBeforeLimit(t *testing.T) {
+	service, store := newRPCAuthService(t)
+	now := time.Now().UTC()
+	require.NoError(t, store.AppendAudit(context.Background(), morphauth.AuditEvent{
+		ID: "matching", Type: "scope_denied", IdentityID: "identity-1",
+		SessionID: "session-1", TokenID: "token-1",
+		Method:    morphpb.AuthService_ListTokens_FullMethodName,
+		CreatedAt: now.Add(-time.Hour),
+	}))
+	require.NoError(t, store.AppendAudit(context.Background(), morphauth.AuditEvent{
+		ID: "newer-nonmatching", Type: "token_revoked", IdentityID: "identity-2",
+		CreatedAt: now.Add(-time.Minute),
+	}))
+
+	response, err := service.ListAudit(ownerAuthContext(), &morphpb.ListAuthAuditRequest{
+		Limit:      1,
+		Type:       "scope_denied",
+		IdentityId: "identity-1",
+		SessionId:  "session-1",
+		TokenId:    "token-1",
+		Method:     morphpb.AuthService_ListTokens_FullMethodName,
+		Since:      timestamppb.New(now.Add(-2 * time.Hour)),
+	})
+	require.NoError(t, err)
+	require.Len(t, response.GetEvents(), 1)
+	require.Equal(t, "matching", response.GetEvents()[0].GetId())
+
+	_, err = service.ListAudit(ownerAuthContext(), &morphpb.ListAuthAuditRequest{
+		Method: "invalid",
+	})
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+	_, err = service.ListAudit(ownerAuthContext(), &morphpb.ListAuthAuditRequest{
+		Since: timestamppb.New(now.Add(time.Hour)),
+	})
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+	_, err = service.ListAudit(ownerAuthContext(), &morphpb.ListAuthAuditRequest{
+		Limit: -1,
+	})
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 

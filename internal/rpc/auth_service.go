@@ -79,10 +79,17 @@ func (s *AuthService) CloseSession(
 
 func (s *AuthService) ListSessions(
 	ctx context.Context,
-	_ *morphpb.ListAuthSessionsRequest,
+	request *morphpb.ListAuthSessionsRequest,
 ) (*morphpb.ListAuthSessionsResponse, error) {
 	if err := requireOwner(ctx); err != nil {
 		return nil, err
+	}
+	if request.GetLimit() < 0 {
+		return nil, status.Error(codes.InvalidArgument, "session list limit must not be negative")
+	}
+	statusFilter, err := getAuthStatusFilter(request.GetStatus(), true)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	sessions, err := s.auth.Store().ListSessions(ctx)
 	if err != nil {
@@ -91,8 +98,16 @@ func (s *AuthService) ListSessions(
 	response := &morphpb.ListAuthSessionsResponse{
 		Sessions: make([]*morphpb.AuthSession, 0, len(sessions)),
 	}
+	now := time.Now().UTC()
 	for _, session := range sessions {
+		session.Status = getEffectiveSessionStatus(session, now)
+		if statusFilter != "" && session.Status != statusFilter {
+			continue
+		}
 		response.Sessions = append(response.Sessions, authSessionToProto(session))
+		if hasReachedAuthListLimit(len(response.Sessions), request.GetLimit()) {
+			break
+		}
 	}
 
 	return response, nil
@@ -129,18 +144,27 @@ func (s *AuthService) ListTokens(
 	if request.GetLimit() < 0 {
 		return nil, status.Error(codes.InvalidArgument, "token list limit must not be negative")
 	}
+	statusFilter, err := getAuthStatusFilter(request.GetStatus(), true)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	tokens, err := s.auth.Store().ListTokens(ctx)
 	if err != nil {
 		return nil, authStoreErrorToStatus(err)
 	}
-	if limit := int(request.GetLimit()); limit > 0 && len(tokens) > limit {
-		tokens = tokens[:limit]
-	}
 	response := &morphpb.ListAuthTokensResponse{
 		Tokens: make([]*morphpb.AuthToken, 0, len(tokens)),
 	}
+	now := time.Now().UTC()
 	for _, token := range tokens {
+		token.Status = getEffectiveTokenStatus(token, now)
+		if statusFilter != "" && token.Status != statusFilter {
+			continue
+		}
 		response.Tokens = append(response.Tokens, authTokenToProto(token))
+		if hasReachedAuthListLimit(len(response.Tokens), request.GetLimit()) {
+			break
+		}
 	}
 
 	return response, nil
@@ -169,10 +193,14 @@ func (s *AuthService) RevokeToken(
 
 func (s *AuthService) ListAuthorizations(
 	ctx context.Context,
-	_ *morphpb.ListAuthAuthorizationsRequest,
+	request *morphpb.ListAuthAuthorizationsRequest,
 ) (*morphpb.ListAuthAuthorizationsResponse, error) {
 	if err := requireOwner(ctx); err != nil {
 		return nil, err
+	}
+	statusFilter, err := getAuthStatusFilter(request.GetStatus(), false)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	authorizations, err := s.auth.Store().ListAuthorizations(ctx)
 	if err != nil {
@@ -182,6 +210,9 @@ func (s *AuthService) ListAuthorizations(
 		Authorizations: make([]*morphpb.AuthAuthorization, 0, len(authorizations)),
 	}
 	for _, authorization := range authorizations {
+		if statusFilter != "" && authorization.Status != statusFilter {
+			continue
+		}
 		response.Authorizations = append(response.Authorizations, authAuthorizationToProto(authorization))
 	}
 
@@ -258,15 +289,44 @@ func (s *AuthService) ListAudit(
 	if err := requireOwner(ctx); err != nil {
 		return nil, err
 	}
-	events, err := s.auth.Store().ListAudit(ctx, int(request.GetLimit()))
+	if request.GetLimit() < 0 {
+		return nil, status.Error(codes.InvalidArgument, "audit list limit must not be negative")
+	}
+	since, err := getAuthAuditSince(request.GetSince())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	method := strings.TrimSpace(request.GetMethod())
+	if method != "" {
+		method, err = morphauth.NormalizeMethod(method)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "audit method filter is invalid")
+		}
+	}
+	events, err := s.auth.Store().ListAudit(ctx, 0)
 	if err != nil {
 		return nil, authStoreErrorToStatus(err)
 	}
 	response := &morphpb.ListAuthAuditResponse{
 		Events: make([]*morphpb.AuthAuditEvent, 0, len(events)),
 	}
+	eventType := strings.TrimSpace(request.GetType())
+	identityID := strings.TrimSpace(request.GetIdentityId())
+	sessionID := strings.TrimSpace(request.GetSessionId())
+	tokenID := strings.TrimSpace(request.GetTokenId())
 	for _, event := range events {
+		if eventType != "" && event.Type != eventType ||
+			identityID != "" && event.IdentityID != identityID ||
+			sessionID != "" && event.SessionID != sessionID ||
+			tokenID != "" && event.TokenID != tokenID ||
+			method != "" && event.Method != method ||
+			!since.IsZero() && event.CreatedAt.Before(since) {
+			continue
+		}
 		response.Events = append(response.Events, authAuditEventToProto(event))
+		if hasReachedAuthListLimit(len(response.Events), request.GetLimit()) {
+			break
+		}
 	}
 
 	return response, nil
@@ -537,6 +597,64 @@ func authAuditEventToProto(event morphauth.AuditEvent) *morphpb.AuthAuditEvent {
 		SessionId: event.SessionID, TokenId: event.TokenID, Method: event.Method,
 		Reason: event.Reason, CreatedAt: timestamppb.New(event.CreatedAt),
 	}
+}
+
+func getAuthStatusFilter(value string, allowExpired bool) (string, error) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	switch value {
+	case "", morphauth.StatusActive, morphauth.StatusRevoked:
+		return value, nil
+	case morphauth.StatusExpired:
+		if allowExpired {
+			return value, nil
+		}
+	}
+
+	if allowExpired {
+		return "", errors.New("auth status must be active, revoked, or expired")
+	}
+	return "", errors.New("authorization status must be active or revoked")
+}
+
+func getEffectiveSessionStatus(session morphauth.Session, now time.Time) string {
+	if session.Status == morphauth.StatusRevoked {
+		return morphauth.StatusRevoked
+	}
+	if session.Status == morphauth.StatusExpired ||
+		!session.IdleExpiresAt.IsZero() && !now.Before(session.IdleExpiresAt) ||
+		!session.AbsoluteExpiresAt.IsZero() && !now.Before(session.AbsoluteExpiresAt) {
+		return morphauth.StatusExpired
+	}
+	return session.Status
+}
+
+func getEffectiveTokenStatus(token morphauth.Token, now time.Time) string {
+	if token.Status == morphauth.StatusRevoked {
+		return morphauth.StatusRevoked
+	}
+	if token.Status == morphauth.StatusExpired ||
+		!token.ExpiresAt.IsZero() && !now.Before(token.ExpiresAt) {
+		return morphauth.StatusExpired
+	}
+	return token.Status
+}
+
+func getAuthAuditSince(value *timestamppb.Timestamp) (time.Time, error) {
+	if value == nil {
+		return time.Time{}, nil
+	}
+	if err := value.CheckValid(); err != nil {
+		return time.Time{}, errors.New("audit since filter is invalid")
+	}
+	since := value.AsTime()
+	if since.After(time.Now()) {
+		return time.Time{}, errors.New("audit since filter must not be in the future")
+	}
+	return since, nil
+}
+
+func hasReachedAuthListLimit(count int, limit int32) bool {
+	return limit > 0 && count >= int(limit)
 }
 
 func timePtrToProto(value *time.Time) *timestamppb.Timestamp {
