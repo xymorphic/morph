@@ -198,7 +198,7 @@ func (m *model) updateTranscriptWithScrollTracking(msg tea.Msg) (tea.Model, tea.
 }
 
 func (m *model) markResponseTranscriptScrolled(previousOffset int, scrollInput bool) {
-	if !m.responding {
+	if !m.isTranscriptResponseActive() {
 		return
 	}
 	if m.isTranscriptAtAbsoluteBottom() {
@@ -215,6 +215,10 @@ func (m *model) markResponseTranscriptScrolled(previousOffset int, scrollInput b
 func (m *model) stopFollowingResponseTranscript() {
 	m.responseTranscriptScrolled = true
 	m.responseTranscriptFollow = false
+}
+
+func (m model) isTranscriptResponseActive() bool {
+	return m.responding || m.sessionExecutionState.ActiveRun != nil
 }
 
 func (m *model) applyTUIMessage(msg any) tea.Cmd {
@@ -412,7 +416,7 @@ func (m *model) addTranscriptMessage(msg any) {
 		}
 
 		m.applyAction(appendTranscriptCellAction{Cell: cell})
-		if m.responding {
+		if m.isTranscriptResponseActive() {
 			m.setTranscriptContentForResponseUpdate()
 		} else {
 			m.setTranscriptContent()
@@ -537,7 +541,7 @@ func (m *model) setRunningToolTranscriptCellsTerminal(
 }
 
 func (m *model) refreshTranscriptContentAfterMessageUpdate() {
-	if m.responding {
+	if m.isTranscriptResponseActive() {
 		m.setTranscriptContentForResponseUpdate()
 		return
 	}
@@ -627,7 +631,7 @@ func (m *model) setTranscriptContentForResponseUpdate() {
 
 func (m *model) setTranscriptContentForResponseUpdateNow() {
 	m.resizeTranscriptIfLayoutChanged()
-	if m.responding && m.responseTranscriptFollow && !m.responseTranscriptScrolled {
+	if m.isTranscriptResponseActive() && m.responseTranscriptFollow && !m.responseTranscriptScrolled {
 		m.setTranscriptContent()
 		return
 	}
@@ -805,7 +809,7 @@ func (m *model) replaceReasoningTranscriptCellWithThought(index int, duration ti
 	if !m.hasActiveReasoningTranscriptCells() {
 		m.clearReasoningTranscriptState()
 	}
-	if m.responding {
+	if m.isTranscriptResponseActive() {
 		m.setTranscriptContentForResponseUpdate()
 	} else {
 		m.setTranscriptContent()

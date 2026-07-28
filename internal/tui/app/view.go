@@ -71,7 +71,7 @@ func (m *model) jumpTranscriptToBottom() {
 		m.renderTranscriptWindowForScroll(transcriptWindowTail)
 	}
 	m.transcript.GotoBottom()
-	if m.responding {
+	if m.isTranscriptResponseActive() {
 		m.responseTranscriptFollow = true
 		m.responseTranscriptScrolled = false
 	}

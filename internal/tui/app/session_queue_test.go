@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -147,6 +148,97 @@ func TestSessionQueueTUI_RendersAcceptedQueuedUserMessageExactlyOnce(t *testing.
 	applyAccepted(2)
 
 	require.Equal(t, []string{"You: queued follow-up"}, transcriptCellPlainTexts(runModel.messages))
+}
+
+func TestSessionQueueTUI_FollowsStreamWhenNextQueuedRunStarts(t *testing.T) {
+	runModel := newModelWithClient(&sessionQueueTUIClient{})
+	runModel.height = 10
+	runModel.resize()
+	for index := 0; index < 30; index++ {
+		runModel.messages = append(
+			runModel.messages,
+			systemTranscriptCell{text: fmt.Sprintf("Message %02d", index)},
+		)
+	}
+	runModel.setTranscriptContent()
+	require.True(t, runModel.isTranscriptAtAbsoluteBottom())
+	require.False(t, runModel.responding)
+	runModel.sessionObserverSessionID = defaultSessionID
+	runModel.sessionObserverID = 2
+	runModel.sessionObserverEvents = make(chan tea.Msg)
+
+	_ = runModel.applySessionQueueEvent(sessionQueueEventMsg{
+		SessionID:  defaultSessionID,
+		ObserverID: 2,
+		Event: rpcclient.SessionEvent{
+			Cursor: 1,
+			Run: &rpcclient.SessionActiveRun{
+				ID:           "run_follow_up",
+				QueueEntryID: "qmsg_follow_up",
+				Status:       agentsession.RunStatusRunning,
+			},
+		},
+	})
+	_ = runModel.applySessionQueueEvent(sessionQueueEventMsg{
+		SessionID:  defaultSessionID,
+		ObserverID: 2,
+		Event: rpcclient.SessionEvent{Progress: &agentsession.ProgressEvent{
+			RunID:        "run_follow_up",
+			QueueEntryID: "qmsg_follow_up",
+			Sequence:     1,
+			Text:         strings.Repeat("streamed response ", 40),
+		}},
+	})
+
+	require.True(t, runModel.isTranscriptAtAbsoluteBottom())
+	require.Contains(t, stripANSI(runModel.transcript.View()), "streamed response")
+	require.Empty(t, runModel.renderJumpToBottom())
+}
+
+func TestSessionQueueTUI_DoesNotFollowQueuedRunWhenAlreadyScrolled(t *testing.T) {
+	runModel := newModelWithClient(&sessionQueueTUIClient{})
+	runModel.height = 10
+	runModel.resize()
+	for index := 0; index < 30; index++ {
+		runModel.messages = append(
+			runModel.messages,
+			systemTranscriptCell{text: fmt.Sprintf("Message %02d", index)},
+		)
+	}
+	runModel.setTranscriptContent()
+	runModel.sessionObserverSessionID = defaultSessionID
+	runModel.sessionObserverID = 2
+	runModel.sessionObserverEvents = make(chan tea.Msg)
+	runModel.scrollTranscriptWithKey(tea.KeyPressMsg{Code: tea.KeyHome})
+	offsetBefore := runModel.transcript.YOffset()
+
+	_ = runModel.applySessionQueueEvent(sessionQueueEventMsg{
+		SessionID:  defaultSessionID,
+		ObserverID: 2,
+		Event: rpcclient.SessionEvent{
+			Cursor: 1,
+			Run: &rpcclient.SessionActiveRun{
+				ID:           "run_follow_up",
+				QueueEntryID: "qmsg_follow_up",
+				Status:       agentsession.RunStatusRunning,
+			},
+		},
+	})
+	_ = runModel.applySessionQueueEvent(sessionQueueEventMsg{
+		SessionID:  defaultSessionID,
+		ObserverID: 2,
+		Event: rpcclient.SessionEvent{Progress: &agentsession.ProgressEvent{
+			RunID:        "run_follow_up",
+			QueueEntryID: "qmsg_follow_up",
+			Sequence:     1,
+			Text:         strings.Repeat("streamed response ", 40),
+		}},
+	})
+
+	require.Equal(t, offsetBefore, runModel.transcript.YOffset())
+	require.False(t, runModel.isTranscriptAtAbsoluteBottom())
+	require.NotContains(t, stripANSI(runModel.transcript.View()), "streamed response")
+	require.NotEmpty(t, runModel.renderJumpToBottom())
 }
 
 func TestSessionQueueTUI_DoesNotDuplicateOptimisticallyRenderedUserMessage(t *testing.T) {

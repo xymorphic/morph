@@ -150,6 +150,7 @@ func (m *model) applySessionExecutionState(msg sessionExecutionStateLoadedMsg) t
 	if msg.State.SessionID != m.getCurrentSessionID() {
 		return nil
 	}
+	previousActiveRunID := m.getActiveSessionRunID()
 	if msg.State.SessionID != m.sessionObserverSessionID {
 		m.sessionProgressSequences = nil
 		m.sessionDeferredProgress = nil
@@ -159,6 +160,7 @@ func (m *model) applySessionExecutionState(msg sessionExecutionStateLoadedMsg) t
 		m.sessionObserverCancel()
 	}
 	m.sessionExecutionState = msg.State
+	m.initializeObservedRunTranscriptFollow(previousActiveRunID)
 	m.sessionQueueStale = false
 	m.setSessionQueueSelectionByID(selectedEntryID)
 	m.clampSessionQueueSelection()
@@ -255,8 +257,10 @@ func (m *model) applySessionQueueEvent(msg sessionQueueEventMsg) tea.Cmd {
 	}
 	if event.Run != nil {
 		if event.Run.Status == agentsession.RunStatusRunning {
+			previousActiveRunID := m.getActiveSessionRunID()
 			run := *event.Run
 			m.sessionExecutionState.ActiveRun = &run
+			m.initializeObservedRunTranscriptFollow(previousActiveRunID)
 			cmds = append(cmds, m.flushDeferredSessionProgress(run.QueueEntryID)...)
 		} else {
 			m.sessionExecutionState.ActiveRun = nil
@@ -284,6 +288,23 @@ func (m *model) applySessionQueueEvent(msg sessionQueueEventMsg) tea.Cmd {
 		)
 	}
 	return tea.Batch(cmds...)
+}
+
+func (m model) getActiveSessionRunID() string {
+	if m.sessionExecutionState.ActiveRun == nil {
+		return ""
+	}
+	return m.sessionExecutionState.ActiveRun.ID
+}
+
+func (m *model) initializeObservedRunTranscriptFollow(previousRunID string) {
+	activeRun := m.sessionExecutionState.ActiveRun
+	if m.responding || activeRun == nil || activeRun.ID == previousRunID {
+		return
+	}
+
+	m.responseTranscriptFollow = m.isTranscriptAtAbsoluteBottom()
+	m.responseTranscriptScrolled = false
 }
 
 func (m *model) isActiveRunProgress(
