@@ -616,7 +616,7 @@ func TestTranscriptCells_ExposeTypedCellContract(t *testing.T) {
 			cell:       manualCompactionTranscriptCell{state: manualCompactionState{Status: "succeeded"}},
 			kind:       transcriptCellCompaction,
 			plainText:  "Manual compaction completed",
-			renderText: "Manual compaction completed",
+			renderText: "● Manual Compaction",
 		},
 		{
 			name:       "tool",
@@ -644,7 +644,7 @@ func TestTranscriptCells_ExposeTypedCellContract(t *testing.T) {
 				require.NotContains(t, stripANSI(rendered), "╰")
 			}
 			if tt.kind == transcriptCellCompaction {
-				require.Equal(t, 2, strings.Count(stripANSI(rendered), strings.Repeat("─", 40)))
+				require.NotContains(t, stripANSI(rendered), strings.Repeat("─", 40))
 			}
 		})
 	}
@@ -1304,7 +1304,60 @@ func TestRenderTranscriptCells_CompactsConsecutiveManualCompactionEvents(t *test
 	}))
 
 	require.NotContains(t, rendered, "Automatic compaction started")
-	require.Contains(t, rendered, "Automatic compaction completed")
+	require.Equal(t, 1, strings.Count(rendered, "Automatic Compaction"))
+}
+
+func TestRenderManualCompactionCell_UsesToolEventLifecycleRendering(t *testing.T) {
+	tests := []struct {
+		name        string
+		state       manualCompactionState
+		wantOutcome toolTranscriptGroupOutcome
+		want        []string
+	}{
+		{
+			name:        "running",
+			state:       manualCompactionState{Status: "running", Label: autoCompactionLabel},
+			wantOutcome: toolTranscriptGroupOutcomeRunning,
+			want:        []string{"● Automatic Compaction"},
+		},
+		{
+			name:        "completed",
+			state:       manualCompactionState{Status: "succeeded", Label: autoCompactionLabel},
+			wantOutcome: toolTranscriptGroupOutcomeCompleted,
+			want:        []string{"● Automatic Compaction"},
+		},
+		{
+			name:        "failed",
+			state:       manualCompactionState{Status: "failed", Label: autoCompactionLabel, Error: "summary failed"},
+			wantOutcome: toolTranscriptGroupOutcomeFailed,
+			want:        []string{"● Failed Automatic Compaction", "└ summary failed"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.wantOutcome, getCompactionToolGroup(tt.state).outcome())
+
+			rendered := stripANSI(renderManualCompactionCell(
+				manualCompactionTranscriptCell{state: tt.state},
+				transcriptRenderContext{Width: 40},
+			))
+
+			for _, want := range tt.want {
+				require.Contains(t, rendered, want)
+			}
+			require.NotContains(t, rendered, strings.Repeat("─", 40))
+		})
+	}
+}
+
+func TestRenderManualCompactionCell_HidesUnknownLifecycleStatus(t *testing.T) {
+	rendered := renderManualCompactionCell(
+		manualCompactionTranscriptCell{state: manualCompactionState{Status: "unknown"}},
+		transcriptRenderContext{Width: 40},
+	)
+
+	require.Empty(t, rendered)
 }
 
 func TestRenderTranscriptCells_RendersSessionSearchWithFriendlyText(t *testing.T) {

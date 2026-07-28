@@ -29,7 +29,7 @@ func TestModel_UpdateHandlesCompactCommand(t *testing.T) {
 	require.True(t, runModel.manualCompactionActive)
 	require.Empty(t, runModel.input.Value())
 	require.Equal(t, []string{"Manual compaction started"}, transcriptCellPlainTexts(runModel.messages))
-	require.Contains(t, stripANSI(runModel.View().Content), "Manual compaction started")
+	require.Contains(t, stripANSI(runModel.View().Content), "Manual Compaction")
 
 	msg := compactSessionMessageFromBatch(t, cmd)
 	updated, cmd = runModel.Update(msg)
@@ -41,7 +41,7 @@ func TestModel_UpdateHandlesCompactCommand(t *testing.T) {
 	require.Equal(t, "session compacted", runModel.status.Text())
 	require.False(t, runModel.manualCompactionActive)
 	require.Equal(t, []string{"Manual compaction completed"}, transcriptCellPlainTexts(runModel.messages))
-	require.Contains(t, stripANSI(runModel.View().Content), "Manual compaction completed")
+	require.Contains(t, stripANSI(runModel.View().Content), "Manual Compaction")
 }
 
 func TestModel_UpdateDisablesInputDuringCompactCommand(t *testing.T) {
@@ -124,7 +124,8 @@ func TestModel_UpdateReportsCompactCommandFailure(t *testing.T) {
 	require.Equal(t, "compaction failed", runModel.status.Text())
 	require.False(t, runModel.manualCompactionActive)
 	require.Equal(t, []string{"Manual compaction failed: summary failed"}, transcriptCellPlainTexts(runModel.messages))
-	require.Contains(t, stripANSI(runModel.View().Content), "Manual compaction failed")
+	require.Contains(t, stripANSI(runModel.View().Content), "Failed Manual Compaction")
+	require.Contains(t, stripANSI(runModel.View().Content), "└ summary failed")
 }
 
 func TestModel_UpdateReportsCompactCommandUnavailable(t *testing.T) {

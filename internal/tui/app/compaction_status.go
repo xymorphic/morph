@@ -1,10 +1,7 @@
 package tui
 
 import (
-	"strings"
-
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/wandxy/morph/internal/trace"
 	"github.com/wandxy/morph/pkg/str"
@@ -12,7 +9,8 @@ import (
 
 const autoCompactionLabel = "Automatic compaction"
 const manualCompactionLabel = "Manual compaction"
-const manualCompactionShimmerStep = 4
+const autoCompactionAction = "Automatic Compaction"
+const manualCompactionAction = "Manual Compaction"
 
 type manualCompactionState struct {
 	Status string
@@ -110,56 +108,37 @@ func (m *model) completeManualCompactionStatus(err error) {
 }
 
 func renderManualCompactionCell(cell manualCompactionTranscriptCell, ctx transcriptRenderContext) string {
-	text := cell.state.displayText()
-	if text == "" {
+	if cell.state.displayText() == "" {
 		return ""
 	}
 
-	line := ""
-	if !cell.state.isInProgress() {
-		line += lipgloss.NewStyle().
-			Foreground(lipgloss.Color(defaultTUITheme.CompactionText)).
-			Render(text)
-	} else {
-		line += renderManualCompactionShimmer(text, ctx.Frame)
-	}
-
-	width := max(ctx.Width, 1)
-	separator := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(defaultTUITheme.CompactionSeparator)).
-		Render(strings.Repeat("─", width))
-
-	return strings.Join([]string{
-		separator,
-		centerManualCompactionLine(line, width),
-		separator,
-	}, "\n")
+	return renderToolTranscriptGroupWithContext(getCompactionToolGroup(cell.state), ctx)
 }
 
-func renderManualCompactionShimmer(text string, frame int) string {
-	runes := []rune(text)
-	if len(runes) == 0 {
-		return ""
+func getCompactionToolGroup(state manualCompactionState) toolTranscriptGroup {
+	group := toolTranscriptGroup{action: getCompactionToolAction(state.Label)}
+	statusValue := str.String(state.Status)
+	switch statusValue.Normalized() {
+	case "succeeded", "completed":
+		group.completed = true
+	case "failed":
+		group.terminalStatus = toolTranscriptTerminalStatusFailed
+		errorValue := str.String(state.Error)
+		if err := errorValue.Trim(); err != "" {
+			group.details = []toolTranscriptDetail{{
+				text:           err,
+				terminalStatus: toolTranscriptTerminalStatusFailed,
+			}}
+		}
 	}
 
-	var builder strings.Builder
-	shimmerFrame := frame * manualCompactionShimmerStep
-	for index, char := range runes {
-		color := getThinkingStatusColor(index, shimmerFrame, len(runes))
-		builder.WriteString(lipgloss.NewStyle().
-			Inline(true).
-			Foreground(lipgloss.Color(color)).
-			Render(string(char)))
-	}
-
-	return builder.String()
+	return group
 }
 
-func centerManualCompactionLine(line string, width int) string {
-	if width <= 0 {
-		return line
+func getCompactionToolAction(label string) string {
+	labelValue := str.String(label)
+	if labelValue.Normalized() == str.String(autoCompactionLabel).Normalized() {
+		return autoCompactionAction
 	}
-
-	pad := max((width-lipgloss.Width(line))/2, 0)
-	return strings.Repeat(" ", pad) + line
+	return manualCompactionAction
 }
