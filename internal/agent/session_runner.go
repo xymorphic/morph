@@ -278,6 +278,25 @@ func (a *Agent) PromoteSessionQueueEntry(
 	return entry, err
 }
 
+func (a *Agent) SteerSessionQueueEntry(
+	ctx context.Context,
+	req agentsession.QueueMutationRequest,
+) (agentsession.QueueEntry, error) {
+	if err := a.checkSessionQueueReady(); err != nil {
+		return agentsession.QueueEntry{}, err
+	}
+	session, _, err := a.resolveSessionAuthorization(ctx, req.SessionID)
+	if err != nil {
+		return agentsession.QueueEntry{}, err
+	}
+	req.SessionID = session.ID
+	entry, err := a.stateMgr.SteerQueueEntry(ctx, req)
+	if err == nil {
+		a.wakeSessionRunner(session.ID)
+	}
+	return entry, err
+}
+
 func (a *Agent) InterruptSessionRun(
 	ctx context.Context,
 	sessionID string,

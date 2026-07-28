@@ -191,6 +191,34 @@ func TestSessionQueueService_MapsQueueMutations(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "qmsg_test", promoted.GetEntry().GetId())
 	require.Equal(t, "qmsg_test", api.PromotedEntryID)
+
+	steered, err := service.SteerQueuedMessage(
+		context.Background(),
+		&morphpb.SteerQueuedSessionMessageRequest{Id: "default", EntryId: "qmsg_test"},
+	)
+	require.NoError(t, err)
+	require.Equal(t, "qmsg_test", steered.GetEntry().GetId())
+	require.Equal(t, "qmsg_test", api.SteeredEntryID)
+}
+
+func TestSessionQueueService_SteerQueuedMessageRejectsNilAndMapsDomainErrors(t *testing.T) {
+	response, err := newAllowedService(&agentstub.AgentServiceStub{}).
+		SteerQueuedMessage(context.Background(), nil)
+	require.Nil(t, response)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+
+	response, err = newAllowedService(&agentstub.AgentServiceStub{
+		Err: agentsession.ErrSteeringRequiresRun,
+	}).SteerQueuedMessage(
+		context.Background(),
+		&morphpb.SteerQueuedSessionMessageRequest{
+			Id:      "default",
+			EntryId: "qmsg_test",
+		},
+	)
+	require.Nil(t, response)
+	require.Equal(t, codes.FailedPrecondition, status.Code(err))
+	require.ErrorContains(t, err, agentsession.ErrSteeringRequiresRun.Error())
 }
 
 func TestSessionQueueService_RejectsExpiredObserveCursor(t *testing.T) {

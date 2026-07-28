@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -131,6 +132,14 @@ func TestSessionQueueClient_MapsMutationsAndInterrupt(t *testing.T) {
 		PromoteQueuedResp: &morphpb.PromoteQueuedSessionMessageResponse{
 			Entry: &morphpb.SessionQueueEntry{Id: "qmsg_test", Priority: 2},
 		},
+		SteerQueuedResp: &morphpb.SteerQueuedSessionMessageResponse{
+			Entry: &morphpb.SessionQueueEntry{
+				Id:                    "qmsg_test",
+				RequestedDeliveryMode: string(agentsession.DeliveryModeSteering),
+				DeliveryMode:          string(agentsession.DeliveryModeSteering),
+				TargetRunId:           "run_test",
+			},
+		},
 		InterruptRunResp: &morphpb.InterruptSessionRunResponse{
 			Run: &morphpb.SessionActiveRun{Id: "run_test"}, Transitioned: true,
 		},
@@ -145,10 +154,33 @@ func TestSessionQueueClient_MapsMutationsAndInterrupt(t *testing.T) {
 	promoted, err := client.PromoteQueuedMessage(context.Background(), "default", "qmsg_test")
 	require.NoError(t, err)
 	require.Equal(t, int64(2), promoted.Priority)
+	steered, err := client.SteerQueuedMessage(context.Background(), "default", "qmsg_test")
+	require.NoError(t, err)
+	require.Equal(t, agentsession.DeliveryModeSteering, steered.DeliveryMode)
+	require.Equal(t, "run_test", steered.TargetRunID)
+	require.Equal(t, "default", stub.SteerQueuedReq.GetId())
+	require.Equal(t, "qmsg_test", stub.SteerQueuedReq.GetEntryId())
 	run, transitioned, err := client.InterruptRun(context.Background(), "default")
 	require.NoError(t, err)
 	require.True(t, transitioned)
 	require.Equal(t, "run_test", run.ID)
+}
+
+func TestSessionQueueClient_SteerQueuedMessageReturnsTransportError(t *testing.T) {
+	expected := errors.New("transport failed")
+	stub := &protomock.MorphServiceClientStub{Err: expected}
+	client := NewSessionService(stub)
+
+	entry, err := client.SteerQueuedMessage(
+		context.Background(),
+		"default",
+		"qmsg_test",
+	)
+
+	require.Empty(t, entry)
+	require.ErrorIs(t, err, expected)
+	require.Equal(t, "default", stub.SteerQueuedReq.GetId())
+	require.Equal(t, "qmsg_test", stub.SteerQueuedReq.GetEntryId())
 }
 
 func TestSessionQueueClient_PublicClientDelegatesQueueOperations(t *testing.T) {
@@ -164,6 +196,9 @@ func TestSessionQueueClient_PublicClientDelegatesQueueOperations(t *testing.T) {
 			Entry: &morphpb.SessionQueueEntry{Id: "qmsg_test"},
 		},
 		PromoteQueuedResp: &morphpb.PromoteQueuedSessionMessageResponse{
+			Entry: &morphpb.SessionQueueEntry{Id: "qmsg_test"},
+		},
+		SteerQueuedResp: &morphpb.SteerQueuedSessionMessageResponse{
 			Entry: &morphpb.SessionQueueEntry{Id: "qmsg_test"},
 		},
 		InterruptRunResp: &morphpb.InterruptSessionRunResponse{},
@@ -183,6 +218,8 @@ func TestSessionQueueClient_PublicClientDelegatesQueueOperations(t *testing.T) {
 	require.NoError(t, err)
 	_, err = client.PromoteQueuedMessage(context.Background(), "default", "qmsg_test")
 	require.NoError(t, err)
+	_, err = client.SteerQueuedMessage(context.Background(), "default", "qmsg_test")
+	require.NoError(t, err)
 	_, _, err = client.InterruptRun(context.Background(), "default")
 	require.NoError(t, err)
 
@@ -201,6 +238,8 @@ func TestSessionQueueClient_PublicClientDelegatesQueueOperations(t *testing.T) {
 	_, err = unavailable.RemoveQueuedMessage(context.Background(), "default", "qmsg_test")
 	require.EqualError(t, err, "RPC client is unavailable")
 	_, err = unavailable.PromoteQueuedMessage(context.Background(), "default", "qmsg_test")
+	require.EqualError(t, err, "RPC client is unavailable")
+	_, err = unavailable.SteerQueuedMessage(context.Background(), "default", "qmsg_test")
 	require.EqualError(t, err, "RPC client is unavailable")
 	_, _, err = unavailable.InterruptRun(context.Background(), "default")
 	require.EqualError(t, err, "RPC client is unavailable")

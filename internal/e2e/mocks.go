@@ -275,6 +275,14 @@ func (s rpcAdapterClientStub) PromoteQueuedMessage(
 	return rpcclient.SessionQueueEntry{}, nil
 }
 
+func (s rpcAdapterClientStub) SteerQueuedMessage(
+	context.Context,
+	string,
+	string,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, nil
+}
+
 func (s rpcAdapterClientStub) InterruptRun(
 	context.Context,
 	string,

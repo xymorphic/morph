@@ -180,6 +180,7 @@ type ChatAPI interface {
 	EditQueuedMessage(context.Context, string, string, string) (SessionQueueEntry, error)
 	RemoveQueuedMessage(context.Context, string, string) (SessionQueueEntry, error)
 	PromoteQueuedMessage(context.Context, string, string) (SessionQueueEntry, error)
+	SteerQueuedMessage(context.Context, string, string) (SessionQueueEntry, error)
 	InterruptRun(context.Context, string) (SessionActiveRun, bool, error)
 }
 

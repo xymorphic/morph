@@ -1629,6 +1629,14 @@ func (c *chatOnlyClient) PromoteQueuedMessage(
 	return rpcclient.SessionQueueEntry{}, nil
 }
 
+func (c *chatOnlyClient) SteerQueuedMessage(
+	context.Context,
+	string,
+	string,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, nil
+}
+
 func (c *chatOnlyClient) InterruptRun(
 	context.Context,
 	string,

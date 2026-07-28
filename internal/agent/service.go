@@ -59,5 +59,6 @@ type SessionQueueAPI interface {
 	EditSessionQueueEntry(context.Context, agentsession.QueueEditRequest) (agentsession.QueueEntry, error)
 	CancelSessionQueueEntry(context.Context, agentsession.QueueMutationRequest) (agentsession.QueueEntry, error)
 	PromoteSessionQueueEntry(context.Context, agentsession.QueueMutationRequest) (agentsession.QueueEntry, error)
+	SteerSessionQueueEntry(context.Context, agentsession.QueueMutationRequest) (agentsession.QueueEntry, error)
 	InterruptSessionRun(context.Context, string) (agentsession.ActiveRun, bool, error)
 }

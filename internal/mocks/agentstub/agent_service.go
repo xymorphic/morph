@@ -94,6 +94,7 @@ type AgentServiceStub struct {
 	EditedEntryContent   string
 	RemovedEntryID       string
 	PromotedEntryID      string
+	SteeredEntryID       string
 }
 
 func (s *AgentServiceStub) Respond(ctx context.Context, msg string, opts agent.RespondOptions) (string, error) {
@@ -205,6 +206,15 @@ func (s *AgentServiceStub) PromoteQueuedMessage(
 	return s.QueueEntry, s.Err
 }
 
+func (s *AgentServiceStub) SteerQueuedMessage(
+	_ context.Context,
+	_ string,
+	entryID string,
+) (rpcclient.SessionQueueEntry, error) {
+	s.SteeredEntryID = entryID
+	return s.QueueEntry, s.Err
+}
+
 func (s *AgentServiceStub) InterruptRun(
 	context.Context,
 	string,
@@ -262,6 +272,13 @@ func (s *AgentServiceStub) PromoteSessionQueueEntry(
 	req agentsession.QueueMutationRequest,
 ) (agentsession.QueueEntry, error) {
 	return s.PromoteQueuedMessage(ctx, req.SessionID, req.EntryID)
+}
+
+func (s *AgentServiceStub) SteerSessionQueueEntry(
+	ctx context.Context,
+	req agentsession.QueueMutationRequest,
+) (agentsession.QueueEntry, error) {
+	return s.SteerQueuedMessage(ctx, req.SessionID, req.EntryID)
 }
 
 func (s *AgentServiceStub) InterruptSessionRun(

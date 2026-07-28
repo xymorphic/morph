@@ -7213,6 +7213,14 @@ func (c *fakeTUIChatClient) PromoteQueuedMessage(
 	return rpcclient.SessionQueueEntry{}, c.err
 }
 
+func (c *fakeTUIChatClient) SteerQueuedMessage(
+	context.Context,
+	string,
+	string,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, c.err
+}
+
 func (c *fakeTUIChatClient) InterruptRun(
 	context.Context,
 	string,

@@ -26,6 +26,8 @@ type MorphServiceClientStub struct {
 	RemoveQueuedResp   *morphpb.RemoveQueuedSessionMessageResponse
 	PromoteQueuedReq   *morphpb.PromoteQueuedSessionMessageRequest
 	PromoteQueuedResp  *morphpb.PromoteQueuedSessionMessageResponse
+	SteerQueuedReq     *morphpb.SteerQueuedSessionMessageRequest
+	SteerQueuedResp    *morphpb.SteerQueuedSessionMessageResponse
 	InterruptRunReq    *morphpb.InterruptSessionRunRequest
 	InterruptRunResp   *morphpb.InterruptSessionRunResponse
 	CreateResp         *morphpb.CreateSessionResponse
@@ -183,6 +185,15 @@ func (s *MorphServiceClientStub) PromoteQueuedMessage(
 ) (*morphpb.PromoteQueuedSessionMessageResponse, error) {
 	s.PromoteQueuedReq = req
 	return s.PromoteQueuedResp, s.Err
+}
+
+func (s *MorphServiceClientStub) SteerQueuedMessage(
+	_ context.Context,
+	req *morphpb.SteerQueuedSessionMessageRequest,
+	_ ...grpc.CallOption,
+) (*morphpb.SteerQueuedSessionMessageResponse, error) {
+	s.SteerQueuedReq = req
+	return s.SteerQueuedResp, s.Err
 }
 
 func (s *MorphServiceClientStub) InterruptRun(

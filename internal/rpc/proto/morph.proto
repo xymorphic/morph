@@ -24,6 +24,7 @@ service SessionService {
   rpc EditQueuedMessage(EditQueuedSessionMessageRequest) returns (EditQueuedSessionMessageResponse);
   rpc RemoveQueuedMessage(RemoveQueuedSessionMessageRequest) returns (RemoveQueuedSessionMessageResponse);
   rpc PromoteQueuedMessage(PromoteQueuedSessionMessageRequest) returns (PromoteQueuedSessionMessageResponse);
+  rpc SteerQueuedMessage(SteerQueuedSessionMessageRequest) returns (SteerQueuedSessionMessageResponse);
   rpc InterruptRun(InterruptSessionRunRequest) returns (InterruptSessionRunResponse);
 }
 
@@ -410,6 +411,15 @@ message PromoteQueuedSessionMessageRequest {
 }
 
 message PromoteQueuedSessionMessageResponse {
+  SessionQueueEntry entry = 1;
+}
+
+message SteerQueuedSessionMessageRequest {
+  string id = 1;
+  string entry_id = 2;
+}
+
+message SteerQueuedSessionMessageResponse {
   SessionQueueEntry entry = 1;
 }
 

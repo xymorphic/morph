@@ -36,6 +36,7 @@ const (
 	SessionService_EditQueuedMessage_FullMethodName    = "/morph.v1.SessionService/EditQueuedMessage"
 	SessionService_RemoveQueuedMessage_FullMethodName  = "/morph.v1.SessionService/RemoveQueuedMessage"
 	SessionService_PromoteQueuedMessage_FullMethodName = "/morph.v1.SessionService/PromoteQueuedMessage"
+	SessionService_SteerQueuedMessage_FullMethodName   = "/morph.v1.SessionService/SteerQueuedMessage"
 	SessionService_InterruptRun_FullMethodName         = "/morph.v1.SessionService/InterruptRun"
 )
 
@@ -60,6 +61,7 @@ type SessionServiceClient interface {
 	EditQueuedMessage(ctx context.Context, in *EditQueuedSessionMessageRequest, opts ...grpc.CallOption) (*EditQueuedSessionMessageResponse, error)
 	RemoveQueuedMessage(ctx context.Context, in *RemoveQueuedSessionMessageRequest, opts ...grpc.CallOption) (*RemoveQueuedSessionMessageResponse, error)
 	PromoteQueuedMessage(ctx context.Context, in *PromoteQueuedSessionMessageRequest, opts ...grpc.CallOption) (*PromoteQueuedSessionMessageResponse, error)
+	SteerQueuedMessage(ctx context.Context, in *SteerQueuedSessionMessageRequest, opts ...grpc.CallOption) (*SteerQueuedSessionMessageResponse, error)
 	InterruptRun(ctx context.Context, in *InterruptSessionRunRequest, opts ...grpc.CallOption) (*InterruptSessionRunResponse, error)
 }
 
@@ -250,6 +252,16 @@ func (c *sessionServiceClient) PromoteQueuedMessage(ctx context.Context, in *Pro
 	return out, nil
 }
 
+func (c *sessionServiceClient) SteerQueuedMessage(ctx context.Context, in *SteerQueuedSessionMessageRequest, opts ...grpc.CallOption) (*SteerQueuedSessionMessageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SteerQueuedSessionMessageResponse)
+	err := c.cc.Invoke(ctx, SessionService_SteerQueuedMessage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *sessionServiceClient) InterruptRun(ctx context.Context, in *InterruptSessionRunRequest, opts ...grpc.CallOption) (*InterruptSessionRunResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(InterruptSessionRunResponse)
@@ -281,6 +293,7 @@ type SessionServiceServer interface {
 	EditQueuedMessage(context.Context, *EditQueuedSessionMessageRequest) (*EditQueuedSessionMessageResponse, error)
 	RemoveQueuedMessage(context.Context, *RemoveQueuedSessionMessageRequest) (*RemoveQueuedSessionMessageResponse, error)
 	PromoteQueuedMessage(context.Context, *PromoteQueuedSessionMessageRequest) (*PromoteQueuedSessionMessageResponse, error)
+	SteerQueuedMessage(context.Context, *SteerQueuedSessionMessageRequest) (*SteerQueuedSessionMessageResponse, error)
 	InterruptRun(context.Context, *InterruptSessionRunRequest) (*InterruptSessionRunResponse, error)
 	mustEmbedUnimplementedSessionServiceServer()
 }
@@ -342,6 +355,9 @@ func (UnimplementedSessionServiceServer) RemoveQueuedMessage(context.Context, *R
 }
 func (UnimplementedSessionServiceServer) PromoteQueuedMessage(context.Context, *PromoteQueuedSessionMessageRequest) (*PromoteQueuedSessionMessageResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method PromoteQueuedMessage not implemented")
+}
+func (UnimplementedSessionServiceServer) SteerQueuedMessage(context.Context, *SteerQueuedSessionMessageRequest) (*SteerQueuedSessionMessageResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SteerQueuedMessage not implemented")
 }
 func (UnimplementedSessionServiceServer) InterruptRun(context.Context, *InterruptSessionRunRequest) (*InterruptSessionRunResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InterruptRun not implemented")
@@ -666,6 +682,24 @@ func _SessionService_PromoteQueuedMessage_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SessionService_SteerQueuedMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SteerQueuedSessionMessageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServiceServer).SteerQueuedMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SessionService_SteerQueuedMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServiceServer).SteerQueuedMessage(ctx, req.(*SteerQueuedSessionMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SessionService_InterruptRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(InterruptSessionRunRequest)
 	if err := dec(in); err != nil {
@@ -754,6 +788,10 @@ var SessionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PromoteQueuedMessage",
 			Handler:    _SessionService_PromoteQueuedMessage_Handler,
+		},
+		{
+			MethodName: "SteerQueuedMessage",
+			Handler:    _SessionService_SteerQueuedMessage_Handler,
 		},
 		{
 			MethodName: "InterruptRun",

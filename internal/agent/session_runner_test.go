@@ -17,6 +17,7 @@ import (
 	models "github.com/wandxy/morph/internal/model"
 	"github.com/wandxy/morph/internal/permissions"
 	storage "github.com/wandxy/morph/internal/state/core"
+	statemanager "github.com/wandxy/morph/internal/state/manager"
 	"github.com/wandxy/morph/internal/state/storememory"
 	"github.com/wandxy/morph/internal/state/storesqlite"
 	"github.com/wandxy/morph/internal/tools"
@@ -653,6 +654,60 @@ func TestSessionRunner_StopsAfterGenerationBecomesStale(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("stale runner did not stop")
+	}
+}
+
+func TestSessionRunner_SteerQueueEntryDelegatesAndWakesRunner(t *testing.T) {
+	store := storememory.NewStore()
+	require.NoError(t, store.Save(context.Background(), storage.Session{
+		ID: storage.DefaultSessionID,
+	}))
+	manager, err := statemanager.NewManager(store, time.Hour, time.Hour)
+	require.NoError(t, err)
+	core := &Agent{
+		initialized: true,
+		env:         &mocks.EnvironmentStub{},
+		stateMgr:    manager,
+	}
+	entry, err := core.SubmitSessionMessage(
+		context.Background(),
+		agentsession.SubmitRequest{
+			SessionID:          storage.DefaultSessionID,
+			Content:            "change direction",
+			ClientSubmissionID: "submission-steer",
+			DeliveryMode:       agentsession.DeliveryModeFollowUp,
+			SteeringFallback:   agentsession.SteeringFallbackFollowUp,
+		},
+	)
+	require.NoError(t, err)
+
+	runnerContext, cancelRunner := context.WithCancel(context.Background())
+	t.Cleanup(cancelRunner)
+	runner := &sessionRunner{
+		agent:     core,
+		sessionID: storage.DefaultSessionID,
+		wake:      make(chan struct{}, 1),
+	}
+	core.runnerCtx = runnerContext
+	core.sessionRunners = map[string]*sessionRunner{
+		storage.DefaultSessionID: runner,
+	}
+
+	steering, err := core.SteerSessionQueueEntry(
+		context.Background(),
+		agentsession.QueueMutationRequest{
+			SessionID: storage.DefaultSessionID,
+			EntryID:   entry.ID,
+		},
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, entry.ID, steering.ID)
+	require.Equal(t, agentsession.DeliveryModeSteering, steering.RequestedDeliveryMode)
+	select {
+	case <-runner.wake:
+	case <-time.After(time.Second):
+		t.Fatal("steering mutation did not wake the session runner")
 	}
 }
 

@@ -184,6 +184,26 @@ func (s *SessionService) PromoteQueuedMessage(
 	return protoToSessionQueueEntry(response.GetEntry()), nil
 }
 
+func (s *SessionService) SteerQueuedMessage(
+	ctx context.Context,
+	sessionID string,
+	entryID string,
+) (SessionQueueEntry, error) {
+	client, err := s.getClient()
+	if err != nil {
+		return SessionQueueEntry{}, err
+	}
+	prepareRPCConnection(s.reconnector)
+	response, err := client.SteerQueuedMessage(ctx, &morphpb.SteerQueuedSessionMessageRequest{
+		Id:      sessionID,
+		EntryId: entryID,
+	})
+	if err != nil {
+		return SessionQueueEntry{}, err
+	}
+	return protoToSessionQueueEntry(response.GetEntry()), nil
+}
+
 func (s *SessionService) InterruptRun(
 	ctx context.Context,
 	sessionID string,
@@ -265,6 +285,17 @@ func (c *Client) PromoteQueuedMessage(
 		return SessionQueueEntry{}, errors.New("RPC client is unavailable")
 	}
 	return c.Session.PromoteQueuedMessage(ctx, sessionID, entryID)
+}
+
+func (c *Client) SteerQueuedMessage(
+	ctx context.Context,
+	sessionID string,
+	entryID string,
+) (SessionQueueEntry, error) {
+	if c == nil || c.Session == nil {
+		return SessionQueueEntry{}, errors.New("RPC client is unavailable")
+	}
+	return c.Session.SteerQueuedMessage(ctx, sessionID, entryID)
 }
 
 func (c *Client) InterruptRun(

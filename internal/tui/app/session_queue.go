@@ -20,10 +20,12 @@ const sessionQueueDisplayLimit = 5
 const sessionQueueStateRetryDelay = 500 * time.Millisecond
 
 const (
+	sessionQueueSteerIcon   = "↳"
 	sessionQueuePromoteIcon = "↥"
 	sessionQueueEditIcon    = "✎"
 	sessionQueueRemoveIcon  = "×"
-	sessionQueueActions     = sessionQueuePromoteIcon + "  " + sessionQueueEditIcon + "  " + sessionQueueRemoveIcon
+	sessionQueueActions     = sessionQueueSteerIcon + "  " + sessionQueuePromoteIcon + "  " +
+		sessionQueueEditIcon + "  " + sessionQueueRemoveIcon
 )
 
 type sessionQueuePanelRow struct {
@@ -466,6 +468,8 @@ func mutateQueuedMessageCmd(
 			entry, err = client.RemoveQueuedMessage(ctx, sessionID, entryID)
 		case "promote":
 			entry, err = client.PromoteQueuedMessage(ctx, sessionID, entryID)
+		case "steer":
+			entry, err = client.SteerQueuedMessage(ctx, sessionID, entryID)
 		default:
 			err = errors.New("unsupported queue action")
 		}
@@ -579,7 +583,7 @@ func (m *model) handleQueueCommand(args string) tea.Cmd {
 			parts[1],
 			strings.TrimSpace(parts[2]),
 		)
-	case "remove", "promote":
+	case "remove", "promote", "steer":
 		if len(parts) != 2 {
 			return m.setStatus("usage: /queue " + parts[0] + " <id>")
 		}
@@ -591,7 +595,7 @@ func (m *model) handleQueueCommand(args string) tea.Cmd {
 			parts[0],
 		)
 	default:
-		return m.setStatus("usage: /queue [edit|remove|promote]")
+		return m.setStatus("usage: /queue [edit|remove|promote|steer]")
 	}
 }
 
@@ -653,6 +657,15 @@ func (m model) handleSessionQueueKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.C
 			m.getCurrentSessionID(),
 			entry.ID,
 			"promote",
+		), true
+	case "s":
+		entry := pending[m.sessionQueueSelected]
+		return m, mutateQueuedMessageCmd(
+			m.chatCtx,
+			m.chatClient,
+			m.getCurrentSessionID(),
+			entry.ID,
+			"steer",
 		), true
 	case "e":
 		entry := pending[m.sessionQueueSelected]
@@ -719,9 +732,17 @@ func (m *model) handleSessionQueueClick(msg tea.MouseClickMsg) (tea.Cmd, bool) {
 			m.chatClient,
 			m.getCurrentSessionID(),
 			row.entry.ID,
-			"promote",
+			"steer",
 		), true
 	case msg.X < actionStart+5:
+		return mutateQueuedMessageCmd(
+			m.chatCtx,
+			m.chatClient,
+			m.getCurrentSessionID(),
+			row.entry.ID,
+			"promote",
+		), true
+	case msg.X < actionStart+8:
 		return m.beginSessionQueueEdit(row.entry), true
 	default:
 		return mutateQueuedMessageCmd(
@@ -886,7 +907,7 @@ func (m model) renderSessionQueueHeader(width int) string {
 		right = "ctrl+q"
 	}
 	if m.sessionQueueFocused {
-		right = "↑↓ select · ↥ next · ✎ edit · × remove · esc"
+		right = "↑↓ select · ↳ steer · ↥ next · ✎ edit · × remove · esc"
 	}
 	return renderSessionQueueSplitLine(
 		left,

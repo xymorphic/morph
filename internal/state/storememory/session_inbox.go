@@ -292,6 +292,29 @@ func (s *Store) PromoteQueueEntry(
 	)
 }
 
+func (s *Store) SteerQueueEntry(
+	ctx context.Context,
+	req agentsession.QueueMutationRequest,
+) (agentsession.QueueEntry, error) {
+	return s.updatePendingMemoryQueueEntry(
+		ctx,
+		req.SessionID,
+		req.EntryID,
+		func(entry *agentsession.QueueEntry, inbox *sessionInboxState) {
+			entry.RequestedDeliveryMode = agentsession.DeliveryModeSteering
+			entry.SteeringFallback = agentsession.SteeringFallbackFollowUp
+			entry.TargetRunID = ""
+			entry.DeliveryMode = agentsession.DeliveryModeFollowUp
+			if activeRun, ok := getMemoryActiveRun(inbox); ok {
+				entry.TargetRunID = activeRun.ID
+				entry.DeliveryMode = agentsession.DeliveryModeSteering
+			}
+			entry.UpdatedAt = time.Now().UTC()
+		},
+		agentsession.EventTypeQueueUpdated,
+	)
+}
+
 func (s *Store) updatePendingMemoryQueueEntry(
 	_ context.Context,
 	sessionID string,

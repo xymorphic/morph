@@ -158,6 +158,17 @@ func (m *Manager) PromoteQueueEntry(
 	return store.PromoteQueueEntry(ctx, req)
 }
 
+func (m *Manager) SteerQueueEntry(
+	ctx context.Context,
+	req agentsession.QueueMutationRequest,
+) (agentsession.QueueEntry, error) {
+	store, err := m.inbox()
+	if err != nil {
+		return agentsession.QueueEntry{}, err
+	}
+	return store.SteerQueueEntry(ctx, req)
+}
+
 func (m *Manager) ClaimNextFollowUp(
 	ctx context.Context,
 	req agentsession.ClaimRequest,

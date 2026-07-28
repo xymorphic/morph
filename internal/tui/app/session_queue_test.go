@@ -23,6 +23,7 @@ type sessionQueueTUIClient struct {
 	editedID   string
 	removedID  string
 	promoted   string
+	steered    string
 	interrupts int
 	err        error
 }
@@ -91,6 +92,20 @@ func (c *sessionQueueTUIClient) PromoteQueuedMessage(
 	c.promoted = entryID
 	return rpcclient.SessionQueueEntry{
 		ID: entryID, Priority: 1, Status: agentsession.QueueStatusPending,
+	}, c.err
+}
+
+func (c *sessionQueueTUIClient) SteerQueuedMessage(
+	_ context.Context,
+	_ string,
+	entryID string,
+) (rpcclient.SessionQueueEntry, error) {
+	c.steered = entryID
+	return rpcclient.SessionQueueEntry{
+		ID:                    entryID,
+		RequestedDeliveryMode: agentsession.DeliveryModeSteering,
+		DeliveryMode:          agentsession.DeliveryModeSteering,
+		Status:                agentsession.QueueStatusPending,
 	}, c.err
 }
 
@@ -829,6 +844,11 @@ func TestSessionQueueTUI_QueueCommandsUseRequestedEntry(t *testing.T) {
 	require.NoError(t, promoted.Err)
 	require.Equal(t, "qmsg_promote", client.promoted)
 
+	message = runModel.handleQueueCommand("steer qmsg_steer")()
+	queueSteered := message.(sessionQueueMutationCompletedMsg)
+	require.NoError(t, queueSteered.Err)
+	require.Equal(t, "qmsg_steer", client.steered)
+
 	message = runModel.submitSteeringMessage("use UTC")()
 	steered := message.(sessionQueueMutationCompletedMsg)
 	require.NoError(t, steered.Err)
@@ -904,7 +924,7 @@ func TestSessionQueueTUI_CancelsStateHydrationRetry(t *testing.T) {
 	require.Nil(t, retry())
 }
 
-func TestSessionQueueTUI_KeyboardActionsSelectPromoteAndRemove(t *testing.T) {
+func TestSessionQueueTUI_KeyboardActionsSelectSteerPromoteAndRemove(t *testing.T) {
 	client := &sessionQueueTUIClient{}
 	runModel := newModelWithClient(client)
 	runModel.sessionQueueStale = false
@@ -944,6 +964,13 @@ func TestSessionQueueTUI_KeyboardActionsSelectPromoteAndRemove(t *testing.T) {
 	mutation := cmd().(sessionQueueMutationCompletedMsg)
 	require.NoError(t, mutation.Err)
 	require.Equal(t, "qmsg_second", client.promoted)
+
+	_, cmd, handled = runModel.handleSessionQueueKeyPress(tea.KeyPressMsg{Code: 's', Text: "s"})
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	mutation = cmd().(sessionQueueMutationCompletedMsg)
+	require.NoError(t, mutation.Err)
+	require.Equal(t, "qmsg_second", client.steered)
 
 	next, cmd, handled = runModel.handleSessionQueueKeyPress(tea.KeyPressMsg{Code: 'x', Text: "x"})
 	require.True(t, handled)
@@ -1041,7 +1068,7 @@ func TestSessionQueueTUI_MouseEditActionTargetsItsRow(t *testing.T) {
 	actionStart := layout.SessionQueue.X + layout.SessionQueue.Width -
 		1 - lipgloss.Width(sessionQueueActions)
 	cmd, handled := runModel.handleSessionQueueClick(tea.MouseClickMsg(tea.Mouse{
-		X:      actionStart + 3,
+		X:      actionStart + 6,
 		Y:      layout.SessionQueue.Y + 1,
 		Button: tea.MouseLeft,
 	}))
@@ -1050,6 +1077,99 @@ func TestSessionQueueTUI_MouseEditActionTargetsItsRow(t *testing.T) {
 	require.NotNil(t, cmd)
 	require.Equal(t, "qmsg_edit", runModel.sessionQueueEditingEntryID)
 	require.Equal(t, "queued text", runModel.input.Value())
+}
+
+func TestSessionQueueTUI_MousePromoteActionTargetsItsRow(t *testing.T) {
+	client := &sessionQueueTUIClient{}
+	runModel := newModelWithClient(client)
+	runModel.width = 72
+	runModel.height = 24
+	runModel.sessionQueueStale = false
+	runModel.sessionExecutionState = rpcclient.SessionExecutionState{
+		SessionID:  defaultSessionID,
+		QueueDepth: 1,
+		Queue: []rpcclient.SessionQueueEntry{{
+			ID: "qmsg_promote", Content: "queued text", Sequence: 1,
+			Status: agentsession.QueueStatusPending,
+		}},
+	}
+
+	layout := runModel.getTUILayout(runModel.input.Height())
+	actionStart := layout.SessionQueue.X + layout.SessionQueue.Width -
+		1 - lipgloss.Width(sessionQueueActions)
+	cmd, handled := runModel.handleSessionQueueClick(tea.MouseClickMsg(tea.Mouse{
+		X:      actionStart + 3,
+		Y:      layout.SessionQueue.Y + 1,
+		Button: tea.MouseLeft,
+	}))
+
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	mutation := cmd().(sessionQueueMutationCompletedMsg)
+	require.NoError(t, mutation.Err)
+	require.Equal(t, "qmsg_promote", client.promoted)
+}
+
+func TestSessionQueueTUI_MouseSteerActionTargetsItsRow(t *testing.T) {
+	client := &sessionQueueTUIClient{}
+	runModel := newModelWithClient(client)
+	runModel.width = 72
+	runModel.height = 24
+	runModel.sessionQueueStale = false
+	runModel.sessionExecutionState = rpcclient.SessionExecutionState{
+		SessionID:  defaultSessionID,
+		QueueDepth: 1,
+		Queue: []rpcclient.SessionQueueEntry{{
+			ID: "qmsg_steer", Content: "queued text", Sequence: 1,
+			Status: agentsession.QueueStatusPending,
+		}},
+	}
+
+	layout := runModel.getTUILayout(runModel.input.Height())
+	actionStart := layout.SessionQueue.X + layout.SessionQueue.Width -
+		1 - lipgloss.Width(sessionQueueActions)
+	cmd, handled := runModel.handleSessionQueueClick(tea.MouseClickMsg(tea.Mouse{
+		X:      actionStart,
+		Y:      layout.SessionQueue.Y + 1,
+		Button: tea.MouseLeft,
+	}))
+
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	mutation := cmd().(sessionQueueMutationCompletedMsg)
+	require.NoError(t, mutation.Err)
+	require.Equal(t, "qmsg_steer", client.steered)
+}
+
+func TestSessionQueueTUI_MouseRemoveActionTargetsItsRow(t *testing.T) {
+	client := &sessionQueueTUIClient{}
+	runModel := newModelWithClient(client)
+	runModel.width = 72
+	runModel.height = 24
+	runModel.sessionQueueStale = false
+	runModel.sessionExecutionState = rpcclient.SessionExecutionState{
+		SessionID:  defaultSessionID,
+		QueueDepth: 1,
+		Queue: []rpcclient.SessionQueueEntry{{
+			ID: "qmsg_remove", Content: "queued text", Sequence: 1,
+			Status: agentsession.QueueStatusPending,
+		}},
+	}
+
+	layout := runModel.getTUILayout(runModel.input.Height())
+	actionStart := layout.SessionQueue.X + layout.SessionQueue.Width -
+		1 - lipgloss.Width(sessionQueueActions)
+	cmd, handled := runModel.handleSessionQueueClick(tea.MouseClickMsg(tea.Mouse{
+		X:      actionStart + 9,
+		Y:      layout.SessionQueue.Y + 1,
+		Button: tea.MouseLeft,
+	}))
+
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	mutation := cmd().(sessionQueueMutationCompletedMsg)
+	require.NoError(t, mutation.Err)
+	require.Equal(t, "qmsg_remove", client.removedID)
 }
 
 func TestSessionQueueTUI_LayoutPlacesQueueBetweenJumpPanelAndComposer(t *testing.T) {

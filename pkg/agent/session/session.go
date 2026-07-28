@@ -269,6 +269,7 @@ type InboxStore interface {
 	EditQueueEntry(context.Context, QueueEditRequest) (QueueEntry, error)
 	CancelQueueEntry(context.Context, QueueMutationRequest) (QueueEntry, error)
 	PromoteQueueEntry(context.Context, QueueMutationRequest) (QueueEntry, error)
+	SteerQueueEntry(context.Context, QueueMutationRequest) (QueueEntry, error)
 	ClaimNextFollowUp(context.Context, ClaimRequest) (QueueEntry, ActiveRun, bool, error)
 	HasPendingSteering(context.Context, SteeringClaimRequest) (bool, error)
 	ClaimSteering(context.Context, SteeringClaimRequest) ([]QueueEntry, error)

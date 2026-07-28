@@ -404,6 +404,117 @@ func TestMemoryStore_MutatesOnlyPendingQueueEntries(t *testing.T) {
 	)
 }
 
+func TestMemoryStore_SteersPendingFollowUpIntoActiveRun(t *testing.T) {
+	store := NewStore()
+	require.NoError(t, store.Save(context.Background(), Session{ID: testSessionA}))
+	activateMemoryInboxRunner(t, store, "generation-1")
+
+	submitMemoryInboxMessage(
+		t,
+		store,
+		"start",
+		"client-start",
+		agentsession.DeliveryModeFollowUp,
+		agentsession.SteeringFallbackFollowUp,
+	)
+	queued := submitMemoryInboxMessage(
+		t,
+		store,
+		"change direction",
+		"client-queued",
+		agentsession.DeliveryModeFollowUp,
+		agentsession.SteeringFallbackFollowUp,
+	)
+	_, run, claimed, err := store.ClaimNextFollowUp(
+		context.Background(),
+		agentsession.ClaimRequest{
+			SessionID:  testSessionA,
+			RunID:      memoryInboxRunID("active"),
+			Generation: "generation-1",
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, claimed)
+
+	steering, err := store.SteerQueueEntry(
+		context.Background(),
+		agentsession.QueueMutationRequest{
+			SessionID: testSessionA,
+			EntryID:   queued.ID,
+		},
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, queued.ID, steering.ID)
+	require.Equal(t, agentsession.DeliveryModeSteering, steering.RequestedDeliveryMode)
+	require.Equal(t, agentsession.DeliveryModeSteering, steering.DeliveryMode)
+	require.Equal(t, agentsession.SteeringFallbackFollowUp, steering.SteeringFallback)
+	require.Equal(t, run.ID, steering.TargetRunID)
+	pending, err := store.HasPendingSteering(
+		context.Background(),
+		agentsession.SteeringClaimRequest{
+			SessionID:  testSessionA,
+			RunID:      run.ID,
+			Generation: "generation-1",
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, pending)
+
+	delivered, err := store.ClaimSteering(
+		context.Background(),
+		agentsession.SteeringClaimRequest{
+			SessionID:  testSessionA,
+			RunID:      run.ID,
+			Generation: "generation-1",
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, delivered, 1)
+	require.Equal(t, queued.ID, delivered[0].ID)
+	require.Equal(t, agentsession.QueueStatusDelivered, delivered[0].Status)
+}
+
+func TestMemoryStore_SteerFallsBackToFollowUpWithoutActiveRun(t *testing.T) {
+	store := NewStore()
+	require.NoError(t, store.Save(context.Background(), Session{ID: testSessionA}))
+	queued := submitMemoryInboxMessage(
+		t,
+		store,
+		"change direction",
+		"client-queued",
+		agentsession.DeliveryModeFollowUp,
+		agentsession.SteeringFallbackFollowUp,
+	)
+
+	steering, err := store.SteerQueueEntry(
+		context.Background(),
+		agentsession.QueueMutationRequest{
+			SessionID: testSessionA,
+			EntryID:   queued.ID,
+		},
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, agentsession.DeliveryModeSteering, steering.RequestedDeliveryMode)
+	require.Equal(t, agentsession.DeliveryModeFollowUp, steering.DeliveryMode)
+	require.Equal(t, agentsession.SteeringFallbackFollowUp, steering.SteeringFallback)
+	require.Empty(t, steering.TargetRunID)
+
+	activateMemoryInboxRunner(t, store, "generation-1")
+	claimedEntry, _, claimed, err := store.ClaimNextFollowUp(
+		context.Background(),
+		agentsession.ClaimRequest{
+			SessionID:  testSessionA,
+			RunID:      memoryInboxRunID("steering-fallback"),
+			Generation: "generation-1",
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, claimed)
+	require.Equal(t, queued.ID, claimedEntry.ID)
+}
+
 func TestMemoryStore_SteeringBindsToAndDeliversIntoActiveRun(t *testing.T) {
 	store := NewStore()
 	require.NoError(t, store.Save(context.Background(), Session{ID: testSessionA}))

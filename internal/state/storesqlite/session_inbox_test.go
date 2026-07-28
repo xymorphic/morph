@@ -162,6 +162,110 @@ func TestSQLiteStore_ClaimsFollowUpsOneAtATimeAndHonorsPromotion(t *testing.T) {
 	require.Equal(t, first.ID, entry.ID)
 }
 
+func TestSQLiteStore_SteersPendingFollowUpIntoActiveRun(t *testing.T) {
+	store, err := NewStore(t.TempDir() + "/session.db")
+	require.NoError(t, err)
+	require.NoError(t, store.Save(context.Background(), Session{ID: testSessionA}))
+	activateInboxTestRunner(t, store, "generation-1")
+
+	submitInboxTestMessage(t, store, "start", "client-start", agentsession.DeliveryModeFollowUp)
+	queued := submitInboxTestMessage(
+		t,
+		store,
+		"change direction",
+		"client-queued",
+		agentsession.DeliveryModeFollowUp,
+	)
+	_, run, claimed, err := store.ClaimNextFollowUp(
+		context.Background(),
+		agentsession.ClaimRequest{
+			SessionID:  testSessionA,
+			RunID:      nanoid.MustFromSeed("run_", "active", "RunSeed"),
+			Generation: "generation-1",
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, claimed)
+
+	steering, err := store.SteerQueueEntry(
+		context.Background(),
+		agentsession.QueueMutationRequest{
+			SessionID: testSessionA,
+			EntryID:   queued.ID,
+		},
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, queued.ID, steering.ID)
+	require.Equal(t, agentsession.DeliveryModeSteering, steering.RequestedDeliveryMode)
+	require.Equal(t, agentsession.DeliveryModeSteering, steering.DeliveryMode)
+	require.Equal(t, agentsession.SteeringFallbackFollowUp, steering.SteeringFallback)
+	require.Equal(t, run.ID, steering.TargetRunID)
+	pending, err := store.HasPendingSteering(
+		context.Background(),
+		agentsession.SteeringClaimRequest{
+			SessionID:  testSessionA,
+			RunID:      run.ID,
+			Generation: "generation-1",
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, pending)
+
+	delivered, err := store.ClaimSteering(
+		context.Background(),
+		agentsession.SteeringClaimRequest{
+			SessionID:  testSessionA,
+			RunID:      run.ID,
+			Generation: "generation-1",
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, delivered, 1)
+	require.Equal(t, queued.ID, delivered[0].ID)
+	require.Equal(t, agentsession.QueueStatusDelivered, delivered[0].Status)
+}
+
+func TestSQLiteStore_SteerFallsBackToFollowUpWithoutActiveRun(t *testing.T) {
+	store, err := NewStore(t.TempDir() + "/session.db")
+	require.NoError(t, err)
+	require.NoError(t, store.Save(context.Background(), Session{ID: testSessionA}))
+	queued := submitInboxTestMessage(
+		t,
+		store,
+		"change direction",
+		"client-queued",
+		agentsession.DeliveryModeFollowUp,
+	)
+
+	steering, err := store.SteerQueueEntry(
+		context.Background(),
+		agentsession.QueueMutationRequest{
+			SessionID: testSessionA,
+			EntryID:   queued.ID,
+		},
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, agentsession.DeliveryModeSteering, steering.RequestedDeliveryMode)
+	require.Equal(t, agentsession.DeliveryModeFollowUp, steering.DeliveryMode)
+	require.Equal(t, agentsession.SteeringFallbackFollowUp, steering.SteeringFallback)
+	require.Empty(t, steering.TargetRunID)
+
+	activateInboxTestRunner(t, store, "generation-1")
+	claimedEntry, _, claimed, err := store.ClaimNextFollowUp(
+		context.Background(),
+		agentsession.ClaimRequest{
+			SessionID:  testSessionA,
+			RunID:      nanoid.MustFromSeed("run_", "steering-fallback", "RunSeed"),
+			Generation: "generation-1",
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, claimed)
+	require.Equal(t, queued.ID, claimedEntry.ID)
+}
+
 func TestSQLiteStore_SteeringBindsToAndDeliversIntoActiveRun(t *testing.T) {
 	store, err := NewStore(t.TempDir() + "/session.db")
 	require.NoError(t, err)

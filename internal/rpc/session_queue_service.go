@@ -178,6 +178,28 @@ func (s *Service) PromoteQueuedMessage(
 	return &morphpb.PromoteQueuedSessionMessageResponse{Entry: sessionQueueEntryToProto(entry)}, nil
 }
 
+func (s *Service) SteerQueuedMessage(
+	ctx context.Context,
+	req *morphpb.SteerQueuedSessionMessageRequest,
+) (*morphpb.SteerQueuedSessionMessageResponse, error) {
+	api, err := s.getSessionQueueAPI()
+	if err != nil {
+		return nil, err
+	}
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "steer queued message request is required")
+	}
+	ctx = sessionQueueAuthorizationContext(ctx, req.GetId())
+	entry, err := api.SteerSessionQueueEntry(ctx, agentsession.QueueMutationRequest{
+		SessionID: req.GetId(),
+		EntryID:   req.GetEntryId(),
+	})
+	if err != nil {
+		return nil, getGRPCError(err)
+	}
+	return &morphpb.SteerQueuedSessionMessageResponse{Entry: sessionQueueEntryToProto(entry)}, nil
+}
+
 func (s *Service) InterruptRun(
 	ctx context.Context,
 	req *morphpb.InterruptSessionRunRequest,

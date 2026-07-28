@@ -400,6 +400,35 @@ func (s *Store) PromoteQueueEntry(
 	}, agentsession.EventTypeQueueUpdated)
 }
 
+func (s *Store) SteerQueueEntry(
+	ctx context.Context,
+	req agentsession.QueueMutationRequest,
+) (agentsession.QueueEntry, error) {
+	return s.updatePendingQueueEntry(ctx, req.SessionID, req.EntryID, func(tx *gorm.DB, record *sessionQueueEntryModel) error {
+		record.RequestedDeliveryMode = string(agentsession.DeliveryModeSteering)
+		record.SteeringFallback = string(agentsession.SteeringFallbackFollowUp)
+		record.TargetRunID = ""
+		record.DeliveryMode = string(agentsession.DeliveryModeFollowUp)
+
+		var active sessionRunModel
+		err := tx.Where(
+			"session_id = ? AND status = ?",
+			record.SessionID,
+			agentsession.RunStatusRunning,
+		).First(&active).Error
+		switch {
+		case err == nil:
+			record.TargetRunID = active.ID
+			record.DeliveryMode = string(agentsession.DeliveryModeSteering)
+		case errors.Is(err, gorm.ErrRecordNotFound):
+		default:
+			return err
+		}
+		record.UpdatedAt = time.Now().UTC()
+		return nil
+	}, agentsession.EventTypeQueueUpdated)
+}
+
 func (s *Store) updatePendingQueueEntry(
 	ctx context.Context,
 	sessionID string,
