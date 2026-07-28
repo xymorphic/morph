@@ -29,6 +29,9 @@ type Store struct {
 	approvalRequests map[string]permissions.ApprovalRequest
 	approvalGrants   map[string]permissions.ApprovalGrant
 	vectorStates     map[string]search.VectorIndexState
+	sessionInboxes   map[string]*sessionInboxState
+	sessionRunIDs    map[string]struct{}
+	runnerGeneration string
 	currentSession   string
 	nextMessageID    uint
 	nextTraceID      uint
@@ -51,6 +54,8 @@ func NewStore() *Store {
 		approvalRequests: make(map[string]permissions.ApprovalRequest),
 		approvalGrants:   make(map[string]permissions.ApprovalGrant),
 		vectorStates:     make(map[string]search.VectorIndexState),
+		sessionInboxes:   make(map[string]*sessionInboxState),
+		sessionRunIDs:    make(map[string]struct{}),
 	}
 }
 

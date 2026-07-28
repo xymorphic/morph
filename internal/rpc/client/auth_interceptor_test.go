@@ -80,7 +80,7 @@ func TestAuthStreamClientInterceptor_AttachesToken(t *testing.T) {
 		context.Background(),
 		&grpc.StreamDesc{},
 		nil,
-		"/morph.v1.MorphService/Respond",
+		"/morph.v1.SessionService/Observe",
 		func(
 			ctx context.Context,
 			_ *grpc.StreamDesc,

@@ -88,12 +88,68 @@ func (m model) handleAsyncMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	case responseCompletedMsg:
 		cmd := m.handleResponseCompleted(msg)
 		return m, cmd, true
+	case responsePermissionApprovalsMsg:
+		if !m.isActiveResponse(msg.ResponseID) {
+			return m, nil, true
+		}
+		if msg.Err != nil {
+			return m, tea.Batch(
+				m.setStatus(
+					"permission approvals unavailable: "+
+						getUserFacingErrorMessage(msg.Err.Error()),
+				),
+				pollResponsePermissionApprovalsCmd(
+					m.chatCtx,
+					m.permissionClient,
+					msg.ResponseID,
+					m.getCurrentSessionID(),
+				),
+			), true
+		}
+		for _, request := range msg.Requests {
+			m.updatePermissionApproval(permissionApprovalMessageFromRequest(request))
+		}
+		return m, pollResponsePermissionApprovalsCmd(
+			m.chatCtx,
+			m.permissionClient,
+			msg.ResponseID,
+			m.getCurrentSessionID(),
+		), true
 	case sessionTimelineLoadedMsg:
 		m.chatSwitching = false
+		m.sessionQueueStale = true
 		m.cleanupBrowserArtifactCopies()
 		m.transcriptCache.clear()
 		next, cmd := m.handleAppEvent(hydrateTimelineEvent{Timeline: msg.Timeline})
-		return next, cmd, true
+		return next, tea.Batch(
+			cmd,
+			loadSessionExecutionStateCmd(m.chatCtx, m.chatClient, msg.Timeline.SessionID),
+		), true
+	case sessionExecutionStateLoadedMsg:
+		cmd := m.applySessionExecutionState(msg)
+		return m, cmd, true
+	case sessionExecutionStateLoadFailedMsg:
+		m.sessionQueueStale = true
+		return m, tea.Batch(
+			m.setStatus("session queue unavailable; retrying"),
+			retrySessionExecutionStateLoadCmd(
+				m.chatCtx,
+				m.chatClient,
+				m.getCurrentSessionID(),
+			),
+		), true
+	case sessionQueueEventMsg:
+		cmd := m.applySessionQueueEvent(msg)
+		return m, cmd, true
+	case sessionQueueEventsClosedMsg:
+		cmd := m.handleSessionQueueEventsClosed(msg)
+		return m, cmd, true
+	case sessionQueueMutationCompletedMsg:
+		cmd := m.completeSessionQueueMutation(msg)
+		return m, cmd, true
+	case sessionInterruptCompletedMsg:
+		cmd := m.completeSessionInterrupt(msg)
+		return m, cmd, true
 	case sessionTimelineLoadFailedMsg:
 		m.chatSwitching = false
 		cmd := m.setStatus("session timeline unavailable")
@@ -281,6 +337,9 @@ func (m model) handleTerminalMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 			next, cmd := m.handleAppEvent(jumpTranscriptToBottomEvent{})
 			return next, cmd, true
 		}
+		if cmd, handled := m.handleSessionQueueClick(msg); handled {
+			return m, cmd, true
+		}
 		if m.startTranscriptSelection(msg) {
 			return m, nil, true
 		}
@@ -424,6 +483,9 @@ func (m model) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd, bool)
 	}
 	if m.chatSwitching {
 		return m, nil, true
+	}
+	if next, cmd, handled := m.handleSessionQueueKeyPress(msg); handled {
+		return next, cmd, true
 	}
 
 	switch msg.Keystroke() {

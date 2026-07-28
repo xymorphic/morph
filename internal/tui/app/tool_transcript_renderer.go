@@ -36,13 +36,20 @@ func renderToolTranscriptGroupContent(group toolTranscriptGroup, ctx transcriptR
 	if action == "Run" {
 		return renderRunTranscriptGroup(group, ctx)
 	}
-	completed := group.isCompleted()
-	failed := group.isFailed()
-	interrupted := group.isInterrupted()
+	outcome := group.outcome()
+	completed := outcome == toolTranscriptGroupOutcomeCompleted ||
+		outcome == toolTranscriptGroupOutcomeCompletedWithIssues
+	failed := outcome == toolTranscriptGroupOutcomeFailed
+	interrupted := outcome == toolTranscriptGroupOutcomeInterrupted
+	completedWithIssues := outcome == toolTranscriptGroupOutcomeCompletedWithIssues
 
 	headerTitle := getToolTranscriptTitle(action, completed, group.details)
-	if action == "Browser" {
+	if action == "Browser" && completedWithIssues {
+		headerTitle = "Browser Actions Completed with Issues"
+	} else if action == "Browser" {
 		headerTitle = getBrowserToolTranscriptTitle(group.details, completed, failed, interrupted)
+	} else if completedWithIssues {
+		headerTitle = action + " Completed with Issues"
 	} else if failed {
 		headerTitle = "Failed " + action
 	} else if interrupted {
@@ -53,9 +60,9 @@ func renderToolTranscriptGroupContent(group toolTranscriptGroup, ctx transcriptR
 		headerDuration = renderToolTranscriptDuration(group.details[0], ctx.Now)
 	}
 	header := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(getToolTranscriptDotColor(completed, failed || interrupted))).
+		Foreground(lipgloss.Color(getToolTranscriptDotColor(outcome))).
 		Bold(true).
-		Render(getToolTranscriptDot(completed, failed || interrupted, ctx.Frame)) +
+		Render(getToolTranscriptDot(outcome, ctx.Frame)) +
 		lipgloss.NewStyle().
 			Foreground(lipgloss.Color(defaultTUITheme.ToolTitle)).
 			Render(" "+headerTitle) +
@@ -231,9 +238,11 @@ func renderRunTranscriptGroup(group toolTranscriptGroup, ctx transcriptRenderCon
 	}
 	verb := "Running"
 	suffix := "…"
-	completed := group.isCompleted()
-	failed := group.isFailed()
-	interrupted := group.isInterrupted()
+	outcome := group.outcome()
+	completed := outcome == toolTranscriptGroupOutcomeCompleted
+	failed := outcome == toolTranscriptGroupOutcomeFailed
+	interrupted := outcome == toolTranscriptGroupOutcomeInterrupted
+	completedWithIssues := outcome == toolTranscriptGroupOutcomeCompletedWithIssues
 	if failed {
 		verb = "Failed"
 		suffix = ""
@@ -243,11 +252,14 @@ func renderRunTranscriptGroup(group toolTranscriptGroup, ctx transcriptRenderCon
 	} else if completed {
 		verb = "Ran"
 		suffix = ""
+	} else if completedWithIssues {
+		verb = "Ran"
+		suffix = " with issues"
 	}
 	header := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(getToolTranscriptDotColor(completed, failed || interrupted))).
+		Foreground(lipgloss.Color(getToolTranscriptDotColor(outcome))).
 		Bold(true).
-		Render(getToolTranscriptDot(completed, failed || interrupted, ctx.Frame)) +
+		Render(getToolTranscriptDot(outcome, ctx.Frame)) +
 		lipgloss.NewStyle().
 			Foreground(lipgloss.Color(defaultTUITheme.ToolTitle)).
 			Render(" "+verb+" ") +
@@ -311,19 +323,21 @@ func formatToolTranscriptDuration(duration time.Duration) string {
 	return fmt.Sprintf("%ds", seconds)
 }
 
-func getToolTranscriptDotColor(completed bool, failed bool) string {
-	if failed {
+func getToolTranscriptDotColor(outcome toolTranscriptGroupOutcome) string {
+	switch outcome {
+	case toolTranscriptGroupOutcomeFailed, toolTranscriptGroupOutcomeInterrupted:
 		return defaultTUITheme.ToolDeletion
-	}
-	if completed {
+	case toolTranscriptGroupOutcomeCompleted:
 		return defaultTUITheme.ToolCompletedDot
+	case toolTranscriptGroupOutcomeCompletedWithIssues:
+		return defaultTUITheme.ToolWarningDot
+	default:
+		return defaultTUITheme.ToolRunningDot
 	}
-
-	return defaultTUITheme.ToolRunningDot
 }
 
-func getToolTranscriptDot(completed bool, failed bool, frame int) string {
-	if completed || failed {
+func getToolTranscriptDot(outcome toolTranscriptGroupOutcome, frame int) string {
+	if outcome != toolTranscriptGroupOutcomeRunning {
 		return "●"
 	}
 

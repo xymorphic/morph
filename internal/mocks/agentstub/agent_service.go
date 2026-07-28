@@ -9,6 +9,8 @@ import (
 	storage "github.com/wandxy/morph/internal/state/core"
 	"github.com/wandxy/morph/internal/state/search"
 	agent "github.com/wandxy/morph/pkg/agent"
+	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 	"github.com/wandxy/morph/pkg/gateway/pairing"
 	"github.com/wandxy/morph/pkg/str"
 )
@@ -17,7 +19,7 @@ import (
 type AgentServiceStub struct {
 	ChatInput            string
 	RespondContext       context.Context
-	RespondOptions       rpcclient.RespondOptions
+	RespondOptions       agent.RespondOptions
 	Reply                string
 	Deltas               []string
 	Events               []agent.Event
@@ -82,9 +84,19 @@ type AgentServiceStub struct {
 	AutomationStoreValue storage.AutomationStore
 	AutomationStoreOK    bool
 	AutomationStoreErr   error
+	SubmittedMessage     rpcclient.SubmitMessageOptions
+	QueueEntry           rpcclient.SessionQueueEntry
+	ExecutionState       rpcclient.SessionExecutionState
+	SessionEvents        []rpcclient.SessionEvent
+	InterruptedRun       rpcclient.SessionActiveRun
+	RunTransitioned      bool
+	EditedEntryID        string
+	EditedEntryContent   string
+	RemovedEntryID       string
+	PromotedEntryID      string
 }
 
-func (s *AgentServiceStub) Respond(ctx context.Context, msg string, opts rpcclient.RespondOptions) (string, error) {
+func (s *AgentServiceStub) Respond(ctx context.Context, msg string, opts agent.RespondOptions) (string, error) {
 	s.ChatInput = msg
 	s.RespondContext = ctx
 	s.RespondOptions = opts
@@ -112,6 +124,151 @@ func (s *AgentServiceStub) Respond(ctx context.Context, msg string, opts rpcclie
 		return s.Reply, s.RespondErr
 	}
 	return s.Reply, s.Err
+}
+
+func (s *AgentServiceStub) SubmitMessage(
+	ctx context.Context,
+	opts rpcclient.SubmitMessageOptions,
+) (rpcclient.SessionQueueEntry, error) {
+	s.ChatInput = opts.Message
+	s.RespondContext = ctx
+	s.RespondOptions.SessionID = opts.SessionID
+	s.SubmittedMessage = opts
+	if s.RespondErr != nil {
+		return rpcclient.SessionQueueEntry{}, s.RespondErr
+	}
+	if s.Err != nil {
+		return rpcclient.SessionQueueEntry{}, s.Err
+	}
+	entry := s.QueueEntry
+	if entry.ID == "" {
+		entry = rpcclient.SessionQueueEntry{
+			ID:                    "que_stub",
+			SessionID:             opts.SessionID,
+			Content:               opts.Message,
+			RequestedDeliveryMode: opts.DeliveryMode,
+			DeliveryMode:          opts.DeliveryMode,
+			Status:                agentsession.QueueStatusCompleted,
+		}
+	}
+	s.QueueEntry = entry
+	return entry, nil
+}
+
+func (s *AgentServiceStub) State(context.Context, string) (rpcclient.SessionExecutionState, error) {
+	if len(s.ExecutionState.Queue) == 0 && s.QueueEntry.ID != "" {
+		s.ExecutionState.Queue = []rpcclient.SessionQueueEntry{s.QueueEntry}
+	}
+	return s.ExecutionState, s.Err
+}
+
+func (s *AgentServiceStub) Observe(
+	_ context.Context,
+	_ string,
+	_ int64,
+	observe func(rpcclient.SessionEvent) error,
+) error {
+	for _, event := range s.SessionEvents {
+		if err := observe(event); err != nil {
+			return err
+		}
+	}
+	return s.Err
+}
+
+func (s *AgentServiceStub) EditQueuedMessage(
+	_ context.Context,
+	_ string,
+	entryID string,
+	content string,
+) (rpcclient.SessionQueueEntry, error) {
+	s.EditedEntryID = entryID
+	s.EditedEntryContent = content
+	return s.QueueEntry, s.Err
+}
+
+func (s *AgentServiceStub) RemoveQueuedMessage(
+	_ context.Context,
+	_ string,
+	entryID string,
+) (rpcclient.SessionQueueEntry, error) {
+	s.RemovedEntryID = entryID
+	return s.QueueEntry, s.Err
+}
+
+func (s *AgentServiceStub) PromoteQueuedMessage(
+	_ context.Context,
+	_ string,
+	entryID string,
+) (rpcclient.SessionQueueEntry, error) {
+	s.PromotedEntryID = entryID
+	return s.QueueEntry, s.Err
+}
+
+func (s *AgentServiceStub) InterruptRun(
+	context.Context,
+	string,
+) (rpcclient.SessionActiveRun, bool, error) {
+	return s.InterruptedRun, s.RunTransitioned, s.Err
+}
+
+func (s *AgentServiceStub) SubmitSessionMessage(
+	ctx context.Context,
+	req agentsession.SubmitRequest,
+) (agentsession.QueueEntry, error) {
+	return s.SubmitMessage(ctx, rpcclient.SubmitMessageOptions{
+		SessionID:          req.SessionID,
+		Message:            req.Content,
+		Instruct:           req.Instruct,
+		Stream:             req.Stream,
+		ClientSubmissionID: req.ClientSubmissionID,
+		DeliveryMode:       req.DeliveryMode,
+		SteeringFallback:   req.SteeringFallback,
+	})
+}
+
+func (s *AgentServiceStub) GetSessionExecutionState(
+	ctx context.Context,
+	sessionID string,
+) (agentsession.ExecutionState, error) {
+	return s.State(ctx, sessionID)
+}
+
+func (s *AgentServiceStub) ObserveSessionEvents(
+	ctx context.Context,
+	sessionID string,
+	cursor int64,
+	observe func(agentsession.Event) error,
+) error {
+	return s.Observe(ctx, sessionID, cursor, observe)
+}
+
+func (s *AgentServiceStub) EditSessionQueueEntry(
+	ctx context.Context,
+	req agentsession.QueueEditRequest,
+) (agentsession.QueueEntry, error) {
+	return s.EditQueuedMessage(ctx, req.SessionID, req.EntryID, req.Content)
+}
+
+func (s *AgentServiceStub) CancelSessionQueueEntry(
+	ctx context.Context,
+	req agentsession.QueueMutationRequest,
+) (agentsession.QueueEntry, error) {
+	return s.RemoveQueuedMessage(ctx, req.SessionID, req.EntryID)
+}
+
+func (s *AgentServiceStub) PromoteSessionQueueEntry(
+	ctx context.Context,
+	req agentsession.QueueMutationRequest,
+) (agentsession.QueueEntry, error) {
+	return s.PromoteQueuedMessage(ctx, req.SessionID, req.EntryID)
+}
+
+func (s *AgentServiceStub) InterruptSessionRun(
+	ctx context.Context,
+	sessionID string,
+) (agentsession.ActiveRun, bool, error) {
+	return s.InterruptRun(ctx, sessionID)
 }
 
 func (s *AgentServiceStub) SessionAPI() rpcclient.SessionAPI {
@@ -552,6 +709,13 @@ func (s *AgentServiceStub) GetSessionTimeline(
 	opts agentapi.SessionTimelineOptions,
 ) (agentapi.SessionTimeline, error) {
 	s.TimelineOptions = opts
+	if len(s.TimelineResult.Messages) == 0 && s.Reply != "" {
+		message, err := morphmsg.NewMessage(morphmsg.RoleAssistant, s.Reply)
+		if err != nil {
+			return agentapi.SessionTimeline{}, err
+		}
+		s.TimelineResult.Messages = []agentapi.SessionTimelineMessage{{Message: message}}
+	}
 	return s.TimelineResult, s.Err
 }
 

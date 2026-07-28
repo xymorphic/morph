@@ -45,40 +45,41 @@ type interactiveOnlySession struct {
 }
 
 type interactiveBackendSession struct {
-	mu             sync.Mutex
-	tabs           map[string]BackendTab
-	active         string
-	nextID         int
-	closed         bool
-	clicks         []int64
-	typed          []string
-	pressed        []string
-	scrolled       [][2]int64
-	selected       []string
-	waits          []WaitCondition
-	blockWait      bool
-	snapshots      map[string]BackendSnapshot
-	authorize      NetworkRequestAuthorizer
-	authorizedTabs []string
-	requestTarget  string
-	requestTargets []permissions.NetworkTarget
-	failAction     Action
-	screenshot     BackendArtifact
-	pdf            BackendArtifact
-	console        []ConsoleMessage
-	uploaded       []byte
-	uploadPath     string
-	download       BackendArtifact
-	dialogAccepted []bool
-	dialogPrompts  []string
-	networkSettles []string
+	mu               sync.Mutex
+	tabs             map[string]BackendTab
+	active           string
+	nextID           int
+	closed           bool
+	clicks           []int64
+	typed            []string
+	pressed          []string
+	scrolled         [][2]int64
+	selected         []string
+	waits            []WaitCondition
+	blockWait        bool
+	snapshots        map[string]BackendSnapshot
+	authorize        NetworkRequestAuthorizer
+	authorizedTabs   []string
+	requestTarget    string
+	requestTargets   []permissions.NetworkTarget
+	failAction       Action
+	screenshot       BackendArtifact
+	pdf              BackendArtifact
+	console          []ConsoleMessage
+	uploaded         []byte
+	uploadPath       string
+	download         BackendArtifact
+	dialogAccepted   []bool
+	dialogPrompts    []string
+	networkSettles   []string
+	networkSettleErr error
 }
 
 func (s *interactiveBackendSession) WaitForNetworkIdle(_ context.Context, tabID string, _ time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.networkSettles = append(s.networkSettles, tabID)
-	return nil
+	return s.networkSettleErr
 }
 
 func (s *interactiveBackendSession) getFailure(action Action) error {
@@ -1087,6 +1088,50 @@ func TestService_OpenKeepsNetworkAuthorizationUntilThePageSettles(t *testing.T) 
 	backendSession.mu.Lock()
 	defer backendSession.mu.Unlock()
 	require.Equal(t, []string{"opened-tab"}, backendSession.networkSettles)
+}
+
+func TestService_OpenReturnsLoadedTabWhenOptionalNetworkSettlementTimesOut(t *testing.T) {
+	backendSession := newInteractiveBackendSession()
+	backendSession.networkSettleErr = errOptionalNetworkSettlementTimedOut
+	service, err := NewService(
+		context.Background(), testBrowserConfig(t), allowChecker(),
+		&interactiveBackend{session: backendSession},
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, service.Close(context.Background())) })
+	ctx := testBrowserContext("owner", "session")
+	session, err := service.Start(ctx, StartRequest{})
+	require.NoError(t, err)
+
+	tab, err := service.Open(ctx, ActionRequest{SessionID: session.ID, URL: testPageURL + "/open"})
+	require.NoError(t, err)
+	require.Equal(t, "opened-tab", tab.ID)
+	require.Equal(t, testPageURL+"/open", tab.URL)
+}
+
+func TestService_NavigateReturnsLoadedTabWhenOptionalNetworkSettlementTimesOut(t *testing.T) {
+	backendSession := newInteractiveBackendSession()
+	backendSession.networkSettleErr = errOptionalNetworkSettlementTimedOut
+	service, err := NewService(
+		context.Background(), testBrowserConfig(t), allowChecker(),
+		&interactiveBackend{session: backendSession},
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, service.Close(context.Background())) })
+	ctx := testBrowserContext("owner", "session")
+	session, err := service.Start(ctx, StartRequest{})
+	require.NoError(t, err)
+	_, err = service.Tabs(ctx, session.ID)
+	require.NoError(t, err)
+
+	tab, err := service.Navigate(ctx, ActionRequest{
+		SessionID: session.ID,
+		TabID:     "tab-1",
+		URL:       testPageURL + "/next",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "tab-1", tab.ID)
+	require.Equal(t, testPageURL+"/next", tab.URL)
 }
 
 func TestService_CheckOperationsRequiresExactAdmissionEvidence(t *testing.T) {

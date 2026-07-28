@@ -53,7 +53,6 @@ func New(service morphagent.ServiceAPI, opts Options) *grpc.Server {
 		ProfileName:          opts.ProfileName,
 		PermissionPolicy:     opts.PermissionPolicy,
 	})
-	morphpb.RegisterMorphServiceServer(server, rpcService)
 	morphpb.RegisterSessionServiceServer(server, rpcService)
 	morphpb.RegisterModelServiceServer(server, rpcService)
 	morphpb.RegisterGatewayServiceServer(server, rpc.NewGatewayService(rpcService))

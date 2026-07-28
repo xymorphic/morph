@@ -6,10 +6,6 @@ option go_package = "github.com/wandxy/morph/internal/rpc/proto;morphpb";
 
 import "google/protobuf/timestamp.proto";
 
-service MorphService {
-  rpc Respond(RespondRequest) returns (stream RespondEvent);
-}
-
 service SessionService {
   rpc Create(CreateSessionRequest) returns (CreateSessionResponse);
   rpc List(ListSessionsRequest) returns (ListSessionsResponse);
@@ -22,6 +18,13 @@ service SessionService {
   rpc Repair(RepairSessionRequest) returns (RepairSessionResponse);
   rpc Status(GetSessionStatusRequest) returns (GetSessionStatusResponse);
   rpc Timeline(GetSessionTimelineRequest) returns (GetSessionTimelineResponse);
+  rpc SubmitMessage(SubmitSessionMessageRequest) returns (SubmitSessionMessageResponse);
+  rpc State(GetSessionStateRequest) returns (GetSessionStateResponse);
+  rpc Observe(ObserveSessionRequest) returns (stream ObserveSessionResponse);
+  rpc EditQueuedMessage(EditQueuedSessionMessageRequest) returns (EditQueuedSessionMessageResponse);
+  rpc RemoveQueuedMessage(RemoveQueuedSessionMessageRequest) returns (RemoveQueuedSessionMessageResponse);
+  rpc PromoteQueuedMessage(PromoteQueuedSessionMessageRequest) returns (PromoteQueuedSessionMessageResponse);
+  rpc InterruptRun(InterruptSessionRunRequest) returns (InterruptSessionRunResponse);
 }
 
 service ModelService {
@@ -88,39 +91,6 @@ service AuthService {
   rpc Prune(PruneAuthRequest) returns (PruneAuthResponse);
   rpc RotateIdentity(RotateAuthIdentityRequest) returns (RotateAuthIdentityResponse);
   rpc IdentityStatus(GetAuthIdentityStatusRequest) returns (GetAuthIdentityStatusResponse);
-}
-
-message RespondRequest {
-  string message = 1;
-  string instruct = 2;
-  string id = 3;
-  optional bool stream = 4;
-}
-
-message RespondEvent {
-  enum Type {
-    TYPE_UNSPECIFIED = 0;
-    TEXT_DELTA = 1;
-    DONE = 2;
-    ERROR = 3;
-    TRACE_EVENT = 4;
-  }
-
-  enum Channel {
-    CHANNEL_UNSPECIFIED = 0;
-    ASSISTANT = 1;
-    REASONING = 2;
-  }
-
-  Type type = 1;
-  string text = 2;
-  string error = 3;
-  Channel channel = 4;
-  string trace_type = 5;
-  string trace_payload_json = 6;
-  // Present for TRACE_EVENT, ERROR, and DONE. TEXT_DELTA consumers should use local receive time.
-  google.protobuf.Timestamp timestamp = 7;
-  string trace_session_id = 8;
 }
 
 message SessionSummary {
@@ -310,6 +280,146 @@ message GetSessionTimelineResponse {
   int32 last_trace_sequence = 8;
   string title = 9;
   string title_source = 10;
+}
+
+message SessionQueueEntry {
+  string id = 1;
+  string session_id = 2;
+  string content = 3;
+  string client_submission_id = 4;
+  string target_run_id = 5;
+  string delivery_mode = 6;
+  string steering_fallback = 7;
+  string status = 8;
+  string actor_kind = 9;
+  string actor_id = 10;
+  string surface_kind = 11;
+  string surface = 12;
+  string profile = 13;
+  int64 sequence = 14;
+  int64 priority = 15;
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  google.protobuf.Timestamp started_at = 18;
+  google.protobuf.Timestamp completed_at = 19;
+  string last_error = 20;
+  string requested_delivery_mode = 21;
+  string instruct = 22;
+  optional bool stream = 23;
+}
+
+message SessionActiveRun {
+  string id = 1;
+  string session_id = 2;
+  string queue_entry_id = 3;
+  string generation = 4;
+  string status = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp completed_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  string reason = 9;
+  string last_error = 10;
+}
+
+message SessionEvent {
+  string session_id = 1;
+  string type = 2;
+  int64 cursor = 3;
+  google.protobuf.Timestamp created_at = 4;
+  SessionQueueEntry queue_entry = 5;
+  SessionActiveRun run = 6;
+  string progress_kind = 7;
+  string progress_channel = 8;
+  string progress_text = 9;
+  string progress_run_id = 10;
+  string progress_queue_entry_id = 11;
+  int64 progress_sequence = 12;
+  SessionTimelineTraceEvent progress_trace_event = 13;
+}
+
+message SessionProgressEvent {
+  string kind = 1;
+  string channel = 2;
+  string text = 3;
+  string run_id = 4;
+  string queue_entry_id = 5;
+  int64 sequence = 6;
+  SessionTimelineTraceEvent trace_event = 7;
+}
+
+message SubmitSessionMessageRequest {
+  string id = 1;
+  string message = 2;
+  string client_submission_id = 3;
+  string delivery_mode = 4;
+  string steering_fallback = 5;
+  string instruct = 6;
+  optional bool stream = 7;
+}
+
+message SubmitSessionMessageResponse {
+  SessionQueueEntry entry = 1;
+}
+
+message GetSessionStateRequest {
+  string id = 1;
+}
+
+message GetSessionStateResponse {
+  string id = 1;
+  SessionActiveRun active_run = 2;
+  repeated SessionQueueEntry queue = 3;
+  int64 cursor = 4;
+  int64 retained_cursor_floor = 5;
+  int32 queue_depth = 6;
+  google.protobuf.Timestamp oldest_pending_created_at = 7;
+  repeated SessionProgressEvent progress = 8;
+}
+
+message ObserveSessionRequest {
+  string id = 1;
+  int64 after_cursor = 2;
+}
+
+message ObserveSessionResponse {
+  SessionEvent event = 1;
+}
+
+message EditQueuedSessionMessageRequest {
+  string id = 1;
+  string entry_id = 2;
+  string message = 3;
+}
+
+message EditQueuedSessionMessageResponse {
+  SessionQueueEntry entry = 1;
+}
+
+message RemoveQueuedSessionMessageRequest {
+  string id = 1;
+  string entry_id = 2;
+}
+
+message RemoveQueuedSessionMessageResponse {
+  SessionQueueEntry entry = 1;
+}
+
+message PromoteQueuedSessionMessageRequest {
+  string id = 1;
+  string entry_id = 2;
+}
+
+message PromoteQueuedSessionMessageResponse {
+  SessionQueueEntry entry = 1;
+}
+
+message InterruptSessionRunRequest {
+  string id = 1;
+}
+
+message InterruptSessionRunResponse {
+  SessionActiveRun run = 1;
+  bool transitioned = 2;
 }
 
 message RuntimeModelRequest {}

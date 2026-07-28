@@ -6,11 +6,13 @@ import (
 	"net"
 	"time"
 
+	morphagent "github.com/wandxy/morph/internal/agent"
 	"github.com/wandxy/morph/internal/permissions"
 	rpcclient "github.com/wandxy/morph/internal/rpc/client"
 	storage "github.com/wandxy/morph/internal/state/core"
 	agent "github.com/wandxy/morph/pkg/agent"
 	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 	"github.com/wandxy/morph/pkg/gateway/pairing"
 )
 
@@ -220,8 +222,64 @@ type rpcAdapterClientStub struct {
 	currentErr error
 }
 
-func (s rpcAdapterClientStub) Respond(context.Context, string, rpcclient.RespondOptions) (string, error) {
-	return s.reply, nil
+func (s rpcAdapterClientStub) SubmitMessage(
+	context.Context,
+	rpcclient.SubmitMessageOptions,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{ID: "que_stub"}, nil
+}
+
+func (s rpcAdapterClientStub) State(
+	context.Context,
+	string,
+) (rpcclient.SessionExecutionState, error) {
+	return rpcclient.SessionExecutionState{
+		Queue: []rpcclient.SessionQueueEntry{{
+			ID:     "que_stub",
+			Status: agentsession.QueueStatusCompleted,
+		}},
+	}, nil
+}
+
+func (s rpcAdapterClientStub) Observe(
+	context.Context,
+	string,
+	int64,
+	func(rpcclient.SessionEvent) error,
+) error {
+	return nil
+}
+
+func (s rpcAdapterClientStub) EditQueuedMessage(
+	context.Context,
+	string,
+	string,
+	string,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, nil
+}
+
+func (s rpcAdapterClientStub) RemoveQueuedMessage(
+	context.Context,
+	string,
+	string,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, nil
+}
+
+func (s rpcAdapterClientStub) PromoteQueuedMessage(
+	context.Context,
+	string,
+	string,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, nil
+}
+
+func (s rpcAdapterClientStub) InterruptRun(
+	context.Context,
+	string,
+) (rpcclient.SessionActiveRun, bool, error) {
+	return rpcclient.SessionActiveRun{}, false, nil
 }
 
 func (s rpcAdapterClientStub) SessionAPI() rpcclient.SessionAPI {
@@ -283,7 +341,10 @@ func (s rpcAdapterClientStub) Timeline(
 	context.Context,
 	rpcclient.SessionTimelineOptions,
 ) (rpcclient.SessionTimeline, error) {
-	return rpcclient.SessionTimeline{}, nil
+	message, _ := morphmsg.NewMessage(morphmsg.RoleAssistant, s.reply)
+	return rpcclient.SessionTimeline{
+		Messages: []morphagent.SessionTimelineMessage{{Message: message}},
+	}, nil
 }
 
 func (s rpcAdapterClientStub) Close() error {

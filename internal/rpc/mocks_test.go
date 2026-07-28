@@ -2,8 +2,6 @@ package rpc
 
 import (
 	"context"
-	"errors"
-	"io"
 
 	agentapi "github.com/wandxy/morph/internal/agent"
 	morphauth "github.com/wandxy/morph/internal/auth"
@@ -12,12 +10,8 @@ import (
 	"github.com/wandxy/morph/internal/gateway"
 	agentstub "github.com/wandxy/morph/internal/mocks/agentstub"
 	"github.com/wandxy/morph/internal/permissions"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
 	"github.com/wandxy/morph/internal/rpc/rpcmeta"
-	"github.com/wandxy/morph/internal/trace"
-	agent "github.com/wandxy/morph/pkg/agent"
 	"github.com/wandxy/morph/pkg/gateway/pairing"
-	"google.golang.org/grpc/metadata"
 )
 
 func allowedRPCPolicy() permissions.Policy {
@@ -46,34 +40,6 @@ func withTestPrincipal(ctx context.Context, source string) context.Context {
 		Source: source, IdentityGeneration: 1, AuthorizationRevision: 1,
 	})
 }
-
-type respondStreamServerStub struct {
-	ctx       context.Context
-	events    []*morphpb.RespondEvent
-	sendErrAt int
-}
-
-func (s *respondStreamServerStub) Send(event *morphpb.RespondEvent) error {
-	if s.sendErrAt > 0 && len(s.events)+1 == s.sendErrAt {
-		return errors.New("send failed")
-	}
-
-	s.events = append(s.events, event)
-	return nil
-}
-
-func (s *respondStreamServerStub) SetHeader(metadata.MD) error  { return nil }
-func (s *respondStreamServerStub) SendHeader(metadata.MD) error { return nil }
-func (s *respondStreamServerStub) SetTrailer(metadata.MD)       {}
-func (s *respondStreamServerStub) Context() context.Context {
-	if s.ctx != nil {
-		return s.ctx
-	}
-
-	return context.Background()
-}
-func (s *respondStreamServerStub) SendMsg(any) error { return nil }
-func (s *respondStreamServerStub) RecvMsg(any) error { return io.EOF }
 
 type gatewayRuntimeStub struct {
 	status   gateway.Status
@@ -119,69 +85,6 @@ func (s *gatewayRuntimeStub) Stop(ctx context.Context) error {
 
 func (s *gatewayRuntimeStub) Status() gateway.Status {
 	return s.status
-}
-
-type channelRespondStub struct {
-	agentstub.AgentServiceStub
-	channel string
-	text    string
-}
-
-func (s *channelRespondStub) Respond(_ context.Context, _ string, opts agent.RespondOptions) (string, error) {
-	if opts.OnEvent != nil {
-		opts.OnEvent(agent.Event{
-			Kind:    agent.EventKindTextDelta,
-			Channel: s.channel,
-			Text:    s.text,
-		})
-	}
-	return "", nil
-}
-
-type traceRespondStub struct {
-	agentstub.AgentServiceStub
-	traceEvent trace.Event
-}
-
-func (s *traceRespondStub) Respond(_ context.Context, _ string, opts agent.RespondOptions) (string, error) {
-	if opts.OnEvent != nil {
-		opts.OnEvent(agent.Event{Kind: agent.EventKindTrace, TraceEvent: &s.traceEvent})
-		opts.OnEvent(agent.Event{Kind: agent.EventKindTextDelta, Channel: "assistant", Text: "safe"})
-	}
-	return "safe", nil
-}
-
-type traceSequenceRespondStub struct {
-	agentstub.AgentServiceStub
-	reply       string
-	deltas      []agent.Event
-	traceEvents []trace.Event
-}
-
-func (s *traceSequenceRespondStub) Respond(_ context.Context, _ string, opts agent.RespondOptions) (string, error) {
-	for _, delta := range s.deltas {
-		if opts.OnEvent != nil {
-			opts.OnEvent(delta)
-		}
-	}
-	for _, event := range s.traceEvents {
-		if opts.OnEvent != nil {
-			opts.OnEvent(agent.Event{Kind: agent.EventKindTrace, TraceEvent: &event})
-		}
-	}
-
-	return s.reply, nil
-}
-
-type bufferedReplyStub struct {
-	agentstub.AgentServiceStub
-	reply             string
-	capturedSessionID string
-}
-
-func (s *bufferedReplyStub) Respond(_ context.Context, _ string, opts agent.RespondOptions) (string, error) {
-	s.capturedSessionID = opts.SessionID
-	return s.reply, nil
 }
 
 type serviceAPIWithoutPairingStore struct {

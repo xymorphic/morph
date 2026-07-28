@@ -285,6 +285,16 @@ const (
 	toolTranscriptTerminalStatusInterrupted toolTranscriptTerminalStatus = "interrupted"
 )
 
+type toolTranscriptGroupOutcome string
+
+const (
+	toolTranscriptGroupOutcomeRunning             toolTranscriptGroupOutcome = "running"
+	toolTranscriptGroupOutcomeCompleted           toolTranscriptGroupOutcome = "completed"
+	toolTranscriptGroupOutcomeCompletedWithIssues toolTranscriptGroupOutcome = "completed_with_issues"
+	toolTranscriptGroupOutcomeFailed              toolTranscriptGroupOutcome = "failed"
+	toolTranscriptGroupOutcomeInterrupted         toolTranscriptGroupOutcome = "interrupted"
+)
+
 type toolTranscriptCell struct {
 	id             string
 	action         string
@@ -535,46 +545,52 @@ func renderToolTranscriptGroupWithContext(group toolTranscriptGroup, ctx transcr
 	return defaultToolTranscriptRenderer.RenderGroup(group, ctx)
 }
 
-func (group toolTranscriptGroup) isCompleted() bool {
+func (group toolTranscriptGroup) outcome() toolTranscriptGroupOutcome {
 	if len(group.seenIDs) == 0 {
-		return group.completed
-	}
-
-	for id := range group.seenIDs {
-		if !group.completedIDs[id] {
-			return false
+		switch {
+		case group.completed && group.terminalStatus != "":
+			return toolTranscriptGroupOutcomeCompletedWithIssues
+		case group.completed:
+			return toolTranscriptGroupOutcomeCompleted
+		case group.terminalStatus == toolTranscriptTerminalStatusFailed:
+			return toolTranscriptGroupOutcomeFailed
+		case group.terminalStatus == toolTranscriptTerminalStatusInterrupted:
+			return toolTranscriptGroupOutcomeInterrupted
+		default:
+			return toolTranscriptGroupOutcomeRunning
 		}
 	}
 
-	return true
-}
-
-func (group toolTranscriptGroup) isFailed() bool {
-	if len(group.seenIDs) == 0 {
-		return group.terminalStatus == toolTranscriptTerminalStatusFailed
-	}
-
+	completedCount := 0
+	failedCount := 0
+	interruptedCount := 0
 	for id := range group.seenIDs {
-		if group.terminalStatuses[id] == toolTranscriptTerminalStatusFailed {
-			return true
+		switch group.terminalStatuses[id] {
+		case toolTranscriptTerminalStatusFailed:
+			failedCount++
+		case toolTranscriptTerminalStatusInterrupted:
+			interruptedCount++
+		default:
+			if group.completedIDs[id] {
+				completedCount++
+				continue
+			}
+			return toolTranscriptGroupOutcomeRunning
 		}
 	}
 
-	return false
-}
-
-func (group toolTranscriptGroup) isInterrupted() bool {
-	if len(group.seenIDs) == 0 {
-		return group.terminalStatus == toolTranscriptTerminalStatusInterrupted
+	switch {
+	case completedCount > 0 && failedCount+interruptedCount > 0:
+		return toolTranscriptGroupOutcomeCompletedWithIssues
+	case completedCount > 0:
+		return toolTranscriptGroupOutcomeCompleted
+	case failedCount > 0:
+		return toolTranscriptGroupOutcomeFailed
+	case interruptedCount > 0:
+		return toolTranscriptGroupOutcomeInterrupted
+	default:
+		return toolTranscriptGroupOutcomeRunning
 	}
-
-	for id := range group.seenIDs {
-		if group.terminalStatuses[id] == toolTranscriptTerminalStatusInterrupted {
-			return true
-		}
-	}
-
-	return false
 }
 
 func getToolActionName(name string) string {

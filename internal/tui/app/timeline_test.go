@@ -128,6 +128,37 @@ func TestRenderToolTranscriptGroup_RendersTerminalRunStates(t *testing.T) {
 	}
 }
 
+func TestRenderToolTranscriptGroup_RendersCompletedWithIssues(t *testing.T) {
+	group := toolTranscriptGroup{action: "Run"}
+	group.add(toolTranscriptCell{
+		id:             "call_1",
+		action:         "Run",
+		detail:         "false",
+		terminalStatus: toolTranscriptTerminalStatusFailed,
+		failure:        "exit status 1",
+	})
+	group.add(toolTranscriptCell{
+		id:        "call_2",
+		action:    "Run",
+		detail:    "true",
+		completed: true,
+	})
+
+	rendered := stripANSI(renderToolTranscriptGroup(group, 0))
+
+	require.Contains(t, rendered, "Ran 2 shell commands with issues")
+	require.NotContains(t, rendered, "Failed 2 shell commands")
+	require.False(t, hasRunningToolTranscriptCell([]transcriptCell{
+		toolTranscriptCell{
+			id:             "call_1",
+			action:         "Run",
+			detail:         "false",
+			terminalStatus: toolTranscriptTerminalStatusFailed,
+		},
+		toolTranscriptCell{id: "call_2", action: "Run", detail: "true", completed: true},
+	}))
+}
+
 func toolTranscriptTestCellWithTiming(
 	id string,
 	name string,
@@ -1157,6 +1188,96 @@ func TestRenderBrowserTranscript_LabelsMixedActions(t *testing.T) {
 	require.Contains(t, rendered, "● Running Browser Actions")
 	require.Contains(t, rendered, "├ Navigation · https://example.com")
 	require.Contains(t, rendered, "└ Snapshot · Tab tab_1")
+}
+
+func TestSessionTimelineToTranscriptCells_PreservesBrowserBranchesAfterHydration(t *testing.T) {
+	startedAt := time.Date(2026, 7, 28, 18, 10, 55, 0, time.UTC)
+	toolCalls := []struct {
+		id        string
+		input     string
+		startedAt time.Time
+		duration  time.Duration
+	}{
+		{"call_status", `{"action":"status"}`, startedAt, 10 * time.Millisecond},
+		{"call_start", `{"action":"start","profile":"default"}`, startedAt.Add(7 * time.Second), 6 * time.Second},
+		{"call_open", `{"action":"open","url":"https://www.cnn.com/private?token=secret"}`, startedAt.Add(21 * time.Second), 4 * time.Second},
+		{"call_snapshot", `{"action":"snapshot","tab_id":"tab_1"}`, startedAt.Add(35 * time.Second), time.Second},
+	}
+	messages := []agentapi.SessionTimelineMessage{{
+		Message: morphmsg.Message{Role: morphmsg.RoleUser, Content: "get news", CreatedAt: startedAt.Add(-time.Second)},
+	}}
+	traceEvents := make([]agentapi.SessionTimelineTraceEvent, 0, len(toolCalls)*2)
+	for _, call := range toolCalls {
+		messages = append(messages,
+			agentapi.SessionTimelineMessage{Message: morphmsg.Message{
+				Role:      morphmsg.RoleAssistant,
+				CreatedAt: call.startedAt,
+				ToolCalls: []morphmsg.ToolCall{{ID: call.id, Name: "browser", Input: call.input}},
+			}},
+			agentapi.SessionTimelineMessage{Message: morphmsg.Message{
+				Role:       morphmsg.RoleTool,
+				Name:       "browser",
+				ToolCallID: call.id,
+				Content:    `{"name":"browser","output":"{}"}`,
+				CreatedAt:  call.startedAt.Add(call.duration),
+			}},
+		)
+		traceEvents = append(traceEvents,
+			agentapi.SessionTimelineTraceEvent{Event: agentsession.TraceEvent{
+				Type:      trace.EvtToolInvocationStarted,
+				Timestamp: call.startedAt,
+				Payload:   map[string]any{"id": call.id, "name": "browser"},
+			}},
+			agentapi.SessionTimelineTraceEvent{Event: agentsession.TraceEvent{
+				Type:      trace.EvtToolInvocationCompleted,
+				Timestamp: call.startedAt.Add(call.duration),
+				Payload:   map[string]any{"tool_call_id": call.id, "name": "browser"},
+			}},
+		)
+	}
+
+	cells := sessionTimelineToTranscriptCells(client.SessionTimeline{
+		Messages:    messages,
+		TraceEvents: traceEvents,
+	})
+	rendered := stripANSI(renderTranscriptCells(cells))
+
+	require.Contains(t, rendered, "Start · Profile default")
+	require.Contains(t, rendered, "Tab Opening · https://www.cnn.com")
+	require.Contains(t, rendered, "Snapshot · Tab tab_1")
+	require.NotContains(t, rendered, "private")
+	require.NotContains(t, rendered, "token=secret")
+}
+
+func TestRenderBrowserTranscript_LabelsMixedTerminalOutcomesAsCompletedWithIssues(t *testing.T) {
+	group := toolTranscriptGroup{action: "Browser"}
+	group.add(toolTranscriptCell{
+		id:             "call_1",
+		action:         "Browser",
+		detail:         "reload:Tab stale",
+		terminalStatus: toolTranscriptTerminalStatusFailed,
+		failure:        "Browser session not found",
+	})
+	group.add(toolTranscriptCell{
+		id:        "call_2",
+		action:    "Browser",
+		detail:    "start:Profile default",
+		completed: true,
+	})
+	group.add(toolTranscriptCell{
+		id:        "call_3",
+		action:    "Browser",
+		detail:    "open:https://cnn.com",
+		completed: true,
+	})
+
+	rendered := stripANSI(renderToolTranscriptGroup(group, 0))
+
+	require.Contains(t, rendered, "Browser Actions Completed with Issues")
+	require.Contains(t, rendered, "Reload · Tab stale · Browser session not found")
+	require.Contains(t, rendered, "Start · Profile default")
+	require.Contains(t, rendered, "Tab Opening · https://cnn.com")
+	require.NotContains(t, rendered, "Browser Actions Failed")
 }
 
 func TestBrowserTranscriptTitle_HandlesActionCatalogAndMixedGroups(t *testing.T) {

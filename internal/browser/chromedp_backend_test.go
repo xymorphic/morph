@@ -1293,6 +1293,54 @@ func TestChromiumBackend_InteractiveActionsCompleteLocalFixtureWorkflow(t *testi
 	require.NoError(t, interactive.FocusTab(context.Background(), tab.ID))
 }
 
+func TestChromiumSession_NavigateReturnsAfterDOMContentLoadedWithPendingSubresource(t *testing.T) {
+	executable, err := discoverChromiumExecutable("")
+	if err != nil {
+		t.Skip("Chromium is not installed")
+	}
+	releaseImage := make(chan struct{})
+	fixture := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/start":
+			http.Redirect(writer, request, "/page", http.StatusFound)
+			return
+		case "/pending.png":
+			writer.Header().Set("Content-Type", "image/png")
+			writer.WriteHeader(http.StatusOK)
+			if flusher, ok := writer.(http.Flusher); ok {
+				flusher.Flush()
+			}
+			<-releaseImage
+			return
+		}
+		_, _ = io.WriteString(writer, `<!doctype html>
+<html>
+  <head><title>DOMContentLoaded fixture</title></head>
+  <body><main>Ready</main><img src="/pending.png" alt="Pending" /></body>
+</html>`)
+	}))
+	defer fixture.Close()
+	defer close(releaseImage)
+	proxy, err := startEgressProxy(NetworkPolicy{Strict: false})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, proxy.Close(context.Background())) })
+	session := startChromiumSession(t, executable, proxy)
+	t.Cleanup(func() { require.NoError(t, session.Close(context.Background())) })
+	interactive := session.(InteractiveBackendSession)
+	restoreAuthorization := allowBackendNetworkRequests(t, session, proxy)
+	defer restoreAuthorization()
+	tabs, err := interactive.ListTabs(context.Background())
+	require.NoError(t, err)
+	require.NotEmpty(t, tabs)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	tab, err := interactive.Navigate(ctx, tabs[0].ID, fixture.URL+"/start")
+	require.NoError(t, err)
+	require.Equal(t, fixture.URL+"/page", tab.URL)
+	require.Equal(t, "DOMContentLoaded fixture", tab.Title)
+}
+
 func TestService_ChromiumNavigationAuthorizesSubresources(t *testing.T) {
 	executable, err := discoverChromiumExecutable("")
 	if err != nil {

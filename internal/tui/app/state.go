@@ -10,6 +10,7 @@ import (
 	"github.com/wandxy/morph/internal/permissions"
 	rpcclient "github.com/wandxy/morph/internal/rpc/client"
 	storage "github.com/wandxy/morph/internal/state/core"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 )
 
 type tuiState struct {
@@ -57,6 +58,19 @@ type tuiState struct {
 	responseRunningToolCount   int
 	responseEventStreamActive  bool
 	pendingResponseCompletion  *responseCompletedMsg
+	sessionExecutionState      rpcclient.SessionExecutionState
+	sessionProgressSequences   map[string]int64
+	sessionDeferredProgress    []agentsession.ProgressEvent
+	sessionQueueStale          bool
+	sessionObserverCancel      context.CancelFunc
+	sessionObserverEvents      <-chan tea.Msg
+	sessionObserverSessionID   string
+	sessionObserverID          uint64
+	sessionQueueFocused        bool
+	sessionQueueSelected       int
+	sessionQueueEditingEntryID string
+	sessionQueueComposerDraft  string
+	sessionQueueEditSaving     bool
 	toolAnimationFrame         int
 	toolAnimationActive        bool
 	transcriptRenderSuppressed bool

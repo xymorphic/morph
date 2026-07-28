@@ -5,6 +5,7 @@ import (
 	"time"
 
 	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 	"github.com/wandxy/morph/pkg/gateway/pairing"
 	"github.com/wandxy/morph/pkg/nanoid"
 )
@@ -138,6 +139,24 @@ type GatewayBinding struct {
 	UpdatedAt time.Time
 }
 
+type DeliveryMode = agentsession.DeliveryMode
+type SteeringFallback = agentsession.SteeringFallback
+type QueueStatus = agentsession.QueueStatus
+type RunStatus = agentsession.RunStatus
+type SessionQueueProvenance = agentsession.Provenance
+type SessionQueueEntry = agentsession.QueueEntry
+type SessionActiveRun = agentsession.ActiveRun
+type SessionExecutionState = agentsession.ExecutionState
+type SessionEvent = agentsession.Event
+type SessionEventBatch = agentsession.EventBatch
+type SessionSubmitRequest = agentsession.SubmitRequest
+type SessionQueueEditRequest = agentsession.QueueEditRequest
+type SessionQueueMutationRequest = agentsession.QueueMutationRequest
+type SessionClaimRequest = agentsession.ClaimRequest
+type SessionSteeringClaimRequest = agentsession.SteeringClaimRequest
+type SessionRunFinishRequest = agentsession.RunFinishRequest
+type SessionReconcileResult = agentsession.ReconcileResult
+
 // SessionMetadataStore defines persisted session metadata operations.
 type SessionMetadataStore interface {
 	Save(ctx context.Context, session Session) error
@@ -176,6 +195,8 @@ type SessionSummaryStore interface {
 	GetSummary(ctx context.Context, sessionID string) (SessionSummary, bool, error)
 	DeleteSummary(ctx context.Context, sessionID string) error
 }
+
+type SessionInboxStore = agentsession.InboxStore
 
 type GatewayBindingStore interface {
 	SaveGatewayBinding(ctx context.Context, binding GatewayBinding) error

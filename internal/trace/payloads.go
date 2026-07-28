@@ -16,6 +16,14 @@ type SessionFailedPayload struct {
 	Message string `json:"message,omitempty"`
 }
 
+type SessionQueueEventPayload struct {
+	QueueEntryID string `json:"queue_entry_id,omitempty"`
+	RunID        string `json:"run_id,omitempty"`
+	DeliveryMode string `json:"delivery_mode,omitempty"`
+	Status       string `json:"status,omitempty"`
+	Reason       string `json:"reason,omitempty"`
+}
+
 // SafetyEventPayload is the trace payload for safety event.
 type SafetyEventPayload struct {
 	SessionID     string              `json:"session_id,omitempty"`
@@ -369,6 +377,14 @@ func DecodePayload(eventType string, payload any) (any, bool) {
 		return decodePayloadAs[Metadata](payload)
 	case EvtSessionFailed:
 		return decodePayloadAs[SessionFailedPayload](payload)
+	case EvtSessionQueueEnqueued,
+		EvtSessionQueueClaimed,
+		EvtSessionSteeringDelivered,
+		EvtSessionQueueCompleted,
+		EvtSessionQueueInterrupted,
+		EvtSessionQueueFailed,
+		EvtSessionQueueCancelled:
+		return decodePayloadAs[SessionQueueEventPayload](payload)
 	case EvtInputSafetyBlocked,
 		EvtOutputSafetyApplied,
 		EvtToolOutputSafetyApplied,

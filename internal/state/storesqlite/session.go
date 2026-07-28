@@ -490,6 +490,9 @@ func (s *Store) deleteSessions(ctx context.Context, ids []string) ([]string, err
 			if err := tx.Where("session_id = ?", id).Delete(&summaryModel{}).Error; err != nil {
 				return err
 			}
+			if err := deleteSessionInbox(tx, id); err != nil {
+				return err
+			}
 
 			if err := tx.Delete(&session).Error; err != nil {
 				return err
@@ -516,6 +519,20 @@ func (s *Store) deleteSessions(ctx context.Context, ids []string) ([]string, err
 	return deletedSessionIDs, nil
 }
 
+func deleteSessionInbox(tx *gorm.DB, sessionID string) error {
+	for _, model := range []any{
+		&sessionEventModel{},
+		&sessionRunModel{},
+		&sessionQueueEntryModel{},
+		&sessionExecutionStateModel{},
+	} {
+		if err := tx.Where("session_id = ?", sessionID).Delete(model).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // AppendMessages appends messages to a session and updates lexical/vector search indexes.
 func (s *Store) AppendMessages(ctx context.Context, id string, messages []morphmsg.Message) error {
 	if s == nil || s.db == nil {
@@ -535,47 +552,68 @@ func (s *Store) AppendMessages(ctx context.Context, id string, messages []morphm
 	var records []messageModel
 	err := runSQLiteWriteWithRetry(ctx, func(writeCtx context.Context) error {
 		return s.db.WithContext(writeCtx).Transaction(func(tx *gorm.DB) error {
-			var record sessionModel
-
-			if err := tx.First(&record, "id = ?", id).Error; err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					return errors.New("session not found")
-				}
-
-				return err
-			}
-
-			var nextSequence int
-			if err := tx.Model(&messageModel{}).Where("session_id = ?", id).
-				Select("COALESCE(MAX(sequence), -1) + 1").Scan(&nextSequence).Error; err != nil {
-				return err
-			}
-
-			records = messagesToMessageModelsWithOffset(id, messages, nextSequence)
-			if len(records) > 0 {
-				if err := tx.Create(&records).Error; err != nil {
-					return err
-				}
-				if err := messageModels(records).searchRows().insert(tx); err != nil {
-					return err
-				}
-				if s.vectors != nil {
-					states := messageModels(records).getVectorIndexStates(s.vectors.Chunking)
-					if len(states) > 0 {
-						if err := tx.Create(&states).Error; err != nil {
-							return err
-						}
-					}
-				}
-			}
-
-			record.UpdatedAt = time.Now().UTC()
-
-			return tx.Save(&record).Error
+			var err error
+			records, err = s.appendMessagesInTransaction(tx, id, messages)
+			return err
 		})
 	})
 	if err != nil {
 		return err
+	}
+
+	s.indexPersistedMessages(ctx, records)
+
+	return nil
+}
+
+func (s *Store) appendMessagesInTransaction(
+	tx *gorm.DB,
+	sessionID string,
+	messages []morphmsg.Message,
+) ([]messageModel, error) {
+	var session sessionModel
+	if err := tx.First(&session, "id = ?", sessionID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("session not found")
+		}
+		return nil, err
+	}
+
+	var nextSequence int
+	if err := tx.Model(&messageModel{}).Where("session_id = ?", sessionID).
+		Select("COALESCE(MAX(sequence), -1) + 1").Scan(&nextSequence).Error; err != nil {
+		return nil, err
+	}
+
+	records := messagesToMessageModelsWithOffset(sessionID, messages, nextSequence)
+	if len(records) > 0 {
+		if err := tx.Create(&records).Error; err != nil {
+			return nil, err
+		}
+		if err := messageModels(records).searchRows().insert(tx); err != nil {
+			return nil, err
+		}
+		if s.vectors != nil {
+			states := messageModels(records).getVectorIndexStates(s.vectors.Chunking)
+			if len(states) > 0 {
+				if err := tx.Create(&states).Error; err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	session.UpdatedAt = time.Now().UTC()
+	if err := tx.Save(&session).Error; err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
+
+func (s *Store) indexPersistedMessages(ctx context.Context, records []messageModel) {
+	if s == nil || len(records) == 0 || s.vectors == nil {
+		return
 	}
 
 	indexErr := s.indexVectors(ctx, records)
@@ -586,12 +624,10 @@ func (s *Store) AppendMessages(ctx context.Context, id string, messages []morphm
 	}
 	if indexErr != nil {
 		applySafeErrorLog(s.logVectorEvent("online indexing failed"), indexErr).
-			Str("session_id", id).
+			Str("session_id", records[0].SessionID).
 			Int("message_count", len(records)).
 			Msg("session vector indexing failed after message persistence")
 	}
-
-	return nil
 }
 
 // GetMessages loads messages with role, name, order, offset, and limit filters.

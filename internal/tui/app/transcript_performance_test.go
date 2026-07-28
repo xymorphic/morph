@@ -421,12 +421,10 @@ func TestModel_StartResponseCancelsAndDrainsSupersededEvents(t *testing.T) {
 	batch, ok := cmd().(tea.BatchMsg)
 	require.True(t, ok)
 	require.Len(t, batch, 3)
-	require.Equal(t, responseCompletedMsg{ResponseID: runModel.responseID, Text: "done"}, batch[1]())
-	messageBatch, ok := batch[2]().(responseEventBatchMsg)
+	require.Equal(t, responseCompletedMsg{ResponseID: runModel.responseID}, batch[1]())
+	closed, ok := batch[2]().(responseEventsClosedMsg)
 	require.True(t, ok)
-	require.True(t, messageBatch.Closed)
-	require.Equal(t, runModel.responseID, messageBatch.ResponseID)
-	require.Equal(t, []tea.Msg{assistantTextDeltaMsg{Channel: "assistant", Text: "new response"}}, messageBatch.Messages)
+	require.Equal(t, runModel.responseID, closed.ResponseID)
 	runModel.responseCancel()
 }
 

@@ -270,6 +270,53 @@ func TestTurn_RunExecutesToolLoop(t *testing.T) {
 	require.Len(t, turn.Messages(), 4)
 }
 
+func TestTurn_RunInjectsSteeringOnlyAfterToolResultsPersist(t *testing.T) {
+	store := &sessionStoreStub{messagesByOffset: map[int][]morphmsg.Message{}}
+	client := &mocks.ModelClientStub{Responses: []*models.Response{
+		{
+			RequiresToolCalls: true,
+			ToolCalls: []models.ToolCall{{
+				ID: "call", Name: "time", Input: "{}",
+			}},
+		},
+		{OutputText: "corrected"},
+	}}
+	registry := &toolGroupRegistryStub{
+		definitions: []agenttool.Definition{{Name: "time"}},
+		invoke: func(_ context.Context, call agenttool.Call) morphmsg.Message {
+			return morphmsg.Message{
+				Role:       morphmsg.RoleTool,
+				Name:       call.Name,
+				ToolCallID: call.ID,
+				Content:    `{"ok":true}`,
+			}
+		},
+	}
+	turn := newTurnRunTestSubject(client, store, registry, envbudget.New(3))
+	callbackCalls := 0
+	turn.setAfterToolBatchPersisted(func(context.Context) (bool, error) {
+		callbackCalls++
+		require.Equal(t, 3, store.appendCalls)
+		steering, err := morphmsg.NewMessage(morphmsg.RoleUser, "use UTC instead")
+		require.NoError(t, err)
+		turn.emittedMessages = append(turn.emittedMessages, steering)
+		return true, nil
+	})
+
+	reply, err := turn.Run(context.Background(), "what time is it?", agentcore.RespondOptions{})
+
+	require.NoError(t, err)
+	require.Equal(t, "corrected", reply)
+	require.Equal(t, 1, callbackCalls)
+	require.Len(t, client.Requests, 2)
+	secondRequest := client.Requests[1].Messages
+	require.Len(t, secondRequest, 4)
+	require.Equal(t, morphmsg.RoleAssistant, secondRequest[1].Role)
+	require.Len(t, secondRequest[1].ToolCalls, 1)
+	require.Equal(t, morphmsg.RoleTool, secondRequest[2].Role)
+	require.Equal(t, "use UTC instead", secondRequest[3].Content)
+}
+
 func TestTurn_RunStopsAfterRepeatedEquivalentToolFailures(t *testing.T) {
 	client := &mocks.ModelClientStub{Responses: []*models.Response{
 		{

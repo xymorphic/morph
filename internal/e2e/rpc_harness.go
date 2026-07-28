@@ -51,6 +51,17 @@ func NewRPCHarness(ctx context.Context, opts HarnessOptions) (*RPCHarness, error
 		_ = base.Close()
 		return nil, errors.New("e2e rpc harness requires a full agent service")
 	}
+	runner, ok := base.agent.(interface {
+		StartSessionRunner(context.Context) error
+	})
+	if !ok {
+		_ = base.Close()
+		return nil, errors.New("e2e rpc harness requires a session runner")
+	}
+	if err := runner.StartSessionRunner(ctx); err != nil {
+		_ = base.Close()
+		return nil, err
+	}
 	activeProfile := profile.Active()
 	identity, err := credential.NewFileStore("").LoadOrCreateIdentity()
 	if err != nil {

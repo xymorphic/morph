@@ -27,6 +27,7 @@ import (
 	storagememory "github.com/wandxy/morph/internal/state/storememory"
 	storagesqlite "github.com/wandxy/morph/internal/state/storesqlite"
 	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 	"github.com/wandxy/morph/pkg/logutils"
 )
 
@@ -55,6 +56,8 @@ func TestOpenStore_ReturnsMemoryStore(t *testing.T) {
 
 	require.NoError(t, err)
 	require.IsType(t, &storagememory.Store{}, store)
+	_, ok := store.Session().(agentsession.InboxStore)
+	require.True(t, ok)
 }
 
 func TestOpenStore_IgnoresIncompleteVectorConfigWhenDisabled(t *testing.T) {

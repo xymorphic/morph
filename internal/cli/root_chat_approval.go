@@ -76,28 +76,58 @@ func (h *rootChatApprovalHandler) Handle(ctx context.Context, event rpcclient.Ev
 	if !ok || str.String(payload.RequestID).Trim() == "" {
 		return true, errors.New("invalid permission approval event")
 	}
+	return true, h.handlePayload(ctx, payload)
+}
+
+func (h *rootChatApprovalHandler) HandleRequest(
+	ctx context.Context,
+	request permissions.ApprovalRequest,
+) error {
+	effects := make([]string, len(request.Effects))
+	for index, effect := range request.Effects {
+		effects[index] = string(effect)
+	}
+	return h.handlePayload(ctx, trace.PermissionApprovalPayload{
+		RequestID:  request.ID,
+		Status:     string(request.Status),
+		Scope:      string(request.Scope),
+		Tool:       request.Tool,
+		Resource:   string(request.Resource),
+		Action:     string(request.Action),
+		Effects:    effects,
+		Summary:    request.Summary,
+		Reason:     request.Reason,
+		Operations: request.Operations,
+		ExpiresAt:  request.ExpiresAt,
+	})
+}
+
+func (h *rootChatApprovalHandler) handlePayload(
+	ctx context.Context,
+	payload trace.PermissionApprovalPayload,
+) error {
 	if payload.Status != string(permissions.ApprovalPending) {
-		return true, nil
+		return nil
 	}
 	if !h.interactive {
-		return true, fmt.Errorf(
+		return fmt.Errorf(
 			"approval required for %s; root chat input and output must be an interactive terminal (%s)",
 			payload.Summary,
 			payload.RequestID,
 		)
 	}
 	if h.input == nil || h.permissions == nil {
-		return true, errors.New("interactive permission approval is unavailable")
+		return errors.New("interactive permission approval is unavailable")
 	}
 
 	approved, scope, err := h.prompt(ctx, payload)
 	if err != nil {
-		return true, err
+		return err
 	}
 	resolveCtx := rpcmeta.WithOutgoingPermissionSurface(ctx, permissions.SurfaceCLI)
 	request, err := h.permissions.ResolveApprovalRequest(resolveCtx, payload.RequestID, approved, scope)
 	if err != nil {
-		return true, fmt.Errorf("resolve permission approval: %w", err)
+		return fmt.Errorf("resolve permission approval: %w", err)
 	}
 
 	status := "denied"
@@ -110,7 +140,7 @@ func (h *rootChatApprovalHandler) Handle(ctx context.Context, event rpcclient.Ev
 	}
 	_, err = fmt.Fprintf(h.output, "\nPermission %s — %s\n\n", status, summary)
 
-	return true, err
+	return err
 }
 
 func (h *rootChatApprovalHandler) prompt(

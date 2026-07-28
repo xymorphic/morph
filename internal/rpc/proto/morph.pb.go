@@ -22,110 +22,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type RespondEvent_Type int32
-
-const (
-	RespondEvent_TYPE_UNSPECIFIED RespondEvent_Type = 0
-	RespondEvent_TEXT_DELTA       RespondEvent_Type = 1
-	RespondEvent_DONE             RespondEvent_Type = 2
-	RespondEvent_ERROR            RespondEvent_Type = 3
-	RespondEvent_TRACE_EVENT      RespondEvent_Type = 4
-)
-
-// Enum value maps for RespondEvent_Type.
-var (
-	RespondEvent_Type_name = map[int32]string{
-		0: "TYPE_UNSPECIFIED",
-		1: "TEXT_DELTA",
-		2: "DONE",
-		3: "ERROR",
-		4: "TRACE_EVENT",
-	}
-	RespondEvent_Type_value = map[string]int32{
-		"TYPE_UNSPECIFIED": 0,
-		"TEXT_DELTA":       1,
-		"DONE":             2,
-		"ERROR":            3,
-		"TRACE_EVENT":      4,
-	}
-)
-
-func (x RespondEvent_Type) Enum() *RespondEvent_Type {
-	p := new(RespondEvent_Type)
-	*p = x
-	return p
-}
-
-func (x RespondEvent_Type) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (RespondEvent_Type) Descriptor() protoreflect.EnumDescriptor {
-	return file_internal_rpc_proto_morph_proto_enumTypes[0].Descriptor()
-}
-
-func (RespondEvent_Type) Type() protoreflect.EnumType {
-	return &file_internal_rpc_proto_morph_proto_enumTypes[0]
-}
-
-func (x RespondEvent_Type) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use RespondEvent_Type.Descriptor instead.
-func (RespondEvent_Type) EnumDescriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{1, 0}
-}
-
-type RespondEvent_Channel int32
-
-const (
-	RespondEvent_CHANNEL_UNSPECIFIED RespondEvent_Channel = 0
-	RespondEvent_ASSISTANT           RespondEvent_Channel = 1
-	RespondEvent_REASONING           RespondEvent_Channel = 2
-)
-
-// Enum value maps for RespondEvent_Channel.
-var (
-	RespondEvent_Channel_name = map[int32]string{
-		0: "CHANNEL_UNSPECIFIED",
-		1: "ASSISTANT",
-		2: "REASONING",
-	}
-	RespondEvent_Channel_value = map[string]int32{
-		"CHANNEL_UNSPECIFIED": 0,
-		"ASSISTANT":           1,
-		"REASONING":           2,
-	}
-)
-
-func (x RespondEvent_Channel) Enum() *RespondEvent_Channel {
-	p := new(RespondEvent_Channel)
-	*p = x
-	return p
-}
-
-func (x RespondEvent_Channel) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (RespondEvent_Channel) Descriptor() protoreflect.EnumDescriptor {
-	return file_internal_rpc_proto_morph_proto_enumTypes[1].Descriptor()
-}
-
-func (RespondEvent_Channel) Type() protoreflect.EnumType {
-	return &file_internal_rpc_proto_morph_proto_enumTypes[1]
-}
-
-func (x RespondEvent_Channel) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use RespondEvent_Channel.Descriptor instead.
-func (RespondEvent_Channel) EnumDescriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{1, 1}
-}
-
 type RepairSessionRequest_Type int32
 
 const (
@@ -156,11 +52,11 @@ func (x RepairSessionRequest_Type) String() string {
 }
 
 func (RepairSessionRequest_Type) Descriptor() protoreflect.EnumDescriptor {
-	return file_internal_rpc_proto_morph_proto_enumTypes[2].Descriptor()
+	return file_internal_rpc_proto_morph_proto_enumTypes[0].Descriptor()
 }
 
 func (RepairSessionRequest_Type) Type() protoreflect.EnumType {
-	return &file_internal_rpc_proto_morph_proto_enumTypes[2]
+	return &file_internal_rpc_proto_morph_proto_enumTypes[0]
 }
 
 func (x RepairSessionRequest_Type) Number() protoreflect.EnumNumber {
@@ -169,176 +65,7 @@ func (x RepairSessionRequest_Type) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RepairSessionRequest_Type.Descriptor instead.
 func (RepairSessionRequest_Type) EnumDescriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{19, 0}
-}
-
-type RespondRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
-	Instruct      string                 `protobuf:"bytes,2,opt,name=instruct,proto3" json:"instruct,omitempty"`
-	Id            string                 `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
-	Stream        *bool                  `protobuf:"varint,4,opt,name=stream,proto3,oneof" json:"stream,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RespondRequest) Reset() {
-	*x = RespondRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RespondRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RespondRequest) ProtoMessage() {}
-
-func (x *RespondRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RespondRequest.ProtoReflect.Descriptor instead.
-func (*RespondRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *RespondRequest) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-func (x *RespondRequest) GetInstruct() string {
-	if x != nil {
-		return x.Instruct
-	}
-	return ""
-}
-
-func (x *RespondRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *RespondRequest) GetStream() bool {
-	if x != nil && x.Stream != nil {
-		return *x.Stream
-	}
-	return false
-}
-
-type RespondEvent struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Type             RespondEvent_Type      `protobuf:"varint,1,opt,name=type,proto3,enum=morph.v1.RespondEvent_Type" json:"type,omitempty"`
-	Text             string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
-	Error            string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
-	Channel          RespondEvent_Channel   `protobuf:"varint,4,opt,name=channel,proto3,enum=morph.v1.RespondEvent_Channel" json:"channel,omitempty"`
-	TraceType        string                 `protobuf:"bytes,5,opt,name=trace_type,json=traceType,proto3" json:"trace_type,omitempty"`
-	TracePayloadJson string                 `protobuf:"bytes,6,opt,name=trace_payload_json,json=tracePayloadJson,proto3" json:"trace_payload_json,omitempty"`
-	// Present for TRACE_EVENT, ERROR, and DONE. TEXT_DELTA consumers should use local receive time.
-	Timestamp      *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	TraceSessionId string                 `protobuf:"bytes,8,opt,name=trace_session_id,json=traceSessionId,proto3" json:"trace_session_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *RespondEvent) Reset() {
-	*x = RespondEvent{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RespondEvent) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RespondEvent) ProtoMessage() {}
-
-func (x *RespondEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RespondEvent.ProtoReflect.Descriptor instead.
-func (*RespondEvent) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *RespondEvent) GetType() RespondEvent_Type {
-	if x != nil {
-		return x.Type
-	}
-	return RespondEvent_TYPE_UNSPECIFIED
-}
-
-func (x *RespondEvent) GetText() string {
-	if x != nil {
-		return x.Text
-	}
-	return ""
-}
-
-func (x *RespondEvent) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
-}
-
-func (x *RespondEvent) GetChannel() RespondEvent_Channel {
-	if x != nil {
-		return x.Channel
-	}
-	return RespondEvent_CHANNEL_UNSPECIFIED
-}
-
-func (x *RespondEvent) GetTraceType() string {
-	if x != nil {
-		return x.TraceType
-	}
-	return ""
-}
-
-func (x *RespondEvent) GetTracePayloadJson() string {
-	if x != nil {
-		return x.TracePayloadJson
-	}
-	return ""
-}
-
-func (x *RespondEvent) GetTimestamp() *timestamppb.Timestamp {
-	if x != nil {
-		return x.Timestamp
-	}
-	return nil
-}
-
-func (x *RespondEvent) GetTraceSessionId() string {
-	if x != nil {
-		return x.TraceSessionId
-	}
-	return ""
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{17, 0}
 }
 
 type SessionSummary struct {
@@ -355,7 +82,7 @@ type SessionSummary struct {
 
 func (x *SessionSummary) Reset() {
 	*x = SessionSummary{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[2]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -367,7 +94,7 @@ func (x *SessionSummary) String() string {
 func (*SessionSummary) ProtoMessage() {}
 
 func (x *SessionSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[2]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -380,7 +107,7 @@ func (x *SessionSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionSummary.ProtoReflect.Descriptor instead.
 func (*SessionSummary) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{2}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *SessionSummary) GetId() string {
@@ -436,7 +163,7 @@ type CreateSessionRequest struct {
 
 func (x *CreateSessionRequest) Reset() {
 	*x = CreateSessionRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[3]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -448,7 +175,7 @@ func (x *CreateSessionRequest) String() string {
 func (*CreateSessionRequest) ProtoMessage() {}
 
 func (x *CreateSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[3]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -461,7 +188,7 @@ func (x *CreateSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSessionRequest.ProtoReflect.Descriptor instead.
 func (*CreateSessionRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{3}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *CreateSessionRequest) GetId() string {
@@ -494,7 +221,7 @@ type CreateSessionResponse struct {
 
 func (x *CreateSessionResponse) Reset() {
 	*x = CreateSessionResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[4]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -506,7 +233,7 @@ func (x *CreateSessionResponse) String() string {
 func (*CreateSessionResponse) ProtoMessage() {}
 
 func (x *CreateSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[4]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -519,7 +246,7 @@ func (x *CreateSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSessionResponse.ProtoReflect.Descriptor instead.
 func (*CreateSessionResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{4}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CreateSessionResponse) GetSession() *SessionSummary {
@@ -539,7 +266,7 @@ type ListSessionsRequest struct {
 
 func (x *ListSessionsRequest) Reset() {
 	*x = ListSessionsRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[5]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -551,7 +278,7 @@ func (x *ListSessionsRequest) String() string {
 func (*ListSessionsRequest) ProtoMessage() {}
 
 func (x *ListSessionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[5]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -564,7 +291,7 @@ func (x *ListSessionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSessionsRequest.ProtoReflect.Descriptor instead.
 func (*ListSessionsRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{5}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ListSessionsRequest) GetArchived() bool {
@@ -590,7 +317,7 @@ type ListSessionsResponse struct {
 
 func (x *ListSessionsResponse) Reset() {
 	*x = ListSessionsResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[6]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -602,7 +329,7 @@ func (x *ListSessionsResponse) String() string {
 func (*ListSessionsResponse) ProtoMessage() {}
 
 func (x *ListSessionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[6]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -615,7 +342,7 @@ func (x *ListSessionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSessionsResponse.ProtoReflect.Descriptor instead.
 func (*ListSessionsResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{6}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListSessionsResponse) GetSessions() []*SessionSummary {
@@ -634,7 +361,7 @@ type UseSessionRequest struct {
 
 func (x *UseSessionRequest) Reset() {
 	*x = UseSessionRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[7]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -646,7 +373,7 @@ func (x *UseSessionRequest) String() string {
 func (*UseSessionRequest) ProtoMessage() {}
 
 func (x *UseSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[7]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -659,7 +386,7 @@ func (x *UseSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UseSessionRequest.ProtoReflect.Descriptor instead.
 func (*UseSessionRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{7}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *UseSessionRequest) GetId() string {
@@ -678,7 +405,7 @@ type UseSessionResponse struct {
 
 func (x *UseSessionResponse) Reset() {
 	*x = UseSessionResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[8]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -690,7 +417,7 @@ func (x *UseSessionResponse) String() string {
 func (*UseSessionResponse) ProtoMessage() {}
 
 func (x *UseSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[8]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -703,7 +430,7 @@ func (x *UseSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UseSessionResponse.ProtoReflect.Descriptor instead.
 func (*UseSessionResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{8}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *UseSessionResponse) GetId() string {
@@ -722,7 +449,7 @@ type ArchiveSessionRequest struct {
 
 func (x *ArchiveSessionRequest) Reset() {
 	*x = ArchiveSessionRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[9]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -734,7 +461,7 @@ func (x *ArchiveSessionRequest) String() string {
 func (*ArchiveSessionRequest) ProtoMessage() {}
 
 func (x *ArchiveSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[9]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -747,7 +474,7 @@ func (x *ArchiveSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveSessionRequest.ProtoReflect.Descriptor instead.
 func (*ArchiveSessionRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{9}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ArchiveSessionRequest) GetId() string {
@@ -766,7 +493,7 @@ type ArchiveSessionResponse struct {
 
 func (x *ArchiveSessionResponse) Reset() {
 	*x = ArchiveSessionResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[10]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -778,7 +505,7 @@ func (x *ArchiveSessionResponse) String() string {
 func (*ArchiveSessionResponse) ProtoMessage() {}
 
 func (x *ArchiveSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[10]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -791,7 +518,7 @@ func (x *ArchiveSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveSessionResponse.ProtoReflect.Descriptor instead.
 func (*ArchiveSessionResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{10}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ArchiveSessionResponse) GetId() string {
@@ -810,7 +537,7 @@ type UnarchiveSessionRequest struct {
 
 func (x *UnarchiveSessionRequest) Reset() {
 	*x = UnarchiveSessionRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[11]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -822,7 +549,7 @@ func (x *UnarchiveSessionRequest) String() string {
 func (*UnarchiveSessionRequest) ProtoMessage() {}
 
 func (x *UnarchiveSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[11]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -835,7 +562,7 @@ func (x *UnarchiveSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnarchiveSessionRequest.ProtoReflect.Descriptor instead.
 func (*UnarchiveSessionRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{11}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UnarchiveSessionRequest) GetId() string {
@@ -854,7 +581,7 @@ type UnarchiveSessionResponse struct {
 
 func (x *UnarchiveSessionResponse) Reset() {
 	*x = UnarchiveSessionResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[12]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -866,7 +593,7 @@ func (x *UnarchiveSessionResponse) String() string {
 func (*UnarchiveSessionResponse) ProtoMessage() {}
 
 func (x *UnarchiveSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[12]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -879,7 +606,7 @@ func (x *UnarchiveSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnarchiveSessionResponse.ProtoReflect.Descriptor instead.
 func (*UnarchiveSessionResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{12}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UnarchiveSessionResponse) GetSession() *SessionSummary {
@@ -899,7 +626,7 @@ type RenameSessionRequest struct {
 
 func (x *RenameSessionRequest) Reset() {
 	*x = RenameSessionRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[13]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -911,7 +638,7 @@ func (x *RenameSessionRequest) String() string {
 func (*RenameSessionRequest) ProtoMessage() {}
 
 func (x *RenameSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[13]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -924,7 +651,7 @@ func (x *RenameSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenameSessionRequest.ProtoReflect.Descriptor instead.
 func (*RenameSessionRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{13}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RenameSessionRequest) GetId() string {
@@ -950,7 +677,7 @@ type RenameSessionResponse struct {
 
 func (x *RenameSessionResponse) Reset() {
 	*x = RenameSessionResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[14]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -962,7 +689,7 @@ func (x *RenameSessionResponse) String() string {
 func (*RenameSessionResponse) ProtoMessage() {}
 
 func (x *RenameSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[14]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -975,7 +702,7 @@ func (x *RenameSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenameSessionResponse.ProtoReflect.Descriptor instead.
 func (*RenameSessionResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{14}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RenameSessionResponse) GetSession() *SessionSummary {
@@ -993,7 +720,7 @@ type CurrentSessionRequest struct {
 
 func (x *CurrentSessionRequest) Reset() {
 	*x = CurrentSessionRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[15]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1005,7 +732,7 @@ func (x *CurrentSessionRequest) String() string {
 func (*CurrentSessionRequest) ProtoMessage() {}
 
 func (x *CurrentSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[15]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1018,7 +745,7 @@ func (x *CurrentSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CurrentSessionRequest.ProtoReflect.Descriptor instead.
 func (*CurrentSessionRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{15}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{13}
 }
 
 type CurrentSessionResponse struct {
@@ -1032,7 +759,7 @@ type CurrentSessionResponse struct {
 
 func (x *CurrentSessionResponse) Reset() {
 	*x = CurrentSessionResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[16]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1044,7 +771,7 @@ func (x *CurrentSessionResponse) String() string {
 func (*CurrentSessionResponse) ProtoMessage() {}
 
 func (x *CurrentSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[16]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1057,7 +784,7 @@ func (x *CurrentSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CurrentSessionResponse.ProtoReflect.Descriptor instead.
 func (*CurrentSessionResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{16}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CurrentSessionResponse) GetId() string {
@@ -1090,7 +817,7 @@ type CompactSessionRequest struct {
 
 func (x *CompactSessionRequest) Reset() {
 	*x = CompactSessionRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[17]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1102,7 +829,7 @@ func (x *CompactSessionRequest) String() string {
 func (*CompactSessionRequest) ProtoMessage() {}
 
 func (x *CompactSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[17]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1115,7 +842,7 @@ func (x *CompactSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompactSessionRequest.ProtoReflect.Descriptor instead.
 func (*CompactSessionRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{17}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CompactSessionRequest) GetId() string {
@@ -1139,7 +866,7 @@ type CompactSessionResponse struct {
 
 func (x *CompactSessionResponse) Reset() {
 	*x = CompactSessionResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[18]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1151,7 +878,7 @@ func (x *CompactSessionResponse) String() string {
 func (*CompactSessionResponse) ProtoMessage() {}
 
 func (x *CompactSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[18]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1164,7 +891,7 @@ func (x *CompactSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompactSessionResponse.ProtoReflect.Descriptor instead.
 func (*CompactSessionResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{18}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CompactSessionResponse) GetId() string {
@@ -1219,7 +946,7 @@ type RepairSessionRequest struct {
 
 func (x *RepairSessionRequest) Reset() {
 	*x = RepairSessionRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[19]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1231,7 +958,7 @@ func (x *RepairSessionRequest) String() string {
 func (*RepairSessionRequest) ProtoMessage() {}
 
 func (x *RepairSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[19]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1244,7 +971,7 @@ func (x *RepairSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RepairSessionRequest.ProtoReflect.Descriptor instead.
 func (*RepairSessionRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{19}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RepairSessionRequest) GetType() RepairSessionRequest_Type {
@@ -1271,7 +998,7 @@ type RepairSessionResponse struct {
 
 func (x *RepairSessionResponse) Reset() {
 	*x = RepairSessionResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[20]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1283,7 +1010,7 @@ func (x *RepairSessionResponse) String() string {
 func (*RepairSessionResponse) ProtoMessage() {}
 
 func (x *RepairSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[20]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1296,7 +1023,7 @@ func (x *RepairSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RepairSessionResponse.ProtoReflect.Descriptor instead.
 func (*RepairSessionResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{20}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *RepairSessionResponse) GetType() RepairSessionRequest_Type {
@@ -1323,7 +1050,7 @@ type VectorRepairOption struct {
 
 func (x *VectorRepairOption) Reset() {
 	*x = VectorRepairOption{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[21]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1335,7 +1062,7 @@ func (x *VectorRepairOption) String() string {
 func (*VectorRepairOption) ProtoMessage() {}
 
 func (x *VectorRepairOption) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[21]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1348,7 +1075,7 @@ func (x *VectorRepairOption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VectorRepairOption.ProtoReflect.Descriptor instead.
 func (*VectorRepairOption) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{21}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *VectorRepairOption) GetId() string {
@@ -1385,7 +1112,7 @@ type VectorRepairResponse struct {
 
 func (x *VectorRepairResponse) Reset() {
 	*x = VectorRepairResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[22]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1397,7 +1124,7 @@ func (x *VectorRepairResponse) String() string {
 func (*VectorRepairResponse) ProtoMessage() {}
 
 func (x *VectorRepairResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[22]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1410,7 +1137,7 @@ func (x *VectorRepairResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VectorRepairResponse.ProtoReflect.Descriptor instead.
 func (*VectorRepairResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{22}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *VectorRepairResponse) GetSessionsScanned() int32 {
@@ -1506,7 +1233,7 @@ type GetSessionStatusRequestContext struct {
 
 func (x *GetSessionStatusRequestContext) Reset() {
 	*x = GetSessionStatusRequestContext{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[23]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1518,7 +1245,7 @@ func (x *GetSessionStatusRequestContext) String() string {
 func (*GetSessionStatusRequestContext) ProtoMessage() {}
 
 func (x *GetSessionStatusRequestContext) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[23]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1531,7 +1258,7 @@ func (x *GetSessionStatusRequestContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSessionStatusRequestContext.ProtoReflect.Descriptor instead.
 func (*GetSessionStatusRequestContext) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{23}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetSessionStatusRequestContext) GetId() string {
@@ -1550,7 +1277,7 @@ type GetSessionStatusRequest struct {
 
 func (x *GetSessionStatusRequest) Reset() {
 	*x = GetSessionStatusRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[24]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1562,7 +1289,7 @@ func (x *GetSessionStatusRequest) String() string {
 func (*GetSessionStatusRequest) ProtoMessage() {}
 
 func (x *GetSessionStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[24]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1575,7 +1302,7 @@ func (x *GetSessionStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSessionStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetSessionStatusRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{24}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GetSessionStatusRequest) GetContext() *GetSessionStatusRequestContext {
@@ -1599,7 +1326,7 @@ type GetSessionStatusResponse struct {
 
 func (x *GetSessionStatusResponse) Reset() {
 	*x = GetSessionStatusResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[25]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1611,7 +1338,7 @@ func (x *GetSessionStatusResponse) String() string {
 func (*GetSessionStatusResponse) ProtoMessage() {}
 
 func (x *GetSessionStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[25]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1624,7 +1351,7 @@ func (x *GetSessionStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSessionStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetSessionStatusResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{25}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetSessionStatusResponse) GetId() string {
@@ -1682,7 +1409,7 @@ type GetSessionTimelineRequest struct {
 
 func (x *GetSessionTimelineRequest) Reset() {
 	*x = GetSessionTimelineRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[26]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1694,7 +1421,7 @@ func (x *GetSessionTimelineRequest) String() string {
 func (*GetSessionTimelineRequest) ProtoMessage() {}
 
 func (x *GetSessionTimelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[26]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1707,7 +1434,7 @@ func (x *GetSessionTimelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSessionTimelineRequest.ProtoReflect.Descriptor instead.
 func (*GetSessionTimelineRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{26}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetSessionTimelineRequest) GetId() string {
@@ -1756,7 +1483,7 @@ type SessionTimelineToolCall struct {
 
 func (x *SessionTimelineToolCall) Reset() {
 	*x = SessionTimelineToolCall{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[27]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1768,7 +1495,7 @@ func (x *SessionTimelineToolCall) String() string {
 func (*SessionTimelineToolCall) ProtoMessage() {}
 
 func (x *SessionTimelineToolCall) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[27]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1781,7 +1508,7 @@ func (x *SessionTimelineToolCall) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionTimelineToolCall.ProtoReflect.Descriptor instead.
 func (*SessionTimelineToolCall) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{27}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *SessionTimelineToolCall) GetId() string {
@@ -1821,7 +1548,7 @@ type SessionTimelineMessage struct {
 
 func (x *SessionTimelineMessage) Reset() {
 	*x = SessionTimelineMessage{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[28]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1833,7 +1560,7 @@ func (x *SessionTimelineMessage) String() string {
 func (*SessionTimelineMessage) ProtoMessage() {}
 
 func (x *SessionTimelineMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[28]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1846,7 +1573,7 @@ func (x *SessionTimelineMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionTimelineMessage.ProtoReflect.Descriptor instead.
 func (*SessionTimelineMessage) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{28}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *SessionTimelineMessage) GetOffset() int32 {
@@ -1918,7 +1645,7 @@ type SessionTimelineTraceEvent struct {
 
 func (x *SessionTimelineTraceEvent) Reset() {
 	*x = SessionTimelineTraceEvent{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[29]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1930,7 +1657,7 @@ func (x *SessionTimelineTraceEvent) String() string {
 func (*SessionTimelineTraceEvent) ProtoMessage() {}
 
 func (x *SessionTimelineTraceEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[29]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1943,7 +1670,7 @@ func (x *SessionTimelineTraceEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionTimelineTraceEvent.ProtoReflect.Descriptor instead.
 func (*SessionTimelineTraceEvent) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{29}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *SessionTimelineTraceEvent) GetId() uint64 {
@@ -1999,7 +1726,7 @@ type GetSessionTimelineResponse struct {
 
 func (x *GetSessionTimelineResponse) Reset() {
 	*x = GetSessionTimelineResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[30]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2011,7 +1738,7 @@ func (x *GetSessionTimelineResponse) String() string {
 func (*GetSessionTimelineResponse) ProtoMessage() {}
 
 func (x *GetSessionTimelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[30]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2024,7 +1751,7 @@ func (x *GetSessionTimelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSessionTimelineResponse.ProtoReflect.Descriptor instead.
 func (*GetSessionTimelineResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{30}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetSessionTimelineResponse) GetId() string {
@@ -2097,6 +1824,1342 @@ func (x *GetSessionTimelineResponse) GetTitleSource() string {
 	return ""
 }
 
+type SessionQueueEntry struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Id                    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SessionId             string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Content               string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	ClientSubmissionId    string                 `protobuf:"bytes,4,opt,name=client_submission_id,json=clientSubmissionId,proto3" json:"client_submission_id,omitempty"`
+	TargetRunId           string                 `protobuf:"bytes,5,opt,name=target_run_id,json=targetRunId,proto3" json:"target_run_id,omitempty"`
+	DeliveryMode          string                 `protobuf:"bytes,6,opt,name=delivery_mode,json=deliveryMode,proto3" json:"delivery_mode,omitempty"`
+	SteeringFallback      string                 `protobuf:"bytes,7,opt,name=steering_fallback,json=steeringFallback,proto3" json:"steering_fallback,omitempty"`
+	Status                string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
+	ActorKind             string                 `protobuf:"bytes,9,opt,name=actor_kind,json=actorKind,proto3" json:"actor_kind,omitempty"`
+	ActorId               string                 `protobuf:"bytes,10,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	SurfaceKind           string                 `protobuf:"bytes,11,opt,name=surface_kind,json=surfaceKind,proto3" json:"surface_kind,omitempty"`
+	Surface               string                 `protobuf:"bytes,12,opt,name=surface,proto3" json:"surface,omitempty"`
+	Profile               string                 `protobuf:"bytes,13,opt,name=profile,proto3" json:"profile,omitempty"`
+	Sequence              int64                  `protobuf:"varint,14,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	Priority              int64                  `protobuf:"varint,15,opt,name=priority,proto3" json:"priority,omitempty"`
+	CreatedAt             *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt             *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	StartedAt             *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	CompletedAt           *timestamppb.Timestamp `protobuf:"bytes,19,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	LastError             string                 `protobuf:"bytes,20,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
+	RequestedDeliveryMode string                 `protobuf:"bytes,21,opt,name=requested_delivery_mode,json=requestedDeliveryMode,proto3" json:"requested_delivery_mode,omitempty"`
+	Instruct              string                 `protobuf:"bytes,22,opt,name=instruct,proto3" json:"instruct,omitempty"`
+	Stream                *bool                  `protobuf:"varint,23,opt,name=stream,proto3,oneof" json:"stream,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *SessionQueueEntry) Reset() {
+	*x = SessionQueueEntry{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionQueueEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionQueueEntry) ProtoMessage() {}
+
+func (x *SessionQueueEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionQueueEntry.ProtoReflect.Descriptor instead.
+func (*SessionQueueEntry) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *SessionQueueEntry) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetClientSubmissionId() string {
+	if x != nil {
+		return x.ClientSubmissionId
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetTargetRunId() string {
+	if x != nil {
+		return x.TargetRunId
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetDeliveryMode() string {
+	if x != nil {
+		return x.DeliveryMode
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetSteeringFallback() string {
+	if x != nil {
+		return x.SteeringFallback
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetActorKind() string {
+	if x != nil {
+		return x.ActorKind
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetSurfaceKind() string {
+	if x != nil {
+		return x.SurfaceKind
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetSurface() string {
+	if x != nil {
+		return x.Surface
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetProfile() string {
+	if x != nil {
+		return x.Profile
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetSequence() int64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *SessionQueueEntry) GetPriority() int64 {
+	if x != nil {
+		return x.Priority
+	}
+	return 0
+}
+
+func (x *SessionQueueEntry) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *SessionQueueEntry) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *SessionQueueEntry) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *SessionQueueEntry) GetCompletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CompletedAt
+	}
+	return nil
+}
+
+func (x *SessionQueueEntry) GetLastError() string {
+	if x != nil {
+		return x.LastError
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetRequestedDeliveryMode() string {
+	if x != nil {
+		return x.RequestedDeliveryMode
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetInstruct() string {
+	if x != nil {
+		return x.Instruct
+	}
+	return ""
+}
+
+func (x *SessionQueueEntry) GetStream() bool {
+	if x != nil && x.Stream != nil {
+		return *x.Stream
+	}
+	return false
+}
+
+type SessionActiveRun struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	QueueEntryId  string                 `protobuf:"bytes,3,opt,name=queue_entry_id,json=queueEntryId,proto3" json:"queue_entry_id,omitempty"`
+	Generation    string                 `protobuf:"bytes,4,opt,name=generation,proto3" json:"generation,omitempty"`
+	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Reason        string                 `protobuf:"bytes,9,opt,name=reason,proto3" json:"reason,omitempty"`
+	LastError     string                 `protobuf:"bytes,10,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SessionActiveRun) Reset() {
+	*x = SessionActiveRun{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionActiveRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionActiveRun) ProtoMessage() {}
+
+func (x *SessionActiveRun) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionActiveRun.ProtoReflect.Descriptor instead.
+func (*SessionActiveRun) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *SessionActiveRun) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SessionActiveRun) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *SessionActiveRun) GetQueueEntryId() string {
+	if x != nil {
+		return x.QueueEntryId
+	}
+	return ""
+}
+
+func (x *SessionActiveRun) GetGeneration() string {
+	if x != nil {
+		return x.Generation
+	}
+	return ""
+}
+
+func (x *SessionActiveRun) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *SessionActiveRun) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *SessionActiveRun) GetCompletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CompletedAt
+	}
+	return nil
+}
+
+func (x *SessionActiveRun) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *SessionActiveRun) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *SessionActiveRun) GetLastError() string {
+	if x != nil {
+		return x.LastError
+	}
+	return ""
+}
+
+type SessionEvent struct {
+	state                protoimpl.MessageState     `protogen:"open.v1"`
+	SessionId            string                     `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Type                 string                     `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Cursor               int64                      `protobuf:"varint,3,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	CreatedAt            *timestamppb.Timestamp     `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	QueueEntry           *SessionQueueEntry         `protobuf:"bytes,5,opt,name=queue_entry,json=queueEntry,proto3" json:"queue_entry,omitempty"`
+	Run                  *SessionActiveRun          `protobuf:"bytes,6,opt,name=run,proto3" json:"run,omitempty"`
+	ProgressKind         string                     `protobuf:"bytes,7,opt,name=progress_kind,json=progressKind,proto3" json:"progress_kind,omitempty"`
+	ProgressChannel      string                     `protobuf:"bytes,8,opt,name=progress_channel,json=progressChannel,proto3" json:"progress_channel,omitempty"`
+	ProgressText         string                     `protobuf:"bytes,9,opt,name=progress_text,json=progressText,proto3" json:"progress_text,omitempty"`
+	ProgressRunId        string                     `protobuf:"bytes,10,opt,name=progress_run_id,json=progressRunId,proto3" json:"progress_run_id,omitempty"`
+	ProgressQueueEntryId string                     `protobuf:"bytes,11,opt,name=progress_queue_entry_id,json=progressQueueEntryId,proto3" json:"progress_queue_entry_id,omitempty"`
+	ProgressSequence     int64                      `protobuf:"varint,12,opt,name=progress_sequence,json=progressSequence,proto3" json:"progress_sequence,omitempty"`
+	ProgressTraceEvent   *SessionTimelineTraceEvent `protobuf:"bytes,13,opt,name=progress_trace_event,json=progressTraceEvent,proto3" json:"progress_trace_event,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *SessionEvent) Reset() {
+	*x = SessionEvent{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionEvent) ProtoMessage() {}
+
+func (x *SessionEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionEvent.ProtoReflect.Descriptor instead.
+func (*SessionEvent) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *SessionEvent) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *SessionEvent) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *SessionEvent) GetCursor() int64 {
+	if x != nil {
+		return x.Cursor
+	}
+	return 0
+}
+
+func (x *SessionEvent) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *SessionEvent) GetQueueEntry() *SessionQueueEntry {
+	if x != nil {
+		return x.QueueEntry
+	}
+	return nil
+}
+
+func (x *SessionEvent) GetRun() *SessionActiveRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+func (x *SessionEvent) GetProgressKind() string {
+	if x != nil {
+		return x.ProgressKind
+	}
+	return ""
+}
+
+func (x *SessionEvent) GetProgressChannel() string {
+	if x != nil {
+		return x.ProgressChannel
+	}
+	return ""
+}
+
+func (x *SessionEvent) GetProgressText() string {
+	if x != nil {
+		return x.ProgressText
+	}
+	return ""
+}
+
+func (x *SessionEvent) GetProgressRunId() string {
+	if x != nil {
+		return x.ProgressRunId
+	}
+	return ""
+}
+
+func (x *SessionEvent) GetProgressQueueEntryId() string {
+	if x != nil {
+		return x.ProgressQueueEntryId
+	}
+	return ""
+}
+
+func (x *SessionEvent) GetProgressSequence() int64 {
+	if x != nil {
+		return x.ProgressSequence
+	}
+	return 0
+}
+
+func (x *SessionEvent) GetProgressTraceEvent() *SessionTimelineTraceEvent {
+	if x != nil {
+		return x.ProgressTraceEvent
+	}
+	return nil
+}
+
+type SessionProgressEvent struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Kind          string                     `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Channel       string                     `protobuf:"bytes,2,opt,name=channel,proto3" json:"channel,omitempty"`
+	Text          string                     `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
+	RunId         string                     `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	QueueEntryId  string                     `protobuf:"bytes,5,opt,name=queue_entry_id,json=queueEntryId,proto3" json:"queue_entry_id,omitempty"`
+	Sequence      int64                      `protobuf:"varint,6,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	TraceEvent    *SessionTimelineTraceEvent `protobuf:"bytes,7,opt,name=trace_event,json=traceEvent,proto3" json:"trace_event,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SessionProgressEvent) Reset() {
+	*x = SessionProgressEvent{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionProgressEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionProgressEvent) ProtoMessage() {}
+
+func (x *SessionProgressEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionProgressEvent.ProtoReflect.Descriptor instead.
+func (*SessionProgressEvent) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *SessionProgressEvent) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *SessionProgressEvent) GetChannel() string {
+	if x != nil {
+		return x.Channel
+	}
+	return ""
+}
+
+func (x *SessionProgressEvent) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *SessionProgressEvent) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *SessionProgressEvent) GetQueueEntryId() string {
+	if x != nil {
+		return x.QueueEntryId
+	}
+	return ""
+}
+
+func (x *SessionProgressEvent) GetSequence() int64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *SessionProgressEvent) GetTraceEvent() *SessionTimelineTraceEvent {
+	if x != nil {
+		return x.TraceEvent
+	}
+	return nil
+}
+
+type SubmitSessionMessageRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Message            string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	ClientSubmissionId string                 `protobuf:"bytes,3,opt,name=client_submission_id,json=clientSubmissionId,proto3" json:"client_submission_id,omitempty"`
+	DeliveryMode       string                 `protobuf:"bytes,4,opt,name=delivery_mode,json=deliveryMode,proto3" json:"delivery_mode,omitempty"`
+	SteeringFallback   string                 `protobuf:"bytes,5,opt,name=steering_fallback,json=steeringFallback,proto3" json:"steering_fallback,omitempty"`
+	Instruct           string                 `protobuf:"bytes,6,opt,name=instruct,proto3" json:"instruct,omitempty"`
+	Stream             *bool                  `protobuf:"varint,7,opt,name=stream,proto3,oneof" json:"stream,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *SubmitSessionMessageRequest) Reset() {
+	*x = SubmitSessionMessageRequest{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitSessionMessageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitSessionMessageRequest) ProtoMessage() {}
+
+func (x *SubmitSessionMessageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitSessionMessageRequest.ProtoReflect.Descriptor instead.
+func (*SubmitSessionMessageRequest) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *SubmitSessionMessageRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SubmitSessionMessageRequest) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *SubmitSessionMessageRequest) GetClientSubmissionId() string {
+	if x != nil {
+		return x.ClientSubmissionId
+	}
+	return ""
+}
+
+func (x *SubmitSessionMessageRequest) GetDeliveryMode() string {
+	if x != nil {
+		return x.DeliveryMode
+	}
+	return ""
+}
+
+func (x *SubmitSessionMessageRequest) GetSteeringFallback() string {
+	if x != nil {
+		return x.SteeringFallback
+	}
+	return ""
+}
+
+func (x *SubmitSessionMessageRequest) GetInstruct() string {
+	if x != nil {
+		return x.Instruct
+	}
+	return ""
+}
+
+func (x *SubmitSessionMessageRequest) GetStream() bool {
+	if x != nil && x.Stream != nil {
+		return *x.Stream
+	}
+	return false
+}
+
+type SubmitSessionMessageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entry         *SessionQueueEntry     `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmitSessionMessageResponse) Reset() {
+	*x = SubmitSessionMessageResponse{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitSessionMessageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitSessionMessageResponse) ProtoMessage() {}
+
+func (x *SubmitSessionMessageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitSessionMessageResponse.ProtoReflect.Descriptor instead.
+func (*SubmitSessionMessageResponse) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *SubmitSessionMessageResponse) GetEntry() *SessionQueueEntry {
+	if x != nil {
+		return x.Entry
+	}
+	return nil
+}
+
+type GetSessionStateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSessionStateRequest) Reset() {
+	*x = GetSessionStateRequest{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSessionStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSessionStateRequest) ProtoMessage() {}
+
+func (x *GetSessionStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSessionStateRequest.ProtoReflect.Descriptor instead.
+func (*GetSessionStateRequest) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *GetSessionStateRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type GetSessionStateResponse struct {
+	state                  protoimpl.MessageState  `protogen:"open.v1"`
+	Id                     string                  `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ActiveRun              *SessionActiveRun       `protobuf:"bytes,2,opt,name=active_run,json=activeRun,proto3" json:"active_run,omitempty"`
+	Queue                  []*SessionQueueEntry    `protobuf:"bytes,3,rep,name=queue,proto3" json:"queue,omitempty"`
+	Cursor                 int64                   `protobuf:"varint,4,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	RetainedCursorFloor    int64                   `protobuf:"varint,5,opt,name=retained_cursor_floor,json=retainedCursorFloor,proto3" json:"retained_cursor_floor,omitempty"`
+	QueueDepth             int32                   `protobuf:"varint,6,opt,name=queue_depth,json=queueDepth,proto3" json:"queue_depth,omitempty"`
+	OldestPendingCreatedAt *timestamppb.Timestamp  `protobuf:"bytes,7,opt,name=oldest_pending_created_at,json=oldestPendingCreatedAt,proto3" json:"oldest_pending_created_at,omitempty"`
+	Progress               []*SessionProgressEvent `protobuf:"bytes,8,rep,name=progress,proto3" json:"progress,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *GetSessionStateResponse) Reset() {
+	*x = GetSessionStateResponse{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSessionStateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSessionStateResponse) ProtoMessage() {}
+
+func (x *GetSessionStateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSessionStateResponse.ProtoReflect.Descriptor instead.
+func (*GetSessionStateResponse) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *GetSessionStateResponse) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *GetSessionStateResponse) GetActiveRun() *SessionActiveRun {
+	if x != nil {
+		return x.ActiveRun
+	}
+	return nil
+}
+
+func (x *GetSessionStateResponse) GetQueue() []*SessionQueueEntry {
+	if x != nil {
+		return x.Queue
+	}
+	return nil
+}
+
+func (x *GetSessionStateResponse) GetCursor() int64 {
+	if x != nil {
+		return x.Cursor
+	}
+	return 0
+}
+
+func (x *GetSessionStateResponse) GetRetainedCursorFloor() int64 {
+	if x != nil {
+		return x.RetainedCursorFloor
+	}
+	return 0
+}
+
+func (x *GetSessionStateResponse) GetQueueDepth() int32 {
+	if x != nil {
+		return x.QueueDepth
+	}
+	return 0
+}
+
+func (x *GetSessionStateResponse) GetOldestPendingCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OldestPendingCreatedAt
+	}
+	return nil
+}
+
+func (x *GetSessionStateResponse) GetProgress() []*SessionProgressEvent {
+	if x != nil {
+		return x.Progress
+	}
+	return nil
+}
+
+type ObserveSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	AfterCursor   int64                  `protobuf:"varint,2,opt,name=after_cursor,json=afterCursor,proto3" json:"after_cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ObserveSessionRequest) Reset() {
+	*x = ObserveSessionRequest{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ObserveSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ObserveSessionRequest) ProtoMessage() {}
+
+func (x *ObserveSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ObserveSessionRequest.ProtoReflect.Descriptor instead.
+func (*ObserveSessionRequest) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *ObserveSessionRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ObserveSessionRequest) GetAfterCursor() int64 {
+	if x != nil {
+		return x.AfterCursor
+	}
+	return 0
+}
+
+type ObserveSessionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Event         *SessionEvent          `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ObserveSessionResponse) Reset() {
+	*x = ObserveSessionResponse{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ObserveSessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ObserveSessionResponse) ProtoMessage() {}
+
+func (x *ObserveSessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ObserveSessionResponse.ProtoReflect.Descriptor instead.
+func (*ObserveSessionResponse) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *ObserveSessionResponse) GetEvent() *SessionEvent {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+type EditQueuedSessionMessageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	EntryId       string                 `protobuf:"bytes,2,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EditQueuedSessionMessageRequest) Reset() {
+	*x = EditQueuedSessionMessageRequest{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EditQueuedSessionMessageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EditQueuedSessionMessageRequest) ProtoMessage() {}
+
+func (x *EditQueuedSessionMessageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EditQueuedSessionMessageRequest.ProtoReflect.Descriptor instead.
+func (*EditQueuedSessionMessageRequest) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *EditQueuedSessionMessageRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *EditQueuedSessionMessageRequest) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
+func (x *EditQueuedSessionMessageRequest) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type EditQueuedSessionMessageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entry         *SessionQueueEntry     `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EditQueuedSessionMessageResponse) Reset() {
+	*x = EditQueuedSessionMessageResponse{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EditQueuedSessionMessageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EditQueuedSessionMessageResponse) ProtoMessage() {}
+
+func (x *EditQueuedSessionMessageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EditQueuedSessionMessageResponse.ProtoReflect.Descriptor instead.
+func (*EditQueuedSessionMessageResponse) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *EditQueuedSessionMessageResponse) GetEntry() *SessionQueueEntry {
+	if x != nil {
+		return x.Entry
+	}
+	return nil
+}
+
+type RemoveQueuedSessionMessageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	EntryId       string                 `protobuf:"bytes,2,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveQueuedSessionMessageRequest) Reset() {
+	*x = RemoveQueuedSessionMessageRequest{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveQueuedSessionMessageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveQueuedSessionMessageRequest) ProtoMessage() {}
+
+func (x *RemoveQueuedSessionMessageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveQueuedSessionMessageRequest.ProtoReflect.Descriptor instead.
+func (*RemoveQueuedSessionMessageRequest) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *RemoveQueuedSessionMessageRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RemoveQueuedSessionMessageRequest) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
+type RemoveQueuedSessionMessageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entry         *SessionQueueEntry     `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveQueuedSessionMessageResponse) Reset() {
+	*x = RemoveQueuedSessionMessageResponse{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveQueuedSessionMessageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveQueuedSessionMessageResponse) ProtoMessage() {}
+
+func (x *RemoveQueuedSessionMessageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveQueuedSessionMessageResponse.ProtoReflect.Descriptor instead.
+func (*RemoveQueuedSessionMessageResponse) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *RemoveQueuedSessionMessageResponse) GetEntry() *SessionQueueEntry {
+	if x != nil {
+		return x.Entry
+	}
+	return nil
+}
+
+type PromoteQueuedSessionMessageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	EntryId       string                 `protobuf:"bytes,2,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PromoteQueuedSessionMessageRequest) Reset() {
+	*x = PromoteQueuedSessionMessageRequest{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PromoteQueuedSessionMessageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PromoteQueuedSessionMessageRequest) ProtoMessage() {}
+
+func (x *PromoteQueuedSessionMessageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PromoteQueuedSessionMessageRequest.ProtoReflect.Descriptor instead.
+func (*PromoteQueuedSessionMessageRequest) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *PromoteQueuedSessionMessageRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *PromoteQueuedSessionMessageRequest) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
+type PromoteQueuedSessionMessageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entry         *SessionQueueEntry     `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PromoteQueuedSessionMessageResponse) Reset() {
+	*x = PromoteQueuedSessionMessageResponse{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PromoteQueuedSessionMessageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PromoteQueuedSessionMessageResponse) ProtoMessage() {}
+
+func (x *PromoteQueuedSessionMessageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PromoteQueuedSessionMessageResponse.ProtoReflect.Descriptor instead.
+func (*PromoteQueuedSessionMessageResponse) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *PromoteQueuedSessionMessageResponse) GetEntry() *SessionQueueEntry {
+	if x != nil {
+		return x.Entry
+	}
+	return nil
+}
+
+type InterruptSessionRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InterruptSessionRunRequest) Reset() {
+	*x = InterruptSessionRunRequest{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InterruptSessionRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InterruptSessionRunRequest) ProtoMessage() {}
+
+func (x *InterruptSessionRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InterruptSessionRunRequest.ProtoReflect.Descriptor instead.
+func (*InterruptSessionRunRequest) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *InterruptSessionRunRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type InterruptSessionRunResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Run           *SessionActiveRun      `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	Transitioned  bool                   `protobuf:"varint,2,opt,name=transitioned,proto3" json:"transitioned,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InterruptSessionRunResponse) Reset() {
+	*x = InterruptSessionRunResponse{}
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InterruptSessionRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InterruptSessionRunResponse) ProtoMessage() {}
+
+func (x *InterruptSessionRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InterruptSessionRunResponse.ProtoReflect.Descriptor instead.
+func (*InterruptSessionRunResponse) Descriptor() ([]byte, []int) {
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *InterruptSessionRunResponse) GetRun() *SessionActiveRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+func (x *InterruptSessionRunResponse) GetTransitioned() bool {
+	if x != nil {
+		return x.Transitioned
+	}
+	return false
+}
+
 type RuntimeModelRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -2105,7 +3168,7 @@ type RuntimeModelRequest struct {
 
 func (x *RuntimeModelRequest) Reset() {
 	*x = RuntimeModelRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[31]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2117,7 +3180,7 @@ func (x *RuntimeModelRequest) String() string {
 func (*RuntimeModelRequest) ProtoMessage() {}
 
 func (x *RuntimeModelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[31]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2130,7 +3193,7 @@ func (x *RuntimeModelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeModelRequest.ProtoReflect.Descriptor instead.
 func (*RuntimeModelRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{31}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{47}
 }
 
 type RuntimeModelResponse struct {
@@ -2146,7 +3209,7 @@ type RuntimeModelResponse struct {
 
 func (x *RuntimeModelResponse) Reset() {
 	*x = RuntimeModelResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[32]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2158,7 +3221,7 @@ func (x *RuntimeModelResponse) String() string {
 func (*RuntimeModelResponse) ProtoMessage() {}
 
 func (x *RuntimeModelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[32]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2171,7 +3234,7 @@ func (x *RuntimeModelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeModelResponse.ProtoReflect.Descriptor instead.
 func (*RuntimeModelResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{32}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *RuntimeModelResponse) GetProvider() string {
@@ -2217,7 +3280,7 @@ type ListProvidersRequest struct {
 
 func (x *ListProvidersRequest) Reset() {
 	*x = ListProvidersRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[33]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2229,7 +3292,7 @@ func (x *ListProvidersRequest) String() string {
 func (*ListProvidersRequest) ProtoMessage() {}
 
 func (x *ListProvidersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[33]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2242,7 +3305,7 @@ func (x *ListProvidersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProvidersRequest.ProtoReflect.Descriptor instead.
 func (*ListProvidersRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{33}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{49}
 }
 
 type ProviderOption struct {
@@ -2261,7 +3324,7 @@ type ProviderOption struct {
 
 func (x *ProviderOption) Reset() {
 	*x = ProviderOption{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[34]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2273,7 +3336,7 @@ func (x *ProviderOption) String() string {
 func (*ProviderOption) ProtoMessage() {}
 
 func (x *ProviderOption) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[34]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2286,7 +3349,7 @@ func (x *ProviderOption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderOption.ProtoReflect.Descriptor instead.
 func (*ProviderOption) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{34}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *ProviderOption) GetId() string {
@@ -2354,7 +3417,7 @@ type ListProvidersResponse struct {
 
 func (x *ListProvidersResponse) Reset() {
 	*x = ListProvidersResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[35]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2366,7 +3429,7 @@ func (x *ListProvidersResponse) String() string {
 func (*ListProvidersResponse) ProtoMessage() {}
 
 func (x *ListProvidersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[35]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2379,7 +3442,7 @@ func (x *ListProvidersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProvidersResponse.ProtoReflect.Descriptor instead.
 func (*ListProvidersResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{35}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *ListProvidersResponse) GetProviders() []*ProviderOption {
@@ -2398,7 +3461,7 @@ type ListModelsRequest struct {
 
 func (x *ListModelsRequest) Reset() {
 	*x = ListModelsRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[36]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2410,7 +3473,7 @@ func (x *ListModelsRequest) String() string {
 func (*ListModelsRequest) ProtoMessage() {}
 
 func (x *ListModelsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[36]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2423,7 +3486,7 @@ func (x *ListModelsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListModelsRequest.ProtoReflect.Descriptor instead.
 func (*ListModelsRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{36}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *ListModelsRequest) GetProvider() string {
@@ -2451,7 +3514,7 @@ type ModelOption struct {
 
 func (x *ModelOption) Reset() {
 	*x = ModelOption{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[37]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2463,7 +3526,7 @@ func (x *ModelOption) String() string {
 func (*ModelOption) ProtoMessage() {}
 
 func (x *ModelOption) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[37]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2476,7 +3539,7 @@ func (x *ModelOption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelOption.ProtoReflect.Descriptor instead.
 func (*ModelOption) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{37}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *ModelOption) GetId() string {
@@ -2560,7 +3623,7 @@ type ListModelsResponse struct {
 
 func (x *ListModelsResponse) Reset() {
 	*x = ListModelsResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[38]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2572,7 +3635,7 @@ func (x *ListModelsResponse) String() string {
 func (*ListModelsResponse) ProtoMessage() {}
 
 func (x *ListModelsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[38]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2585,7 +3648,7 @@ func (x *ListModelsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListModelsResponse.ProtoReflect.Descriptor instead.
 func (*ListModelsResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{38}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *ListModelsResponse) GetProvider() string {
@@ -2619,7 +3682,7 @@ type SelectModelRequest struct {
 
 func (x *SelectModelRequest) Reset() {
 	*x = SelectModelRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[39]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2631,7 +3694,7 @@ func (x *SelectModelRequest) String() string {
 func (*SelectModelRequest) ProtoMessage() {}
 
 func (x *SelectModelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[39]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2644,7 +3707,7 @@ func (x *SelectModelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectModelRequest.ProtoReflect.Descriptor instead.
 func (*SelectModelRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{39}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *SelectModelRequest) GetId() string {
@@ -2670,7 +3733,7 @@ type SelectModelResponse struct {
 
 func (x *SelectModelResponse) Reset() {
 	*x = SelectModelResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[40]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2682,7 +3745,7 @@ func (x *SelectModelResponse) String() string {
 func (*SelectModelResponse) ProtoMessage() {}
 
 func (x *SelectModelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[40]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2695,7 +3758,7 @@ func (x *SelectModelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectModelResponse.ProtoReflect.Descriptor instead.
 func (*SelectModelResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{40}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *SelectModelResponse) GetModel() *ModelOption {
@@ -2715,7 +3778,7 @@ type SetProviderAPIKeyRequest struct {
 
 func (x *SetProviderAPIKeyRequest) Reset() {
 	*x = SetProviderAPIKeyRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[41]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2727,7 +3790,7 @@ func (x *SetProviderAPIKeyRequest) String() string {
 func (*SetProviderAPIKeyRequest) ProtoMessage() {}
 
 func (x *SetProviderAPIKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[41]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2740,7 +3803,7 @@ func (x *SetProviderAPIKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetProviderAPIKeyRequest.ProtoReflect.Descriptor instead.
 func (*SetProviderAPIKeyRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{41}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *SetProviderAPIKeyRequest) GetProvider() string {
@@ -2766,7 +3829,7 @@ type SetProviderAPIKeyResponse struct {
 
 func (x *SetProviderAPIKeyResponse) Reset() {
 	*x = SetProviderAPIKeyResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[42]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2778,7 +3841,7 @@ func (x *SetProviderAPIKeyResponse) String() string {
 func (*SetProviderAPIKeyResponse) ProtoMessage() {}
 
 func (x *SetProviderAPIKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[42]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2791,7 +3854,7 @@ func (x *SetProviderAPIKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetProviderAPIKeyResponse.ProtoReflect.Descriptor instead.
 func (*SetProviderAPIKeyResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{42}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *SetProviderAPIKeyResponse) GetProvider() string {
@@ -2815,7 +3878,7 @@ type GatewayStatus struct {
 
 func (x *GatewayStatus) Reset() {
 	*x = GatewayStatus{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[43]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2827,7 +3890,7 @@ func (x *GatewayStatus) String() string {
 func (*GatewayStatus) ProtoMessage() {}
 
 func (x *GatewayStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[43]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2840,7 +3903,7 @@ func (x *GatewayStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GatewayStatus.ProtoReflect.Descriptor instead.
 func (*GatewayStatus) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{43}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *GatewayStatus) GetState() string {
@@ -2893,7 +3956,7 @@ type GetGatewayStatusRequest struct {
 
 func (x *GetGatewayStatusRequest) Reset() {
 	*x = GetGatewayStatusRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[44]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2905,7 +3968,7 @@ func (x *GetGatewayStatusRequest) String() string {
 func (*GetGatewayStatusRequest) ProtoMessage() {}
 
 func (x *GetGatewayStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[44]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2918,7 +3981,7 @@ func (x *GetGatewayStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGatewayStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetGatewayStatusRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{44}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{60}
 }
 
 type GetGatewayStatusResponse struct {
@@ -2930,7 +3993,7 @@ type GetGatewayStatusResponse struct {
 
 func (x *GetGatewayStatusResponse) Reset() {
 	*x = GetGatewayStatusResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[45]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2942,7 +4005,7 @@ func (x *GetGatewayStatusResponse) String() string {
 func (*GetGatewayStatusResponse) ProtoMessage() {}
 
 func (x *GetGatewayStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[45]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2955,7 +4018,7 @@ func (x *GetGatewayStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGatewayStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetGatewayStatusResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{45}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *GetGatewayStatusResponse) GetStatus() *GatewayStatus {
@@ -2973,7 +4036,7 @@ type StartGatewayRequest struct {
 
 func (x *StartGatewayRequest) Reset() {
 	*x = StartGatewayRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[46]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2985,7 +4048,7 @@ func (x *StartGatewayRequest) String() string {
 func (*StartGatewayRequest) ProtoMessage() {}
 
 func (x *StartGatewayRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[46]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2998,7 +4061,7 @@ func (x *StartGatewayRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartGatewayRequest.ProtoReflect.Descriptor instead.
 func (*StartGatewayRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{46}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{62}
 }
 
 type StartGatewayResponse struct {
@@ -3010,7 +4073,7 @@ type StartGatewayResponse struct {
 
 func (x *StartGatewayResponse) Reset() {
 	*x = StartGatewayResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[47]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3022,7 +4085,7 @@ func (x *StartGatewayResponse) String() string {
 func (*StartGatewayResponse) ProtoMessage() {}
 
 func (x *StartGatewayResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[47]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3035,7 +4098,7 @@ func (x *StartGatewayResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartGatewayResponse.ProtoReflect.Descriptor instead.
 func (*StartGatewayResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{47}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *StartGatewayResponse) GetStatus() *GatewayStatus {
@@ -3053,7 +4116,7 @@ type StopGatewayRequest struct {
 
 func (x *StopGatewayRequest) Reset() {
 	*x = StopGatewayRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[48]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3065,7 +4128,7 @@ func (x *StopGatewayRequest) String() string {
 func (*StopGatewayRequest) ProtoMessage() {}
 
 func (x *StopGatewayRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[48]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3078,7 +4141,7 @@ func (x *StopGatewayRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopGatewayRequest.ProtoReflect.Descriptor instead.
 func (*StopGatewayRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{48}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{64}
 }
 
 type StopGatewayResponse struct {
@@ -3090,7 +4153,7 @@ type StopGatewayResponse struct {
 
 func (x *StopGatewayResponse) Reset() {
 	*x = StopGatewayResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[49]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3102,7 +4165,7 @@ func (x *StopGatewayResponse) String() string {
 func (*StopGatewayResponse) ProtoMessage() {}
 
 func (x *StopGatewayResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[49]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3115,7 +4178,7 @@ func (x *StopGatewayResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopGatewayResponse.ProtoReflect.Descriptor instead.
 func (*StopGatewayResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{49}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *StopGatewayResponse) GetStatus() *GatewayStatus {
@@ -3133,7 +4196,7 @@ type RestartGatewayRequest struct {
 
 func (x *RestartGatewayRequest) Reset() {
 	*x = RestartGatewayRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[50]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3145,7 +4208,7 @@ func (x *RestartGatewayRequest) String() string {
 func (*RestartGatewayRequest) ProtoMessage() {}
 
 func (x *RestartGatewayRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[50]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3158,7 +4221,7 @@ func (x *RestartGatewayRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RestartGatewayRequest.ProtoReflect.Descriptor instead.
 func (*RestartGatewayRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{50}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{66}
 }
 
 type RestartGatewayResponse struct {
@@ -3170,7 +4233,7 @@ type RestartGatewayResponse struct {
 
 func (x *RestartGatewayResponse) Reset() {
 	*x = RestartGatewayResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[51]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3182,7 +4245,7 @@ func (x *RestartGatewayResponse) String() string {
 func (*RestartGatewayResponse) ProtoMessage() {}
 
 func (x *RestartGatewayResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[51]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3195,7 +4258,7 @@ func (x *RestartGatewayResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RestartGatewayResponse.ProtoReflect.Descriptor instead.
 func (*RestartGatewayResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{51}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *RestartGatewayResponse) GetStatus() *GatewayStatus {
@@ -3219,7 +4282,7 @@ type GatewayPairingRequest struct {
 
 func (x *GatewayPairingRequest) Reset() {
 	*x = GatewayPairingRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[52]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3231,7 +4294,7 @@ func (x *GatewayPairingRequest) String() string {
 func (*GatewayPairingRequest) ProtoMessage() {}
 
 func (x *GatewayPairingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[52]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3244,7 +4307,7 @@ func (x *GatewayPairingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GatewayPairingRequest.ProtoReflect.Descriptor instead.
 func (*GatewayPairingRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{52}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *GatewayPairingRequest) GetSource() string {
@@ -3302,7 +4365,7 @@ type GatewayPairedSender struct {
 
 func (x *GatewayPairedSender) Reset() {
 	*x = GatewayPairedSender{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[53]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3314,7 +4377,7 @@ func (x *GatewayPairedSender) String() string {
 func (*GatewayPairedSender) ProtoMessage() {}
 
 func (x *GatewayPairedSender) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[53]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3327,7 +4390,7 @@ func (x *GatewayPairedSender) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GatewayPairedSender.ProtoReflect.Descriptor instead.
 func (*GatewayPairedSender) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{53}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *GatewayPairedSender) GetSource() string {
@@ -3374,7 +4437,7 @@ type ListGatewayPairingsRequest struct {
 
 func (x *ListGatewayPairingsRequest) Reset() {
 	*x = ListGatewayPairingsRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[54]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3386,7 +4449,7 @@ func (x *ListGatewayPairingsRequest) String() string {
 func (*ListGatewayPairingsRequest) ProtoMessage() {}
 
 func (x *ListGatewayPairingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[54]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3399,7 +4462,7 @@ func (x *ListGatewayPairingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListGatewayPairingsRequest.ProtoReflect.Descriptor instead.
 func (*ListGatewayPairingsRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{54}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *ListGatewayPairingsRequest) GetSource() string {
@@ -3419,7 +4482,7 @@ type ListGatewayPairingsResponse struct {
 
 func (x *ListGatewayPairingsResponse) Reset() {
 	*x = ListGatewayPairingsResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[55]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3431,7 +4494,7 @@ func (x *ListGatewayPairingsResponse) String() string {
 func (*ListGatewayPairingsResponse) ProtoMessage() {}
 
 func (x *ListGatewayPairingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[55]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3444,7 +4507,7 @@ func (x *ListGatewayPairingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListGatewayPairingsResponse.ProtoReflect.Descriptor instead.
 func (*ListGatewayPairingsResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{55}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *ListGatewayPairingsResponse) GetPending() []*GatewayPairingRequest {
@@ -3471,7 +4534,7 @@ type ApproveGatewayPairingRequest struct {
 
 func (x *ApproveGatewayPairingRequest) Reset() {
 	*x = ApproveGatewayPairingRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[56]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3483,7 +4546,7 @@ func (x *ApproveGatewayPairingRequest) String() string {
 func (*ApproveGatewayPairingRequest) ProtoMessage() {}
 
 func (x *ApproveGatewayPairingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[56]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3496,7 +4559,7 @@ func (x *ApproveGatewayPairingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApproveGatewayPairingRequest.ProtoReflect.Descriptor instead.
 func (*ApproveGatewayPairingRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{56}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *ApproveGatewayPairingRequest) GetSource() string {
@@ -3523,7 +4586,7 @@ type ApproveGatewayPairingResponse struct {
 
 func (x *ApproveGatewayPairingResponse) Reset() {
 	*x = ApproveGatewayPairingResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[57]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3535,7 +4598,7 @@ func (x *ApproveGatewayPairingResponse) String() string {
 func (*ApproveGatewayPairingResponse) ProtoMessage() {}
 
 func (x *ApproveGatewayPairingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[57]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3548,7 +4611,7 @@ func (x *ApproveGatewayPairingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApproveGatewayPairingResponse.ProtoReflect.Descriptor instead.
 func (*ApproveGatewayPairingResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{57}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *ApproveGatewayPairingResponse) GetApproved() bool {
@@ -3575,7 +4638,7 @@ type RevokeGatewayPairingRequest struct {
 
 func (x *RevokeGatewayPairingRequest) Reset() {
 	*x = RevokeGatewayPairingRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[58]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3587,7 +4650,7 @@ func (x *RevokeGatewayPairingRequest) String() string {
 func (*RevokeGatewayPairingRequest) ProtoMessage() {}
 
 func (x *RevokeGatewayPairingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[58]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3600,7 +4663,7 @@ func (x *RevokeGatewayPairingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeGatewayPairingRequest.ProtoReflect.Descriptor instead.
 func (*RevokeGatewayPairingRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{58}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *RevokeGatewayPairingRequest) GetSource() string {
@@ -3625,7 +4688,7 @@ type RevokeGatewayPairingResponse struct {
 
 func (x *RevokeGatewayPairingResponse) Reset() {
 	*x = RevokeGatewayPairingResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[59]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3637,7 +4700,7 @@ func (x *RevokeGatewayPairingResponse) String() string {
 func (*RevokeGatewayPairingResponse) ProtoMessage() {}
 
 func (x *RevokeGatewayPairingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[59]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3650,7 +4713,7 @@ func (x *RevokeGatewayPairingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeGatewayPairingResponse.ProtoReflect.Descriptor instead.
 func (*RevokeGatewayPairingResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{59}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{75}
 }
 
 type ClearPendingGatewayPairingsRequest struct {
@@ -3662,7 +4725,7 @@ type ClearPendingGatewayPairingsRequest struct {
 
 func (x *ClearPendingGatewayPairingsRequest) Reset() {
 	*x = ClearPendingGatewayPairingsRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[60]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3674,7 +4737,7 @@ func (x *ClearPendingGatewayPairingsRequest) String() string {
 func (*ClearPendingGatewayPairingsRequest) ProtoMessage() {}
 
 func (x *ClearPendingGatewayPairingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[60]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3687,7 +4750,7 @@ func (x *ClearPendingGatewayPairingsRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ClearPendingGatewayPairingsRequest.ProtoReflect.Descriptor instead.
 func (*ClearPendingGatewayPairingsRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{60}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *ClearPendingGatewayPairingsRequest) GetSource() string {
@@ -3705,7 +4768,7 @@ type ClearPendingGatewayPairingsResponse struct {
 
 func (x *ClearPendingGatewayPairingsResponse) Reset() {
 	*x = ClearPendingGatewayPairingsResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[61]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3717,7 +4780,7 @@ func (x *ClearPendingGatewayPairingsResponse) String() string {
 func (*ClearPendingGatewayPairingsResponse) ProtoMessage() {}
 
 func (x *ClearPendingGatewayPairingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[61]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3730,7 +4793,7 @@ func (x *ClearPendingGatewayPairingsResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ClearPendingGatewayPairingsResponse.ProtoReflect.Descriptor instead.
 func (*ClearPendingGatewayPairingsResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{61}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{77}
 }
 
 type AutomationSchedule struct {
@@ -3746,7 +4809,7 @@ type AutomationSchedule struct {
 
 func (x *AutomationSchedule) Reset() {
 	*x = AutomationSchedule{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[62]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3758,7 +4821,7 @@ func (x *AutomationSchedule) String() string {
 func (*AutomationSchedule) ProtoMessage() {}
 
 func (x *AutomationSchedule) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[62]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3771,7 +4834,7 @@ func (x *AutomationSchedule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutomationSchedule.ProtoReflect.Descriptor instead.
 func (*AutomationSchedule) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{62}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *AutomationSchedule) GetKind() string {
@@ -3831,7 +4894,7 @@ type AutomationPayload struct {
 
 func (x *AutomationPayload) Reset() {
 	*x = AutomationPayload{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[63]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3843,7 +4906,7 @@ func (x *AutomationPayload) String() string {
 func (*AutomationPayload) ProtoMessage() {}
 
 func (x *AutomationPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[63]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3856,7 +4919,7 @@ func (x *AutomationPayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutomationPayload.ProtoReflect.Descriptor instead.
 func (*AutomationPayload) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{63}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *AutomationPayload) GetKind() string {
@@ -3974,7 +5037,7 @@ type AutomationDelivery struct {
 
 func (x *AutomationDelivery) Reset() {
 	*x = AutomationDelivery{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[64]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3986,7 +5049,7 @@ func (x *AutomationDelivery) String() string {
 func (*AutomationDelivery) ProtoMessage() {}
 
 func (x *AutomationDelivery) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[64]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3999,7 +5062,7 @@ func (x *AutomationDelivery) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutomationDelivery.ProtoReflect.Descriptor instead.
 func (*AutomationDelivery) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{64}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *AutomationDelivery) GetMode() string {
@@ -4081,7 +5144,7 @@ type AutomationJobState struct {
 
 func (x *AutomationJobState) Reset() {
 	*x = AutomationJobState{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[65]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4093,7 +5156,7 @@ func (x *AutomationJobState) String() string {
 func (*AutomationJobState) ProtoMessage() {}
 
 func (x *AutomationJobState) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[65]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4106,7 +5169,7 @@ func (x *AutomationJobState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutomationJobState.ProtoReflect.Descriptor instead.
 func (*AutomationJobState) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{65}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *AutomationJobState) GetNextRunAt() *timestamppb.Timestamp {
@@ -4186,7 +5249,7 @@ type AutomationJob struct {
 
 func (x *AutomationJob) Reset() {
 	*x = AutomationJob{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[66]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4198,7 +5261,7 @@ func (x *AutomationJob) String() string {
 func (*AutomationJob) ProtoMessage() {}
 
 func (x *AutomationJob) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[66]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4211,7 +5274,7 @@ func (x *AutomationJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutomationJob.ProtoReflect.Descriptor instead.
 func (*AutomationJob) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{66}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *AutomationJob) GetId() string {
@@ -4318,7 +5381,7 @@ type AutomationUsage struct {
 
 func (x *AutomationUsage) Reset() {
 	*x = AutomationUsage{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[67]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4330,7 +5393,7 @@ func (x *AutomationUsage) String() string {
 func (*AutomationUsage) ProtoMessage() {}
 
 func (x *AutomationUsage) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[67]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4343,7 +5406,7 @@ func (x *AutomationUsage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutomationUsage.ProtoReflect.Descriptor instead.
 func (*AutomationUsage) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{67}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *AutomationUsage) GetInputTokens() int32 {
@@ -4403,7 +5466,7 @@ type AutomationRun struct {
 
 func (x *AutomationRun) Reset() {
 	*x = AutomationRun{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[68]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4415,7 +5478,7 @@ func (x *AutomationRun) String() string {
 func (*AutomationRun) ProtoMessage() {}
 
 func (x *AutomationRun) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[68]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4428,7 +5491,7 @@ func (x *AutomationRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutomationRun.ProtoReflect.Descriptor instead.
 func (*AutomationRun) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{68}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *AutomationRun) GetId() string {
@@ -4537,7 +5600,7 @@ type GetAutomationStatusRequest struct {
 
 func (x *GetAutomationStatusRequest) Reset() {
 	*x = GetAutomationStatusRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[69]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4549,7 +5612,7 @@ func (x *GetAutomationStatusRequest) String() string {
 func (*GetAutomationStatusRequest) ProtoMessage() {}
 
 func (x *GetAutomationStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[69]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4562,7 +5625,7 @@ func (x *GetAutomationStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAutomationStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetAutomationStatusRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{69}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{85}
 }
 
 type GetAutomationStatusResponse struct {
@@ -4578,7 +5641,7 @@ type GetAutomationStatusResponse struct {
 
 func (x *GetAutomationStatusResponse) Reset() {
 	*x = GetAutomationStatusResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[70]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4590,7 +5653,7 @@ func (x *GetAutomationStatusResponse) String() string {
 func (*GetAutomationStatusResponse) ProtoMessage() {}
 
 func (x *GetAutomationStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[70]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4603,7 +5666,7 @@ func (x *GetAutomationStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAutomationStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetAutomationStatusResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{70}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *GetAutomationStatusResponse) GetRunning() bool {
@@ -4655,7 +5718,7 @@ type ListAutomationJobsRequest struct {
 
 func (x *ListAutomationJobsRequest) Reset() {
 	*x = ListAutomationJobsRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[71]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4667,7 +5730,7 @@ func (x *ListAutomationJobsRequest) String() string {
 func (*ListAutomationJobsRequest) ProtoMessage() {}
 
 func (x *ListAutomationJobsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[71]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4680,7 +5743,7 @@ func (x *ListAutomationJobsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAutomationJobsRequest.ProtoReflect.Descriptor instead.
 func (*ListAutomationJobsRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{71}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *ListAutomationJobsRequest) GetIds() []string {
@@ -4734,7 +5797,7 @@ type ListAutomationJobsResponse struct {
 
 func (x *ListAutomationJobsResponse) Reset() {
 	*x = ListAutomationJobsResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[72]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4746,7 +5809,7 @@ func (x *ListAutomationJobsResponse) String() string {
 func (*ListAutomationJobsResponse) ProtoMessage() {}
 
 func (x *ListAutomationJobsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[72]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4759,7 +5822,7 @@ func (x *ListAutomationJobsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAutomationJobsResponse.ProtoReflect.Descriptor instead.
 func (*ListAutomationJobsResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{72}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *ListAutomationJobsResponse) GetJobs() []*AutomationJob {
@@ -4790,7 +5853,7 @@ type AddAutomationJobRequest struct {
 
 func (x *AddAutomationJobRequest) Reset() {
 	*x = AddAutomationJobRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[73]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4802,7 +5865,7 @@ func (x *AddAutomationJobRequest) String() string {
 func (*AddAutomationJobRequest) ProtoMessage() {}
 
 func (x *AddAutomationJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[73]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4815,7 +5878,7 @@ func (x *AddAutomationJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddAutomationJobRequest.ProtoReflect.Descriptor instead.
 func (*AddAutomationJobRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{73}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *AddAutomationJobRequest) GetId() string {
@@ -4918,7 +5981,7 @@ type AddAutomationJobResponse struct {
 
 func (x *AddAutomationJobResponse) Reset() {
 	*x = AddAutomationJobResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[74]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4930,7 +5993,7 @@ func (x *AddAutomationJobResponse) String() string {
 func (*AddAutomationJobResponse) ProtoMessage() {}
 
 func (x *AddAutomationJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[74]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4943,7 +6006,7 @@ func (x *AddAutomationJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddAutomationJobResponse.ProtoReflect.Descriptor instead.
 func (*AddAutomationJobResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{74}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *AddAutomationJobResponse) GetJob() *AutomationJob {
@@ -4972,7 +6035,7 @@ type UpdateAutomationJobRequest struct {
 
 func (x *UpdateAutomationJobRequest) Reset() {
 	*x = UpdateAutomationJobRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[75]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4984,7 +6047,7 @@ func (x *UpdateAutomationJobRequest) String() string {
 func (*UpdateAutomationJobRequest) ProtoMessage() {}
 
 func (x *UpdateAutomationJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[75]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4997,7 +6060,7 @@ func (x *UpdateAutomationJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAutomationJobRequest.ProtoReflect.Descriptor instead.
 func (*UpdateAutomationJobRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{75}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *UpdateAutomationJobRequest) GetId() string {
@@ -5086,7 +6149,7 @@ type UpdateAutomationJobResponse struct {
 
 func (x *UpdateAutomationJobResponse) Reset() {
 	*x = UpdateAutomationJobResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[76]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5098,7 +6161,7 @@ func (x *UpdateAutomationJobResponse) String() string {
 func (*UpdateAutomationJobResponse) ProtoMessage() {}
 
 func (x *UpdateAutomationJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[76]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5111,7 +6174,7 @@ func (x *UpdateAutomationJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAutomationJobResponse.ProtoReflect.Descriptor instead.
 func (*UpdateAutomationJobResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{76}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *UpdateAutomationJobResponse) GetJob() *AutomationJob {
@@ -5130,7 +6193,7 @@ type RemoveAutomationJobRequest struct {
 
 func (x *RemoveAutomationJobRequest) Reset() {
 	*x = RemoveAutomationJobRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[77]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5142,7 +6205,7 @@ func (x *RemoveAutomationJobRequest) String() string {
 func (*RemoveAutomationJobRequest) ProtoMessage() {}
 
 func (x *RemoveAutomationJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[77]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5155,7 +6218,7 @@ func (x *RemoveAutomationJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveAutomationJobRequest.ProtoReflect.Descriptor instead.
 func (*RemoveAutomationJobRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{77}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *RemoveAutomationJobRequest) GetId() string {
@@ -5174,7 +6237,7 @@ type RemoveAutomationJobResponse struct {
 
 func (x *RemoveAutomationJobResponse) Reset() {
 	*x = RemoveAutomationJobResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[78]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5186,7 +6249,7 @@ func (x *RemoveAutomationJobResponse) String() string {
 func (*RemoveAutomationJobResponse) ProtoMessage() {}
 
 func (x *RemoveAutomationJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[78]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5199,7 +6262,7 @@ func (x *RemoveAutomationJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveAutomationJobResponse.ProtoReflect.Descriptor instead.
 func (*RemoveAutomationJobResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{78}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *RemoveAutomationJobResponse) GetId() string {
@@ -5218,7 +6281,7 @@ type RunAutomationJobRequest struct {
 
 func (x *RunAutomationJobRequest) Reset() {
 	*x = RunAutomationJobRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[79]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5230,7 +6293,7 @@ func (x *RunAutomationJobRequest) String() string {
 func (*RunAutomationJobRequest) ProtoMessage() {}
 
 func (x *RunAutomationJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[79]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5243,7 +6306,7 @@ func (x *RunAutomationJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunAutomationJobRequest.ProtoReflect.Descriptor instead.
 func (*RunAutomationJobRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{79}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *RunAutomationJobRequest) GetId() string {
@@ -5262,7 +6325,7 @@ type RunAutomationJobResponse struct {
 
 func (x *RunAutomationJobResponse) Reset() {
 	*x = RunAutomationJobResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[80]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5274,7 +6337,7 @@ func (x *RunAutomationJobResponse) String() string {
 func (*RunAutomationJobResponse) ProtoMessage() {}
 
 func (x *RunAutomationJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[80]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5287,7 +6350,7 @@ func (x *RunAutomationJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunAutomationJobResponse.ProtoReflect.Descriptor instead.
 func (*RunAutomationJobResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{80}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *RunAutomationJobResponse) GetRun() *AutomationRun {
@@ -5309,7 +6372,7 @@ type ListAutomationRunsRequest struct {
 
 func (x *ListAutomationRunsRequest) Reset() {
 	*x = ListAutomationRunsRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[81]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5321,7 +6384,7 @@ func (x *ListAutomationRunsRequest) String() string {
 func (*ListAutomationRunsRequest) ProtoMessage() {}
 
 func (x *ListAutomationRunsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[81]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5334,7 +6397,7 @@ func (x *ListAutomationRunsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAutomationRunsRequest.ProtoReflect.Descriptor instead.
 func (*ListAutomationRunsRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{81}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *ListAutomationRunsRequest) GetJobId() string {
@@ -5374,7 +6437,7 @@ type ListAutomationRunsResponse struct {
 
 func (x *ListAutomationRunsResponse) Reset() {
 	*x = ListAutomationRunsResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[82]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5386,7 +6449,7 @@ func (x *ListAutomationRunsResponse) String() string {
 func (*ListAutomationRunsResponse) ProtoMessage() {}
 
 func (x *ListAutomationRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[82]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5399,7 +6462,7 @@ func (x *ListAutomationRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAutomationRunsResponse.ProtoReflect.Descriptor instead.
 func (*ListAutomationRunsResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{82}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *ListAutomationRunsResponse) GetRuns() []*AutomationRun {
@@ -5436,7 +6499,7 @@ type PermissionApprovalRequest struct {
 
 func (x *PermissionApprovalRequest) Reset() {
 	*x = PermissionApprovalRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[83]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5448,7 +6511,7 @@ func (x *PermissionApprovalRequest) String() string {
 func (*PermissionApprovalRequest) ProtoMessage() {}
 
 func (x *PermissionApprovalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[83]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5461,7 +6524,7 @@ func (x *PermissionApprovalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionApprovalRequest.ProtoReflect.Descriptor instead.
 func (*PermissionApprovalRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{83}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *PermissionApprovalRequest) GetId() string {
@@ -5619,7 +6682,7 @@ type PermissionGrant struct {
 
 func (x *PermissionGrant) Reset() {
 	*x = PermissionGrant{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[84]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5631,7 +6694,7 @@ func (x *PermissionGrant) String() string {
 func (*PermissionGrant) ProtoMessage() {}
 
 func (x *PermissionGrant) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[84]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5644,7 +6707,7 @@ func (x *PermissionGrant) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionGrant.ProtoReflect.Descriptor instead.
 func (*PermissionGrant) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{84}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *PermissionGrant) GetId() string {
@@ -5756,7 +6819,7 @@ type ListPermissionRequestsRequest struct {
 
 func (x *ListPermissionRequestsRequest) Reset() {
 	*x = ListPermissionRequestsRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[85]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5768,7 +6831,7 @@ func (x *ListPermissionRequestsRequest) String() string {
 func (*ListPermissionRequestsRequest) ProtoMessage() {}
 
 func (x *ListPermissionRequestsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[85]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5781,7 +6844,7 @@ func (x *ListPermissionRequestsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPermissionRequestsRequest.ProtoReflect.Descriptor instead.
 func (*ListPermissionRequestsRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{85}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *ListPermissionRequestsRequest) GetStatus() string {
@@ -5814,7 +6877,7 @@ type ListPermissionRequestsResponse struct {
 
 func (x *ListPermissionRequestsResponse) Reset() {
 	*x = ListPermissionRequestsResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[86]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5826,7 +6889,7 @@ func (x *ListPermissionRequestsResponse) String() string {
 func (*ListPermissionRequestsResponse) ProtoMessage() {}
 
 func (x *ListPermissionRequestsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[86]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5839,7 +6902,7 @@ func (x *ListPermissionRequestsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPermissionRequestsResponse.ProtoReflect.Descriptor instead.
 func (*ListPermissionRequestsResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{86}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *ListPermissionRequestsResponse) GetRequests() []*PermissionApprovalRequest {
@@ -5858,7 +6921,7 @@ type GetPermissionRequestRequest struct {
 
 func (x *GetPermissionRequestRequest) Reset() {
 	*x = GetPermissionRequestRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[87]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5870,7 +6933,7 @@ func (x *GetPermissionRequestRequest) String() string {
 func (*GetPermissionRequestRequest) ProtoMessage() {}
 
 func (x *GetPermissionRequestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[87]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5883,7 +6946,7 @@ func (x *GetPermissionRequestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPermissionRequestRequest.ProtoReflect.Descriptor instead.
 func (*GetPermissionRequestRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{87}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *GetPermissionRequestRequest) GetId() string {
@@ -5902,7 +6965,7 @@ type GetPermissionRequestResponse struct {
 
 func (x *GetPermissionRequestResponse) Reset() {
 	*x = GetPermissionRequestResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[88]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[104]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5914,7 +6977,7 @@ func (x *GetPermissionRequestResponse) String() string {
 func (*GetPermissionRequestResponse) ProtoMessage() {}
 
 func (x *GetPermissionRequestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[88]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[104]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5927,7 +6990,7 @@ func (x *GetPermissionRequestResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPermissionRequestResponse.ProtoReflect.Descriptor instead.
 func (*GetPermissionRequestResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{88}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *GetPermissionRequestResponse) GetRequest() *PermissionApprovalRequest {
@@ -5948,7 +7011,7 @@ type ResolvePermissionRequestRequest struct {
 
 func (x *ResolvePermissionRequestRequest) Reset() {
 	*x = ResolvePermissionRequestRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[89]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[105]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5960,7 +7023,7 @@ func (x *ResolvePermissionRequestRequest) String() string {
 func (*ResolvePermissionRequestRequest) ProtoMessage() {}
 
 func (x *ResolvePermissionRequestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[89]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[105]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5973,7 +7036,7 @@ func (x *ResolvePermissionRequestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolvePermissionRequestRequest.ProtoReflect.Descriptor instead.
 func (*ResolvePermissionRequestRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{89}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{105}
 }
 
 func (x *ResolvePermissionRequestRequest) GetId() string {
@@ -6006,7 +7069,7 @@ type ResolvePermissionRequestResponse struct {
 
 func (x *ResolvePermissionRequestResponse) Reset() {
 	*x = ResolvePermissionRequestResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[90]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[106]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6018,7 +7081,7 @@ func (x *ResolvePermissionRequestResponse) String() string {
 func (*ResolvePermissionRequestResponse) ProtoMessage() {}
 
 func (x *ResolvePermissionRequestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[90]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[106]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6031,7 +7094,7 @@ func (x *ResolvePermissionRequestResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolvePermissionRequestResponse.ProtoReflect.Descriptor instead.
 func (*ResolvePermissionRequestResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{90}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *ResolvePermissionRequestResponse) GetRequest() *PermissionApprovalRequest {
@@ -6052,7 +7115,7 @@ type ListPermissionGrantsRequest struct {
 
 func (x *ListPermissionGrantsRequest) Reset() {
 	*x = ListPermissionGrantsRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[91]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6064,7 +7127,7 @@ func (x *ListPermissionGrantsRequest) String() string {
 func (*ListPermissionGrantsRequest) ProtoMessage() {}
 
 func (x *ListPermissionGrantsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[91]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6077,7 +7140,7 @@ func (x *ListPermissionGrantsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPermissionGrantsRequest.ProtoReflect.Descriptor instead.
 func (*ListPermissionGrantsRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{91}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *ListPermissionGrantsRequest) GetStatus() string {
@@ -6110,7 +7173,7 @@ type ListPermissionGrantsResponse struct {
 
 func (x *ListPermissionGrantsResponse) Reset() {
 	*x = ListPermissionGrantsResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[92]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6122,7 +7185,7 @@ func (x *ListPermissionGrantsResponse) String() string {
 func (*ListPermissionGrantsResponse) ProtoMessage() {}
 
 func (x *ListPermissionGrantsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[92]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6135,7 +7198,7 @@ func (x *ListPermissionGrantsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPermissionGrantsResponse.ProtoReflect.Descriptor instead.
 func (*ListPermissionGrantsResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{92}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *ListPermissionGrantsResponse) GetGrants() []*PermissionGrant {
@@ -6154,7 +7217,7 @@ type RevokePermissionGrantRequest struct {
 
 func (x *RevokePermissionGrantRequest) Reset() {
 	*x = RevokePermissionGrantRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[93]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[109]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6166,7 +7229,7 @@ func (x *RevokePermissionGrantRequest) String() string {
 func (*RevokePermissionGrantRequest) ProtoMessage() {}
 
 func (x *RevokePermissionGrantRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[93]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[109]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6179,7 +7242,7 @@ func (x *RevokePermissionGrantRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokePermissionGrantRequest.ProtoReflect.Descriptor instead.
 func (*RevokePermissionGrantRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{93}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *RevokePermissionGrantRequest) GetId() string {
@@ -6198,7 +7261,7 @@ type RevokePermissionGrantResponse struct {
 
 func (x *RevokePermissionGrantResponse) Reset() {
 	*x = RevokePermissionGrantResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[94]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[110]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6210,7 +7273,7 @@ func (x *RevokePermissionGrantResponse) String() string {
 func (*RevokePermissionGrantResponse) ProtoMessage() {}
 
 func (x *RevokePermissionGrantResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[94]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[110]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6223,7 +7286,7 @@ func (x *RevokePermissionGrantResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokePermissionGrantResponse.ProtoReflect.Descriptor instead.
 func (*RevokePermissionGrantResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{94}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *RevokePermissionGrantResponse) GetGrant() *PermissionGrant {
@@ -6242,7 +7305,7 @@ type DeletePermissionRecordRequest struct {
 
 func (x *DeletePermissionRecordRequest) Reset() {
 	*x = DeletePermissionRecordRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[95]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6254,7 +7317,7 @@ func (x *DeletePermissionRecordRequest) String() string {
 func (*DeletePermissionRecordRequest) ProtoMessage() {}
 
 func (x *DeletePermissionRecordRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[95]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6267,7 +7330,7 @@ func (x *DeletePermissionRecordRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePermissionRecordRequest.ProtoReflect.Descriptor instead.
 func (*DeletePermissionRecordRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{95}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *DeletePermissionRecordRequest) GetId() string {
@@ -6288,7 +7351,7 @@ type DeletePermissionRecordResponse struct {
 
 func (x *DeletePermissionRecordResponse) Reset() {
 	*x = DeletePermissionRecordResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[96]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[112]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6300,7 +7363,7 @@ func (x *DeletePermissionRecordResponse) String() string {
 func (*DeletePermissionRecordResponse) ProtoMessage() {}
 
 func (x *DeletePermissionRecordResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[96]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[112]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6313,7 +7376,7 @@ func (x *DeletePermissionRecordResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePermissionRecordResponse.ProtoReflect.Descriptor instead.
 func (*DeletePermissionRecordResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{96}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *DeletePermissionRecordResponse) GetId() string {
@@ -6346,7 +7409,7 @@ type PrunePermissionApprovalsRequest struct {
 
 func (x *PrunePermissionApprovalsRequest) Reset() {
 	*x = PrunePermissionApprovalsRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[97]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[113]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6358,7 +7421,7 @@ func (x *PrunePermissionApprovalsRequest) String() string {
 func (*PrunePermissionApprovalsRequest) ProtoMessage() {}
 
 func (x *PrunePermissionApprovalsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[97]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[113]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6371,7 +7434,7 @@ func (x *PrunePermissionApprovalsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PrunePermissionApprovalsRequest.ProtoReflect.Descriptor instead.
 func (*PrunePermissionApprovalsRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{97}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{113}
 }
 
 func (x *PrunePermissionApprovalsRequest) GetDryRun() bool {
@@ -6394,7 +7457,7 @@ type PrunePermissionApprovalsResponse struct {
 
 func (x *PrunePermissionApprovalsResponse) Reset() {
 	*x = PrunePermissionApprovalsResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[98]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[114]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6406,7 +7469,7 @@ func (x *PrunePermissionApprovalsResponse) String() string {
 func (*PrunePermissionApprovalsResponse) ProtoMessage() {}
 
 func (x *PrunePermissionApprovalsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[98]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[114]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6419,7 +7482,7 @@ func (x *PrunePermissionApprovalsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PrunePermissionApprovalsResponse.ProtoReflect.Descriptor instead.
 func (*PrunePermissionApprovalsResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{98}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{114}
 }
 
 func (x *PrunePermissionApprovalsResponse) GetRequests() int64 {
@@ -6470,7 +7533,7 @@ type BrowserProfile struct {
 
 func (x *BrowserProfile) Reset() {
 	*x = BrowserProfile{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[99]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[115]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6482,7 +7545,7 @@ func (x *BrowserProfile) String() string {
 func (*BrowserProfile) ProtoMessage() {}
 
 func (x *BrowserProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[99]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[115]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6495,7 +7558,7 @@ func (x *BrowserProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BrowserProfile.ProtoReflect.Descriptor instead.
 func (*BrowserProfile) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{99}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{115}
 }
 
 func (x *BrowserProfile) GetName() string {
@@ -6549,7 +7612,7 @@ type BrowserSession struct {
 
 func (x *BrowserSession) Reset() {
 	*x = BrowserSession{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[100]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[116]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6561,7 +7624,7 @@ func (x *BrowserSession) String() string {
 func (*BrowserSession) ProtoMessage() {}
 
 func (x *BrowserSession) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[100]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[116]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6574,7 +7637,7 @@ func (x *BrowserSession) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BrowserSession.ProtoReflect.Descriptor instead.
 func (*BrowserSession) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{100}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{116}
 }
 
 func (x *BrowserSession) GetId() string {
@@ -6653,7 +7716,7 @@ type BrowserArtifact struct {
 
 func (x *BrowserArtifact) Reset() {
 	*x = BrowserArtifact{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[101]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[117]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6665,7 +7728,7 @@ func (x *BrowserArtifact) String() string {
 func (*BrowserArtifact) ProtoMessage() {}
 
 func (x *BrowserArtifact) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[101]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[117]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6678,7 +7741,7 @@ func (x *BrowserArtifact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BrowserArtifact.ProtoReflect.Descriptor instead.
 func (*BrowserArtifact) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{101}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{117}
 }
 
 func (x *BrowserArtifact) GetHandle() string {
@@ -6776,7 +7839,7 @@ type BrowserStatus struct {
 
 func (x *BrowserStatus) Reset() {
 	*x = BrowserStatus{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[102]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[118]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6788,7 +7851,7 @@ func (x *BrowserStatus) String() string {
 func (*BrowserStatus) ProtoMessage() {}
 
 func (x *BrowserStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[102]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[118]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6801,7 +7864,7 @@ func (x *BrowserStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BrowserStatus.ProtoReflect.Descriptor instead.
 func (*BrowserStatus) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{102}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{118}
 }
 
 func (x *BrowserStatus) GetEnabled() bool {
@@ -6833,7 +7896,7 @@ type GetBrowserStatusRequest struct {
 
 func (x *GetBrowserStatusRequest) Reset() {
 	*x = GetBrowserStatusRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[103]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[119]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6845,7 +7908,7 @@ func (x *GetBrowserStatusRequest) String() string {
 func (*GetBrowserStatusRequest) ProtoMessage() {}
 
 func (x *GetBrowserStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[103]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[119]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6858,7 +7921,7 @@ func (x *GetBrowserStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBrowserStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetBrowserStatusRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{103}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{119}
 }
 
 type GetBrowserStatusResponse struct {
@@ -6870,7 +7933,7 @@ type GetBrowserStatusResponse struct {
 
 func (x *GetBrowserStatusResponse) Reset() {
 	*x = GetBrowserStatusResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[104]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[120]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6882,7 +7945,7 @@ func (x *GetBrowserStatusResponse) String() string {
 func (*GetBrowserStatusResponse) ProtoMessage() {}
 
 func (x *GetBrowserStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[104]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[120]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6895,7 +7958,7 @@ func (x *GetBrowserStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBrowserStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetBrowserStatusResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{104}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{120}
 }
 
 func (x *GetBrowserStatusResponse) GetStatus() *BrowserStatus {
@@ -6913,7 +7976,7 @@ type ListBrowserProfilesRequest struct {
 
 func (x *ListBrowserProfilesRequest) Reset() {
 	*x = ListBrowserProfilesRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[105]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[121]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6925,7 +7988,7 @@ func (x *ListBrowserProfilesRequest) String() string {
 func (*ListBrowserProfilesRequest) ProtoMessage() {}
 
 func (x *ListBrowserProfilesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[105]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[121]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6938,7 +8001,7 @@ func (x *ListBrowserProfilesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBrowserProfilesRequest.ProtoReflect.Descriptor instead.
 func (*ListBrowserProfilesRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{105}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{121}
 }
 
 type ListBrowserProfilesResponse struct {
@@ -6950,7 +8013,7 @@ type ListBrowserProfilesResponse struct {
 
 func (x *ListBrowserProfilesResponse) Reset() {
 	*x = ListBrowserProfilesResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[106]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[122]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6962,7 +8025,7 @@ func (x *ListBrowserProfilesResponse) String() string {
 func (*ListBrowserProfilesResponse) ProtoMessage() {}
 
 func (x *ListBrowserProfilesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[106]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[122]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6975,7 +8038,7 @@ func (x *ListBrowserProfilesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBrowserProfilesResponse.ProtoReflect.Descriptor instead.
 func (*ListBrowserProfilesResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{106}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{122}
 }
 
 func (x *ListBrowserProfilesResponse) GetProfiles() []*BrowserProfile {
@@ -6993,7 +8056,7 @@ type ListBrowserSessionsRequest struct {
 
 func (x *ListBrowserSessionsRequest) Reset() {
 	*x = ListBrowserSessionsRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[107]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[123]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7005,7 +8068,7 @@ func (x *ListBrowserSessionsRequest) String() string {
 func (*ListBrowserSessionsRequest) ProtoMessage() {}
 
 func (x *ListBrowserSessionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[107]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[123]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7018,7 +8081,7 @@ func (x *ListBrowserSessionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBrowserSessionsRequest.ProtoReflect.Descriptor instead.
 func (*ListBrowserSessionsRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{107}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{123}
 }
 
 type ListBrowserSessionsResponse struct {
@@ -7030,7 +8093,7 @@ type ListBrowserSessionsResponse struct {
 
 func (x *ListBrowserSessionsResponse) Reset() {
 	*x = ListBrowserSessionsResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[108]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[124]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7042,7 +8105,7 @@ func (x *ListBrowserSessionsResponse) String() string {
 func (*ListBrowserSessionsResponse) ProtoMessage() {}
 
 func (x *ListBrowserSessionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[108]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[124]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7055,7 +8118,7 @@ func (x *ListBrowserSessionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBrowserSessionsResponse.ProtoReflect.Descriptor instead.
 func (*ListBrowserSessionsResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{108}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{124}
 }
 
 func (x *ListBrowserSessionsResponse) GetSessions() []*BrowserSession {
@@ -7075,7 +8138,7 @@ type StartBrowserRequest struct {
 
 func (x *StartBrowserRequest) Reset() {
 	*x = StartBrowserRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[109]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[125]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7087,7 +8150,7 @@ func (x *StartBrowserRequest) String() string {
 func (*StartBrowserRequest) ProtoMessage() {}
 
 func (x *StartBrowserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[109]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[125]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7100,7 +8163,7 @@ func (x *StartBrowserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartBrowserRequest.ProtoReflect.Descriptor instead.
 func (*StartBrowserRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{109}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{125}
 }
 
 func (x *StartBrowserRequest) GetProfile() string {
@@ -7126,7 +8189,7 @@ type StartBrowserResponse struct {
 
 func (x *StartBrowserResponse) Reset() {
 	*x = StartBrowserResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[110]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[126]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7138,7 +8201,7 @@ func (x *StartBrowserResponse) String() string {
 func (*StartBrowserResponse) ProtoMessage() {}
 
 func (x *StartBrowserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[110]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[126]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7151,7 +8214,7 @@ func (x *StartBrowserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartBrowserResponse.ProtoReflect.Descriptor instead.
 func (*StartBrowserResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{110}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{126}
 }
 
 func (x *StartBrowserResponse) GetSession() *BrowserSession {
@@ -7171,7 +8234,7 @@ type StopBrowserRequest struct {
 
 func (x *StopBrowserRequest) Reset() {
 	*x = StopBrowserRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[111]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[127]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7183,7 +8246,7 @@ func (x *StopBrowserRequest) String() string {
 func (*StopBrowserRequest) ProtoMessage() {}
 
 func (x *StopBrowserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[111]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[127]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7196,7 +8259,7 @@ func (x *StopBrowserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopBrowserRequest.ProtoReflect.Descriptor instead.
 func (*StopBrowserRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{111}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{127}
 }
 
 func (x *StopBrowserRequest) GetId() string {
@@ -7222,7 +8285,7 @@ type StopBrowserResponse struct {
 
 func (x *StopBrowserResponse) Reset() {
 	*x = StopBrowserResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[112]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[128]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7234,7 +8297,7 @@ func (x *StopBrowserResponse) String() string {
 func (*StopBrowserResponse) ProtoMessage() {}
 
 func (x *StopBrowserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[112]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[128]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7247,7 +8310,7 @@ func (x *StopBrowserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopBrowserResponse.ProtoReflect.Descriptor instead.
 func (*StopBrowserResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{112}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{128}
 }
 
 func (x *StopBrowserResponse) GetSession() *BrowserSession {
@@ -7268,7 +8331,7 @@ type ReadBrowserArtifactRequest struct {
 
 func (x *ReadBrowserArtifactRequest) Reset() {
 	*x = ReadBrowserArtifactRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[113]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[129]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7280,7 +8343,7 @@ func (x *ReadBrowserArtifactRequest) String() string {
 func (*ReadBrowserArtifactRequest) ProtoMessage() {}
 
 func (x *ReadBrowserArtifactRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[113]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[129]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7293,7 +8356,7 @@ func (x *ReadBrowserArtifactRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadBrowserArtifactRequest.ProtoReflect.Descriptor instead.
 func (*ReadBrowserArtifactRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{113}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{129}
 }
 
 func (x *ReadBrowserArtifactRequest) GetHandle() string {
@@ -7327,7 +8390,7 @@ type ReadBrowserArtifactResponse struct {
 
 func (x *ReadBrowserArtifactResponse) Reset() {
 	*x = ReadBrowserArtifactResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[114]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[130]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7339,7 +8402,7 @@ func (x *ReadBrowserArtifactResponse) String() string {
 func (*ReadBrowserArtifactResponse) ProtoMessage() {}
 
 func (x *ReadBrowserArtifactResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[114]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[130]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7352,7 +8415,7 @@ func (x *ReadBrowserArtifactResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadBrowserArtifactResponse.ProtoReflect.Descriptor instead.
 func (*ReadBrowserArtifactResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{114}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{130}
 }
 
 func (x *ReadBrowserArtifactResponse) GetArtifact() *BrowserArtifact {
@@ -7377,7 +8440,7 @@ type GetBrowserEffectiveConfigRequest struct {
 
 func (x *GetBrowserEffectiveConfigRequest) Reset() {
 	*x = GetBrowserEffectiveConfigRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[115]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[131]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7389,7 +8452,7 @@ func (x *GetBrowserEffectiveConfigRequest) String() string {
 func (*GetBrowserEffectiveConfigRequest) ProtoMessage() {}
 
 func (x *GetBrowserEffectiveConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[115]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[131]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7402,7 +8465,7 @@ func (x *GetBrowserEffectiveConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBrowserEffectiveConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetBrowserEffectiveConfigRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{115}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{131}
 }
 
 type GetBrowserEffectiveConfigResponse struct {
@@ -7419,7 +8482,7 @@ type GetBrowserEffectiveConfigResponse struct {
 
 func (x *GetBrowserEffectiveConfigResponse) Reset() {
 	*x = GetBrowserEffectiveConfigResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[116]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[132]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7431,7 +8494,7 @@ func (x *GetBrowserEffectiveConfigResponse) String() string {
 func (*GetBrowserEffectiveConfigResponse) ProtoMessage() {}
 
 func (x *GetBrowserEffectiveConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[116]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[132]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7444,7 +8507,7 @@ func (x *GetBrowserEffectiveConfigResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetBrowserEffectiveConfigResponse.ProtoReflect.Descriptor instead.
 func (*GetBrowserEffectiveConfigResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{116}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{132}
 }
 
 func (x *GetBrowserEffectiveConfigResponse) GetEnabled() bool {
@@ -7498,7 +8561,7 @@ type GetPermissionGrantRequest struct {
 
 func (x *GetPermissionGrantRequest) Reset() {
 	*x = GetPermissionGrantRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[117]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[133]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7510,7 +8573,7 @@ func (x *GetPermissionGrantRequest) String() string {
 func (*GetPermissionGrantRequest) ProtoMessage() {}
 
 func (x *GetPermissionGrantRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[117]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[133]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7523,7 +8586,7 @@ func (x *GetPermissionGrantRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPermissionGrantRequest.ProtoReflect.Descriptor instead.
 func (*GetPermissionGrantRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{117}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{133}
 }
 
 func (x *GetPermissionGrantRequest) GetId() string {
@@ -7542,7 +8605,7 @@ type GetPermissionGrantResponse struct {
 
 func (x *GetPermissionGrantResponse) Reset() {
 	*x = GetPermissionGrantResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[118]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[134]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7554,7 +8617,7 @@ func (x *GetPermissionGrantResponse) String() string {
 func (*GetPermissionGrantResponse) ProtoMessage() {}
 
 func (x *GetPermissionGrantResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[118]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[134]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7567,7 +8630,7 @@ func (x *GetPermissionGrantResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPermissionGrantResponse.ProtoReflect.Descriptor instead.
 func (*GetPermissionGrantResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{118}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{134}
 }
 
 func (x *GetPermissionGrantResponse) GetGrant() *PermissionGrant {
@@ -7597,7 +8660,7 @@ type AuthPrincipal struct {
 
 func (x *AuthPrincipal) Reset() {
 	*x = AuthPrincipal{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[119]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[135]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7609,7 +8672,7 @@ func (x *AuthPrincipal) String() string {
 func (*AuthPrincipal) ProtoMessage() {}
 
 func (x *AuthPrincipal) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[119]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[135]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7622,7 +8685,7 @@ func (x *AuthPrincipal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthPrincipal.ProtoReflect.Descriptor instead.
 func (*AuthPrincipal) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{119}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{135}
 }
 
 func (x *AuthPrincipal) GetIdentityId() string {
@@ -7732,7 +8795,7 @@ type AuthSession struct {
 
 func (x *AuthSession) Reset() {
 	*x = AuthSession{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[120]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[136]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7744,7 +8807,7 @@ func (x *AuthSession) String() string {
 func (*AuthSession) ProtoMessage() {}
 
 func (x *AuthSession) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[120]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[136]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7757,7 +8820,7 @@ func (x *AuthSession) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthSession.ProtoReflect.Descriptor instead.
 func (*AuthSession) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{120}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{136}
 }
 
 func (x *AuthSession) GetId() string {
@@ -7892,7 +8955,7 @@ type AuthToken struct {
 
 func (x *AuthToken) Reset() {
 	*x = AuthToken{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[121]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[137]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7904,7 +8967,7 @@ func (x *AuthToken) String() string {
 func (*AuthToken) ProtoMessage() {}
 
 func (x *AuthToken) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[121]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[137]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7917,7 +8980,7 @@ func (x *AuthToken) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthToken.ProtoReflect.Descriptor instead.
 func (*AuthToken) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{121}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{137}
 }
 
 func (x *AuthToken) GetId() string {
@@ -8076,7 +9139,7 @@ type AuthAuthorization struct {
 
 func (x *AuthAuthorization) Reset() {
 	*x = AuthAuthorization{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[122]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[138]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8088,7 +9151,7 @@ func (x *AuthAuthorization) String() string {
 func (*AuthAuthorization) ProtoMessage() {}
 
 func (x *AuthAuthorization) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[122]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[138]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8101,7 +9164,7 @@ func (x *AuthAuthorization) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthAuthorization.ProtoReflect.Descriptor instead.
 func (*AuthAuthorization) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{122}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{138}
 }
 
 func (x *AuthAuthorization) GetIdentityId() string {
@@ -8225,7 +9288,7 @@ type AuthAuditEvent struct {
 
 func (x *AuthAuditEvent) Reset() {
 	*x = AuthAuditEvent{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[123]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[139]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8237,7 +9300,7 @@ func (x *AuthAuditEvent) String() string {
 func (*AuthAuditEvent) ProtoMessage() {}
 
 func (x *AuthAuditEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[123]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[139]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8250,7 +9313,7 @@ func (x *AuthAuditEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthAuditEvent.ProtoReflect.Descriptor instead.
 func (*AuthAuditEvent) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{123}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{139}
 }
 
 func (x *AuthAuditEvent) GetId() string {
@@ -8318,7 +9381,7 @@ type OpenAuthSessionRequest struct {
 
 func (x *OpenAuthSessionRequest) Reset() {
 	*x = OpenAuthSessionRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[124]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[140]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8330,7 +9393,7 @@ func (x *OpenAuthSessionRequest) String() string {
 func (*OpenAuthSessionRequest) ProtoMessage() {}
 
 func (x *OpenAuthSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[124]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[140]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8343,7 +9406,7 @@ func (x *OpenAuthSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenAuthSessionRequest.ProtoReflect.Descriptor instead.
 func (*OpenAuthSessionRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{124}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{140}
 }
 
 func (x *OpenAuthSessionRequest) GetSource() string {
@@ -8363,7 +9426,7 @@ type OpenAuthSessionResponse struct {
 
 func (x *OpenAuthSessionResponse) Reset() {
 	*x = OpenAuthSessionResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[125]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[141]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8375,7 +9438,7 @@ func (x *OpenAuthSessionResponse) String() string {
 func (*OpenAuthSessionResponse) ProtoMessage() {}
 
 func (x *OpenAuthSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[125]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[141]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8388,7 +9451,7 @@ func (x *OpenAuthSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenAuthSessionResponse.ProtoReflect.Descriptor instead.
 func (*OpenAuthSessionResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{125}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{141}
 }
 
 func (x *OpenAuthSessionResponse) GetPrincipal() *AuthPrincipal {
@@ -8413,7 +9476,7 @@ type CloseAuthSessionRequest struct {
 
 func (x *CloseAuthSessionRequest) Reset() {
 	*x = CloseAuthSessionRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[126]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[142]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8425,7 +9488,7 @@ func (x *CloseAuthSessionRequest) String() string {
 func (*CloseAuthSessionRequest) ProtoMessage() {}
 
 func (x *CloseAuthSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[126]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[142]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8438,7 +9501,7 @@ func (x *CloseAuthSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseAuthSessionRequest.ProtoReflect.Descriptor instead.
 func (*CloseAuthSessionRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{126}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{142}
 }
 
 type CloseAuthSessionResponse struct {
@@ -8450,7 +9513,7 @@ type CloseAuthSessionResponse struct {
 
 func (x *CloseAuthSessionResponse) Reset() {
 	*x = CloseAuthSessionResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[127]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[143]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8462,7 +9525,7 @@ func (x *CloseAuthSessionResponse) String() string {
 func (*CloseAuthSessionResponse) ProtoMessage() {}
 
 func (x *CloseAuthSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[127]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[143]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8475,7 +9538,7 @@ func (x *CloseAuthSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseAuthSessionResponse.ProtoReflect.Descriptor instead.
 func (*CloseAuthSessionResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{127}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{143}
 }
 
 func (x *CloseAuthSessionResponse) GetSession() *AuthSession {
@@ -8495,7 +9558,7 @@ type ListAuthSessionsRequest struct {
 
 func (x *ListAuthSessionsRequest) Reset() {
 	*x = ListAuthSessionsRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[128]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[144]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8507,7 +9570,7 @@ func (x *ListAuthSessionsRequest) String() string {
 func (*ListAuthSessionsRequest) ProtoMessage() {}
 
 func (x *ListAuthSessionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[128]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[144]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8520,7 +9583,7 @@ func (x *ListAuthSessionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuthSessionsRequest.ProtoReflect.Descriptor instead.
 func (*ListAuthSessionsRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{128}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{144}
 }
 
 func (x *ListAuthSessionsRequest) GetLimit() int32 {
@@ -8546,7 +9609,7 @@ type ListAuthSessionsResponse struct {
 
 func (x *ListAuthSessionsResponse) Reset() {
 	*x = ListAuthSessionsResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[129]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[145]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8558,7 +9621,7 @@ func (x *ListAuthSessionsResponse) String() string {
 func (*ListAuthSessionsResponse) ProtoMessage() {}
 
 func (x *ListAuthSessionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[129]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[145]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8571,7 +9634,7 @@ func (x *ListAuthSessionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuthSessionsResponse.ProtoReflect.Descriptor instead.
 func (*ListAuthSessionsResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{129}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{145}
 }
 
 func (x *ListAuthSessionsResponse) GetSessions() []*AuthSession {
@@ -8591,7 +9654,7 @@ type RevokeAuthSessionRequest struct {
 
 func (x *RevokeAuthSessionRequest) Reset() {
 	*x = RevokeAuthSessionRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[130]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[146]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8603,7 +9666,7 @@ func (x *RevokeAuthSessionRequest) String() string {
 func (*RevokeAuthSessionRequest) ProtoMessage() {}
 
 func (x *RevokeAuthSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[130]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[146]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8616,7 +9679,7 @@ func (x *RevokeAuthSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeAuthSessionRequest.ProtoReflect.Descriptor instead.
 func (*RevokeAuthSessionRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{130}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{146}
 }
 
 func (x *RevokeAuthSessionRequest) GetId() string {
@@ -8642,7 +9705,7 @@ type RevokeAuthSessionResponse struct {
 
 func (x *RevokeAuthSessionResponse) Reset() {
 	*x = RevokeAuthSessionResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[131]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[147]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8654,7 +9717,7 @@ func (x *RevokeAuthSessionResponse) String() string {
 func (*RevokeAuthSessionResponse) ProtoMessage() {}
 
 func (x *RevokeAuthSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[131]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[147]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8667,7 +9730,7 @@ func (x *RevokeAuthSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeAuthSessionResponse.ProtoReflect.Descriptor instead.
 func (*RevokeAuthSessionResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{131}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{147}
 }
 
 func (x *RevokeAuthSessionResponse) GetSession() *AuthSession {
@@ -8687,7 +9750,7 @@ type ListAuthTokensRequest struct {
 
 func (x *ListAuthTokensRequest) Reset() {
 	*x = ListAuthTokensRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[132]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[148]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8699,7 +9762,7 @@ func (x *ListAuthTokensRequest) String() string {
 func (*ListAuthTokensRequest) ProtoMessage() {}
 
 func (x *ListAuthTokensRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[132]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[148]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8712,7 +9775,7 @@ func (x *ListAuthTokensRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuthTokensRequest.ProtoReflect.Descriptor instead.
 func (*ListAuthTokensRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{132}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{148}
 }
 
 func (x *ListAuthTokensRequest) GetLimit() int32 {
@@ -8738,7 +9801,7 @@ type ListAuthTokensResponse struct {
 
 func (x *ListAuthTokensResponse) Reset() {
 	*x = ListAuthTokensResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[133]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[149]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8750,7 +9813,7 @@ func (x *ListAuthTokensResponse) String() string {
 func (*ListAuthTokensResponse) ProtoMessage() {}
 
 func (x *ListAuthTokensResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[133]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[149]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8763,7 +9826,7 @@ func (x *ListAuthTokensResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuthTokensResponse.ProtoReflect.Descriptor instead.
 func (*ListAuthTokensResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{133}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{149}
 }
 
 func (x *ListAuthTokensResponse) GetTokens() []*AuthToken {
@@ -8783,7 +9846,7 @@ type RevokeAuthTokenRequest struct {
 
 func (x *RevokeAuthTokenRequest) Reset() {
 	*x = RevokeAuthTokenRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[134]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[150]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8795,7 +9858,7 @@ func (x *RevokeAuthTokenRequest) String() string {
 func (*RevokeAuthTokenRequest) ProtoMessage() {}
 
 func (x *RevokeAuthTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[134]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[150]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8808,7 +9871,7 @@ func (x *RevokeAuthTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeAuthTokenRequest.ProtoReflect.Descriptor instead.
 func (*RevokeAuthTokenRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{134}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{150}
 }
 
 func (x *RevokeAuthTokenRequest) GetId() string {
@@ -8834,7 +9897,7 @@ type RevokeAuthTokenResponse struct {
 
 func (x *RevokeAuthTokenResponse) Reset() {
 	*x = RevokeAuthTokenResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[135]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[151]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8846,7 +9909,7 @@ func (x *RevokeAuthTokenResponse) String() string {
 func (*RevokeAuthTokenResponse) ProtoMessage() {}
 
 func (x *RevokeAuthTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[135]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[151]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8859,7 +9922,7 @@ func (x *RevokeAuthTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeAuthTokenResponse.ProtoReflect.Descriptor instead.
 func (*RevokeAuthTokenResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{135}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{151}
 }
 
 func (x *RevokeAuthTokenResponse) GetToken() *AuthToken {
@@ -8878,7 +9941,7 @@ type ListAuthAuthorizationsRequest struct {
 
 func (x *ListAuthAuthorizationsRequest) Reset() {
 	*x = ListAuthAuthorizationsRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[136]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[152]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8890,7 +9953,7 @@ func (x *ListAuthAuthorizationsRequest) String() string {
 func (*ListAuthAuthorizationsRequest) ProtoMessage() {}
 
 func (x *ListAuthAuthorizationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[136]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[152]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8903,7 +9966,7 @@ func (x *ListAuthAuthorizationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuthAuthorizationsRequest.ProtoReflect.Descriptor instead.
 func (*ListAuthAuthorizationsRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{136}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{152}
 }
 
 func (x *ListAuthAuthorizationsRequest) GetStatus() string {
@@ -8922,7 +9985,7 @@ type ListAuthAuthorizationsResponse struct {
 
 func (x *ListAuthAuthorizationsResponse) Reset() {
 	*x = ListAuthAuthorizationsResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[137]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[153]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8934,7 +9997,7 @@ func (x *ListAuthAuthorizationsResponse) String() string {
 func (*ListAuthAuthorizationsResponse) ProtoMessage() {}
 
 func (x *ListAuthAuthorizationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[137]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[153]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8947,7 +10010,7 @@ func (x *ListAuthAuthorizationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuthAuthorizationsResponse.ProtoReflect.Descriptor instead.
 func (*ListAuthAuthorizationsResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{137}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{153}
 }
 
 func (x *ListAuthAuthorizationsResponse) GetAuthorizations() []*AuthAuthorization {
@@ -8966,7 +10029,7 @@ type GrantAuthAuthorizationRequest struct {
 
 func (x *GrantAuthAuthorizationRequest) Reset() {
 	*x = GrantAuthAuthorizationRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[138]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[154]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8978,7 +10041,7 @@ func (x *GrantAuthAuthorizationRequest) String() string {
 func (*GrantAuthAuthorizationRequest) ProtoMessage() {}
 
 func (x *GrantAuthAuthorizationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[138]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[154]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8991,7 +10054,7 @@ func (x *GrantAuthAuthorizationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrantAuthAuthorizationRequest.ProtoReflect.Descriptor instead.
 func (*GrantAuthAuthorizationRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{138}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{154}
 }
 
 func (x *GrantAuthAuthorizationRequest) GetAuthorization() *AuthAuthorization {
@@ -9010,7 +10073,7 @@ type GrantAuthAuthorizationResponse struct {
 
 func (x *GrantAuthAuthorizationResponse) Reset() {
 	*x = GrantAuthAuthorizationResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[139]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[155]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9022,7 +10085,7 @@ func (x *GrantAuthAuthorizationResponse) String() string {
 func (*GrantAuthAuthorizationResponse) ProtoMessage() {}
 
 func (x *GrantAuthAuthorizationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[139]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[155]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9035,7 +10098,7 @@ func (x *GrantAuthAuthorizationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrantAuthAuthorizationResponse.ProtoReflect.Descriptor instead.
 func (*GrantAuthAuthorizationResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{139}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{155}
 }
 
 func (x *GrantAuthAuthorizationResponse) GetAuthorization() *AuthAuthorization {
@@ -9055,7 +10118,7 @@ type RevokeAuthAuthorizationRequest struct {
 
 func (x *RevokeAuthAuthorizationRequest) Reset() {
 	*x = RevokeAuthAuthorizationRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[140]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[156]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9067,7 +10130,7 @@ func (x *RevokeAuthAuthorizationRequest) String() string {
 func (*RevokeAuthAuthorizationRequest) ProtoMessage() {}
 
 func (x *RevokeAuthAuthorizationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[140]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[156]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9080,7 +10143,7 @@ func (x *RevokeAuthAuthorizationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeAuthAuthorizationRequest.ProtoReflect.Descriptor instead.
 func (*RevokeAuthAuthorizationRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{140}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{156}
 }
 
 func (x *RevokeAuthAuthorizationRequest) GetIdentityId() string {
@@ -9106,7 +10169,7 @@ type RevokeAuthAuthorizationResponse struct {
 
 func (x *RevokeAuthAuthorizationResponse) Reset() {
 	*x = RevokeAuthAuthorizationResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[141]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[157]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9118,7 +10181,7 @@ func (x *RevokeAuthAuthorizationResponse) String() string {
 func (*RevokeAuthAuthorizationResponse) ProtoMessage() {}
 
 func (x *RevokeAuthAuthorizationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[141]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[157]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9131,7 +10194,7 @@ func (x *RevokeAuthAuthorizationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeAuthAuthorizationResponse.ProtoReflect.Descriptor instead.
 func (*RevokeAuthAuthorizationResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{141}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{157}
 }
 
 func (x *RevokeAuthAuthorizationResponse) GetAuthorization() *AuthAuthorization {
@@ -9156,7 +10219,7 @@ type ListAuthAuditRequest struct {
 
 func (x *ListAuthAuditRequest) Reset() {
 	*x = ListAuthAuditRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[142]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[158]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9168,7 +10231,7 @@ func (x *ListAuthAuditRequest) String() string {
 func (*ListAuthAuditRequest) ProtoMessage() {}
 
 func (x *ListAuthAuditRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[142]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[158]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9181,7 +10244,7 @@ func (x *ListAuthAuditRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuthAuditRequest.ProtoReflect.Descriptor instead.
 func (*ListAuthAuditRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{142}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{158}
 }
 
 func (x *ListAuthAuditRequest) GetLimit() int32 {
@@ -9242,7 +10305,7 @@ type ListAuthAuditResponse struct {
 
 func (x *ListAuthAuditResponse) Reset() {
 	*x = ListAuthAuditResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[143]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[159]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9254,7 +10317,7 @@ func (x *ListAuthAuditResponse) String() string {
 func (*ListAuthAuditResponse) ProtoMessage() {}
 
 func (x *ListAuthAuditResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[143]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[159]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9267,7 +10330,7 @@ func (x *ListAuthAuditResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuthAuditResponse.ProtoReflect.Descriptor instead.
 func (*ListAuthAuditResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{143}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{159}
 }
 
 func (x *ListAuthAuditResponse) GetEvents() []*AuthAuditEvent {
@@ -9288,7 +10351,7 @@ type PruneAuthRequest struct {
 
 func (x *PruneAuthRequest) Reset() {
 	*x = PruneAuthRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[144]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[160]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9300,7 +10363,7 @@ func (x *PruneAuthRequest) String() string {
 func (*PruneAuthRequest) ProtoMessage() {}
 
 func (x *PruneAuthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[144]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[160]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9313,7 +10376,7 @@ func (x *PruneAuthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PruneAuthRequest.ProtoReflect.Descriptor instead.
 func (*PruneAuthRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{144}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{160}
 }
 
 func (x *PruneAuthRequest) GetBefore() *timestamppb.Timestamp {
@@ -9350,7 +10413,7 @@ type PruneAuthResponse struct {
 
 func (x *PruneAuthResponse) Reset() {
 	*x = PruneAuthResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[145]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[161]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9362,7 +10425,7 @@ func (x *PruneAuthResponse) String() string {
 func (*PruneAuthResponse) ProtoMessage() {}
 
 func (x *PruneAuthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[145]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[161]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9375,7 +10438,7 @@ func (x *PruneAuthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PruneAuthResponse.ProtoReflect.Descriptor instead.
 func (*PruneAuthResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{145}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{161}
 }
 
 func (x *PruneAuthResponse) GetTokens() int32 {
@@ -9425,7 +10488,7 @@ type RotateAuthIdentityRequest struct {
 
 func (x *RotateAuthIdentityRequest) Reset() {
 	*x = RotateAuthIdentityRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[146]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[162]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9437,7 +10500,7 @@ func (x *RotateAuthIdentityRequest) String() string {
 func (*RotateAuthIdentityRequest) ProtoMessage() {}
 
 func (x *RotateAuthIdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[146]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[162]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9450,7 +10513,7 @@ func (x *RotateAuthIdentityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RotateAuthIdentityRequest.ProtoReflect.Descriptor instead.
 func (*RotateAuthIdentityRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{146}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{162}
 }
 
 func (x *RotateAuthIdentityRequest) GetCurrentIdentityId() string {
@@ -9490,7 +10553,7 @@ type RotateAuthIdentityResponse struct {
 
 func (x *RotateAuthIdentityResponse) Reset() {
 	*x = RotateAuthIdentityResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[147]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[163]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9502,7 +10565,7 @@ func (x *RotateAuthIdentityResponse) String() string {
 func (*RotateAuthIdentityResponse) ProtoMessage() {}
 
 func (x *RotateAuthIdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[147]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[163]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9515,7 +10578,7 @@ func (x *RotateAuthIdentityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RotateAuthIdentityResponse.ProtoReflect.Descriptor instead.
 func (*RotateAuthIdentityResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{147}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{163}
 }
 
 func (x *RotateAuthIdentityResponse) GetAuthorization() *AuthAuthorization {
@@ -9533,7 +10596,7 @@ type GetAuthIdentityStatusRequest struct {
 
 func (x *GetAuthIdentityStatusRequest) Reset() {
 	*x = GetAuthIdentityStatusRequest{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[148]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[164]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9545,7 +10608,7 @@ func (x *GetAuthIdentityStatusRequest) String() string {
 func (*GetAuthIdentityStatusRequest) ProtoMessage() {}
 
 func (x *GetAuthIdentityStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[148]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[164]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9558,7 +10621,7 @@ func (x *GetAuthIdentityStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAuthIdentityStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetAuthIdentityStatusRequest) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{148}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{164}
 }
 
 type GetAuthIdentityStatusResponse struct {
@@ -9573,7 +10636,7 @@ type GetAuthIdentityStatusResponse struct {
 
 func (x *GetAuthIdentityStatusResponse) Reset() {
 	*x = GetAuthIdentityStatusResponse{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[149]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[165]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9585,7 +10648,7 @@ func (x *GetAuthIdentityStatusResponse) String() string {
 func (*GetAuthIdentityStatusResponse) ProtoMessage() {}
 
 func (x *GetAuthIdentityStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[149]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[165]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9598,7 +10661,7 @@ func (x *GetAuthIdentityStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAuthIdentityStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetAuthIdentityStatusResponse) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{149}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{165}
 }
 
 func (x *GetAuthIdentityStatusResponse) GetIdentityId() string {
@@ -9643,7 +10706,7 @@ type GetSessionStatusResponse_Context struct {
 
 func (x *GetSessionStatusResponse_Context) Reset() {
 	*x = GetSessionStatusResponse_Context{}
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[150]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[166]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9655,7 +10718,7 @@ func (x *GetSessionStatusResponse_Context) String() string {
 func (*GetSessionStatusResponse_Context) ProtoMessage() {}
 
 func (x *GetSessionStatusResponse_Context) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_rpc_proto_morph_proto_msgTypes[150]
+	mi := &file_internal_rpc_proto_morph_proto_msgTypes[166]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9668,7 +10731,7 @@ func (x *GetSessionStatusResponse_Context) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSessionStatusResponse_Context.ProtoReflect.Descriptor instead.
 func (*GetSessionStatusResponse_Context) Descriptor() ([]byte, []int) {
-	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{25, 0}
+	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{23, 0}
 }
 
 func (x *GetSessionStatusResponse_Context) GetOffset() int32 {
@@ -9717,34 +10780,7 @@ var File_internal_rpc_proto_morph_proto protoreflect.FileDescriptor
 
 const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"\n" +
-	"\x1einternal/rpc/proto/morph.proto\x12\bmorph.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"~\n" +
-	"\x0eRespondRequest\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\x12\x1a\n" +
-	"\binstruct\x18\x02 \x01(\tR\binstruct\x12\x0e\n" +
-	"\x02id\x18\x03 \x01(\tR\x02id\x12\x1b\n" +
-	"\x06stream\x18\x04 \x01(\bH\x00R\x06stream\x88\x01\x01B\t\n" +
-	"\a_stream\"\xea\x03\n" +
-	"\fRespondEvent\x12/\n" +
-	"\x04type\x18\x01 \x01(\x0e2\x1b.morph.v1.RespondEvent.TypeR\x04type\x12\x12\n" +
-	"\x04text\x18\x02 \x01(\tR\x04text\x12\x14\n" +
-	"\x05error\x18\x03 \x01(\tR\x05error\x128\n" +
-	"\achannel\x18\x04 \x01(\x0e2\x1e.morph.v1.RespondEvent.ChannelR\achannel\x12\x1d\n" +
-	"\n" +
-	"trace_type\x18\x05 \x01(\tR\ttraceType\x12,\n" +
-	"\x12trace_payload_json\x18\x06 \x01(\tR\x10tracePayloadJson\x128\n" +
-	"\ttimestamp\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12(\n" +
-	"\x10trace_session_id\x18\b \x01(\tR\x0etraceSessionId\"R\n" +
-	"\x04Type\x12\x14\n" +
-	"\x10TYPE_UNSPECIFIED\x10\x00\x12\x0e\n" +
-	"\n" +
-	"TEXT_DELTA\x10\x01\x12\b\n" +
-	"\x04DONE\x10\x02\x12\t\n" +
-	"\x05ERROR\x10\x03\x12\x0f\n" +
-	"\vTRACE_EVENT\x10\x04\"@\n" +
-	"\aChannel\x12\x17\n" +
-	"\x13CHANNEL_UNSPECIFIED\x10\x00\x12\r\n" +
-	"\tASSISTANT\x10\x01\x12\r\n" +
-	"\tREASONING\x10\x02\"\xcb\x01\n" +
+	"\x1einternal/rpc/proto/morph.proto\x12\bmorph.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcb\x01\n" +
 	"\x0eSessionSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12&\n" +
 	"\x0fupdated_at_unix\x18\x02 \x01(\x03R\rupdatedAtUnix\x12#\n" +
@@ -9886,7 +10922,134 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"\x13last_trace_sequence\x18\b \x01(\x05R\x11lastTraceSequence\x12\x14\n" +
 	"\x05title\x18\t \x01(\tR\x05title\x12!\n" +
 	"\ftitle_source\x18\n" +
-	" \x01(\tR\vtitleSource\"\x15\n" +
+	" \x01(\tR\vtitleSource\"\xf0\x06\n" +
+	"\x11SessionQueueEntry\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\x120\n" +
+	"\x14client_submission_id\x18\x04 \x01(\tR\x12clientSubmissionId\x12\"\n" +
+	"\rtarget_run_id\x18\x05 \x01(\tR\vtargetRunId\x12#\n" +
+	"\rdelivery_mode\x18\x06 \x01(\tR\fdeliveryMode\x12+\n" +
+	"\x11steering_fallback\x18\a \x01(\tR\x10steeringFallback\x12\x16\n" +
+	"\x06status\x18\b \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"actor_kind\x18\t \x01(\tR\tactorKind\x12\x19\n" +
+	"\bactor_id\x18\n" +
+	" \x01(\tR\aactorId\x12!\n" +
+	"\fsurface_kind\x18\v \x01(\tR\vsurfaceKind\x12\x18\n" +
+	"\asurface\x18\f \x01(\tR\asurface\x12\x18\n" +
+	"\aprofile\x18\r \x01(\tR\aprofile\x12\x1a\n" +
+	"\bsequence\x18\x0e \x01(\x03R\bsequence\x12\x1a\n" +
+	"\bpriority\x18\x0f \x01(\x03R\bpriority\x129\n" +
+	"\n" +
+	"created_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x129\n" +
+	"\n" +
+	"started_at\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12=\n" +
+	"\fcompleted_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12\x1d\n" +
+	"\n" +
+	"last_error\x18\x14 \x01(\tR\tlastError\x126\n" +
+	"\x17requested_delivery_mode\x18\x15 \x01(\tR\x15requestedDeliveryMode\x12\x1a\n" +
+	"\binstruct\x18\x16 \x01(\tR\binstruct\x12\x1b\n" +
+	"\x06stream\x18\x17 \x01(\bH\x00R\x06stream\x88\x01\x01B\t\n" +
+	"\a_stream\"\x8b\x03\n" +
+	"\x10SessionActiveRun\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x12$\n" +
+	"\x0equeue_entry_id\x18\x03 \x01(\tR\fqueueEntryId\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x04 \x01(\tR\n" +
+	"generation\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x129\n" +
+	"\n" +
+	"started_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12=\n" +
+	"\fcompleted_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x16\n" +
+	"\x06reason\x18\t \x01(\tR\x06reason\x12\x1d\n" +
+	"\n" +
+	"last_error\x18\n" +
+	" \x01(\tR\tlastError\"\xd8\x04\n" +
+	"\fSessionEvent\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x16\n" +
+	"\x06cursor\x18\x03 \x01(\x03R\x06cursor\x129\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
+	"\vqueue_entry\x18\x05 \x01(\v2\x1b.morph.v1.SessionQueueEntryR\n" +
+	"queueEntry\x12,\n" +
+	"\x03run\x18\x06 \x01(\v2\x1a.morph.v1.SessionActiveRunR\x03run\x12#\n" +
+	"\rprogress_kind\x18\a \x01(\tR\fprogressKind\x12)\n" +
+	"\x10progress_channel\x18\b \x01(\tR\x0fprogressChannel\x12#\n" +
+	"\rprogress_text\x18\t \x01(\tR\fprogressText\x12&\n" +
+	"\x0fprogress_run_id\x18\n" +
+	" \x01(\tR\rprogressRunId\x125\n" +
+	"\x17progress_queue_entry_id\x18\v \x01(\tR\x14progressQueueEntryId\x12+\n" +
+	"\x11progress_sequence\x18\f \x01(\x03R\x10progressSequence\x12U\n" +
+	"\x14progress_trace_event\x18\r \x01(\v2#.morph.v1.SessionTimelineTraceEventR\x12progressTraceEvent\"\xf7\x01\n" +
+	"\x14SessionProgressEvent\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x18\n" +
+	"\achannel\x18\x02 \x01(\tR\achannel\x12\x12\n" +
+	"\x04text\x18\x03 \x01(\tR\x04text\x12\x15\n" +
+	"\x06run_id\x18\x04 \x01(\tR\x05runId\x12$\n" +
+	"\x0equeue_entry_id\x18\x05 \x01(\tR\fqueueEntryId\x12\x1a\n" +
+	"\bsequence\x18\x06 \x01(\x03R\bsequence\x12D\n" +
+	"\vtrace_event\x18\a \x01(\v2#.morph.v1.SessionTimelineTraceEventR\n" +
+	"traceEvent\"\x8f\x02\n" +
+	"\x1bSubmitSessionMessageRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x120\n" +
+	"\x14client_submission_id\x18\x03 \x01(\tR\x12clientSubmissionId\x12#\n" +
+	"\rdelivery_mode\x18\x04 \x01(\tR\fdeliveryMode\x12+\n" +
+	"\x11steering_fallback\x18\x05 \x01(\tR\x10steeringFallback\x12\x1a\n" +
+	"\binstruct\x18\x06 \x01(\tR\binstruct\x12\x1b\n" +
+	"\x06stream\x18\a \x01(\bH\x00R\x06stream\x88\x01\x01B\t\n" +
+	"\a_stream\"Q\n" +
+	"\x1cSubmitSessionMessageResponse\x121\n" +
+	"\x05entry\x18\x01 \x01(\v2\x1b.morph.v1.SessionQueueEntryR\x05entry\"(\n" +
+	"\x16GetSessionStateRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x97\x03\n" +
+	"\x17GetSessionStateResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
+	"\n" +
+	"active_run\x18\x02 \x01(\v2\x1a.morph.v1.SessionActiveRunR\tactiveRun\x121\n" +
+	"\x05queue\x18\x03 \x03(\v2\x1b.morph.v1.SessionQueueEntryR\x05queue\x12\x16\n" +
+	"\x06cursor\x18\x04 \x01(\x03R\x06cursor\x122\n" +
+	"\x15retained_cursor_floor\x18\x05 \x01(\x03R\x13retainedCursorFloor\x12\x1f\n" +
+	"\vqueue_depth\x18\x06 \x01(\x05R\n" +
+	"queueDepth\x12U\n" +
+	"\x19oldest_pending_created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x16oldestPendingCreatedAt\x12:\n" +
+	"\bprogress\x18\b \x03(\v2\x1e.morph.v1.SessionProgressEventR\bprogress\"J\n" +
+	"\x15ObserveSessionRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
+	"\fafter_cursor\x18\x02 \x01(\x03R\vafterCursor\"F\n" +
+	"\x16ObserveSessionResponse\x12,\n" +
+	"\x05event\x18\x01 \x01(\v2\x16.morph.v1.SessionEventR\x05event\"f\n" +
+	"\x1fEditQueuedSessionMessageRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
+	"\bentry_id\x18\x02 \x01(\tR\aentryId\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"U\n" +
+	" EditQueuedSessionMessageResponse\x121\n" +
+	"\x05entry\x18\x01 \x01(\v2\x1b.morph.v1.SessionQueueEntryR\x05entry\"N\n" +
+	"!RemoveQueuedSessionMessageRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
+	"\bentry_id\x18\x02 \x01(\tR\aentryId\"W\n" +
+	"\"RemoveQueuedSessionMessageResponse\x121\n" +
+	"\x05entry\x18\x01 \x01(\v2\x1b.morph.v1.SessionQueueEntryR\x05entry\"O\n" +
+	"\"PromoteQueuedSessionMessageRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
+	"\bentry_id\x18\x02 \x01(\tR\aentryId\"X\n" +
+	"#PromoteQueuedSessionMessageResponse\x121\n" +
+	"\x05entry\x18\x01 \x01(\v2\x1b.morph.v1.SessionQueueEntryR\x05entry\",\n" +
+	"\x1aInterruptSessionRunRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"o\n" +
+	"\x1bInterruptSessionRunResponse\x12,\n" +
+	"\x03run\x18\x01 \x01(\v2\x1a.morph.v1.SessionActiveRunR\x03run\x12\"\n" +
+	"\ftransitioned\x18\x02 \x01(\bR\ftransitioned\"\x15\n" +
 	"\x13RuntimeModelRequest\"\x9c\x01\n" +
 	"\x14RuntimeModelResponse\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x10\n" +
@@ -10511,9 +11674,7 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"generation\x18\x02 \x01(\x04R\n" +
 	"generation\x125\n" +
 	"\x16authorization_revision\x18\x03 \x01(\x04R\x15authorizationRevision\x12\x16\n" +
-	"\x06status\x18\x04 \x01(\tR\x06status2M\n" +
-	"\fMorphService\x12=\n" +
-	"\aRespond\x12\x18.morph.v1.RespondRequest\x1a\x16.morph.v1.RespondEvent0\x012\xe0\x06\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status2\x8e\f\n" +
 	"\x0eSessionService\x12I\n" +
 	"\x06Create\x12\x1e.morph.v1.CreateSessionRequest\x1a\x1f.morph.v1.CreateSessionResponse\x12E\n" +
 	"\x04List\x12\x1d.morph.v1.ListSessionsRequest\x1a\x1e.morph.v1.ListSessionsResponse\x12@\n" +
@@ -10525,7 +11686,14 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"\aCompact\x12\x1f.morph.v1.CompactSessionRequest\x1a .morph.v1.CompactSessionResponse\x12I\n" +
 	"\x06Repair\x12\x1e.morph.v1.RepairSessionRequest\x1a\x1f.morph.v1.RepairSessionResponse\x12O\n" +
 	"\x06Status\x12!.morph.v1.GetSessionStatusRequest\x1a\".morph.v1.GetSessionStatusResponse\x12U\n" +
-	"\bTimeline\x12#.morph.v1.GetSessionTimelineRequest\x1a$.morph.v1.GetSessionTimelineResponse2\xa2\x03\n" +
+	"\bTimeline\x12#.morph.v1.GetSessionTimelineRequest\x1a$.morph.v1.GetSessionTimelineResponse\x12^\n" +
+	"\rSubmitMessage\x12%.morph.v1.SubmitSessionMessageRequest\x1a&.morph.v1.SubmitSessionMessageResponse\x12L\n" +
+	"\x05State\x12 .morph.v1.GetSessionStateRequest\x1a!.morph.v1.GetSessionStateResponse\x12N\n" +
+	"\aObserve\x12\x1f.morph.v1.ObserveSessionRequest\x1a .morph.v1.ObserveSessionResponse0\x01\x12j\n" +
+	"\x11EditQueuedMessage\x12).morph.v1.EditQueuedSessionMessageRequest\x1a*.morph.v1.EditQueuedSessionMessageResponse\x12p\n" +
+	"\x13RemoveQueuedMessage\x12+.morph.v1.RemoveQueuedSessionMessageRequest\x1a,.morph.v1.RemoveQueuedSessionMessageResponse\x12s\n" +
+	"\x14PromoteQueuedMessage\x12,.morph.v1.PromoteQueuedSessionMessageRequest\x1a-.morph.v1.PromoteQueuedSessionMessageResponse\x12[\n" +
+	"\fInterruptRun\x12$.morph.v1.InterruptSessionRunRequest\x1a%.morph.v1.InterruptSessionRunResponse2\xa2\x03\n" +
 	"\fModelService\x12M\n" +
 	"\fRuntimeModel\x12\x1d.morph.v1.RuntimeModelRequest\x1a\x1e.morph.v1.RuntimeModelResponse\x12P\n" +
 	"\rListProviders\x12\x1e.morph.v1.ListProvidersRequest\x1a\x1f.morph.v1.ListProvidersResponse\x12G\n" +
@@ -10597,416 +11765,461 @@ func file_internal_rpc_proto_morph_proto_rawDescGZIP() []byte {
 	return file_internal_rpc_proto_morph_proto_rawDescData
 }
 
-var file_internal_rpc_proto_morph_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_internal_rpc_proto_morph_proto_msgTypes = make([]protoimpl.MessageInfo, 152)
+var file_internal_rpc_proto_morph_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_internal_rpc_proto_morph_proto_msgTypes = make([]protoimpl.MessageInfo, 168)
 var file_internal_rpc_proto_morph_proto_goTypes = []any{
-	(RespondEvent_Type)(0),                      // 0: morph.v1.RespondEvent.Type
-	(RespondEvent_Channel)(0),                   // 1: morph.v1.RespondEvent.Channel
-	(RepairSessionRequest_Type)(0),              // 2: morph.v1.RepairSessionRequest.Type
-	(*RespondRequest)(nil),                      // 3: morph.v1.RespondRequest
-	(*RespondEvent)(nil),                        // 4: morph.v1.RespondEvent
-	(*SessionSummary)(nil),                      // 5: morph.v1.SessionSummary
-	(*CreateSessionRequest)(nil),                // 6: morph.v1.CreateSessionRequest
-	(*CreateSessionResponse)(nil),               // 7: morph.v1.CreateSessionResponse
-	(*ListSessionsRequest)(nil),                 // 8: morph.v1.ListSessionsRequest
-	(*ListSessionsResponse)(nil),                // 9: morph.v1.ListSessionsResponse
-	(*UseSessionRequest)(nil),                   // 10: morph.v1.UseSessionRequest
-	(*UseSessionResponse)(nil),                  // 11: morph.v1.UseSessionResponse
-	(*ArchiveSessionRequest)(nil),               // 12: morph.v1.ArchiveSessionRequest
-	(*ArchiveSessionResponse)(nil),              // 13: morph.v1.ArchiveSessionResponse
-	(*UnarchiveSessionRequest)(nil),             // 14: morph.v1.UnarchiveSessionRequest
-	(*UnarchiveSessionResponse)(nil),            // 15: morph.v1.UnarchiveSessionResponse
-	(*RenameSessionRequest)(nil),                // 16: morph.v1.RenameSessionRequest
-	(*RenameSessionResponse)(nil),               // 17: morph.v1.RenameSessionResponse
-	(*CurrentSessionRequest)(nil),               // 18: morph.v1.CurrentSessionRequest
-	(*CurrentSessionResponse)(nil),              // 19: morph.v1.CurrentSessionResponse
-	(*CompactSessionRequest)(nil),               // 20: morph.v1.CompactSessionRequest
-	(*CompactSessionResponse)(nil),              // 21: morph.v1.CompactSessionResponse
-	(*RepairSessionRequest)(nil),                // 22: morph.v1.RepairSessionRequest
-	(*RepairSessionResponse)(nil),               // 23: morph.v1.RepairSessionResponse
-	(*VectorRepairOption)(nil),                  // 24: morph.v1.VectorRepairOption
-	(*VectorRepairResponse)(nil),                // 25: morph.v1.VectorRepairResponse
-	(*GetSessionStatusRequestContext)(nil),      // 26: morph.v1.GetSessionStatusRequestContext
-	(*GetSessionStatusRequest)(nil),             // 27: morph.v1.GetSessionStatusRequest
-	(*GetSessionStatusResponse)(nil),            // 28: morph.v1.GetSessionStatusResponse
-	(*GetSessionTimelineRequest)(nil),           // 29: morph.v1.GetSessionTimelineRequest
-	(*SessionTimelineToolCall)(nil),             // 30: morph.v1.SessionTimelineToolCall
-	(*SessionTimelineMessage)(nil),              // 31: morph.v1.SessionTimelineMessage
-	(*SessionTimelineTraceEvent)(nil),           // 32: morph.v1.SessionTimelineTraceEvent
-	(*GetSessionTimelineResponse)(nil),          // 33: morph.v1.GetSessionTimelineResponse
-	(*RuntimeModelRequest)(nil),                 // 34: morph.v1.RuntimeModelRequest
-	(*RuntimeModelResponse)(nil),                // 35: morph.v1.RuntimeModelResponse
-	(*ListProvidersRequest)(nil),                // 36: morph.v1.ListProvidersRequest
-	(*ProviderOption)(nil),                      // 37: morph.v1.ProviderOption
-	(*ListProvidersResponse)(nil),               // 38: morph.v1.ListProvidersResponse
-	(*ListModelsRequest)(nil),                   // 39: morph.v1.ListModelsRequest
-	(*ModelOption)(nil),                         // 40: morph.v1.ModelOption
-	(*ListModelsResponse)(nil),                  // 41: morph.v1.ListModelsResponse
-	(*SelectModelRequest)(nil),                  // 42: morph.v1.SelectModelRequest
-	(*SelectModelResponse)(nil),                 // 43: morph.v1.SelectModelResponse
-	(*SetProviderAPIKeyRequest)(nil),            // 44: morph.v1.SetProviderAPIKeyRequest
-	(*SetProviderAPIKeyResponse)(nil),           // 45: morph.v1.SetProviderAPIKeyResponse
-	(*GatewayStatus)(nil),                       // 46: morph.v1.GatewayStatus
-	(*GetGatewayStatusRequest)(nil),             // 47: morph.v1.GetGatewayStatusRequest
-	(*GetGatewayStatusResponse)(nil),            // 48: morph.v1.GetGatewayStatusResponse
-	(*StartGatewayRequest)(nil),                 // 49: morph.v1.StartGatewayRequest
-	(*StartGatewayResponse)(nil),                // 50: morph.v1.StartGatewayResponse
-	(*StopGatewayRequest)(nil),                  // 51: morph.v1.StopGatewayRequest
-	(*StopGatewayResponse)(nil),                 // 52: morph.v1.StopGatewayResponse
-	(*RestartGatewayRequest)(nil),               // 53: morph.v1.RestartGatewayRequest
-	(*RestartGatewayResponse)(nil),              // 54: morph.v1.RestartGatewayResponse
-	(*GatewayPairingRequest)(nil),               // 55: morph.v1.GatewayPairingRequest
-	(*GatewayPairedSender)(nil),                 // 56: morph.v1.GatewayPairedSender
-	(*ListGatewayPairingsRequest)(nil),          // 57: morph.v1.ListGatewayPairingsRequest
-	(*ListGatewayPairingsResponse)(nil),         // 58: morph.v1.ListGatewayPairingsResponse
-	(*ApproveGatewayPairingRequest)(nil),        // 59: morph.v1.ApproveGatewayPairingRequest
-	(*ApproveGatewayPairingResponse)(nil),       // 60: morph.v1.ApproveGatewayPairingResponse
-	(*RevokeGatewayPairingRequest)(nil),         // 61: morph.v1.RevokeGatewayPairingRequest
-	(*RevokeGatewayPairingResponse)(nil),        // 62: morph.v1.RevokeGatewayPairingResponse
-	(*ClearPendingGatewayPairingsRequest)(nil),  // 63: morph.v1.ClearPendingGatewayPairingsRequest
-	(*ClearPendingGatewayPairingsResponse)(nil), // 64: morph.v1.ClearPendingGatewayPairingsResponse
-	(*AutomationSchedule)(nil),                  // 65: morph.v1.AutomationSchedule
-	(*AutomationPayload)(nil),                   // 66: morph.v1.AutomationPayload
-	(*AutomationDelivery)(nil),                  // 67: morph.v1.AutomationDelivery
-	(*AutomationJobState)(nil),                  // 68: morph.v1.AutomationJobState
-	(*AutomationJob)(nil),                       // 69: morph.v1.AutomationJob
-	(*AutomationUsage)(nil),                     // 70: morph.v1.AutomationUsage
-	(*AutomationRun)(nil),                       // 71: morph.v1.AutomationRun
-	(*GetAutomationStatusRequest)(nil),          // 72: morph.v1.GetAutomationStatusRequest
-	(*GetAutomationStatusResponse)(nil),         // 73: morph.v1.GetAutomationStatusResponse
-	(*ListAutomationJobsRequest)(nil),           // 74: morph.v1.ListAutomationJobsRequest
-	(*ListAutomationJobsResponse)(nil),          // 75: morph.v1.ListAutomationJobsResponse
-	(*AddAutomationJobRequest)(nil),             // 76: morph.v1.AddAutomationJobRequest
-	(*AddAutomationJobResponse)(nil),            // 77: morph.v1.AddAutomationJobResponse
-	(*UpdateAutomationJobRequest)(nil),          // 78: morph.v1.UpdateAutomationJobRequest
-	(*UpdateAutomationJobResponse)(nil),         // 79: morph.v1.UpdateAutomationJobResponse
-	(*RemoveAutomationJobRequest)(nil),          // 80: morph.v1.RemoveAutomationJobRequest
-	(*RemoveAutomationJobResponse)(nil),         // 81: morph.v1.RemoveAutomationJobResponse
-	(*RunAutomationJobRequest)(nil),             // 82: morph.v1.RunAutomationJobRequest
-	(*RunAutomationJobResponse)(nil),            // 83: morph.v1.RunAutomationJobResponse
-	(*ListAutomationRunsRequest)(nil),           // 84: morph.v1.ListAutomationRunsRequest
-	(*ListAutomationRunsResponse)(nil),          // 85: morph.v1.ListAutomationRunsResponse
-	(*PermissionApprovalRequest)(nil),           // 86: morph.v1.PermissionApprovalRequest
-	(*PermissionGrant)(nil),                     // 87: morph.v1.PermissionGrant
-	(*ListPermissionRequestsRequest)(nil),       // 88: morph.v1.ListPermissionRequestsRequest
-	(*ListPermissionRequestsResponse)(nil),      // 89: morph.v1.ListPermissionRequestsResponse
-	(*GetPermissionRequestRequest)(nil),         // 90: morph.v1.GetPermissionRequestRequest
-	(*GetPermissionRequestResponse)(nil),        // 91: morph.v1.GetPermissionRequestResponse
-	(*ResolvePermissionRequestRequest)(nil),     // 92: morph.v1.ResolvePermissionRequestRequest
-	(*ResolvePermissionRequestResponse)(nil),    // 93: morph.v1.ResolvePermissionRequestResponse
-	(*ListPermissionGrantsRequest)(nil),         // 94: morph.v1.ListPermissionGrantsRequest
-	(*ListPermissionGrantsResponse)(nil),        // 95: morph.v1.ListPermissionGrantsResponse
-	(*RevokePermissionGrantRequest)(nil),        // 96: morph.v1.RevokePermissionGrantRequest
-	(*RevokePermissionGrantResponse)(nil),       // 97: morph.v1.RevokePermissionGrantResponse
-	(*DeletePermissionRecordRequest)(nil),       // 98: morph.v1.DeletePermissionRecordRequest
-	(*DeletePermissionRecordResponse)(nil),      // 99: morph.v1.DeletePermissionRecordResponse
-	(*PrunePermissionApprovalsRequest)(nil),     // 100: morph.v1.PrunePermissionApprovalsRequest
-	(*PrunePermissionApprovalsResponse)(nil),    // 101: morph.v1.PrunePermissionApprovalsResponse
-	(*BrowserProfile)(nil),                      // 102: morph.v1.BrowserProfile
-	(*BrowserSession)(nil),                      // 103: morph.v1.BrowserSession
-	(*BrowserArtifact)(nil),                     // 104: morph.v1.BrowserArtifact
-	(*BrowserStatus)(nil),                       // 105: morph.v1.BrowserStatus
-	(*GetBrowserStatusRequest)(nil),             // 106: morph.v1.GetBrowserStatusRequest
-	(*GetBrowserStatusResponse)(nil),            // 107: morph.v1.GetBrowserStatusResponse
-	(*ListBrowserProfilesRequest)(nil),          // 108: morph.v1.ListBrowserProfilesRequest
-	(*ListBrowserProfilesResponse)(nil),         // 109: morph.v1.ListBrowserProfilesResponse
-	(*ListBrowserSessionsRequest)(nil),          // 110: morph.v1.ListBrowserSessionsRequest
-	(*ListBrowserSessionsResponse)(nil),         // 111: morph.v1.ListBrowserSessionsResponse
-	(*StartBrowserRequest)(nil),                 // 112: morph.v1.StartBrowserRequest
-	(*StartBrowserResponse)(nil),                // 113: morph.v1.StartBrowserResponse
-	(*StopBrowserRequest)(nil),                  // 114: morph.v1.StopBrowserRequest
-	(*StopBrowserResponse)(nil),                 // 115: morph.v1.StopBrowserResponse
-	(*ReadBrowserArtifactRequest)(nil),          // 116: morph.v1.ReadBrowserArtifactRequest
-	(*ReadBrowserArtifactResponse)(nil),         // 117: morph.v1.ReadBrowserArtifactResponse
-	(*GetBrowserEffectiveConfigRequest)(nil),    // 118: morph.v1.GetBrowserEffectiveConfigRequest
-	(*GetBrowserEffectiveConfigResponse)(nil),   // 119: morph.v1.GetBrowserEffectiveConfigResponse
-	(*GetPermissionGrantRequest)(nil),           // 120: morph.v1.GetPermissionGrantRequest
-	(*GetPermissionGrantResponse)(nil),          // 121: morph.v1.GetPermissionGrantResponse
-	(*AuthPrincipal)(nil),                       // 122: morph.v1.AuthPrincipal
-	(*AuthSession)(nil),                         // 123: morph.v1.AuthSession
-	(*AuthToken)(nil),                           // 124: morph.v1.AuthToken
-	(*AuthAuthorization)(nil),                   // 125: morph.v1.AuthAuthorization
-	(*AuthAuditEvent)(nil),                      // 126: morph.v1.AuthAuditEvent
-	(*OpenAuthSessionRequest)(nil),              // 127: morph.v1.OpenAuthSessionRequest
-	(*OpenAuthSessionResponse)(nil),             // 128: morph.v1.OpenAuthSessionResponse
-	(*CloseAuthSessionRequest)(nil),             // 129: morph.v1.CloseAuthSessionRequest
-	(*CloseAuthSessionResponse)(nil),            // 130: morph.v1.CloseAuthSessionResponse
-	(*ListAuthSessionsRequest)(nil),             // 131: morph.v1.ListAuthSessionsRequest
-	(*ListAuthSessionsResponse)(nil),            // 132: morph.v1.ListAuthSessionsResponse
-	(*RevokeAuthSessionRequest)(nil),            // 133: morph.v1.RevokeAuthSessionRequest
-	(*RevokeAuthSessionResponse)(nil),           // 134: morph.v1.RevokeAuthSessionResponse
-	(*ListAuthTokensRequest)(nil),               // 135: morph.v1.ListAuthTokensRequest
-	(*ListAuthTokensResponse)(nil),              // 136: morph.v1.ListAuthTokensResponse
-	(*RevokeAuthTokenRequest)(nil),              // 137: morph.v1.RevokeAuthTokenRequest
-	(*RevokeAuthTokenResponse)(nil),             // 138: morph.v1.RevokeAuthTokenResponse
-	(*ListAuthAuthorizationsRequest)(nil),       // 139: morph.v1.ListAuthAuthorizationsRequest
-	(*ListAuthAuthorizationsResponse)(nil),      // 140: morph.v1.ListAuthAuthorizationsResponse
-	(*GrantAuthAuthorizationRequest)(nil),       // 141: morph.v1.GrantAuthAuthorizationRequest
-	(*GrantAuthAuthorizationResponse)(nil),      // 142: morph.v1.GrantAuthAuthorizationResponse
-	(*RevokeAuthAuthorizationRequest)(nil),      // 143: morph.v1.RevokeAuthAuthorizationRequest
-	(*RevokeAuthAuthorizationResponse)(nil),     // 144: morph.v1.RevokeAuthAuthorizationResponse
-	(*ListAuthAuditRequest)(nil),                // 145: morph.v1.ListAuthAuditRequest
-	(*ListAuthAuditResponse)(nil),               // 146: morph.v1.ListAuthAuditResponse
-	(*PruneAuthRequest)(nil),                    // 147: morph.v1.PruneAuthRequest
-	(*PruneAuthResponse)(nil),                   // 148: morph.v1.PruneAuthResponse
-	(*RotateAuthIdentityRequest)(nil),           // 149: morph.v1.RotateAuthIdentityRequest
-	(*RotateAuthIdentityResponse)(nil),          // 150: morph.v1.RotateAuthIdentityResponse
-	(*GetAuthIdentityStatusRequest)(nil),        // 151: morph.v1.GetAuthIdentityStatusRequest
-	(*GetAuthIdentityStatusResponse)(nil),       // 152: morph.v1.GetAuthIdentityStatusResponse
-	(*GetSessionStatusResponse_Context)(nil),    // 153: morph.v1.GetSessionStatusResponse.Context
-	nil,                                         // 154: morph.v1.AutomationPayload.MetadataEntry
-	(*timestamppb.Timestamp)(nil),               // 155: google.protobuf.Timestamp
+	(RepairSessionRequest_Type)(0),              // 0: morph.v1.RepairSessionRequest.Type
+	(*SessionSummary)(nil),                      // 1: morph.v1.SessionSummary
+	(*CreateSessionRequest)(nil),                // 2: morph.v1.CreateSessionRequest
+	(*CreateSessionResponse)(nil),               // 3: morph.v1.CreateSessionResponse
+	(*ListSessionsRequest)(nil),                 // 4: morph.v1.ListSessionsRequest
+	(*ListSessionsResponse)(nil),                // 5: morph.v1.ListSessionsResponse
+	(*UseSessionRequest)(nil),                   // 6: morph.v1.UseSessionRequest
+	(*UseSessionResponse)(nil),                  // 7: morph.v1.UseSessionResponse
+	(*ArchiveSessionRequest)(nil),               // 8: morph.v1.ArchiveSessionRequest
+	(*ArchiveSessionResponse)(nil),              // 9: morph.v1.ArchiveSessionResponse
+	(*UnarchiveSessionRequest)(nil),             // 10: morph.v1.UnarchiveSessionRequest
+	(*UnarchiveSessionResponse)(nil),            // 11: morph.v1.UnarchiveSessionResponse
+	(*RenameSessionRequest)(nil),                // 12: morph.v1.RenameSessionRequest
+	(*RenameSessionResponse)(nil),               // 13: morph.v1.RenameSessionResponse
+	(*CurrentSessionRequest)(nil),               // 14: morph.v1.CurrentSessionRequest
+	(*CurrentSessionResponse)(nil),              // 15: morph.v1.CurrentSessionResponse
+	(*CompactSessionRequest)(nil),               // 16: morph.v1.CompactSessionRequest
+	(*CompactSessionResponse)(nil),              // 17: morph.v1.CompactSessionResponse
+	(*RepairSessionRequest)(nil),                // 18: morph.v1.RepairSessionRequest
+	(*RepairSessionResponse)(nil),               // 19: morph.v1.RepairSessionResponse
+	(*VectorRepairOption)(nil),                  // 20: morph.v1.VectorRepairOption
+	(*VectorRepairResponse)(nil),                // 21: morph.v1.VectorRepairResponse
+	(*GetSessionStatusRequestContext)(nil),      // 22: morph.v1.GetSessionStatusRequestContext
+	(*GetSessionStatusRequest)(nil),             // 23: morph.v1.GetSessionStatusRequest
+	(*GetSessionStatusResponse)(nil),            // 24: morph.v1.GetSessionStatusResponse
+	(*GetSessionTimelineRequest)(nil),           // 25: morph.v1.GetSessionTimelineRequest
+	(*SessionTimelineToolCall)(nil),             // 26: morph.v1.SessionTimelineToolCall
+	(*SessionTimelineMessage)(nil),              // 27: morph.v1.SessionTimelineMessage
+	(*SessionTimelineTraceEvent)(nil),           // 28: morph.v1.SessionTimelineTraceEvent
+	(*GetSessionTimelineResponse)(nil),          // 29: morph.v1.GetSessionTimelineResponse
+	(*SessionQueueEntry)(nil),                   // 30: morph.v1.SessionQueueEntry
+	(*SessionActiveRun)(nil),                    // 31: morph.v1.SessionActiveRun
+	(*SessionEvent)(nil),                        // 32: morph.v1.SessionEvent
+	(*SessionProgressEvent)(nil),                // 33: morph.v1.SessionProgressEvent
+	(*SubmitSessionMessageRequest)(nil),         // 34: morph.v1.SubmitSessionMessageRequest
+	(*SubmitSessionMessageResponse)(nil),        // 35: morph.v1.SubmitSessionMessageResponse
+	(*GetSessionStateRequest)(nil),              // 36: morph.v1.GetSessionStateRequest
+	(*GetSessionStateResponse)(nil),             // 37: morph.v1.GetSessionStateResponse
+	(*ObserveSessionRequest)(nil),               // 38: morph.v1.ObserveSessionRequest
+	(*ObserveSessionResponse)(nil),              // 39: morph.v1.ObserveSessionResponse
+	(*EditQueuedSessionMessageRequest)(nil),     // 40: morph.v1.EditQueuedSessionMessageRequest
+	(*EditQueuedSessionMessageResponse)(nil),    // 41: morph.v1.EditQueuedSessionMessageResponse
+	(*RemoveQueuedSessionMessageRequest)(nil),   // 42: morph.v1.RemoveQueuedSessionMessageRequest
+	(*RemoveQueuedSessionMessageResponse)(nil),  // 43: morph.v1.RemoveQueuedSessionMessageResponse
+	(*PromoteQueuedSessionMessageRequest)(nil),  // 44: morph.v1.PromoteQueuedSessionMessageRequest
+	(*PromoteQueuedSessionMessageResponse)(nil), // 45: morph.v1.PromoteQueuedSessionMessageResponse
+	(*InterruptSessionRunRequest)(nil),          // 46: morph.v1.InterruptSessionRunRequest
+	(*InterruptSessionRunResponse)(nil),         // 47: morph.v1.InterruptSessionRunResponse
+	(*RuntimeModelRequest)(nil),                 // 48: morph.v1.RuntimeModelRequest
+	(*RuntimeModelResponse)(nil),                // 49: morph.v1.RuntimeModelResponse
+	(*ListProvidersRequest)(nil),                // 50: morph.v1.ListProvidersRequest
+	(*ProviderOption)(nil),                      // 51: morph.v1.ProviderOption
+	(*ListProvidersResponse)(nil),               // 52: morph.v1.ListProvidersResponse
+	(*ListModelsRequest)(nil),                   // 53: morph.v1.ListModelsRequest
+	(*ModelOption)(nil),                         // 54: morph.v1.ModelOption
+	(*ListModelsResponse)(nil),                  // 55: morph.v1.ListModelsResponse
+	(*SelectModelRequest)(nil),                  // 56: morph.v1.SelectModelRequest
+	(*SelectModelResponse)(nil),                 // 57: morph.v1.SelectModelResponse
+	(*SetProviderAPIKeyRequest)(nil),            // 58: morph.v1.SetProviderAPIKeyRequest
+	(*SetProviderAPIKeyResponse)(nil),           // 59: morph.v1.SetProviderAPIKeyResponse
+	(*GatewayStatus)(nil),                       // 60: morph.v1.GatewayStatus
+	(*GetGatewayStatusRequest)(nil),             // 61: morph.v1.GetGatewayStatusRequest
+	(*GetGatewayStatusResponse)(nil),            // 62: morph.v1.GetGatewayStatusResponse
+	(*StartGatewayRequest)(nil),                 // 63: morph.v1.StartGatewayRequest
+	(*StartGatewayResponse)(nil),                // 64: morph.v1.StartGatewayResponse
+	(*StopGatewayRequest)(nil),                  // 65: morph.v1.StopGatewayRequest
+	(*StopGatewayResponse)(nil),                 // 66: morph.v1.StopGatewayResponse
+	(*RestartGatewayRequest)(nil),               // 67: morph.v1.RestartGatewayRequest
+	(*RestartGatewayResponse)(nil),              // 68: morph.v1.RestartGatewayResponse
+	(*GatewayPairingRequest)(nil),               // 69: morph.v1.GatewayPairingRequest
+	(*GatewayPairedSender)(nil),                 // 70: morph.v1.GatewayPairedSender
+	(*ListGatewayPairingsRequest)(nil),          // 71: morph.v1.ListGatewayPairingsRequest
+	(*ListGatewayPairingsResponse)(nil),         // 72: morph.v1.ListGatewayPairingsResponse
+	(*ApproveGatewayPairingRequest)(nil),        // 73: morph.v1.ApproveGatewayPairingRequest
+	(*ApproveGatewayPairingResponse)(nil),       // 74: morph.v1.ApproveGatewayPairingResponse
+	(*RevokeGatewayPairingRequest)(nil),         // 75: morph.v1.RevokeGatewayPairingRequest
+	(*RevokeGatewayPairingResponse)(nil),        // 76: morph.v1.RevokeGatewayPairingResponse
+	(*ClearPendingGatewayPairingsRequest)(nil),  // 77: morph.v1.ClearPendingGatewayPairingsRequest
+	(*ClearPendingGatewayPairingsResponse)(nil), // 78: morph.v1.ClearPendingGatewayPairingsResponse
+	(*AutomationSchedule)(nil),                  // 79: morph.v1.AutomationSchedule
+	(*AutomationPayload)(nil),                   // 80: morph.v1.AutomationPayload
+	(*AutomationDelivery)(nil),                  // 81: morph.v1.AutomationDelivery
+	(*AutomationJobState)(nil),                  // 82: morph.v1.AutomationJobState
+	(*AutomationJob)(nil),                       // 83: morph.v1.AutomationJob
+	(*AutomationUsage)(nil),                     // 84: morph.v1.AutomationUsage
+	(*AutomationRun)(nil),                       // 85: morph.v1.AutomationRun
+	(*GetAutomationStatusRequest)(nil),          // 86: morph.v1.GetAutomationStatusRequest
+	(*GetAutomationStatusResponse)(nil),         // 87: morph.v1.GetAutomationStatusResponse
+	(*ListAutomationJobsRequest)(nil),           // 88: morph.v1.ListAutomationJobsRequest
+	(*ListAutomationJobsResponse)(nil),          // 89: morph.v1.ListAutomationJobsResponse
+	(*AddAutomationJobRequest)(nil),             // 90: morph.v1.AddAutomationJobRequest
+	(*AddAutomationJobResponse)(nil),            // 91: morph.v1.AddAutomationJobResponse
+	(*UpdateAutomationJobRequest)(nil),          // 92: morph.v1.UpdateAutomationJobRequest
+	(*UpdateAutomationJobResponse)(nil),         // 93: morph.v1.UpdateAutomationJobResponse
+	(*RemoveAutomationJobRequest)(nil),          // 94: morph.v1.RemoveAutomationJobRequest
+	(*RemoveAutomationJobResponse)(nil),         // 95: morph.v1.RemoveAutomationJobResponse
+	(*RunAutomationJobRequest)(nil),             // 96: morph.v1.RunAutomationJobRequest
+	(*RunAutomationJobResponse)(nil),            // 97: morph.v1.RunAutomationJobResponse
+	(*ListAutomationRunsRequest)(nil),           // 98: morph.v1.ListAutomationRunsRequest
+	(*ListAutomationRunsResponse)(nil),          // 99: morph.v1.ListAutomationRunsResponse
+	(*PermissionApprovalRequest)(nil),           // 100: morph.v1.PermissionApprovalRequest
+	(*PermissionGrant)(nil),                     // 101: morph.v1.PermissionGrant
+	(*ListPermissionRequestsRequest)(nil),       // 102: morph.v1.ListPermissionRequestsRequest
+	(*ListPermissionRequestsResponse)(nil),      // 103: morph.v1.ListPermissionRequestsResponse
+	(*GetPermissionRequestRequest)(nil),         // 104: morph.v1.GetPermissionRequestRequest
+	(*GetPermissionRequestResponse)(nil),        // 105: morph.v1.GetPermissionRequestResponse
+	(*ResolvePermissionRequestRequest)(nil),     // 106: morph.v1.ResolvePermissionRequestRequest
+	(*ResolvePermissionRequestResponse)(nil),    // 107: morph.v1.ResolvePermissionRequestResponse
+	(*ListPermissionGrantsRequest)(nil),         // 108: morph.v1.ListPermissionGrantsRequest
+	(*ListPermissionGrantsResponse)(nil),        // 109: morph.v1.ListPermissionGrantsResponse
+	(*RevokePermissionGrantRequest)(nil),        // 110: morph.v1.RevokePermissionGrantRequest
+	(*RevokePermissionGrantResponse)(nil),       // 111: morph.v1.RevokePermissionGrantResponse
+	(*DeletePermissionRecordRequest)(nil),       // 112: morph.v1.DeletePermissionRecordRequest
+	(*DeletePermissionRecordResponse)(nil),      // 113: morph.v1.DeletePermissionRecordResponse
+	(*PrunePermissionApprovalsRequest)(nil),     // 114: morph.v1.PrunePermissionApprovalsRequest
+	(*PrunePermissionApprovalsResponse)(nil),    // 115: morph.v1.PrunePermissionApprovalsResponse
+	(*BrowserProfile)(nil),                      // 116: morph.v1.BrowserProfile
+	(*BrowserSession)(nil),                      // 117: morph.v1.BrowserSession
+	(*BrowserArtifact)(nil),                     // 118: morph.v1.BrowserArtifact
+	(*BrowserStatus)(nil),                       // 119: morph.v1.BrowserStatus
+	(*GetBrowserStatusRequest)(nil),             // 120: morph.v1.GetBrowserStatusRequest
+	(*GetBrowserStatusResponse)(nil),            // 121: morph.v1.GetBrowserStatusResponse
+	(*ListBrowserProfilesRequest)(nil),          // 122: morph.v1.ListBrowserProfilesRequest
+	(*ListBrowserProfilesResponse)(nil),         // 123: morph.v1.ListBrowserProfilesResponse
+	(*ListBrowserSessionsRequest)(nil),          // 124: morph.v1.ListBrowserSessionsRequest
+	(*ListBrowserSessionsResponse)(nil),         // 125: morph.v1.ListBrowserSessionsResponse
+	(*StartBrowserRequest)(nil),                 // 126: morph.v1.StartBrowserRequest
+	(*StartBrowserResponse)(nil),                // 127: morph.v1.StartBrowserResponse
+	(*StopBrowserRequest)(nil),                  // 128: morph.v1.StopBrowserRequest
+	(*StopBrowserResponse)(nil),                 // 129: morph.v1.StopBrowserResponse
+	(*ReadBrowserArtifactRequest)(nil),          // 130: morph.v1.ReadBrowserArtifactRequest
+	(*ReadBrowserArtifactResponse)(nil),         // 131: morph.v1.ReadBrowserArtifactResponse
+	(*GetBrowserEffectiveConfigRequest)(nil),    // 132: morph.v1.GetBrowserEffectiveConfigRequest
+	(*GetBrowserEffectiveConfigResponse)(nil),   // 133: morph.v1.GetBrowserEffectiveConfigResponse
+	(*GetPermissionGrantRequest)(nil),           // 134: morph.v1.GetPermissionGrantRequest
+	(*GetPermissionGrantResponse)(nil),          // 135: morph.v1.GetPermissionGrantResponse
+	(*AuthPrincipal)(nil),                       // 136: morph.v1.AuthPrincipal
+	(*AuthSession)(nil),                         // 137: morph.v1.AuthSession
+	(*AuthToken)(nil),                           // 138: morph.v1.AuthToken
+	(*AuthAuthorization)(nil),                   // 139: morph.v1.AuthAuthorization
+	(*AuthAuditEvent)(nil),                      // 140: morph.v1.AuthAuditEvent
+	(*OpenAuthSessionRequest)(nil),              // 141: morph.v1.OpenAuthSessionRequest
+	(*OpenAuthSessionResponse)(nil),             // 142: morph.v1.OpenAuthSessionResponse
+	(*CloseAuthSessionRequest)(nil),             // 143: morph.v1.CloseAuthSessionRequest
+	(*CloseAuthSessionResponse)(nil),            // 144: morph.v1.CloseAuthSessionResponse
+	(*ListAuthSessionsRequest)(nil),             // 145: morph.v1.ListAuthSessionsRequest
+	(*ListAuthSessionsResponse)(nil),            // 146: morph.v1.ListAuthSessionsResponse
+	(*RevokeAuthSessionRequest)(nil),            // 147: morph.v1.RevokeAuthSessionRequest
+	(*RevokeAuthSessionResponse)(nil),           // 148: morph.v1.RevokeAuthSessionResponse
+	(*ListAuthTokensRequest)(nil),               // 149: morph.v1.ListAuthTokensRequest
+	(*ListAuthTokensResponse)(nil),              // 150: morph.v1.ListAuthTokensResponse
+	(*RevokeAuthTokenRequest)(nil),              // 151: morph.v1.RevokeAuthTokenRequest
+	(*RevokeAuthTokenResponse)(nil),             // 152: morph.v1.RevokeAuthTokenResponse
+	(*ListAuthAuthorizationsRequest)(nil),       // 153: morph.v1.ListAuthAuthorizationsRequest
+	(*ListAuthAuthorizationsResponse)(nil),      // 154: morph.v1.ListAuthAuthorizationsResponse
+	(*GrantAuthAuthorizationRequest)(nil),       // 155: morph.v1.GrantAuthAuthorizationRequest
+	(*GrantAuthAuthorizationResponse)(nil),      // 156: morph.v1.GrantAuthAuthorizationResponse
+	(*RevokeAuthAuthorizationRequest)(nil),      // 157: morph.v1.RevokeAuthAuthorizationRequest
+	(*RevokeAuthAuthorizationResponse)(nil),     // 158: morph.v1.RevokeAuthAuthorizationResponse
+	(*ListAuthAuditRequest)(nil),                // 159: morph.v1.ListAuthAuditRequest
+	(*ListAuthAuditResponse)(nil),               // 160: morph.v1.ListAuthAuditResponse
+	(*PruneAuthRequest)(nil),                    // 161: morph.v1.PruneAuthRequest
+	(*PruneAuthResponse)(nil),                   // 162: morph.v1.PruneAuthResponse
+	(*RotateAuthIdentityRequest)(nil),           // 163: morph.v1.RotateAuthIdentityRequest
+	(*RotateAuthIdentityResponse)(nil),          // 164: morph.v1.RotateAuthIdentityResponse
+	(*GetAuthIdentityStatusRequest)(nil),        // 165: morph.v1.GetAuthIdentityStatusRequest
+	(*GetAuthIdentityStatusResponse)(nil),       // 166: morph.v1.GetAuthIdentityStatusResponse
+	(*GetSessionStatusResponse_Context)(nil),    // 167: morph.v1.GetSessionStatusResponse.Context
+	nil,                                         // 168: morph.v1.AutomationPayload.MetadataEntry
+	(*timestamppb.Timestamp)(nil),               // 169: google.protobuf.Timestamp
 }
 var file_internal_rpc_proto_morph_proto_depIdxs = []int32{
-	0,   // 0: morph.v1.RespondEvent.type:type_name -> morph.v1.RespondEvent.Type
-	1,   // 1: morph.v1.RespondEvent.channel:type_name -> morph.v1.RespondEvent.Channel
-	155, // 2: morph.v1.RespondEvent.timestamp:type_name -> google.protobuf.Timestamp
-	5,   // 3: morph.v1.CreateSessionResponse.session:type_name -> morph.v1.SessionSummary
-	5,   // 4: morph.v1.ListSessionsResponse.sessions:type_name -> morph.v1.SessionSummary
-	5,   // 5: morph.v1.UnarchiveSessionResponse.session:type_name -> morph.v1.SessionSummary
-	5,   // 6: morph.v1.RenameSessionResponse.session:type_name -> morph.v1.SessionSummary
-	155, // 7: morph.v1.CompactSessionResponse.updated_at:type_name -> google.protobuf.Timestamp
-	2,   // 8: morph.v1.RepairSessionRequest.type:type_name -> morph.v1.RepairSessionRequest.Type
-	24,  // 9: morph.v1.RepairSessionRequest.vector:type_name -> morph.v1.VectorRepairOption
-	2,   // 10: morph.v1.RepairSessionResponse.type:type_name -> morph.v1.RepairSessionRequest.Type
-	25,  // 11: morph.v1.RepairSessionResponse.vector:type_name -> morph.v1.VectorRepairResponse
-	26,  // 12: morph.v1.GetSessionStatusRequest.context:type_name -> morph.v1.GetSessionStatusRequestContext
-	153, // 13: morph.v1.GetSessionStatusResponse.context:type_name -> morph.v1.GetSessionStatusResponse.Context
-	155, // 14: morph.v1.GetSessionStatusResponse.created_at:type_name -> google.protobuf.Timestamp
-	155, // 15: morph.v1.GetSessionStatusResponse.updated_at:type_name -> google.protobuf.Timestamp
-	155, // 16: morph.v1.SessionTimelineMessage.created_at:type_name -> google.protobuf.Timestamp
-	30,  // 17: morph.v1.SessionTimelineMessage.tool_calls:type_name -> morph.v1.SessionTimelineToolCall
-	155, // 18: morph.v1.SessionTimelineTraceEvent.timestamp:type_name -> google.protobuf.Timestamp
-	31,  // 19: morph.v1.GetSessionTimelineResponse.messages:type_name -> morph.v1.SessionTimelineMessage
-	32,  // 20: morph.v1.GetSessionTimelineResponse.trace_events:type_name -> morph.v1.SessionTimelineTraceEvent
-	37,  // 21: morph.v1.ListProvidersResponse.providers:type_name -> morph.v1.ProviderOption
-	40,  // 22: morph.v1.ListModelsResponse.models:type_name -> morph.v1.ModelOption
-	40,  // 23: morph.v1.SelectModelResponse.model:type_name -> morph.v1.ModelOption
-	46,  // 24: morph.v1.GetGatewayStatusResponse.status:type_name -> morph.v1.GatewayStatus
-	46,  // 25: morph.v1.StartGatewayResponse.status:type_name -> morph.v1.GatewayStatus
-	46,  // 26: morph.v1.StopGatewayResponse.status:type_name -> morph.v1.GatewayStatus
-	46,  // 27: morph.v1.RestartGatewayResponse.status:type_name -> morph.v1.GatewayStatus
-	155, // 28: morph.v1.GatewayPairingRequest.created_at:type_name -> google.protobuf.Timestamp
-	155, // 29: morph.v1.GatewayPairingRequest.last_seen_at:type_name -> google.protobuf.Timestamp
-	155, // 30: morph.v1.GatewayPairingRequest.expires_at:type_name -> google.protobuf.Timestamp
-	155, // 31: morph.v1.GatewayPairedSender.created_at:type_name -> google.protobuf.Timestamp
-	155, // 32: morph.v1.GatewayPairedSender.updated_at:type_name -> google.protobuf.Timestamp
-	55,  // 33: morph.v1.ListGatewayPairingsResponse.pending:type_name -> morph.v1.GatewayPairingRequest
-	56,  // 34: morph.v1.ListGatewayPairingsResponse.approved:type_name -> morph.v1.GatewayPairedSender
-	56,  // 35: morph.v1.ApproveGatewayPairingResponse.sender:type_name -> morph.v1.GatewayPairedSender
-	155, // 36: morph.v1.AutomationSchedule.at:type_name -> google.protobuf.Timestamp
-	154, // 37: morph.v1.AutomationPayload.metadata:type_name -> morph.v1.AutomationPayload.MetadataEntry
-	155, // 38: morph.v1.AutomationJobState.next_run_at:type_name -> google.protobuf.Timestamp
-	155, // 39: morph.v1.AutomationJobState.running_at:type_name -> google.protobuf.Timestamp
-	155, // 40: morph.v1.AutomationJobState.last_run_at:type_name -> google.protobuf.Timestamp
-	155, // 41: morph.v1.AutomationJobState.last_failure_notice_at:type_name -> google.protobuf.Timestamp
-	155, // 42: morph.v1.AutomationJob.created_at:type_name -> google.protobuf.Timestamp
-	155, // 43: morph.v1.AutomationJob.updated_at:type_name -> google.protobuf.Timestamp
-	65,  // 44: morph.v1.AutomationJob.schedule:type_name -> morph.v1.AutomationSchedule
-	66,  // 45: morph.v1.AutomationJob.payload:type_name -> morph.v1.AutomationPayload
-	67,  // 46: morph.v1.AutomationJob.delivery:type_name -> morph.v1.AutomationDelivery
-	68,  // 47: morph.v1.AutomationJob.state:type_name -> morph.v1.AutomationJobState
-	155, // 48: morph.v1.AutomationRun.started_at:type_name -> google.protobuf.Timestamp
-	155, // 49: morph.v1.AutomationRun.ended_at:type_name -> google.protobuf.Timestamp
-	70,  // 50: morph.v1.AutomationRun.usage:type_name -> morph.v1.AutomationUsage
-	155, // 51: morph.v1.GetAutomationStatusResponse.started_at:type_name -> google.protobuf.Timestamp
-	155, // 52: morph.v1.GetAutomationStatusResponse.next_wake_at:type_name -> google.protobuf.Timestamp
-	69,  // 53: morph.v1.ListAutomationJobsResponse.jobs:type_name -> morph.v1.AutomationJob
-	155, // 54: morph.v1.AddAutomationJobRequest.created_at:type_name -> google.protobuf.Timestamp
-	155, // 55: morph.v1.AddAutomationJobRequest.updated_at:type_name -> google.protobuf.Timestamp
-	65,  // 56: morph.v1.AddAutomationJobRequest.schedule:type_name -> morph.v1.AutomationSchedule
-	66,  // 57: morph.v1.AddAutomationJobRequest.payload:type_name -> morph.v1.AutomationPayload
-	67,  // 58: morph.v1.AddAutomationJobRequest.delivery:type_name -> morph.v1.AutomationDelivery
-	68,  // 59: morph.v1.AddAutomationJobRequest.state:type_name -> morph.v1.AutomationJobState
-	69,  // 60: morph.v1.AddAutomationJobResponse.job:type_name -> morph.v1.AutomationJob
-	65,  // 61: morph.v1.UpdateAutomationJobRequest.schedule:type_name -> morph.v1.AutomationSchedule
-	66,  // 62: morph.v1.UpdateAutomationJobRequest.payload:type_name -> morph.v1.AutomationPayload
-	67,  // 63: morph.v1.UpdateAutomationJobRequest.delivery:type_name -> morph.v1.AutomationDelivery
-	68,  // 64: morph.v1.UpdateAutomationJobRequest.state:type_name -> morph.v1.AutomationJobState
-	69,  // 65: morph.v1.UpdateAutomationJobResponse.job:type_name -> morph.v1.AutomationJob
-	71,  // 66: morph.v1.RunAutomationJobResponse.run:type_name -> morph.v1.AutomationRun
-	71,  // 67: morph.v1.ListAutomationRunsResponse.runs:type_name -> morph.v1.AutomationRun
-	155, // 68: morph.v1.PermissionApprovalRequest.created_at:type_name -> google.protobuf.Timestamp
-	155, // 69: morph.v1.PermissionApprovalRequest.expires_at:type_name -> google.protobuf.Timestamp
-	155, // 70: morph.v1.PermissionApprovalRequest.resolved_at:type_name -> google.protobuf.Timestamp
-	155, // 71: morph.v1.PermissionGrant.created_at:type_name -> google.protobuf.Timestamp
-	155, // 72: morph.v1.PermissionGrant.expires_at:type_name -> google.protobuf.Timestamp
-	155, // 73: morph.v1.PermissionGrant.consumed_at:type_name -> google.protobuf.Timestamp
-	155, // 74: morph.v1.PermissionGrant.revoked_at:type_name -> google.protobuf.Timestamp
-	86,  // 75: morph.v1.ListPermissionRequestsResponse.requests:type_name -> morph.v1.PermissionApprovalRequest
-	86,  // 76: morph.v1.GetPermissionRequestResponse.request:type_name -> morph.v1.PermissionApprovalRequest
-	86,  // 77: morph.v1.ResolvePermissionRequestResponse.request:type_name -> morph.v1.PermissionApprovalRequest
-	87,  // 78: morph.v1.ListPermissionGrantsResponse.grants:type_name -> morph.v1.PermissionGrant
-	87,  // 79: morph.v1.RevokePermissionGrantResponse.grant:type_name -> morph.v1.PermissionGrant
-	155, // 80: morph.v1.PrunePermissionApprovalsResponse.request_cutoff:type_name -> google.protobuf.Timestamp
-	155, // 81: morph.v1.PrunePermissionApprovalsResponse.grant_cutoff:type_name -> google.protobuf.Timestamp
-	155, // 82: morph.v1.BrowserSession.created_at:type_name -> google.protobuf.Timestamp
-	155, // 83: morph.v1.BrowserSession.last_active:type_name -> google.protobuf.Timestamp
-	155, // 84: morph.v1.BrowserArtifact.created_at:type_name -> google.protobuf.Timestamp
-	155, // 85: morph.v1.BrowserArtifact.expires_at:type_name -> google.protobuf.Timestamp
-	102, // 86: morph.v1.BrowserStatus.profiles:type_name -> morph.v1.BrowserProfile
-	103, // 87: morph.v1.BrowserStatus.sessions:type_name -> morph.v1.BrowserSession
-	105, // 88: morph.v1.GetBrowserStatusResponse.status:type_name -> morph.v1.BrowserStatus
-	102, // 89: morph.v1.ListBrowserProfilesResponse.profiles:type_name -> morph.v1.BrowserProfile
-	103, // 90: morph.v1.ListBrowserSessionsResponse.sessions:type_name -> morph.v1.BrowserSession
-	103, // 91: morph.v1.StartBrowserResponse.session:type_name -> morph.v1.BrowserSession
-	103, // 92: morph.v1.StopBrowserResponse.session:type_name -> morph.v1.BrowserSession
-	104, // 93: morph.v1.ReadBrowserArtifactResponse.artifact:type_name -> morph.v1.BrowserArtifact
-	87,  // 94: morph.v1.GetPermissionGrantResponse.grant:type_name -> morph.v1.PermissionGrant
-	155, // 95: morph.v1.AuthSession.created_at:type_name -> google.protobuf.Timestamp
-	155, // 96: morph.v1.AuthSession.last_seen_at:type_name -> google.protobuf.Timestamp
-	155, // 97: morph.v1.AuthSession.idle_expires_at:type_name -> google.protobuf.Timestamp
-	155, // 98: morph.v1.AuthSession.absolute_expires_at:type_name -> google.protobuf.Timestamp
-	155, // 99: morph.v1.AuthSession.revoked_at:type_name -> google.protobuf.Timestamp
-	155, // 100: morph.v1.AuthToken.issued_at:type_name -> google.protobuf.Timestamp
-	155, // 101: morph.v1.AuthToken.not_before:type_name -> google.protobuf.Timestamp
-	155, // 102: morph.v1.AuthToken.expires_at:type_name -> google.protobuf.Timestamp
-	155, // 103: morph.v1.AuthToken.last_used_at:type_name -> google.protobuf.Timestamp
-	155, // 104: morph.v1.AuthToken.revoked_at:type_name -> google.protobuf.Timestamp
-	155, // 105: morph.v1.AuthAuthorization.created_at:type_name -> google.protobuf.Timestamp
-	155, // 106: morph.v1.AuthAuthorization.updated_at:type_name -> google.protobuf.Timestamp
-	155, // 107: morph.v1.AuthAuthorization.revoked_at:type_name -> google.protobuf.Timestamp
-	155, // 108: morph.v1.AuthAuditEvent.created_at:type_name -> google.protobuf.Timestamp
-	122, // 109: morph.v1.OpenAuthSessionResponse.principal:type_name -> morph.v1.AuthPrincipal
-	123, // 110: morph.v1.OpenAuthSessionResponse.session:type_name -> morph.v1.AuthSession
-	123, // 111: morph.v1.CloseAuthSessionResponse.session:type_name -> morph.v1.AuthSession
-	123, // 112: morph.v1.ListAuthSessionsResponse.sessions:type_name -> morph.v1.AuthSession
-	123, // 113: morph.v1.RevokeAuthSessionResponse.session:type_name -> morph.v1.AuthSession
-	124, // 114: morph.v1.ListAuthTokensResponse.tokens:type_name -> morph.v1.AuthToken
-	124, // 115: morph.v1.RevokeAuthTokenResponse.token:type_name -> morph.v1.AuthToken
-	125, // 116: morph.v1.ListAuthAuthorizationsResponse.authorizations:type_name -> morph.v1.AuthAuthorization
-	125, // 117: morph.v1.GrantAuthAuthorizationRequest.authorization:type_name -> morph.v1.AuthAuthorization
-	125, // 118: morph.v1.GrantAuthAuthorizationResponse.authorization:type_name -> morph.v1.AuthAuthorization
-	125, // 119: morph.v1.RevokeAuthAuthorizationResponse.authorization:type_name -> morph.v1.AuthAuthorization
-	155, // 120: morph.v1.ListAuthAuditRequest.since:type_name -> google.protobuf.Timestamp
-	126, // 121: morph.v1.ListAuthAuditResponse.events:type_name -> morph.v1.AuthAuditEvent
-	155, // 122: morph.v1.PruneAuthRequest.before:type_name -> google.protobuf.Timestamp
-	125, // 123: morph.v1.RotateAuthIdentityResponse.authorization:type_name -> morph.v1.AuthAuthorization
-	3,   // 124: morph.v1.MorphService.Respond:input_type -> morph.v1.RespondRequest
-	6,   // 125: morph.v1.SessionService.Create:input_type -> morph.v1.CreateSessionRequest
-	8,   // 126: morph.v1.SessionService.List:input_type -> morph.v1.ListSessionsRequest
-	10,  // 127: morph.v1.SessionService.Use:input_type -> morph.v1.UseSessionRequest
-	12,  // 128: morph.v1.SessionService.Archive:input_type -> morph.v1.ArchiveSessionRequest
-	14,  // 129: morph.v1.SessionService.Unarchive:input_type -> morph.v1.UnarchiveSessionRequest
-	16,  // 130: morph.v1.SessionService.Rename:input_type -> morph.v1.RenameSessionRequest
-	18,  // 131: morph.v1.SessionService.Current:input_type -> morph.v1.CurrentSessionRequest
-	20,  // 132: morph.v1.SessionService.Compact:input_type -> morph.v1.CompactSessionRequest
-	22,  // 133: morph.v1.SessionService.Repair:input_type -> morph.v1.RepairSessionRequest
-	27,  // 134: morph.v1.SessionService.Status:input_type -> morph.v1.GetSessionStatusRequest
-	29,  // 135: morph.v1.SessionService.Timeline:input_type -> morph.v1.GetSessionTimelineRequest
-	34,  // 136: morph.v1.ModelService.RuntimeModel:input_type -> morph.v1.RuntimeModelRequest
-	36,  // 137: morph.v1.ModelService.ListProviders:input_type -> morph.v1.ListProvidersRequest
-	39,  // 138: morph.v1.ModelService.ListModels:input_type -> morph.v1.ListModelsRequest
-	42,  // 139: morph.v1.ModelService.SelectModel:input_type -> morph.v1.SelectModelRequest
-	44,  // 140: morph.v1.ModelService.SetProviderAPIKey:input_type -> morph.v1.SetProviderAPIKeyRequest
-	47,  // 141: morph.v1.GatewayService.Status:input_type -> morph.v1.GetGatewayStatusRequest
-	49,  // 142: morph.v1.GatewayService.Start:input_type -> morph.v1.StartGatewayRequest
-	51,  // 143: morph.v1.GatewayService.Stop:input_type -> morph.v1.StopGatewayRequest
-	53,  // 144: morph.v1.GatewayService.Restart:input_type -> morph.v1.RestartGatewayRequest
-	57,  // 145: morph.v1.GatewayService.ListPairings:input_type -> morph.v1.ListGatewayPairingsRequest
-	59,  // 146: morph.v1.GatewayService.ApprovePairing:input_type -> morph.v1.ApproveGatewayPairingRequest
-	61,  // 147: morph.v1.GatewayService.RevokePairing:input_type -> morph.v1.RevokeGatewayPairingRequest
-	63,  // 148: morph.v1.GatewayService.ClearPendingPairings:input_type -> morph.v1.ClearPendingGatewayPairingsRequest
-	72,  // 149: morph.v1.AutomationService.Status:input_type -> morph.v1.GetAutomationStatusRequest
-	74,  // 150: morph.v1.AutomationService.ListJobs:input_type -> morph.v1.ListAutomationJobsRequest
-	76,  // 151: morph.v1.AutomationService.AddJob:input_type -> morph.v1.AddAutomationJobRequest
-	78,  // 152: morph.v1.AutomationService.UpdateJob:input_type -> morph.v1.UpdateAutomationJobRequest
-	80,  // 153: morph.v1.AutomationService.RemoveJob:input_type -> morph.v1.RemoveAutomationJobRequest
-	82,  // 154: morph.v1.AutomationService.RunJob:input_type -> morph.v1.RunAutomationJobRequest
-	84,  // 155: morph.v1.AutomationService.ListRuns:input_type -> morph.v1.ListAutomationRunsRequest
-	88,  // 156: morph.v1.PermissionService.ListRequests:input_type -> morph.v1.ListPermissionRequestsRequest
-	90,  // 157: morph.v1.PermissionService.GetRequest:input_type -> morph.v1.GetPermissionRequestRequest
-	92,  // 158: morph.v1.PermissionService.ResolveRequest:input_type -> morph.v1.ResolvePermissionRequestRequest
-	94,  // 159: morph.v1.PermissionService.ListGrants:input_type -> morph.v1.ListPermissionGrantsRequest
-	120, // 160: morph.v1.PermissionService.GetGrant:input_type -> morph.v1.GetPermissionGrantRequest
-	96,  // 161: morph.v1.PermissionService.RevokeGrant:input_type -> morph.v1.RevokePermissionGrantRequest
-	98,  // 162: morph.v1.PermissionService.DeleteRecord:input_type -> morph.v1.DeletePermissionRecordRequest
-	100, // 163: morph.v1.PermissionService.Prune:input_type -> morph.v1.PrunePermissionApprovalsRequest
-	106, // 164: morph.v1.BrowserService.Status:input_type -> morph.v1.GetBrowserStatusRequest
-	108, // 165: morph.v1.BrowserService.ListProfiles:input_type -> morph.v1.ListBrowserProfilesRequest
-	110, // 166: morph.v1.BrowserService.ListSessions:input_type -> morph.v1.ListBrowserSessionsRequest
-	112, // 167: morph.v1.BrowserService.Start:input_type -> morph.v1.StartBrowserRequest
-	114, // 168: morph.v1.BrowserService.Stop:input_type -> morph.v1.StopBrowserRequest
-	116, // 169: morph.v1.BrowserService.ReadArtifact:input_type -> morph.v1.ReadBrowserArtifactRequest
-	118, // 170: morph.v1.BrowserService.EffectiveConfig:input_type -> morph.v1.GetBrowserEffectiveConfigRequest
-	127, // 171: morph.v1.AuthService.OpenSession:input_type -> morph.v1.OpenAuthSessionRequest
-	129, // 172: morph.v1.AuthService.CloseSession:input_type -> morph.v1.CloseAuthSessionRequest
-	131, // 173: morph.v1.AuthService.ListSessions:input_type -> morph.v1.ListAuthSessionsRequest
-	133, // 174: morph.v1.AuthService.RevokeSession:input_type -> morph.v1.RevokeAuthSessionRequest
-	135, // 175: morph.v1.AuthService.ListTokens:input_type -> morph.v1.ListAuthTokensRequest
-	137, // 176: morph.v1.AuthService.RevokeToken:input_type -> morph.v1.RevokeAuthTokenRequest
-	139, // 177: morph.v1.AuthService.ListAuthorizations:input_type -> morph.v1.ListAuthAuthorizationsRequest
-	141, // 178: morph.v1.AuthService.GrantAuthorization:input_type -> morph.v1.GrantAuthAuthorizationRequest
-	143, // 179: morph.v1.AuthService.RevokeAuthorization:input_type -> morph.v1.RevokeAuthAuthorizationRequest
-	145, // 180: morph.v1.AuthService.ListAudit:input_type -> morph.v1.ListAuthAuditRequest
-	147, // 181: morph.v1.AuthService.Prune:input_type -> morph.v1.PruneAuthRequest
-	149, // 182: morph.v1.AuthService.RotateIdentity:input_type -> morph.v1.RotateAuthIdentityRequest
-	151, // 183: morph.v1.AuthService.IdentityStatus:input_type -> morph.v1.GetAuthIdentityStatusRequest
-	4,   // 184: morph.v1.MorphService.Respond:output_type -> morph.v1.RespondEvent
-	7,   // 185: morph.v1.SessionService.Create:output_type -> morph.v1.CreateSessionResponse
-	9,   // 186: morph.v1.SessionService.List:output_type -> morph.v1.ListSessionsResponse
-	11,  // 187: morph.v1.SessionService.Use:output_type -> morph.v1.UseSessionResponse
-	13,  // 188: morph.v1.SessionService.Archive:output_type -> morph.v1.ArchiveSessionResponse
-	15,  // 189: morph.v1.SessionService.Unarchive:output_type -> morph.v1.UnarchiveSessionResponse
-	17,  // 190: morph.v1.SessionService.Rename:output_type -> morph.v1.RenameSessionResponse
-	19,  // 191: morph.v1.SessionService.Current:output_type -> morph.v1.CurrentSessionResponse
-	21,  // 192: morph.v1.SessionService.Compact:output_type -> morph.v1.CompactSessionResponse
-	23,  // 193: morph.v1.SessionService.Repair:output_type -> morph.v1.RepairSessionResponse
-	28,  // 194: morph.v1.SessionService.Status:output_type -> morph.v1.GetSessionStatusResponse
-	33,  // 195: morph.v1.SessionService.Timeline:output_type -> morph.v1.GetSessionTimelineResponse
-	35,  // 196: morph.v1.ModelService.RuntimeModel:output_type -> morph.v1.RuntimeModelResponse
-	38,  // 197: morph.v1.ModelService.ListProviders:output_type -> morph.v1.ListProvidersResponse
-	41,  // 198: morph.v1.ModelService.ListModels:output_type -> morph.v1.ListModelsResponse
-	43,  // 199: morph.v1.ModelService.SelectModel:output_type -> morph.v1.SelectModelResponse
-	45,  // 200: morph.v1.ModelService.SetProviderAPIKey:output_type -> morph.v1.SetProviderAPIKeyResponse
-	48,  // 201: morph.v1.GatewayService.Status:output_type -> morph.v1.GetGatewayStatusResponse
-	50,  // 202: morph.v1.GatewayService.Start:output_type -> morph.v1.StartGatewayResponse
-	52,  // 203: morph.v1.GatewayService.Stop:output_type -> morph.v1.StopGatewayResponse
-	54,  // 204: morph.v1.GatewayService.Restart:output_type -> morph.v1.RestartGatewayResponse
-	58,  // 205: morph.v1.GatewayService.ListPairings:output_type -> morph.v1.ListGatewayPairingsResponse
-	60,  // 206: morph.v1.GatewayService.ApprovePairing:output_type -> morph.v1.ApproveGatewayPairingResponse
-	62,  // 207: morph.v1.GatewayService.RevokePairing:output_type -> morph.v1.RevokeGatewayPairingResponse
-	64,  // 208: morph.v1.GatewayService.ClearPendingPairings:output_type -> morph.v1.ClearPendingGatewayPairingsResponse
-	73,  // 209: morph.v1.AutomationService.Status:output_type -> morph.v1.GetAutomationStatusResponse
-	75,  // 210: morph.v1.AutomationService.ListJobs:output_type -> morph.v1.ListAutomationJobsResponse
-	77,  // 211: morph.v1.AutomationService.AddJob:output_type -> morph.v1.AddAutomationJobResponse
-	79,  // 212: morph.v1.AutomationService.UpdateJob:output_type -> morph.v1.UpdateAutomationJobResponse
-	81,  // 213: morph.v1.AutomationService.RemoveJob:output_type -> morph.v1.RemoveAutomationJobResponse
-	83,  // 214: morph.v1.AutomationService.RunJob:output_type -> morph.v1.RunAutomationJobResponse
-	85,  // 215: morph.v1.AutomationService.ListRuns:output_type -> morph.v1.ListAutomationRunsResponse
-	89,  // 216: morph.v1.PermissionService.ListRequests:output_type -> morph.v1.ListPermissionRequestsResponse
-	91,  // 217: morph.v1.PermissionService.GetRequest:output_type -> morph.v1.GetPermissionRequestResponse
-	93,  // 218: morph.v1.PermissionService.ResolveRequest:output_type -> morph.v1.ResolvePermissionRequestResponse
-	95,  // 219: morph.v1.PermissionService.ListGrants:output_type -> morph.v1.ListPermissionGrantsResponse
-	121, // 220: morph.v1.PermissionService.GetGrant:output_type -> morph.v1.GetPermissionGrantResponse
-	97,  // 221: morph.v1.PermissionService.RevokeGrant:output_type -> morph.v1.RevokePermissionGrantResponse
-	99,  // 222: morph.v1.PermissionService.DeleteRecord:output_type -> morph.v1.DeletePermissionRecordResponse
-	101, // 223: morph.v1.PermissionService.Prune:output_type -> morph.v1.PrunePermissionApprovalsResponse
-	107, // 224: morph.v1.BrowserService.Status:output_type -> morph.v1.GetBrowserStatusResponse
-	109, // 225: morph.v1.BrowserService.ListProfiles:output_type -> morph.v1.ListBrowserProfilesResponse
-	111, // 226: morph.v1.BrowserService.ListSessions:output_type -> morph.v1.ListBrowserSessionsResponse
-	113, // 227: morph.v1.BrowserService.Start:output_type -> morph.v1.StartBrowserResponse
-	115, // 228: morph.v1.BrowserService.Stop:output_type -> morph.v1.StopBrowserResponse
-	117, // 229: morph.v1.BrowserService.ReadArtifact:output_type -> morph.v1.ReadBrowserArtifactResponse
-	119, // 230: morph.v1.BrowserService.EffectiveConfig:output_type -> morph.v1.GetBrowserEffectiveConfigResponse
-	128, // 231: morph.v1.AuthService.OpenSession:output_type -> morph.v1.OpenAuthSessionResponse
-	130, // 232: morph.v1.AuthService.CloseSession:output_type -> morph.v1.CloseAuthSessionResponse
-	132, // 233: morph.v1.AuthService.ListSessions:output_type -> morph.v1.ListAuthSessionsResponse
-	134, // 234: morph.v1.AuthService.RevokeSession:output_type -> morph.v1.RevokeAuthSessionResponse
-	136, // 235: morph.v1.AuthService.ListTokens:output_type -> morph.v1.ListAuthTokensResponse
-	138, // 236: morph.v1.AuthService.RevokeToken:output_type -> morph.v1.RevokeAuthTokenResponse
-	140, // 237: morph.v1.AuthService.ListAuthorizations:output_type -> morph.v1.ListAuthAuthorizationsResponse
-	142, // 238: morph.v1.AuthService.GrantAuthorization:output_type -> morph.v1.GrantAuthAuthorizationResponse
-	144, // 239: morph.v1.AuthService.RevokeAuthorization:output_type -> morph.v1.RevokeAuthAuthorizationResponse
-	146, // 240: morph.v1.AuthService.ListAudit:output_type -> morph.v1.ListAuthAuditResponse
-	148, // 241: morph.v1.AuthService.Prune:output_type -> morph.v1.PruneAuthResponse
-	150, // 242: morph.v1.AuthService.RotateIdentity:output_type -> morph.v1.RotateAuthIdentityResponse
-	152, // 243: morph.v1.AuthService.IdentityStatus:output_type -> morph.v1.GetAuthIdentityStatusResponse
-	184, // [184:244] is the sub-list for method output_type
-	124, // [124:184] is the sub-list for method input_type
-	124, // [124:124] is the sub-list for extension type_name
-	124, // [124:124] is the sub-list for extension extendee
-	0,   // [0:124] is the sub-list for field type_name
+	1,   // 0: morph.v1.CreateSessionResponse.session:type_name -> morph.v1.SessionSummary
+	1,   // 1: morph.v1.ListSessionsResponse.sessions:type_name -> morph.v1.SessionSummary
+	1,   // 2: morph.v1.UnarchiveSessionResponse.session:type_name -> morph.v1.SessionSummary
+	1,   // 3: morph.v1.RenameSessionResponse.session:type_name -> morph.v1.SessionSummary
+	169, // 4: morph.v1.CompactSessionResponse.updated_at:type_name -> google.protobuf.Timestamp
+	0,   // 5: morph.v1.RepairSessionRequest.type:type_name -> morph.v1.RepairSessionRequest.Type
+	20,  // 6: morph.v1.RepairSessionRequest.vector:type_name -> morph.v1.VectorRepairOption
+	0,   // 7: morph.v1.RepairSessionResponse.type:type_name -> morph.v1.RepairSessionRequest.Type
+	21,  // 8: morph.v1.RepairSessionResponse.vector:type_name -> morph.v1.VectorRepairResponse
+	22,  // 9: morph.v1.GetSessionStatusRequest.context:type_name -> morph.v1.GetSessionStatusRequestContext
+	167, // 10: morph.v1.GetSessionStatusResponse.context:type_name -> morph.v1.GetSessionStatusResponse.Context
+	169, // 11: morph.v1.GetSessionStatusResponse.created_at:type_name -> google.protobuf.Timestamp
+	169, // 12: morph.v1.GetSessionStatusResponse.updated_at:type_name -> google.protobuf.Timestamp
+	169, // 13: morph.v1.SessionTimelineMessage.created_at:type_name -> google.protobuf.Timestamp
+	26,  // 14: morph.v1.SessionTimelineMessage.tool_calls:type_name -> morph.v1.SessionTimelineToolCall
+	169, // 15: morph.v1.SessionTimelineTraceEvent.timestamp:type_name -> google.protobuf.Timestamp
+	27,  // 16: morph.v1.GetSessionTimelineResponse.messages:type_name -> morph.v1.SessionTimelineMessage
+	28,  // 17: morph.v1.GetSessionTimelineResponse.trace_events:type_name -> morph.v1.SessionTimelineTraceEvent
+	169, // 18: morph.v1.SessionQueueEntry.created_at:type_name -> google.protobuf.Timestamp
+	169, // 19: morph.v1.SessionQueueEntry.updated_at:type_name -> google.protobuf.Timestamp
+	169, // 20: morph.v1.SessionQueueEntry.started_at:type_name -> google.protobuf.Timestamp
+	169, // 21: morph.v1.SessionQueueEntry.completed_at:type_name -> google.protobuf.Timestamp
+	169, // 22: morph.v1.SessionActiveRun.started_at:type_name -> google.protobuf.Timestamp
+	169, // 23: morph.v1.SessionActiveRun.completed_at:type_name -> google.protobuf.Timestamp
+	169, // 24: morph.v1.SessionActiveRun.updated_at:type_name -> google.protobuf.Timestamp
+	169, // 25: morph.v1.SessionEvent.created_at:type_name -> google.protobuf.Timestamp
+	30,  // 26: morph.v1.SessionEvent.queue_entry:type_name -> morph.v1.SessionQueueEntry
+	31,  // 27: morph.v1.SessionEvent.run:type_name -> morph.v1.SessionActiveRun
+	28,  // 28: morph.v1.SessionEvent.progress_trace_event:type_name -> morph.v1.SessionTimelineTraceEvent
+	28,  // 29: morph.v1.SessionProgressEvent.trace_event:type_name -> morph.v1.SessionTimelineTraceEvent
+	30,  // 30: morph.v1.SubmitSessionMessageResponse.entry:type_name -> morph.v1.SessionQueueEntry
+	31,  // 31: morph.v1.GetSessionStateResponse.active_run:type_name -> morph.v1.SessionActiveRun
+	30,  // 32: morph.v1.GetSessionStateResponse.queue:type_name -> morph.v1.SessionQueueEntry
+	169, // 33: morph.v1.GetSessionStateResponse.oldest_pending_created_at:type_name -> google.protobuf.Timestamp
+	33,  // 34: morph.v1.GetSessionStateResponse.progress:type_name -> morph.v1.SessionProgressEvent
+	32,  // 35: morph.v1.ObserveSessionResponse.event:type_name -> morph.v1.SessionEvent
+	30,  // 36: morph.v1.EditQueuedSessionMessageResponse.entry:type_name -> morph.v1.SessionQueueEntry
+	30,  // 37: morph.v1.RemoveQueuedSessionMessageResponse.entry:type_name -> morph.v1.SessionQueueEntry
+	30,  // 38: morph.v1.PromoteQueuedSessionMessageResponse.entry:type_name -> morph.v1.SessionQueueEntry
+	31,  // 39: morph.v1.InterruptSessionRunResponse.run:type_name -> morph.v1.SessionActiveRun
+	51,  // 40: morph.v1.ListProvidersResponse.providers:type_name -> morph.v1.ProviderOption
+	54,  // 41: morph.v1.ListModelsResponse.models:type_name -> morph.v1.ModelOption
+	54,  // 42: morph.v1.SelectModelResponse.model:type_name -> morph.v1.ModelOption
+	60,  // 43: morph.v1.GetGatewayStatusResponse.status:type_name -> morph.v1.GatewayStatus
+	60,  // 44: morph.v1.StartGatewayResponse.status:type_name -> morph.v1.GatewayStatus
+	60,  // 45: morph.v1.StopGatewayResponse.status:type_name -> morph.v1.GatewayStatus
+	60,  // 46: morph.v1.RestartGatewayResponse.status:type_name -> morph.v1.GatewayStatus
+	169, // 47: morph.v1.GatewayPairingRequest.created_at:type_name -> google.protobuf.Timestamp
+	169, // 48: morph.v1.GatewayPairingRequest.last_seen_at:type_name -> google.protobuf.Timestamp
+	169, // 49: morph.v1.GatewayPairingRequest.expires_at:type_name -> google.protobuf.Timestamp
+	169, // 50: morph.v1.GatewayPairedSender.created_at:type_name -> google.protobuf.Timestamp
+	169, // 51: morph.v1.GatewayPairedSender.updated_at:type_name -> google.protobuf.Timestamp
+	69,  // 52: morph.v1.ListGatewayPairingsResponse.pending:type_name -> morph.v1.GatewayPairingRequest
+	70,  // 53: morph.v1.ListGatewayPairingsResponse.approved:type_name -> morph.v1.GatewayPairedSender
+	70,  // 54: morph.v1.ApproveGatewayPairingResponse.sender:type_name -> morph.v1.GatewayPairedSender
+	169, // 55: morph.v1.AutomationSchedule.at:type_name -> google.protobuf.Timestamp
+	168, // 56: morph.v1.AutomationPayload.metadata:type_name -> morph.v1.AutomationPayload.MetadataEntry
+	169, // 57: morph.v1.AutomationJobState.next_run_at:type_name -> google.protobuf.Timestamp
+	169, // 58: morph.v1.AutomationJobState.running_at:type_name -> google.protobuf.Timestamp
+	169, // 59: morph.v1.AutomationJobState.last_run_at:type_name -> google.protobuf.Timestamp
+	169, // 60: morph.v1.AutomationJobState.last_failure_notice_at:type_name -> google.protobuf.Timestamp
+	169, // 61: morph.v1.AutomationJob.created_at:type_name -> google.protobuf.Timestamp
+	169, // 62: morph.v1.AutomationJob.updated_at:type_name -> google.protobuf.Timestamp
+	79,  // 63: morph.v1.AutomationJob.schedule:type_name -> morph.v1.AutomationSchedule
+	80,  // 64: morph.v1.AutomationJob.payload:type_name -> morph.v1.AutomationPayload
+	81,  // 65: morph.v1.AutomationJob.delivery:type_name -> morph.v1.AutomationDelivery
+	82,  // 66: morph.v1.AutomationJob.state:type_name -> morph.v1.AutomationJobState
+	169, // 67: morph.v1.AutomationRun.started_at:type_name -> google.protobuf.Timestamp
+	169, // 68: morph.v1.AutomationRun.ended_at:type_name -> google.protobuf.Timestamp
+	84,  // 69: morph.v1.AutomationRun.usage:type_name -> morph.v1.AutomationUsage
+	169, // 70: morph.v1.GetAutomationStatusResponse.started_at:type_name -> google.protobuf.Timestamp
+	169, // 71: morph.v1.GetAutomationStatusResponse.next_wake_at:type_name -> google.protobuf.Timestamp
+	83,  // 72: morph.v1.ListAutomationJobsResponse.jobs:type_name -> morph.v1.AutomationJob
+	169, // 73: morph.v1.AddAutomationJobRequest.created_at:type_name -> google.protobuf.Timestamp
+	169, // 74: morph.v1.AddAutomationJobRequest.updated_at:type_name -> google.protobuf.Timestamp
+	79,  // 75: morph.v1.AddAutomationJobRequest.schedule:type_name -> morph.v1.AutomationSchedule
+	80,  // 76: morph.v1.AddAutomationJobRequest.payload:type_name -> morph.v1.AutomationPayload
+	81,  // 77: morph.v1.AddAutomationJobRequest.delivery:type_name -> morph.v1.AutomationDelivery
+	82,  // 78: morph.v1.AddAutomationJobRequest.state:type_name -> morph.v1.AutomationJobState
+	83,  // 79: morph.v1.AddAutomationJobResponse.job:type_name -> morph.v1.AutomationJob
+	79,  // 80: morph.v1.UpdateAutomationJobRequest.schedule:type_name -> morph.v1.AutomationSchedule
+	80,  // 81: morph.v1.UpdateAutomationJobRequest.payload:type_name -> morph.v1.AutomationPayload
+	81,  // 82: morph.v1.UpdateAutomationJobRequest.delivery:type_name -> morph.v1.AutomationDelivery
+	82,  // 83: morph.v1.UpdateAutomationJobRequest.state:type_name -> morph.v1.AutomationJobState
+	83,  // 84: morph.v1.UpdateAutomationJobResponse.job:type_name -> morph.v1.AutomationJob
+	85,  // 85: morph.v1.RunAutomationJobResponse.run:type_name -> morph.v1.AutomationRun
+	85,  // 86: morph.v1.ListAutomationRunsResponse.runs:type_name -> morph.v1.AutomationRun
+	169, // 87: morph.v1.PermissionApprovalRequest.created_at:type_name -> google.protobuf.Timestamp
+	169, // 88: morph.v1.PermissionApprovalRequest.expires_at:type_name -> google.protobuf.Timestamp
+	169, // 89: morph.v1.PermissionApprovalRequest.resolved_at:type_name -> google.protobuf.Timestamp
+	169, // 90: morph.v1.PermissionGrant.created_at:type_name -> google.protobuf.Timestamp
+	169, // 91: morph.v1.PermissionGrant.expires_at:type_name -> google.protobuf.Timestamp
+	169, // 92: morph.v1.PermissionGrant.consumed_at:type_name -> google.protobuf.Timestamp
+	169, // 93: morph.v1.PermissionGrant.revoked_at:type_name -> google.protobuf.Timestamp
+	100, // 94: morph.v1.ListPermissionRequestsResponse.requests:type_name -> morph.v1.PermissionApprovalRequest
+	100, // 95: morph.v1.GetPermissionRequestResponse.request:type_name -> morph.v1.PermissionApprovalRequest
+	100, // 96: morph.v1.ResolvePermissionRequestResponse.request:type_name -> morph.v1.PermissionApprovalRequest
+	101, // 97: morph.v1.ListPermissionGrantsResponse.grants:type_name -> morph.v1.PermissionGrant
+	101, // 98: morph.v1.RevokePermissionGrantResponse.grant:type_name -> morph.v1.PermissionGrant
+	169, // 99: morph.v1.PrunePermissionApprovalsResponse.request_cutoff:type_name -> google.protobuf.Timestamp
+	169, // 100: morph.v1.PrunePermissionApprovalsResponse.grant_cutoff:type_name -> google.protobuf.Timestamp
+	169, // 101: morph.v1.BrowserSession.created_at:type_name -> google.protobuf.Timestamp
+	169, // 102: morph.v1.BrowserSession.last_active:type_name -> google.protobuf.Timestamp
+	169, // 103: morph.v1.BrowserArtifact.created_at:type_name -> google.protobuf.Timestamp
+	169, // 104: morph.v1.BrowserArtifact.expires_at:type_name -> google.protobuf.Timestamp
+	116, // 105: morph.v1.BrowserStatus.profiles:type_name -> morph.v1.BrowserProfile
+	117, // 106: morph.v1.BrowserStatus.sessions:type_name -> morph.v1.BrowserSession
+	119, // 107: morph.v1.GetBrowserStatusResponse.status:type_name -> morph.v1.BrowserStatus
+	116, // 108: morph.v1.ListBrowserProfilesResponse.profiles:type_name -> morph.v1.BrowserProfile
+	117, // 109: morph.v1.ListBrowserSessionsResponse.sessions:type_name -> morph.v1.BrowserSession
+	117, // 110: morph.v1.StartBrowserResponse.session:type_name -> morph.v1.BrowserSession
+	117, // 111: morph.v1.StopBrowserResponse.session:type_name -> morph.v1.BrowserSession
+	118, // 112: morph.v1.ReadBrowserArtifactResponse.artifact:type_name -> morph.v1.BrowserArtifact
+	101, // 113: morph.v1.GetPermissionGrantResponse.grant:type_name -> morph.v1.PermissionGrant
+	169, // 114: morph.v1.AuthSession.created_at:type_name -> google.protobuf.Timestamp
+	169, // 115: morph.v1.AuthSession.last_seen_at:type_name -> google.protobuf.Timestamp
+	169, // 116: morph.v1.AuthSession.idle_expires_at:type_name -> google.protobuf.Timestamp
+	169, // 117: morph.v1.AuthSession.absolute_expires_at:type_name -> google.protobuf.Timestamp
+	169, // 118: morph.v1.AuthSession.revoked_at:type_name -> google.protobuf.Timestamp
+	169, // 119: morph.v1.AuthToken.issued_at:type_name -> google.protobuf.Timestamp
+	169, // 120: morph.v1.AuthToken.not_before:type_name -> google.protobuf.Timestamp
+	169, // 121: morph.v1.AuthToken.expires_at:type_name -> google.protobuf.Timestamp
+	169, // 122: morph.v1.AuthToken.last_used_at:type_name -> google.protobuf.Timestamp
+	169, // 123: morph.v1.AuthToken.revoked_at:type_name -> google.protobuf.Timestamp
+	169, // 124: morph.v1.AuthAuthorization.created_at:type_name -> google.protobuf.Timestamp
+	169, // 125: morph.v1.AuthAuthorization.updated_at:type_name -> google.protobuf.Timestamp
+	169, // 126: morph.v1.AuthAuthorization.revoked_at:type_name -> google.protobuf.Timestamp
+	169, // 127: morph.v1.AuthAuditEvent.created_at:type_name -> google.protobuf.Timestamp
+	136, // 128: morph.v1.OpenAuthSessionResponse.principal:type_name -> morph.v1.AuthPrincipal
+	137, // 129: morph.v1.OpenAuthSessionResponse.session:type_name -> morph.v1.AuthSession
+	137, // 130: morph.v1.CloseAuthSessionResponse.session:type_name -> morph.v1.AuthSession
+	137, // 131: morph.v1.ListAuthSessionsResponse.sessions:type_name -> morph.v1.AuthSession
+	137, // 132: morph.v1.RevokeAuthSessionResponse.session:type_name -> morph.v1.AuthSession
+	138, // 133: morph.v1.ListAuthTokensResponse.tokens:type_name -> morph.v1.AuthToken
+	138, // 134: morph.v1.RevokeAuthTokenResponse.token:type_name -> morph.v1.AuthToken
+	139, // 135: morph.v1.ListAuthAuthorizationsResponse.authorizations:type_name -> morph.v1.AuthAuthorization
+	139, // 136: morph.v1.GrantAuthAuthorizationRequest.authorization:type_name -> morph.v1.AuthAuthorization
+	139, // 137: morph.v1.GrantAuthAuthorizationResponse.authorization:type_name -> morph.v1.AuthAuthorization
+	139, // 138: morph.v1.RevokeAuthAuthorizationResponse.authorization:type_name -> morph.v1.AuthAuthorization
+	169, // 139: morph.v1.ListAuthAuditRequest.since:type_name -> google.protobuf.Timestamp
+	140, // 140: morph.v1.ListAuthAuditResponse.events:type_name -> morph.v1.AuthAuditEvent
+	169, // 141: morph.v1.PruneAuthRequest.before:type_name -> google.protobuf.Timestamp
+	139, // 142: morph.v1.RotateAuthIdentityResponse.authorization:type_name -> morph.v1.AuthAuthorization
+	2,   // 143: morph.v1.SessionService.Create:input_type -> morph.v1.CreateSessionRequest
+	4,   // 144: morph.v1.SessionService.List:input_type -> morph.v1.ListSessionsRequest
+	6,   // 145: morph.v1.SessionService.Use:input_type -> morph.v1.UseSessionRequest
+	8,   // 146: morph.v1.SessionService.Archive:input_type -> morph.v1.ArchiveSessionRequest
+	10,  // 147: morph.v1.SessionService.Unarchive:input_type -> morph.v1.UnarchiveSessionRequest
+	12,  // 148: morph.v1.SessionService.Rename:input_type -> morph.v1.RenameSessionRequest
+	14,  // 149: morph.v1.SessionService.Current:input_type -> morph.v1.CurrentSessionRequest
+	16,  // 150: morph.v1.SessionService.Compact:input_type -> morph.v1.CompactSessionRequest
+	18,  // 151: morph.v1.SessionService.Repair:input_type -> morph.v1.RepairSessionRequest
+	23,  // 152: morph.v1.SessionService.Status:input_type -> morph.v1.GetSessionStatusRequest
+	25,  // 153: morph.v1.SessionService.Timeline:input_type -> morph.v1.GetSessionTimelineRequest
+	34,  // 154: morph.v1.SessionService.SubmitMessage:input_type -> morph.v1.SubmitSessionMessageRequest
+	36,  // 155: morph.v1.SessionService.State:input_type -> morph.v1.GetSessionStateRequest
+	38,  // 156: morph.v1.SessionService.Observe:input_type -> morph.v1.ObserveSessionRequest
+	40,  // 157: morph.v1.SessionService.EditQueuedMessage:input_type -> morph.v1.EditQueuedSessionMessageRequest
+	42,  // 158: morph.v1.SessionService.RemoveQueuedMessage:input_type -> morph.v1.RemoveQueuedSessionMessageRequest
+	44,  // 159: morph.v1.SessionService.PromoteQueuedMessage:input_type -> morph.v1.PromoteQueuedSessionMessageRequest
+	46,  // 160: morph.v1.SessionService.InterruptRun:input_type -> morph.v1.InterruptSessionRunRequest
+	48,  // 161: morph.v1.ModelService.RuntimeModel:input_type -> morph.v1.RuntimeModelRequest
+	50,  // 162: morph.v1.ModelService.ListProviders:input_type -> morph.v1.ListProvidersRequest
+	53,  // 163: morph.v1.ModelService.ListModels:input_type -> morph.v1.ListModelsRequest
+	56,  // 164: morph.v1.ModelService.SelectModel:input_type -> morph.v1.SelectModelRequest
+	58,  // 165: morph.v1.ModelService.SetProviderAPIKey:input_type -> morph.v1.SetProviderAPIKeyRequest
+	61,  // 166: morph.v1.GatewayService.Status:input_type -> morph.v1.GetGatewayStatusRequest
+	63,  // 167: morph.v1.GatewayService.Start:input_type -> morph.v1.StartGatewayRequest
+	65,  // 168: morph.v1.GatewayService.Stop:input_type -> morph.v1.StopGatewayRequest
+	67,  // 169: morph.v1.GatewayService.Restart:input_type -> morph.v1.RestartGatewayRequest
+	71,  // 170: morph.v1.GatewayService.ListPairings:input_type -> morph.v1.ListGatewayPairingsRequest
+	73,  // 171: morph.v1.GatewayService.ApprovePairing:input_type -> morph.v1.ApproveGatewayPairingRequest
+	75,  // 172: morph.v1.GatewayService.RevokePairing:input_type -> morph.v1.RevokeGatewayPairingRequest
+	77,  // 173: morph.v1.GatewayService.ClearPendingPairings:input_type -> morph.v1.ClearPendingGatewayPairingsRequest
+	86,  // 174: morph.v1.AutomationService.Status:input_type -> morph.v1.GetAutomationStatusRequest
+	88,  // 175: morph.v1.AutomationService.ListJobs:input_type -> morph.v1.ListAutomationJobsRequest
+	90,  // 176: morph.v1.AutomationService.AddJob:input_type -> morph.v1.AddAutomationJobRequest
+	92,  // 177: morph.v1.AutomationService.UpdateJob:input_type -> morph.v1.UpdateAutomationJobRequest
+	94,  // 178: morph.v1.AutomationService.RemoveJob:input_type -> morph.v1.RemoveAutomationJobRequest
+	96,  // 179: morph.v1.AutomationService.RunJob:input_type -> morph.v1.RunAutomationJobRequest
+	98,  // 180: morph.v1.AutomationService.ListRuns:input_type -> morph.v1.ListAutomationRunsRequest
+	102, // 181: morph.v1.PermissionService.ListRequests:input_type -> morph.v1.ListPermissionRequestsRequest
+	104, // 182: morph.v1.PermissionService.GetRequest:input_type -> morph.v1.GetPermissionRequestRequest
+	106, // 183: morph.v1.PermissionService.ResolveRequest:input_type -> morph.v1.ResolvePermissionRequestRequest
+	108, // 184: morph.v1.PermissionService.ListGrants:input_type -> morph.v1.ListPermissionGrantsRequest
+	134, // 185: morph.v1.PermissionService.GetGrant:input_type -> morph.v1.GetPermissionGrantRequest
+	110, // 186: morph.v1.PermissionService.RevokeGrant:input_type -> morph.v1.RevokePermissionGrantRequest
+	112, // 187: morph.v1.PermissionService.DeleteRecord:input_type -> morph.v1.DeletePermissionRecordRequest
+	114, // 188: morph.v1.PermissionService.Prune:input_type -> morph.v1.PrunePermissionApprovalsRequest
+	120, // 189: morph.v1.BrowserService.Status:input_type -> morph.v1.GetBrowserStatusRequest
+	122, // 190: morph.v1.BrowserService.ListProfiles:input_type -> morph.v1.ListBrowserProfilesRequest
+	124, // 191: morph.v1.BrowserService.ListSessions:input_type -> morph.v1.ListBrowserSessionsRequest
+	126, // 192: morph.v1.BrowserService.Start:input_type -> morph.v1.StartBrowserRequest
+	128, // 193: morph.v1.BrowserService.Stop:input_type -> morph.v1.StopBrowserRequest
+	130, // 194: morph.v1.BrowserService.ReadArtifact:input_type -> morph.v1.ReadBrowserArtifactRequest
+	132, // 195: morph.v1.BrowserService.EffectiveConfig:input_type -> morph.v1.GetBrowserEffectiveConfigRequest
+	141, // 196: morph.v1.AuthService.OpenSession:input_type -> morph.v1.OpenAuthSessionRequest
+	143, // 197: morph.v1.AuthService.CloseSession:input_type -> morph.v1.CloseAuthSessionRequest
+	145, // 198: morph.v1.AuthService.ListSessions:input_type -> morph.v1.ListAuthSessionsRequest
+	147, // 199: morph.v1.AuthService.RevokeSession:input_type -> morph.v1.RevokeAuthSessionRequest
+	149, // 200: morph.v1.AuthService.ListTokens:input_type -> morph.v1.ListAuthTokensRequest
+	151, // 201: morph.v1.AuthService.RevokeToken:input_type -> morph.v1.RevokeAuthTokenRequest
+	153, // 202: morph.v1.AuthService.ListAuthorizations:input_type -> morph.v1.ListAuthAuthorizationsRequest
+	155, // 203: morph.v1.AuthService.GrantAuthorization:input_type -> morph.v1.GrantAuthAuthorizationRequest
+	157, // 204: morph.v1.AuthService.RevokeAuthorization:input_type -> morph.v1.RevokeAuthAuthorizationRequest
+	159, // 205: morph.v1.AuthService.ListAudit:input_type -> morph.v1.ListAuthAuditRequest
+	161, // 206: morph.v1.AuthService.Prune:input_type -> morph.v1.PruneAuthRequest
+	163, // 207: morph.v1.AuthService.RotateIdentity:input_type -> morph.v1.RotateAuthIdentityRequest
+	165, // 208: morph.v1.AuthService.IdentityStatus:input_type -> morph.v1.GetAuthIdentityStatusRequest
+	3,   // 209: morph.v1.SessionService.Create:output_type -> morph.v1.CreateSessionResponse
+	5,   // 210: morph.v1.SessionService.List:output_type -> morph.v1.ListSessionsResponse
+	7,   // 211: morph.v1.SessionService.Use:output_type -> morph.v1.UseSessionResponse
+	9,   // 212: morph.v1.SessionService.Archive:output_type -> morph.v1.ArchiveSessionResponse
+	11,  // 213: morph.v1.SessionService.Unarchive:output_type -> morph.v1.UnarchiveSessionResponse
+	13,  // 214: morph.v1.SessionService.Rename:output_type -> morph.v1.RenameSessionResponse
+	15,  // 215: morph.v1.SessionService.Current:output_type -> morph.v1.CurrentSessionResponse
+	17,  // 216: morph.v1.SessionService.Compact:output_type -> morph.v1.CompactSessionResponse
+	19,  // 217: morph.v1.SessionService.Repair:output_type -> morph.v1.RepairSessionResponse
+	24,  // 218: morph.v1.SessionService.Status:output_type -> morph.v1.GetSessionStatusResponse
+	29,  // 219: morph.v1.SessionService.Timeline:output_type -> morph.v1.GetSessionTimelineResponse
+	35,  // 220: morph.v1.SessionService.SubmitMessage:output_type -> morph.v1.SubmitSessionMessageResponse
+	37,  // 221: morph.v1.SessionService.State:output_type -> morph.v1.GetSessionStateResponse
+	39,  // 222: morph.v1.SessionService.Observe:output_type -> morph.v1.ObserveSessionResponse
+	41,  // 223: morph.v1.SessionService.EditQueuedMessage:output_type -> morph.v1.EditQueuedSessionMessageResponse
+	43,  // 224: morph.v1.SessionService.RemoveQueuedMessage:output_type -> morph.v1.RemoveQueuedSessionMessageResponse
+	45,  // 225: morph.v1.SessionService.PromoteQueuedMessage:output_type -> morph.v1.PromoteQueuedSessionMessageResponse
+	47,  // 226: morph.v1.SessionService.InterruptRun:output_type -> morph.v1.InterruptSessionRunResponse
+	49,  // 227: morph.v1.ModelService.RuntimeModel:output_type -> morph.v1.RuntimeModelResponse
+	52,  // 228: morph.v1.ModelService.ListProviders:output_type -> morph.v1.ListProvidersResponse
+	55,  // 229: morph.v1.ModelService.ListModels:output_type -> morph.v1.ListModelsResponse
+	57,  // 230: morph.v1.ModelService.SelectModel:output_type -> morph.v1.SelectModelResponse
+	59,  // 231: morph.v1.ModelService.SetProviderAPIKey:output_type -> morph.v1.SetProviderAPIKeyResponse
+	62,  // 232: morph.v1.GatewayService.Status:output_type -> morph.v1.GetGatewayStatusResponse
+	64,  // 233: morph.v1.GatewayService.Start:output_type -> morph.v1.StartGatewayResponse
+	66,  // 234: morph.v1.GatewayService.Stop:output_type -> morph.v1.StopGatewayResponse
+	68,  // 235: morph.v1.GatewayService.Restart:output_type -> morph.v1.RestartGatewayResponse
+	72,  // 236: morph.v1.GatewayService.ListPairings:output_type -> morph.v1.ListGatewayPairingsResponse
+	74,  // 237: morph.v1.GatewayService.ApprovePairing:output_type -> morph.v1.ApproveGatewayPairingResponse
+	76,  // 238: morph.v1.GatewayService.RevokePairing:output_type -> morph.v1.RevokeGatewayPairingResponse
+	78,  // 239: morph.v1.GatewayService.ClearPendingPairings:output_type -> morph.v1.ClearPendingGatewayPairingsResponse
+	87,  // 240: morph.v1.AutomationService.Status:output_type -> morph.v1.GetAutomationStatusResponse
+	89,  // 241: morph.v1.AutomationService.ListJobs:output_type -> morph.v1.ListAutomationJobsResponse
+	91,  // 242: morph.v1.AutomationService.AddJob:output_type -> morph.v1.AddAutomationJobResponse
+	93,  // 243: morph.v1.AutomationService.UpdateJob:output_type -> morph.v1.UpdateAutomationJobResponse
+	95,  // 244: morph.v1.AutomationService.RemoveJob:output_type -> morph.v1.RemoveAutomationJobResponse
+	97,  // 245: morph.v1.AutomationService.RunJob:output_type -> morph.v1.RunAutomationJobResponse
+	99,  // 246: morph.v1.AutomationService.ListRuns:output_type -> morph.v1.ListAutomationRunsResponse
+	103, // 247: morph.v1.PermissionService.ListRequests:output_type -> morph.v1.ListPermissionRequestsResponse
+	105, // 248: morph.v1.PermissionService.GetRequest:output_type -> morph.v1.GetPermissionRequestResponse
+	107, // 249: morph.v1.PermissionService.ResolveRequest:output_type -> morph.v1.ResolvePermissionRequestResponse
+	109, // 250: morph.v1.PermissionService.ListGrants:output_type -> morph.v1.ListPermissionGrantsResponse
+	135, // 251: morph.v1.PermissionService.GetGrant:output_type -> morph.v1.GetPermissionGrantResponse
+	111, // 252: morph.v1.PermissionService.RevokeGrant:output_type -> morph.v1.RevokePermissionGrantResponse
+	113, // 253: morph.v1.PermissionService.DeleteRecord:output_type -> morph.v1.DeletePermissionRecordResponse
+	115, // 254: morph.v1.PermissionService.Prune:output_type -> morph.v1.PrunePermissionApprovalsResponse
+	121, // 255: morph.v1.BrowserService.Status:output_type -> morph.v1.GetBrowserStatusResponse
+	123, // 256: morph.v1.BrowserService.ListProfiles:output_type -> morph.v1.ListBrowserProfilesResponse
+	125, // 257: morph.v1.BrowserService.ListSessions:output_type -> morph.v1.ListBrowserSessionsResponse
+	127, // 258: morph.v1.BrowserService.Start:output_type -> morph.v1.StartBrowserResponse
+	129, // 259: morph.v1.BrowserService.Stop:output_type -> morph.v1.StopBrowserResponse
+	131, // 260: morph.v1.BrowserService.ReadArtifact:output_type -> morph.v1.ReadBrowserArtifactResponse
+	133, // 261: morph.v1.BrowserService.EffectiveConfig:output_type -> morph.v1.GetBrowserEffectiveConfigResponse
+	142, // 262: morph.v1.AuthService.OpenSession:output_type -> morph.v1.OpenAuthSessionResponse
+	144, // 263: morph.v1.AuthService.CloseSession:output_type -> morph.v1.CloseAuthSessionResponse
+	146, // 264: morph.v1.AuthService.ListSessions:output_type -> morph.v1.ListAuthSessionsResponse
+	148, // 265: morph.v1.AuthService.RevokeSession:output_type -> morph.v1.RevokeAuthSessionResponse
+	150, // 266: morph.v1.AuthService.ListTokens:output_type -> morph.v1.ListAuthTokensResponse
+	152, // 267: morph.v1.AuthService.RevokeToken:output_type -> morph.v1.RevokeAuthTokenResponse
+	154, // 268: morph.v1.AuthService.ListAuthorizations:output_type -> morph.v1.ListAuthAuthorizationsResponse
+	156, // 269: morph.v1.AuthService.GrantAuthorization:output_type -> morph.v1.GrantAuthAuthorizationResponse
+	158, // 270: morph.v1.AuthService.RevokeAuthorization:output_type -> morph.v1.RevokeAuthAuthorizationResponse
+	160, // 271: morph.v1.AuthService.ListAudit:output_type -> morph.v1.ListAuthAuditResponse
+	162, // 272: morph.v1.AuthService.Prune:output_type -> morph.v1.PruneAuthResponse
+	164, // 273: morph.v1.AuthService.RotateIdentity:output_type -> morph.v1.RotateAuthIdentityResponse
+	166, // 274: morph.v1.AuthService.IdentityStatus:output_type -> morph.v1.GetAuthIdentityStatusResponse
+	209, // [209:275] is the sub-list for method output_type
+	143, // [143:209] is the sub-list for method input_type
+	143, // [143:143] is the sub-list for extension type_name
+	143, // [143:143] is the sub-list for extension extendee
+	0,   // [0:143] is the sub-list for field type_name
 }
 
 func init() { file_internal_rpc_proto_morph_proto_init() }
@@ -11014,20 +12227,21 @@ func file_internal_rpc_proto_morph_proto_init() {
 	if File_internal_rpc_proto_morph_proto != nil {
 		return
 	}
-	file_internal_rpc_proto_morph_proto_msgTypes[0].OneofWrappers = []any{}
+	file_internal_rpc_proto_morph_proto_msgTypes[1].OneofWrappers = []any{}
 	file_internal_rpc_proto_morph_proto_msgTypes[3].OneofWrappers = []any{}
-	file_internal_rpc_proto_morph_proto_msgTypes[5].OneofWrappers = []any{}
-	file_internal_rpc_proto_morph_proto_msgTypes[71].OneofWrappers = []any{}
-	file_internal_rpc_proto_morph_proto_msgTypes[75].OneofWrappers = []any{}
+	file_internal_rpc_proto_morph_proto_msgTypes[29].OneofWrappers = []any{}
+	file_internal_rpc_proto_morph_proto_msgTypes[33].OneofWrappers = []any{}
+	file_internal_rpc_proto_morph_proto_msgTypes[87].OneofWrappers = []any{}
+	file_internal_rpc_proto_morph_proto_msgTypes[91].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_rpc_proto_morph_proto_rawDesc), len(file_internal_rpc_proto_morph_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   152,
+			NumEnums:      1,
+			NumMessages:   168,
 			NumExtensions: 0,
-			NumServices:   8,
+			NumServices:   7,
 		},
 		GoTypes:           file_internal_rpc_proto_morph_proto_goTypes,
 		DependencyIndexes: file_internal_rpc_proto_morph_proto_depIdxs,

@@ -19,122 +19,24 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	MorphService_Respond_FullMethodName = "/morph.v1.MorphService/Respond"
-)
-
-// MorphServiceClient is the client API for MorphService service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type MorphServiceClient interface {
-	Respond(ctx context.Context, in *RespondRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RespondEvent], error)
-}
-
-type morphServiceClient struct {
-	cc grpc.ClientConnInterface
-}
-
-func NewMorphServiceClient(cc grpc.ClientConnInterface) MorphServiceClient {
-	return &morphServiceClient{cc}
-}
-
-func (c *morphServiceClient) Respond(ctx context.Context, in *RespondRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RespondEvent], error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &MorphService_ServiceDesc.Streams[0], MorphService_Respond_FullMethodName, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &grpc.GenericClientStream[RespondRequest, RespondEvent]{ClientStream: stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type MorphService_RespondClient = grpc.ServerStreamingClient[RespondEvent]
-
-// MorphServiceServer is the server API for MorphService service.
-// All implementations must embed UnimplementedMorphServiceServer
-// for forward compatibility.
-type MorphServiceServer interface {
-	Respond(*RespondRequest, grpc.ServerStreamingServer[RespondEvent]) error
-	mustEmbedUnimplementedMorphServiceServer()
-}
-
-// UnimplementedMorphServiceServer must be embedded to have
-// forward compatible implementations.
-//
-// NOTE: this should be embedded by value instead of pointer to avoid a nil
-// pointer dereference when methods are called.
-type UnimplementedMorphServiceServer struct{}
-
-func (UnimplementedMorphServiceServer) Respond(*RespondRequest, grpc.ServerStreamingServer[RespondEvent]) error {
-	return status.Error(codes.Unimplemented, "method Respond not implemented")
-}
-func (UnimplementedMorphServiceServer) mustEmbedUnimplementedMorphServiceServer() {}
-func (UnimplementedMorphServiceServer) testEmbeddedByValue()                      {}
-
-// UnsafeMorphServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to MorphServiceServer will
-// result in compilation errors.
-type UnsafeMorphServiceServer interface {
-	mustEmbedUnimplementedMorphServiceServer()
-}
-
-func RegisterMorphServiceServer(s grpc.ServiceRegistrar, srv MorphServiceServer) {
-	// If the following call panics, it indicates UnimplementedMorphServiceServer was
-	// embedded by pointer and is nil.  This will cause panics if an
-	// unimplemented method is ever invoked, so we test this at initialization
-	// time to prevent it from happening at runtime later due to I/O.
-	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
-		t.testEmbeddedByValue()
-	}
-	s.RegisterService(&MorphService_ServiceDesc, srv)
-}
-
-func _MorphService_Respond_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(RespondRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(MorphServiceServer).Respond(m, &grpc.GenericServerStream[RespondRequest, RespondEvent]{ServerStream: stream})
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type MorphService_RespondServer = grpc.ServerStreamingServer[RespondEvent]
-
-// MorphService_ServiceDesc is the grpc.ServiceDesc for MorphService service.
-// It's only intended for direct use with grpc.RegisterService,
-// and not to be introspected or modified (even as a copy)
-var MorphService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "morph.v1.MorphService",
-	HandlerType: (*MorphServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "Respond",
-			Handler:       _MorphService_Respond_Handler,
-			ServerStreams: true,
-		},
-	},
-	Metadata: "internal/rpc/proto/morph.proto",
-}
-
-const (
-	SessionService_Create_FullMethodName    = "/morph.v1.SessionService/Create"
-	SessionService_List_FullMethodName      = "/morph.v1.SessionService/List"
-	SessionService_Use_FullMethodName       = "/morph.v1.SessionService/Use"
-	SessionService_Archive_FullMethodName   = "/morph.v1.SessionService/Archive"
-	SessionService_Unarchive_FullMethodName = "/morph.v1.SessionService/Unarchive"
-	SessionService_Rename_FullMethodName    = "/morph.v1.SessionService/Rename"
-	SessionService_Current_FullMethodName   = "/morph.v1.SessionService/Current"
-	SessionService_Compact_FullMethodName   = "/morph.v1.SessionService/Compact"
-	SessionService_Repair_FullMethodName    = "/morph.v1.SessionService/Repair"
-	SessionService_Status_FullMethodName    = "/morph.v1.SessionService/Status"
-	SessionService_Timeline_FullMethodName  = "/morph.v1.SessionService/Timeline"
+	SessionService_Create_FullMethodName               = "/morph.v1.SessionService/Create"
+	SessionService_List_FullMethodName                 = "/morph.v1.SessionService/List"
+	SessionService_Use_FullMethodName                  = "/morph.v1.SessionService/Use"
+	SessionService_Archive_FullMethodName              = "/morph.v1.SessionService/Archive"
+	SessionService_Unarchive_FullMethodName            = "/morph.v1.SessionService/Unarchive"
+	SessionService_Rename_FullMethodName               = "/morph.v1.SessionService/Rename"
+	SessionService_Current_FullMethodName              = "/morph.v1.SessionService/Current"
+	SessionService_Compact_FullMethodName              = "/morph.v1.SessionService/Compact"
+	SessionService_Repair_FullMethodName               = "/morph.v1.SessionService/Repair"
+	SessionService_Status_FullMethodName               = "/morph.v1.SessionService/Status"
+	SessionService_Timeline_FullMethodName             = "/morph.v1.SessionService/Timeline"
+	SessionService_SubmitMessage_FullMethodName        = "/morph.v1.SessionService/SubmitMessage"
+	SessionService_State_FullMethodName                = "/morph.v1.SessionService/State"
+	SessionService_Observe_FullMethodName              = "/morph.v1.SessionService/Observe"
+	SessionService_EditQueuedMessage_FullMethodName    = "/morph.v1.SessionService/EditQueuedMessage"
+	SessionService_RemoveQueuedMessage_FullMethodName  = "/morph.v1.SessionService/RemoveQueuedMessage"
+	SessionService_PromoteQueuedMessage_FullMethodName = "/morph.v1.SessionService/PromoteQueuedMessage"
+	SessionService_InterruptRun_FullMethodName         = "/morph.v1.SessionService/InterruptRun"
 )
 
 // SessionServiceClient is the client API for SessionService service.
@@ -152,6 +54,13 @@ type SessionServiceClient interface {
 	Repair(ctx context.Context, in *RepairSessionRequest, opts ...grpc.CallOption) (*RepairSessionResponse, error)
 	Status(ctx context.Context, in *GetSessionStatusRequest, opts ...grpc.CallOption) (*GetSessionStatusResponse, error)
 	Timeline(ctx context.Context, in *GetSessionTimelineRequest, opts ...grpc.CallOption) (*GetSessionTimelineResponse, error)
+	SubmitMessage(ctx context.Context, in *SubmitSessionMessageRequest, opts ...grpc.CallOption) (*SubmitSessionMessageResponse, error)
+	State(ctx context.Context, in *GetSessionStateRequest, opts ...grpc.CallOption) (*GetSessionStateResponse, error)
+	Observe(ctx context.Context, in *ObserveSessionRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ObserveSessionResponse], error)
+	EditQueuedMessage(ctx context.Context, in *EditQueuedSessionMessageRequest, opts ...grpc.CallOption) (*EditQueuedSessionMessageResponse, error)
+	RemoveQueuedMessage(ctx context.Context, in *RemoveQueuedSessionMessageRequest, opts ...grpc.CallOption) (*RemoveQueuedSessionMessageResponse, error)
+	PromoteQueuedMessage(ctx context.Context, in *PromoteQueuedSessionMessageRequest, opts ...grpc.CallOption) (*PromoteQueuedSessionMessageResponse, error)
+	InterruptRun(ctx context.Context, in *InterruptSessionRunRequest, opts ...grpc.CallOption) (*InterruptSessionRunResponse, error)
 }
 
 type sessionServiceClient struct {
@@ -272,6 +181,85 @@ func (c *sessionServiceClient) Timeline(ctx context.Context, in *GetSessionTimel
 	return out, nil
 }
 
+func (c *sessionServiceClient) SubmitMessage(ctx context.Context, in *SubmitSessionMessageRequest, opts ...grpc.CallOption) (*SubmitSessionMessageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SubmitSessionMessageResponse)
+	err := c.cc.Invoke(ctx, SessionService_SubmitMessage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sessionServiceClient) State(ctx context.Context, in *GetSessionStateRequest, opts ...grpc.CallOption) (*GetSessionStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetSessionStateResponse)
+	err := c.cc.Invoke(ctx, SessionService_State_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sessionServiceClient) Observe(ctx context.Context, in *ObserveSessionRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ObserveSessionResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &SessionService_ServiceDesc.Streams[0], SessionService_Observe_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[ObserveSessionRequest, ObserveSessionResponse]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type SessionService_ObserveClient = grpc.ServerStreamingClient[ObserveSessionResponse]
+
+func (c *sessionServiceClient) EditQueuedMessage(ctx context.Context, in *EditQueuedSessionMessageRequest, opts ...grpc.CallOption) (*EditQueuedSessionMessageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EditQueuedSessionMessageResponse)
+	err := c.cc.Invoke(ctx, SessionService_EditQueuedMessage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sessionServiceClient) RemoveQueuedMessage(ctx context.Context, in *RemoveQueuedSessionMessageRequest, opts ...grpc.CallOption) (*RemoveQueuedSessionMessageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoveQueuedSessionMessageResponse)
+	err := c.cc.Invoke(ctx, SessionService_RemoveQueuedMessage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sessionServiceClient) PromoteQueuedMessage(ctx context.Context, in *PromoteQueuedSessionMessageRequest, opts ...grpc.CallOption) (*PromoteQueuedSessionMessageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PromoteQueuedSessionMessageResponse)
+	err := c.cc.Invoke(ctx, SessionService_PromoteQueuedMessage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sessionServiceClient) InterruptRun(ctx context.Context, in *InterruptSessionRunRequest, opts ...grpc.CallOption) (*InterruptSessionRunResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InterruptSessionRunResponse)
+	err := c.cc.Invoke(ctx, SessionService_InterruptRun_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SessionServiceServer is the server API for SessionService service.
 // All implementations must embed UnimplementedSessionServiceServer
 // for forward compatibility.
@@ -287,6 +275,13 @@ type SessionServiceServer interface {
 	Repair(context.Context, *RepairSessionRequest) (*RepairSessionResponse, error)
 	Status(context.Context, *GetSessionStatusRequest) (*GetSessionStatusResponse, error)
 	Timeline(context.Context, *GetSessionTimelineRequest) (*GetSessionTimelineResponse, error)
+	SubmitMessage(context.Context, *SubmitSessionMessageRequest) (*SubmitSessionMessageResponse, error)
+	State(context.Context, *GetSessionStateRequest) (*GetSessionStateResponse, error)
+	Observe(*ObserveSessionRequest, grpc.ServerStreamingServer[ObserveSessionResponse]) error
+	EditQueuedMessage(context.Context, *EditQueuedSessionMessageRequest) (*EditQueuedSessionMessageResponse, error)
+	RemoveQueuedMessage(context.Context, *RemoveQueuedSessionMessageRequest) (*RemoveQueuedSessionMessageResponse, error)
+	PromoteQueuedMessage(context.Context, *PromoteQueuedSessionMessageRequest) (*PromoteQueuedSessionMessageResponse, error)
+	InterruptRun(context.Context, *InterruptSessionRunRequest) (*InterruptSessionRunResponse, error)
 	mustEmbedUnimplementedSessionServiceServer()
 }
 
@@ -329,6 +324,27 @@ func (UnimplementedSessionServiceServer) Status(context.Context, *GetSessionStat
 }
 func (UnimplementedSessionServiceServer) Timeline(context.Context, *GetSessionTimelineRequest) (*GetSessionTimelineResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Timeline not implemented")
+}
+func (UnimplementedSessionServiceServer) SubmitMessage(context.Context, *SubmitSessionMessageRequest) (*SubmitSessionMessageResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SubmitMessage not implemented")
+}
+func (UnimplementedSessionServiceServer) State(context.Context, *GetSessionStateRequest) (*GetSessionStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method State not implemented")
+}
+func (UnimplementedSessionServiceServer) Observe(*ObserveSessionRequest, grpc.ServerStreamingServer[ObserveSessionResponse]) error {
+	return status.Error(codes.Unimplemented, "method Observe not implemented")
+}
+func (UnimplementedSessionServiceServer) EditQueuedMessage(context.Context, *EditQueuedSessionMessageRequest) (*EditQueuedSessionMessageResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method EditQueuedMessage not implemented")
+}
+func (UnimplementedSessionServiceServer) RemoveQueuedMessage(context.Context, *RemoveQueuedSessionMessageRequest) (*RemoveQueuedSessionMessageResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RemoveQueuedMessage not implemented")
+}
+func (UnimplementedSessionServiceServer) PromoteQueuedMessage(context.Context, *PromoteQueuedSessionMessageRequest) (*PromoteQueuedSessionMessageResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PromoteQueuedMessage not implemented")
+}
+func (UnimplementedSessionServiceServer) InterruptRun(context.Context, *InterruptSessionRunRequest) (*InterruptSessionRunResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method InterruptRun not implemented")
 }
 func (UnimplementedSessionServiceServer) mustEmbedUnimplementedSessionServiceServer() {}
 func (UnimplementedSessionServiceServer) testEmbeddedByValue()                        {}
@@ -549,6 +565,125 @@ func _SessionService_Timeline_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SessionService_SubmitMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubmitSessionMessageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServiceServer).SubmitMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SessionService_SubmitMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServiceServer).SubmitMessage(ctx, req.(*SubmitSessionMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SessionService_State_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSessionStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServiceServer).State(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SessionService_State_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServiceServer).State(ctx, req.(*GetSessionStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SessionService_Observe_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ObserveSessionRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(SessionServiceServer).Observe(m, &grpc.GenericServerStream[ObserveSessionRequest, ObserveSessionResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type SessionService_ObserveServer = grpc.ServerStreamingServer[ObserveSessionResponse]
+
+func _SessionService_EditQueuedMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EditQueuedSessionMessageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServiceServer).EditQueuedMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SessionService_EditQueuedMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServiceServer).EditQueuedMessage(ctx, req.(*EditQueuedSessionMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SessionService_RemoveQueuedMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveQueuedSessionMessageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServiceServer).RemoveQueuedMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SessionService_RemoveQueuedMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServiceServer).RemoveQueuedMessage(ctx, req.(*RemoveQueuedSessionMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SessionService_PromoteQueuedMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PromoteQueuedSessionMessageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServiceServer).PromoteQueuedMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SessionService_PromoteQueuedMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServiceServer).PromoteQueuedMessage(ctx, req.(*PromoteQueuedSessionMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SessionService_InterruptRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InterruptSessionRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServiceServer).InterruptRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SessionService_InterruptRun_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServiceServer).InterruptRun(ctx, req.(*InterruptSessionRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SessionService_ServiceDesc is the grpc.ServiceDesc for SessionService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -600,8 +735,38 @@ var SessionService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "Timeline",
 			Handler:    _SessionService_Timeline_Handler,
 		},
+		{
+			MethodName: "SubmitMessage",
+			Handler:    _SessionService_SubmitMessage_Handler,
+		},
+		{
+			MethodName: "State",
+			Handler:    _SessionService_State_Handler,
+		},
+		{
+			MethodName: "EditQueuedMessage",
+			Handler:    _SessionService_EditQueuedMessage_Handler,
+		},
+		{
+			MethodName: "RemoveQueuedMessage",
+			Handler:    _SessionService_RemoveQueuedMessage_Handler,
+		},
+		{
+			MethodName: "PromoteQueuedMessage",
+			Handler:    _SessionService_PromoteQueuedMessage_Handler,
+		},
+		{
+			MethodName: "InterruptRun",
+			Handler:    _SessionService_InterruptRun_Handler,
+		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Observe",
+			Handler:       _SessionService_Observe_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "internal/rpc/proto/morph.proto",
 }
 

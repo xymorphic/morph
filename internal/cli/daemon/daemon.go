@@ -22,6 +22,10 @@ type closeableAgentRunner interface {
 	Close() error
 }
 
+type sessionAgentRunner interface {
+	StartSessionRunner(context.Context) error
+}
+
 var daemonLog = logutils.Module("daemon")
 
 var daemonDependencies = Dependencies{}

@@ -12,10 +12,22 @@ import (
 
 // MorphServiceClientStub is a test stub for morph service client.
 type MorphServiceClientStub struct {
-	Req                *morphpb.RespondRequest
-	Events             []*morphpb.RespondEvent
 	Err                error
 	RecvErr            error
+	SubmitMessageReq   *morphpb.SubmitSessionMessageRequest
+	SubmitMessageResp  *morphpb.SubmitSessionMessageResponse
+	StateReq           *morphpb.GetSessionStateRequest
+	StateResp          *morphpb.GetSessionStateResponse
+	ObserveReq         *morphpb.ObserveSessionRequest
+	ObserveEvents      []*morphpb.ObserveSessionResponse
+	EditQueuedReq      *morphpb.EditQueuedSessionMessageRequest
+	EditQueuedResp     *morphpb.EditQueuedSessionMessageResponse
+	RemoveQueuedReq    *morphpb.RemoveQueuedSessionMessageRequest
+	RemoveQueuedResp   *morphpb.RemoveQueuedSessionMessageResponse
+	PromoteQueuedReq   *morphpb.PromoteQueuedSessionMessageRequest
+	PromoteQueuedResp  *morphpb.PromoteQueuedSessionMessageResponse
+	InterruptRunReq    *morphpb.InterruptSessionRunRequest
+	InterruptRunResp   *morphpb.InterruptSessionRunResponse
 	CreateResp         *morphpb.CreateSessionResponse
 	CreateReq          *morphpb.CreateSessionRequest
 	ListResp           *morphpb.ListSessionsResponse
@@ -59,19 +71,7 @@ type MorphServiceClientStub struct {
 	ApproveResp        *morphpb.ApproveGatewayPairingResponse
 	RevokeReq          *morphpb.RevokeGatewayPairingRequest
 	ClearReq           *morphpb.ClearPendingGatewayPairingsRequest
-	OnRespond          func()
 	OnListModels       func()
-}
-
-func (s *MorphServiceClientStub) Respond(_ context.Context, req *morphpb.RespondRequest, _ ...grpc.CallOption) (grpc.ServerStreamingClient[morphpb.RespondEvent], error) {
-	if s.OnRespond != nil {
-		s.OnRespond()
-	}
-	s.Req = req
-	if s.Err != nil {
-		return nil, s.Err
-	}
-	return &respondStreamStub{events: s.Events, err: s.RecvErr}, nil
 }
 
 func (s *MorphServiceClientStub) Create(_ context.Context, req *morphpb.CreateSessionRequest, _ ...grpc.CallOption) (*morphpb.CreateSessionResponse, error) {
@@ -126,6 +126,72 @@ func (s *MorphServiceClientStub) Status(_ context.Context, req *morphpb.GetSessi
 func (s *MorphServiceClientStub) Timeline(_ context.Context, req *morphpb.GetSessionTimelineRequest, _ ...grpc.CallOption) (*morphpb.GetSessionTimelineResponse, error) {
 	s.TimelineReq = req
 	return s.TimelineResp, s.Err
+}
+
+func (s *MorphServiceClientStub) SubmitMessage(
+	_ context.Context,
+	req *morphpb.SubmitSessionMessageRequest,
+	_ ...grpc.CallOption,
+) (*morphpb.SubmitSessionMessageResponse, error) {
+	s.SubmitMessageReq = req
+	return s.SubmitMessageResp, s.Err
+}
+
+func (s *MorphServiceClientStub) State(
+	_ context.Context,
+	req *morphpb.GetSessionStateRequest,
+	_ ...grpc.CallOption,
+) (*morphpb.GetSessionStateResponse, error) {
+	s.StateReq = req
+	return s.StateResp, s.Err
+}
+
+func (s *MorphServiceClientStub) Observe(
+	_ context.Context,
+	req *morphpb.ObserveSessionRequest,
+	_ ...grpc.CallOption,
+) (grpc.ServerStreamingClient[morphpb.ObserveSessionResponse], error) {
+	s.ObserveReq = req
+	if s.Err != nil {
+		return nil, s.Err
+	}
+	return &observeStreamStub{events: s.ObserveEvents, err: s.RecvErr}, nil
+}
+
+func (s *MorphServiceClientStub) EditQueuedMessage(
+	_ context.Context,
+	req *morphpb.EditQueuedSessionMessageRequest,
+	_ ...grpc.CallOption,
+) (*morphpb.EditQueuedSessionMessageResponse, error) {
+	s.EditQueuedReq = req
+	return s.EditQueuedResp, s.Err
+}
+
+func (s *MorphServiceClientStub) RemoveQueuedMessage(
+	_ context.Context,
+	req *morphpb.RemoveQueuedSessionMessageRequest,
+	_ ...grpc.CallOption,
+) (*morphpb.RemoveQueuedSessionMessageResponse, error) {
+	s.RemoveQueuedReq = req
+	return s.RemoveQueuedResp, s.Err
+}
+
+func (s *MorphServiceClientStub) PromoteQueuedMessage(
+	_ context.Context,
+	req *morphpb.PromoteQueuedSessionMessageRequest,
+	_ ...grpc.CallOption,
+) (*morphpb.PromoteQueuedSessionMessageResponse, error) {
+	s.PromoteQueuedReq = req
+	return s.PromoteQueuedResp, s.Err
+}
+
+func (s *MorphServiceClientStub) InterruptRun(
+	_ context.Context,
+	req *morphpb.InterruptSessionRunRequest,
+	_ ...grpc.CallOption,
+) (*morphpb.InterruptSessionRunResponse, error) {
+	s.InterruptRunReq = req
+	return s.InterruptRunResp, s.Err
 }
 
 func (s *MorphServiceClientStub) ListModels(_ context.Context, req *morphpb.ListModelsRequest, _ ...grpc.CallOption) (*morphpb.ListModelsResponse, error) {
@@ -196,37 +262,37 @@ func (s *MorphServiceClientStub) ClearPendingPairings(_ context.Context, req *mo
 	return &morphpb.ClearPendingGatewayPairingsResponse{}, s.Err
 }
 
-type respondStreamStub struct {
-	events []*morphpb.RespondEvent
+type observeStreamStub struct {
+	events []*morphpb.ObserveSessionResponse
 	err    error
 	index  int
 }
 
-func (s *respondStreamStub) Header() (metadata.MD, error) {
+func (s *observeStreamStub) Header() (metadata.MD, error) {
 	return metadata.MD{}, nil
 }
 
-func (s *respondStreamStub) Trailer() metadata.MD {
+func (s *observeStreamStub) Trailer() metadata.MD {
 	return metadata.MD{}
 }
 
-func (s *respondStreamStub) CloseSend() error {
+func (s *observeStreamStub) CloseSend() error {
 	return nil
 }
 
-func (s *respondStreamStub) Context() context.Context {
+func (s *observeStreamStub) Context() context.Context {
 	return context.Background()
 }
 
-func (s *respondStreamStub) SendMsg(any) error {
+func (s *observeStreamStub) SendMsg(any) error {
 	return nil
 }
 
-func (s *respondStreamStub) RecvMsg(any) error {
+func (s *observeStreamStub) RecvMsg(any) error {
 	return nil
 }
 
-func (s *respondStreamStub) Recv() (*morphpb.RespondEvent, error) {
+func (s *observeStreamStub) Recv() (*morphpb.ObserveSessionResponse, error) {
 	if s.index >= len(s.events) {
 		if s.err != nil {
 			return nil, s.err

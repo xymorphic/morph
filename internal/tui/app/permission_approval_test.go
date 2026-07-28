@@ -57,6 +57,87 @@ func TestModel_PermissionApprovalPromptResolvesFromKeyboard(t *testing.T) {
 	require.Contains(t, next.messages[0].PlainText(), "approved")
 }
 
+func TestModel_ResponsePollSurfacesMatchingPermissionApproval(t *testing.T) {
+	originalInterval := permissionApprovalPollInterval
+	permissionApprovalPollInterval = 0
+	t.Cleanup(func() {
+		permissionApprovalPollInterval = originalInterval
+	})
+
+	client := &permissionAPIStub{requests: []permissions.ApprovalRequest{
+		{
+			ID:        "approval_other_session",
+			SessionID: "other",
+			Surface:   permissions.SurfaceTUI,
+			Status:    permissions.ApprovalPending,
+		},
+		{
+			ID:        "approval_other_surface",
+			SessionID: defaultSessionID,
+			Surface:   permissions.SurfaceCLI,
+			Status:    permissions.ApprovalPending,
+		},
+		{
+			ID:         "approval_matching",
+			SessionID:  defaultSessionID,
+			Surface:    permissions.SurfaceTUI,
+			Status:     permissions.ApprovalPending,
+			Summary:    "run_command · execute process",
+			Effects:    []permissions.Effect{permissions.EffectExecution},
+			Operations: []string{"run command"},
+		},
+	}}
+	runModel := newModel()
+	runModel.permissionClient = client
+	runModel.responding = true
+	runModel.responseID = 7
+
+	message := pollResponsePermissionApprovalsCmd(
+		context.Background(),
+		client,
+		runModel.responseID,
+		defaultSessionID,
+	)().(responsePermissionApprovalsMsg)
+	require.NoError(t, message.Err)
+	require.Len(t, message.Requests, 1)
+
+	next, cmd, handled := runModel.handleAsyncMsg(message)
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	runModel = next.(model)
+	require.Equal(t, "approval_matching", runModel.pendingApprovalID)
+	require.Len(t, runModel.messages, 1)
+	require.Contains(t, stripANSI(runModel.renderCommandView()), "run_command · execute process")
+}
+
+func TestModel_ResponsePollSurfacesPermissionServiceFailure(t *testing.T) {
+	originalInterval := permissionApprovalPollInterval
+	permissionApprovalPollInterval = 0
+	t.Cleanup(func() {
+		permissionApprovalPollInterval = originalInterval
+	})
+
+	runModel := newModel()
+	runModel.permissionClient = &permissionAPIStub{}
+	runModel.responding = true
+	runModel.responseID = 7
+
+	next, cmd, handled := runModel.handleAsyncMsg(responsePermissionApprovalsMsg{
+		ResponseID: runModel.responseID,
+		Err:        errors.New("permission service scope denied"),
+	})
+
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	require.Contains(t, next.(model).status.Text(), "permission approvals unavailable")
+	require.Contains(t, next.(model).status.Text(), "scope denied")
+
+	batch, ok := cmd().(tea.BatchMsg)
+	require.True(t, ok)
+	require.Len(t, batch, 2)
+	require.IsType(t, responsePermissionApprovalsMsg{}, batch[1]())
+}
+
 func TestModel_PermissionApprovalCommandViewNavigatesAndConfirms(t *testing.T) {
 	client := &permissionAPIStub{}
 	runModel := newModel()
@@ -339,6 +420,7 @@ func TestTraceEventToTUIMessage_DecodesPermissionApprovalLifecycle(t *testing.T)
 type permissionAPIStub struct {
 	approved bool
 	scope    permissions.GrantScope
+	requests []permissions.ApprovalRequest
 	err      error
 }
 
@@ -360,8 +442,11 @@ func (s *permissionAPIStub) ResolveApprovalRequest(
 	return permissions.ApprovalRequest{ID: id, Status: status, Scope: scope}, nil
 }
 
-func (*permissionAPIStub) ListApprovalRequests(context.Context, permissions.ApprovalQuery) ([]permissions.ApprovalRequest, error) {
-	return nil, nil
+func (s *permissionAPIStub) ListApprovalRequests(
+	context.Context,
+	permissions.ApprovalQuery,
+) ([]permissions.ApprovalRequest, error) {
+	return append([]permissions.ApprovalRequest(nil), s.requests...), s.err
 }
 func (*permissionAPIStub) GetApprovalRequest(context.Context, string) (permissions.ApprovalRequest, bool, error) {
 	return permissions.ApprovalRequest{}, false, nil

@@ -13,7 +13,8 @@ type ResponseEventsClosed struct {
 
 // ResponseCompleted describes response completed.
 type ResponseCompleted struct {
-	ResponseID int
-	Text       string
-	Err        error
+	ResponseID   int
+	QueueEntryID string
+	Text         string
+	Err          error
 }

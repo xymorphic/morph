@@ -7,6 +7,7 @@ import (
 	storage "github.com/wandxy/morph/internal/state/core"
 	"github.com/wandxy/morph/internal/state/search"
 	agentcore "github.com/wandxy/morph/pkg/agent"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 )
 
 type ModelList struct {
@@ -49,4 +50,14 @@ type ServiceAPI interface {
 	ContextStatus(context.Context, string) (agentcore.ContextStatus, error)
 	GetSessionTimeline(context.Context, SessionTimelineOptions) (SessionTimeline, error)
 	AutomationStore(context.Context) (storage.AutomationStore, bool, error)
+}
+
+type SessionQueueAPI interface {
+	SubmitSessionMessage(context.Context, agentsession.SubmitRequest) (agentsession.QueueEntry, error)
+	GetSessionExecutionState(context.Context, string) (agentsession.ExecutionState, error)
+	ObserveSessionEvents(context.Context, string, int64, func(agentsession.Event) error) error
+	EditSessionQueueEntry(context.Context, agentsession.QueueEditRequest) (agentsession.QueueEntry, error)
+	CancelSessionQueueEntry(context.Context, agentsession.QueueMutationRequest) (agentsession.QueueEntry, error)
+	PromoteSessionQueueEntry(context.Context, agentsession.QueueMutationRequest) (agentsession.QueueEntry, error)
+	InterruptSessionRun(context.Context, string) (agentsession.ActiveRun, bool, error)
 }

@@ -68,7 +68,7 @@ func hasRunningToolTranscriptCell(cells []transcriptCell) bool {
 	for _, cell := range cells {
 		toolCell, ok := cell.(toolTranscriptCell)
 		if !ok {
-			if toolGroup != nil && !toolGroup.isCompleted() {
+			if toolGroup != nil && toolGroup.outcome() == toolTranscriptGroupOutcomeRunning {
 				return true
 			}
 
@@ -76,7 +76,7 @@ func hasRunningToolTranscriptCell(cells []transcriptCell) bool {
 			continue
 		}
 		if toolGroup == nil || toolGroup.action != toolCell.action {
-			if toolGroup != nil && !toolGroup.isCompleted() {
+			if toolGroup != nil && toolGroup.outcome() == toolTranscriptGroupOutcomeRunning {
 				return true
 			}
 
@@ -85,5 +85,5 @@ func hasRunningToolTranscriptCell(cells []transcriptCell) bool {
 		toolGroup.add(toolCell)
 	}
 
-	return toolGroup != nil && !toolGroup.isCompleted()
+	return toolGroup != nil && toolGroup.outcome() == toolTranscriptGroupOutcomeRunning
 }

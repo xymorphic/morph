@@ -156,6 +156,8 @@ type Turn struct {
 
 	// Indicates if plan state was restored from session history.
 	planHydrated bool
+
+	afterToolBatchPersisted func(context.Context) (bool, error)
 }
 
 // NewTurnWithSessionStore returns a turn with reusable session dependencies.
@@ -731,6 +733,18 @@ func (t *Turn) Run(ctx context.Context, msg string, opts agentcore.RespondOption
 				traceSession.Record(trace.EvtSessionFailed, trace.SessionFailedPayload{Error: err.Error()})
 				return agentcore.LoopDecision{}, err
 			}
+			if t.afterToolBatchPersisted != nil {
+				delivered, err := t.afterToolBatchPersisted(ctx)
+				if err != nil {
+					traceSession.Record(trace.EvtSessionFailed, trace.SessionFailedPayload{Error: err.Error()})
+					return agentcore.LoopDecision{}, err
+				}
+				if delivered {
+					lastToolFailure = ""
+					repeatedToolFailureCount = 0
+					return agentcore.LoopDecision{}, nil
+				}
+			}
 
 			failureSignature, failureMessage, failed := getEquivalentToolFailure(toolMessages)
 			if !failed {
@@ -771,6 +785,13 @@ func (t *Turn) Run(ctx context.Context, msg string, opts agentcore.RespondOption
 			return t.summaryFallback(ctx, budget, traceSession)
 		},
 	})
+}
+
+func (t *Turn) setAfterToolBatchPersisted(callback func(context.Context) (bool, error)) {
+	if t == nil {
+		return
+	}
+	t.afterToolBatchPersisted = callback
 }
 
 func getEquivalentToolFailure(messages []morphmsg.Message) (string, string, bool) {

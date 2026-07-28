@@ -120,6 +120,19 @@ func TestDefaultTUIFactories_ConstructProgramAndClient(t *testing.T) {
 	require.NoError(t, client.Close())
 }
 
+func TestGetTUIClientOptions_AuthorizesRequiredServices(t *testing.T) {
+	options := getTUIClientOptions(&config.Config{
+		RPC: config.RPCConfig{Address: "127.0.0.1", Port: 8080},
+	})
+
+	require.ElementsMatch(t, []string{
+		"/morph.v1.SessionService",
+		"/morph.v1.ModelService",
+		"/morph.v1.PermissionService",
+		"/morph.v1.BrowserService",
+	}, options.AuthServices)
+}
+
 func TestLoadTUICommandModel_UsesConfiguredRPCClientAndCleanup(t *testing.T) {
 	originalNewTUIChatClient := newTUIChatClient
 	originalEnsureTUIDaemonRunning := ensureTUIDaemonRunning
@@ -349,12 +362,59 @@ type fakeTUIChatClient struct {
 	closed bool
 }
 
-func (c *fakeTUIChatClient) Respond(
+func (c *fakeTUIChatClient) SubmitMessage(
+	context.Context,
+	rpcclient.SubmitMessageOptions,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, nil
+}
+
+func (c *fakeTUIChatClient) State(
 	context.Context,
 	string,
-	rpcclient.RespondOptions,
-) (string, error) {
-	return "", nil
+) (rpcclient.SessionExecutionState, error) {
+	return rpcclient.SessionExecutionState{}, nil
+}
+
+func (c *fakeTUIChatClient) Observe(
+	context.Context,
+	string,
+	int64,
+	func(rpcclient.SessionEvent) error,
+) error {
+	return nil
+}
+
+func (c *fakeTUIChatClient) EditQueuedMessage(
+	context.Context,
+	string,
+	string,
+	string,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, nil
+}
+
+func (c *fakeTUIChatClient) RemoveQueuedMessage(
+	context.Context,
+	string,
+	string,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, nil
+}
+
+func (c *fakeTUIChatClient) PromoteQueuedMessage(
+	context.Context,
+	string,
+	string,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, nil
+}
+
+func (c *fakeTUIChatClient) InterruptRun(
+	context.Context,
+	string,
+) (rpcclient.SessionActiveRun, bool, error) {
+	return rpcclient.SessionActiveRun{}, false, nil
 }
 
 func (c *fakeTUIChatClient) SessionAPI() rpcclient.SessionAPI {

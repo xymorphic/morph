@@ -12,6 +12,7 @@ type Theme struct {
 	JumpToBottomBackground   string
 	ToolRunningDot           string
 	ToolCompletedDot         string
+	ToolWarningDot           string
 	ToolTitle                string
 	ToolBranch               string
 	ToolDetail               string
@@ -41,6 +42,7 @@ var DefaultTheme = Theme{
 	JumpToBottomBackground:   "234",
 	ToolRunningDot:           "244",
 	ToolCompletedDot:         "83",
+	ToolWarningDot:           "214",
 	ToolTitle:                "246",
 	ToolBranch:               "244",
 	ToolDetail:               "246",

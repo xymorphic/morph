@@ -12,6 +12,7 @@ type tuiRect struct {
 type tuiLayout struct {
 	Transcript         tuiRect
 	JumpToBottom       tuiRect
+	SessionQueue       tuiRect
 	Composer           tuiRect
 	BottomStatusPanel  tuiRect
 	PanelContentWidth  int

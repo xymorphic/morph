@@ -60,7 +60,6 @@ func NewStoreFromDB(db *gorm.DB) (*Store, error) {
 	); err != nil {
 		return nil, fmt.Errorf("failed to migrate session db: %w", err)
 	}
-
 	if err := ensureMemoryStorage(db); err != nil {
 		return nil, err
 	}
@@ -74,7 +73,22 @@ func NewStoreFromDB(db *gorm.DB) (*Store, error) {
 	if err := db.AutoMigrate(&approvalRequestModel{}, &approvalGrantModel{}); err != nil {
 		return nil, fmt.Errorf("failed to migrate permission db: %w", err)
 	}
-
+	if err := db.AutoMigrate(
+		&sessionRunnerStateModel{},
+		&sessionExecutionStateModel{},
+		&sessionQueueEntryModel{},
+		&sessionRunModel{},
+		&sessionEventModel{},
+	); err != nil {
+		return nil, fmt.Errorf("failed to migrate session inbox db: %w", err)
+	}
+	if err := db.Exec(
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_session_runs_active
+		 ON session_runs(session_id)
+		 WHERE status = 'running'`,
+	).Error; err != nil {
+		return nil, fmt.Errorf("failed to migrate session run invariant: %w", err)
+	}
 	return &Store{db: db}, nil
 }
 

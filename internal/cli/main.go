@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -19,7 +20,12 @@ import (
 	rpcclient "github.com/wandxy/morph/internal/rpc/client"
 	"github.com/wandxy/morph/internal/rpc/rpcmeta"
 	"github.com/wandxy/morph/internal/runtime"
+	storage "github.com/wandxy/morph/internal/state/core"
+	agent "github.com/wandxy/morph/pkg/agent"
+	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 	"github.com/wandxy/morph/pkg/logutils"
+	"github.com/wandxy/morph/pkg/nanoid"
 	"github.com/wandxy/morph/pkg/str"
 )
 
@@ -74,7 +80,6 @@ func NewMainAction(opts MainActionOptions) func(context.Context, *urfavecli.Comm
 	if now == nil {
 		now = time.Now
 	}
-
 	return func(ctx context.Context, cmd *urfavecli.Command) error {
 		joinValue := str.String(strings.Join(cmd.Args().Slice(), " "))
 		message := joinValue.Trim()
@@ -139,71 +144,320 @@ func NewMainAction(opts MainActionOptions) func(context.Context, *urfavecli.Comm
 			return err
 		}
 
-		instruct := ""
-		if cmd.IsSet("instruct") {
-			instruct = cfg.Session.Instruct
-		}
 		literalValue := str.String(cmd.String("session"))
 		ctx = rpcmeta.WithOutgoingPermissionSurface(ctx, permissions.SurfaceCLI)
 		ctx = rpcmeta.WithOutgoingPermissionPreset(ctx, cfg.Permissions.EffectivePreset())
 		respondCtx, cancelRespond := context.WithCancel(ctx)
 		defer cancelRespond()
 
+		requestInstruct := ""
+		if cmd.IsSet("instruct") {
+			requestInstruct = cfg.Session.Instruct
+		}
 		approvalHandler := newRootChatApprovalHandler(
 			input,
 			output,
 			getRootChatPermissionAPI(client),
 			isInteractive(input, output),
 		)
-		var approvalErr error
-		responseOptions := rpcclient.RespondOptions{
-			Instruct:  instruct,
-			SessionID: literalValue.Trim(),
-			Stream:    cfg.Models.Main.Stream,
-		}
-		handleEvent := func(event rpcclient.Event) bool {
-			handled, err := approvalHandler.Handle(respondCtx, event)
-			if err != nil && approvalErr == nil {
-				approvalErr = err
-				cancelRespond()
-			}
-			return handled
-		}
+		var formatter *chatStreamFormatter
+		assistantProgress := false
+		var onProgress func(rpcclient.Event) error
 		if cfg.StreamEnabled() {
-			formatter := newChatStreamFormatter(cfg, now, cmd.Bool("no-color"))
+			formatter = newChatStreamFormatter(cfg, now, cmd.Bool("no-color"))
 			formatter.terminalLinefeeds = isTerminalWriter(output)
-			responseOptions.OnEvent = func(event rpcclient.Event) {
-				if handleEvent(event) {
-					return
+			onProgress = func(event rpcclient.Event) error {
+				if event.Channel == "assistant" && event.Text != "" {
+					assistantProgress = true
 				}
-
-				_, _ = fmt.Fprint(output, formatter.Format(event))
+				_, writeErr := fmt.Fprint(output, formatter.Format(event))
+				return writeErr
 			}
-
-			_, err = client.Respond(respondCtx, message, responseOptions)
-			if approvalErr != nil {
-				return approvalErr
-			}
-			if err != nil {
-				return err
-			}
-			_, err = fmt.Fprint(output, formatter.Finish())
-			return err
 		}
-
-		responseOptions.OnEvent = func(event rpcclient.Event) {
-			handleEvent(event)
-		}
-		reply, err := client.Respond(respondCtx, message, responseOptions)
-		if approvalErr != nil {
-			return approvalErr
-		}
+		reply, err := runQueuedRootChat(
+			respondCtx,
+			client,
+			literalValue.Trim(),
+			message,
+			requestInstruct,
+			cfg.Models.Main.Stream,
+			approvalHandler,
+			onProgress,
+		)
 		if err != nil {
 			return err
 		}
 
+		if cfg.StreamEnabled() {
+			if !assistantProgress {
+				if _, err = fmt.Fprint(output, formatter.Format(rpcclient.Event{
+					Kind:    agent.EventKindTextDelta,
+					Channel: "assistant",
+					Text:    reply,
+				})); err != nil {
+					return err
+				}
+			}
+			_, err = fmt.Fprint(output, formatter.Finish())
+			return err
+		}
 		_, err = fmt.Fprintln(output, reply)
 		return err
+	}
+}
+
+var errRootChatRunComplete = errors.New("root chat run complete")
+
+func runQueuedRootChat(
+	ctx context.Context,
+	client rpcclient.ChatClient,
+	sessionID string,
+	message string,
+	instruct string,
+	stream *bool,
+	approvalHandler *rootChatApprovalHandler,
+	onProgress func(rpcclient.Event) error,
+) (string, error) {
+	sessions, ok := client.(interface{ SessionAPI() rpcclient.SessionAPI })
+	if !ok {
+		return "", errors.New("session API is unavailable")
+	}
+	sessionAPI := sessions.SessionAPI()
+	if sessionID == "" {
+		current, err := sessionAPI.Current(ctx)
+		if err != nil {
+			return "", err
+		}
+		sessionID = current.ID
+		if sessionID == "" {
+			sessionID = storage.DefaultSessionID
+		}
+	}
+	submissionID, err := nanoid.Generate("sub_")
+	if err != nil {
+		return "", err
+	}
+	entry, err := client.SubmitMessage(ctx, rpcclient.SubmitMessageOptions{
+		SessionID:          sessionID,
+		Message:            message,
+		Instruct:           instruct,
+		Stream:             stream,
+		ClientSubmissionID: submissionID,
+		DeliveryMode:       agentsession.DeliveryModeFollowUp,
+		SteeringFallback:   agentsession.SteeringFallbackFollowUp,
+	})
+	if err != nil {
+		return "", err
+	}
+	terminal := isTerminalRootChatQueueStatus(entry.Status)
+	if terminal {
+		if err := rootChatQueueTerminalError(entry); err != nil {
+			return "", err
+		}
+	}
+	state, err := client.State(ctx, sessionID)
+	if err != nil {
+		return "", err
+	}
+	var progressSequence int64
+	if onProgress != nil {
+		for _, progress := range state.Progress {
+			if progress.QueueEntryID != entry.ID {
+				continue
+			}
+			progressSequence = max(progressSequence, progress.Sequence)
+			if err := onProgress(rpcclient.Event{
+				Kind: progress.Kind, Channel: progress.Channel, Text: progress.Text,
+			}); err != nil {
+				return "", err
+			}
+		}
+	}
+	for _, queued := range state.Queue {
+		if queued.ID == entry.ID {
+			terminal = isTerminalRootChatQueueStatus(queued.Status)
+			if terminal {
+				if err := rootChatQueueTerminalError(queued); err != nil {
+					return "", err
+				}
+			}
+			break
+		}
+	}
+	if !terminal {
+		observeContext, cancelObserve := context.WithCancel(ctx)
+		approvalDone := make(chan error, 1)
+		if approvalHandler != nil && approvalHandler.permissions != nil {
+			go func() {
+				approvalErr := monitorRootChatApprovals(
+					observeContext,
+					approvalHandler,
+					sessionID,
+				)
+				if approvalErr != nil {
+					cancelObserve()
+				}
+				approvalDone <- approvalErr
+			}()
+		} else {
+			approvalDone <- nil
+		}
+		err = client.Observe(observeContext, sessionID, state.Cursor, func(event rpcclient.SessionEvent) error {
+			if event.Progress != nil &&
+				event.Progress.QueueEntryID == entry.ID &&
+				event.Progress.Sequence > progressSequence &&
+				onProgress != nil {
+				progressSequence = event.Progress.Sequence
+				return onProgress(rpcclient.Event{
+					Kind: event.Progress.Kind, Channel: event.Progress.Channel,
+					Text: event.Progress.Text,
+				})
+			}
+			if event.Queue != nil && event.Queue.ID == entry.ID &&
+				isTerminalRootChatQueueStatus(event.Queue.Status) {
+				if err := rootChatQueueTerminalError(*event.Queue); err != nil {
+					return err
+				}
+				return errRootChatRunComplete
+			}
+			if event.Run != nil && event.Run.QueueEntryID == entry.ID &&
+				event.Run.Status != agentsession.RunStatusRunning {
+				if err := rootChatRunTerminalError(*event.Run); err != nil {
+					return err
+				}
+				return errRootChatRunComplete
+			}
+			return nil
+		})
+		cancelObserve()
+		approvalErr := <-approvalDone
+		if approvalErr != nil {
+			return "", approvalErr
+		}
+		if err != nil && !errors.Is(err, errRootChatRunComplete) {
+			return "", err
+		}
+	}
+	completedEntry := entry
+	finalState, err := client.State(ctx, sessionID)
+	if err != nil {
+		return "", err
+	}
+	for _, queued := range finalState.Queue {
+		if queued.ID == entry.ID {
+			completedEntry = queued
+			break
+		}
+	}
+	timeline, err := sessionAPI.Timeline(ctx, rpcclient.SessionTimelineOptions{
+		SessionID: sessionID,
+	})
+	if err != nil {
+		return "", err
+	}
+	for index := len(timeline.Messages) - 1; index >= 0; index-- {
+		item := timeline.Messages[index].Message
+		if item.Role != morphmsg.RoleAssistant || item.Content == "" {
+			continue
+		}
+		if !completedEntry.StartedAt.IsZero() && item.CreatedAt.Before(completedEntry.StartedAt) {
+			continue
+		}
+		if !completedEntry.CompletedAt.IsZero() && item.CreatedAt.After(completedEntry.CompletedAt) {
+			continue
+		}
+		return item.Content, nil
+	}
+	return "", errors.New("session run completed without an assistant response")
+}
+
+func monitorRootChatApprovals(
+	ctx context.Context,
+	handler *rootChatApprovalHandler,
+	sessionID string,
+) error {
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	handled := make(map[string]struct{})
+	for {
+		requests, err := handler.permissions.ListApprovalRequests(ctx, permissions.ApprovalQuery{
+			Status: permissions.ApprovalPending,
+			Limit:  100,
+		})
+		if err != nil {
+			if ctx.Err() != nil || errors.Is(err, context.Canceled) {
+				return nil
+			}
+			return err
+		}
+		for _, request := range requests {
+			if request.SessionID != sessionID {
+				continue
+			}
+			if _, ok := handled[request.ID]; ok {
+				continue
+			}
+			handled[request.ID] = struct{}{}
+			if err := handler.HandleRequest(ctx, request); err != nil {
+				return err
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+		}
+	}
+}
+
+func isTerminalRootChatQueueStatus(status agentsession.QueueStatus) bool {
+	switch status {
+	case agentsession.QueueStatusDelivered,
+		agentsession.QueueStatusCompleted,
+		agentsession.QueueStatusInterrupted,
+		agentsession.QueueStatusFailed,
+		agentsession.QueueStatusCancelled:
+		return true
+	default:
+		return false
+	}
+}
+
+func rootChatQueueTerminalError(entry rpcclient.SessionQueueEntry) error {
+	switch entry.Status {
+	case agentsession.QueueStatusInterrupted:
+		if entry.LastError != "" {
+			return fmt.Errorf("session run interrupted: %s", entry.LastError)
+		}
+		return errors.New("session run interrupted")
+	case agentsession.QueueStatusFailed:
+		if entry.LastError != "" {
+			return errors.New(entry.LastError)
+		}
+		return errors.New("session run failed")
+	case agentsession.QueueStatusCancelled:
+		return errors.New("session run cancelled")
+	default:
+		return nil
+	}
+}
+
+func rootChatRunTerminalError(run rpcclient.SessionActiveRun) error {
+	switch run.Status {
+	case agentsession.RunStatusFailed:
+		if run.LastError != "" {
+			return errors.New(run.LastError)
+		}
+		return errors.New("session run failed")
+	case agentsession.RunStatusInterrupted:
+		if run.Reason != "" {
+			return fmt.Errorf("session run interrupted: %s", run.Reason)
+		}
+		return errors.New("session run interrupted")
+	case agentsession.RunStatusCancelled:
+		return errors.New("session run cancelled")
+	default:
+		return nil
 	}
 }
 
@@ -497,7 +751,6 @@ func newDefaultChatClient(ctx context.Context, cfg *config.Config) (rpcclient.Ch
 		PermissionSurface: permissions.SurfaceCLI,
 		PermissionPreset:  cfg.Permissions.EffectivePreset(),
 		AuthServices: []string{
-			"/morph.v1.MorphService",
 			"/morph.v1.SessionService",
 			"/morph.v1.ModelService",
 			"/morph.v1.PermissionService",

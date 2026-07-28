@@ -1,9 +1,12 @@
 package tui
 
 import (
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 
 	tuicomposer "github.com/wandxy/morph/internal/tui/composer"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 )
 
 const (
@@ -43,14 +46,35 @@ func normalizeComposerPaste(value string) string {
 
 // submitPrompt routes a non-empty composer value to prompt or command handling.
 func (m *model) submitPrompt() tea.Cmd {
+	if m.sessionQueueEditingEntryID != "" && m.sessionQueueStale {
+		return tea.Batch(
+			m.setStatus("queue state is stale; refreshing"),
+			loadSessionExecutionStateCmd(m.chatCtx, m.chatClient, m.getCurrentSessionID()),
+		)
+	}
+
+	if m.sessionQueueEditingEntryID != "" {
+		content := strings.TrimSpace(m.input.Value())
+		if content == "" {
+			return m.setStatus("queued message cannot be empty")
+		}
+		if m.sessionQueueEditSaving {
+			return nil
+		}
+		m.sessionQueueEditSaving = true
+		return editQueuedMessageCmd(
+			m.chatCtx,
+			m.chatClient,
+			m.getCurrentSessionID(),
+			m.sessionQueueEditingEntryID,
+			content,
+		)
+	}
+
 	input := m.parseComposerInputForSubmit()
 
 	if input.Kind == composerInputEmpty {
 		return nil
-	}
-
-	if input.Kind == composerInputPrompt && m.responding {
-		return m.setStatus("response already in progress")
 	}
 
 	var cmd tea.Cmd
@@ -58,7 +82,28 @@ func (m *model) submitPrompt() tea.Cmd {
 
 	switch input.Kind {
 	case composerInputPrompt:
+		if m.sessionQueueStale {
+			return tea.Batch(
+				m.setStatus("queue state is stale; refreshing"),
+				loadSessionExecutionStateCmd(m.chatCtx, m.chatClient, m.getCurrentSessionID()),
+			)
+		}
 		cmd = m.addPromptHistory(input.Text)
+		if m.responding || m.sessionExecutionState.ActiveRun != nil {
+			m.clearComposer()
+			m.resize()
+			return tea.Batch(
+				cmd,
+				submitQueuedMessageCmd(
+					m.chatCtx,
+					m.chatClient,
+					m.getCurrentSessionID(),
+					input.Text,
+					agentsession.DeliveryModeFollowUp,
+					agentsession.SteeringFallbackFollowUp,
+				),
+			)
+		}
 		followTranscript := m.isTranscriptAtAbsoluteBottom()
 
 		m.applyAction(appendTranscriptCellAction{Cell: userTranscriptCell{text: input.Text}})

@@ -25,9 +25,6 @@ type SessionArchiver interface {
 // Event is the streaming event type consumed by the TUI RPC client.
 type Event = rpcclient.Event
 
-// RespondOptions mirrors agent response options at this package boundary.
-type RespondOptions = rpcclient.RespondOptions
-
 // SessionTimeline mirrors the agent timeline type at this package boundary.
 type SessionTimeline = rpcclient.SessionTimeline
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -22,7 +23,6 @@ import (
 	storage "github.com/wandxy/morph/internal/state/core"
 	"github.com/wandxy/morph/internal/state/search"
 	"github.com/wandxy/morph/internal/trace"
-	agent "github.com/wandxy/morph/pkg/agent"
 	agentsession "github.com/wandxy/morph/pkg/agent/session"
 	"github.com/wandxy/morph/pkg/gateway/pairing"
 	"github.com/wandxy/morph/pkg/str"
@@ -33,7 +33,6 @@ import (
 
 // Service is the RPC service that wraps the agent-facing service interface.
 type Service struct {
-	morphpb.UnimplementedMorphServiceServer
 	morphpb.UnimplementedSessionServiceServer
 	morphpb.UnimplementedModelServiceServer
 	api                  morphagent.ServiceAPI
@@ -193,80 +192,6 @@ func normalizeRuntimeModelBaseURL(value string) string {
 	return strings.TrimRight(valueText.Trim(), "/")
 }
 
-// Respond sends a chat request to the service and returns the completed response.
-func (s *Service) Respond(req *morphpb.RespondRequest, stream morphpb.MorphService_RespondServer) error {
-	if s == nil {
-		return status.Error(codes.Internal, "service is required")
-	}
-	if s.api == nil {
-		return status.Error(codes.Internal, "agent handler is required")
-	}
-	if req == nil {
-		return status.Error(codes.InvalidArgument, "respond request is required")
-	}
-
-	ctx := stream.Context()
-	ctx = permissions.WithContext(ctx, permissions.AuthorizationContext{
-		Actor:     rpcmeta.PermissionActorFromIncomingContext(ctx),
-		Surface:   rpcmeta.PermissionSurfaceFromIncomingContext(ctx),
-		SessionID: req.GetId(),
-	})
-	ctx = withIncomingPermissionPreset(ctx)
-	streamed := false
-	var sendErr error
-	opts := agent.RespondOptions{
-		Instruct:    req.Instruct,
-		SessionID:   req.GetId(),
-		Stream:      req.Stream,
-		TraceEvents: true,
-		OnEvent: func(event agent.Event) {
-			if sendErr != nil {
-				return
-			}
-
-			protoEvent, ok := eventToProtoRespondEvent(event)
-			if !ok {
-				return
-			}
-			if protoEvent.GetType() == morphpb.RespondEvent_TEXT_DELTA {
-				streamed = true
-			}
-			sendErr = stream.Send(protoEvent)
-		},
-	}
-
-	reply, err := s.api.Respond(ctx, req.Message, opts)
-	if sendErr != nil {
-		return sendErr
-	}
-	if err != nil {
-		grpcErr := getGRPCError(err)
-		if sendErr := stream.Send(&morphpb.RespondEvent{
-			Type:      morphpb.RespondEvent_ERROR,
-			Error:     status.Convert(grpcErr).Message(),
-			Timestamp: timestamppb.New(time.Now().UTC()),
-		}); sendErr != nil {
-			return sendErr
-		}
-		return nil
-	}
-
-	if !streamed {
-		if err := stream.Send(&morphpb.RespondEvent{
-			Type:    morphpb.RespondEvent_TEXT_DELTA,
-			Text:    reply,
-			Channel: morphpb.RespondEvent_ASSISTANT,
-		}); err != nil {
-			return err
-		}
-	}
-
-	return stream.Send(&morphpb.RespondEvent{
-		Type:      morphpb.RespondEvent_DONE,
-		Timestamp: timestamppb.New(time.Now().UTC()),
-	})
-}
-
 func withIncomingPermissionPreset(ctx context.Context) context.Context {
 	authorization, ok := permissions.FromContext(ctx)
 	if !ok || authorization.Actor.Kind != permissions.ActorLocalOwner ||
@@ -280,83 +205,6 @@ func withIncomingPermissionPreset(ctx context.Context) context.Context {
 	}
 
 	return ctx
-}
-
-func eventToProtoRespondEvent(event agent.Event) (*morphpb.RespondEvent, bool) {
-	kindValue := str.String(event.Kind)
-	kind := kindValue.Trim()
-	if kind == agent.EventKindTrace {
-		traceEvent, ok := traceEventFromAgentEvent(event)
-		if !ok {
-			return nil, false
-		}
-		return traceEventToProtoRespondEvent(traceEvent)
-	}
-	if kind != "" && kind != agent.EventKindTextDelta {
-		return nil, false
-	}
-
-	return &morphpb.RespondEvent{
-		Type:    morphpb.RespondEvent_TEXT_DELTA,
-		Text:    event.Text,
-		Channel: agentChannelToProtoStreamChannel(event.Channel),
-	}, true
-}
-
-func traceEventFromAgentEvent(event agent.Event) (trace.Event, bool) {
-	switch value := event.TraceEvent.(type) {
-	case trace.Event:
-		return value, true
-	case *trace.Event:
-		if value == nil {
-			return trace.Event{}, false
-		}
-		return *value, true
-	default:
-		return trace.Event{}, false
-	}
-}
-
-func agentChannelToProtoStreamChannel(channel string) morphpb.RespondEvent_Channel {
-	channelValue := str.String(channel)
-	switch channelValue.Normalized() {
-	case "reasoning":
-		return morphpb.RespondEvent_REASONING
-	default:
-		return morphpb.RespondEvent_ASSISTANT
-	}
-}
-
-func traceEventToProtoRespondEvent(event trace.Event) (*morphpb.RespondEvent, bool) {
-	trimmedValueValue := str.String(event.Type)
-	event.Type = trimmedValueValue.Trim()
-	if event.Type == "" {
-		return nil, false
-	}
-
-	payload, ok := getRPCTracePayload(event.Type, event.Payload)
-	if !ok {
-		return nil, false
-	}
-
-	payloadJSON, err := marshalRPCJSON(payload)
-	if err != nil {
-		return nil, false
-	}
-	sessionIDValue := str.String(event.SessionID)
-	protoEvent := &morphpb.RespondEvent{
-		Type:             morphpb.RespondEvent_TRACE_EVENT,
-		TraceSessionId:   sessionIDValue.Trim(),
-		TraceType:        event.Type,
-		TracePayloadJson: string(payloadJSON),
-	}
-	if !event.Timestamp.IsZero() {
-		protoEvent.Timestamp = timestamppb.New(event.Timestamp.UTC())
-	} else {
-		protoEvent.Timestamp = timestamppb.New(time.Now().UTC())
-	}
-
-	return protoEvent, true
 }
 
 func getRPCTracePayload(eventType string, payload any) (any, bool) {
@@ -623,6 +471,8 @@ func getRPCTraceToolDetail(name string, input string) string {
 	switch action {
 	case "Automation":
 		return getRPCAutomationToolDetail(inputFields)
+	case "Browser":
+		return getRPCBrowserToolDetail(inputFields)
 	case "Run":
 		return getRPCRunToolDetail(inputFields)
 	case "Web Search", "Memory Search":
@@ -639,6 +489,97 @@ func getRPCTraceToolDetail(name string, input string) string {
 		}
 		return ""
 	}
+}
+
+func getRPCBrowserToolDetail(inputFields map[string]any) string {
+	action := str.String(getRPCMapString(inputFields, "action")).Normalized()
+	if action == "" {
+		return "browser"
+	}
+
+	target := ""
+	switch action {
+	case "status", "profiles":
+	case "start":
+		target = getRPCBrowserNamedTarget("Profile", getRPCMapString(inputFields, "profile"))
+	case "stop", "tabs":
+		target = getRPCBrowserNamedTarget("Session", getRPCMapString(inputFields, "session_id"))
+	case "open", "navigate":
+		target = getRPCBrowserURLTarget(getRPCMapString(inputFields, "url"))
+	case "click", "type", "select", "upload", "download":
+		target = getRPCBrowserNamedTarget("Element", getRPCMapString(inputFields, "ref"))
+	case "accept_dialog", "dismiss_dialog":
+		target = getRPCBrowserNamedTarget("Dialog", getRPCMapString(inputFields, "ref"))
+	case "screenshot":
+		target = "Viewport"
+		if fullPage, ok := inputFields["full_page"].(bool); ok && fullPage {
+			target = "Full page"
+		}
+		target = joinRPCBrowserDetail(target, getRPCBrowserTabTarget(inputFields))
+	case "wait":
+		context := getRPCBrowserTabTarget(inputFields)
+		condition := str.String(getRPCMapString(inputFields, "condition")).Normalized()
+		if condition == "visible" {
+			context = getRPCBrowserNamedTarget("Element", getRPCMapString(inputFields, "ref"))
+		}
+		target = joinRPCBrowserDetail(getRPCBrowserWaitTarget(condition), context)
+	default:
+		target = getRPCBrowserTabTarget(inputFields)
+	}
+	if target == "" {
+		return action
+	}
+
+	return action + ":" + target
+}
+
+func getRPCBrowserURLTarget(rawURL string) string {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || parsed.Hostname() == "" {
+		return ""
+	}
+
+	return parsed.Scheme + "://" + parsed.Host
+}
+
+func getRPCBrowserTabTarget(inputFields map[string]any) string {
+	return getRPCBrowserNamedTarget("Tab", getRPCMapString(inputFields, "tab_id"))
+}
+
+func getRPCBrowserNamedTarget(label string, value string) string {
+	sanitized, _ := guardrails.NewRedactor().Sanitize(strings.TrimSpace(value)).(string)
+	sanitized = truncateRPCTraceToolDetail(sanitized, 80)
+	if sanitized == "" {
+		return ""
+	}
+
+	return label + " " + sanitized
+}
+
+func getRPCBrowserWaitTarget(condition string) string {
+	switch condition {
+	case "load":
+		return "Page load"
+	case "text":
+		return "Text appears"
+	case "url":
+		return "URL matches"
+	case "visible":
+		return "Element becomes visible"
+	default:
+		return "Condition"
+	}
+}
+
+func joinRPCBrowserDetail(values ...string) string {
+	parts := make([]string, 0, len(values))
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			parts = append(parts, value)
+		}
+	}
+
+	return strings.Join(parts, " · ")
 }
 
 func getRPCAutomationToolDetail(inputFields map[string]any) string {
@@ -1969,6 +1910,9 @@ func getGRPCError(err error) error {
 		return status.Error(codes.Canceled, message)
 	case errors.Is(err, context.DeadlineExceeded):
 		return status.Error(codes.DeadlineExceeded, message)
+	case errors.Is(err, agentsession.ErrCursorBeyondSession),
+		errors.Is(err, agentsession.ErrSteeringRequiresRun):
+		return status.Error(codes.FailedPrecondition, message)
 	case strings.HasSuffix(message, "is required"),
 		strings.Contains(message, "is required when"),
 		strings.Contains(message, "API key is required"),

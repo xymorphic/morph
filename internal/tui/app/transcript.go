@@ -418,7 +418,8 @@ func mergeToolTranscriptCells(existing toolTranscriptCell, completed toolTranscr
 		merged.action = completed.action
 	}
 	detailValue := str.String(merged.detail)
-	if detailValue.Trim() == "" {
+	if detailValue.Trim() == "" ||
+		isToolTranscriptFallbackDetail(merged) && !isToolTranscriptFallbackDetail(completed) {
 		merged.detail = completed.detail
 	}
 	merged.planState = mergePlanToolDisplayState(merged.planState, completed.planState)
@@ -447,6 +448,16 @@ func mergeToolTranscriptCells(existing toolTranscriptCell, completed toolTranscr
 	}
 
 	return merged
+}
+
+func isToolTranscriptFallbackDetail(cell toolTranscriptCell) bool {
+	detail := str.String(cell.detail).Trim()
+	action := str.String(cell.action).Trim()
+	if detail == "" || action == "" {
+		return false
+	}
+
+	return getToolActionName(detail) == action
 }
 
 func (m *model) failRunningToolTranscriptCells(failedAt time.Time, failure string) {

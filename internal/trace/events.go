@@ -91,6 +91,13 @@ const (
 	EvtPlanUpdated                                = "plan.updated"
 	EvtPlanCleared                                = "plan.cleared"
 	EvtPlanHydrated                               = "plan.hydrated"
+	EvtSessionQueueEnqueued                       = "session.queue.enqueued"
+	EvtSessionQueueClaimed                        = "session.queue.claimed"
+	EvtSessionSteeringDelivered                   = "session.steering.delivered"
+	EvtSessionQueueCompleted                      = "session.queue.completed"
+	EvtSessionQueueInterrupted                    = "session.queue.interrupted"
+	EvtSessionQueueFailed                         = "session.queue.failed"
+	EvtSessionQueueCancelled                      = "session.queue.cancelled"
 )
 
 var episodicMemoryTraceEventTypes = []string{
@@ -209,6 +216,13 @@ var allTraceEventTypes = []string{
 	EvtPlanUpdated,
 	EvtPlanCleared,
 	EvtPlanHydrated,
+	EvtSessionQueueEnqueued,
+	EvtSessionQueueClaimed,
+	EvtSessionSteeringDelivered,
+	EvtSessionQueueCompleted,
+	EvtSessionQueueInterrupted,
+	EvtSessionQueueFailed,
+	EvtSessionQueueCancelled,
 }
 
 // AllTraceEventTypes returns every known trace event type.

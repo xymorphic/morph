@@ -168,10 +168,58 @@ func (s *chromiumSession) CloseTab(ctx context.Context, tabID string) error {
 }
 
 func (s *chromiumSession) Navigate(ctx context.Context, tabID, rawURL string) (BackendTab, error) {
-	if err := s.runInTab(ctx, tabID, chromedp.Navigate(rawURL), chromedp.WaitReady("body", chromedp.ByQuery)); err != nil {
+	if err := s.runInTab(
+		ctx,
+		tabID,
+		navigateToDOMContentLoaded(rawURL),
+		chromedp.WaitReady("body", chromedp.ByQuery),
+	); err != nil {
 		return BackendTab{}, err
 	}
 	return s.getBackendTab(ctx, tabID)
+}
+
+func navigateToDOMContentLoaded(rawURL string) chromedp.Action {
+	return chromedp.ActionFunc(func(ctx context.Context) error {
+		listenerCtx, cancelListener := context.WithCancel(ctx)
+		defer cancelListener()
+		lifecycleEvents := make(chan *page.EventLifecycleEvent, 128)
+		chromedp.ListenTarget(listenerCtx, func(event any) {
+			lifecycleEvent, ok := event.(*page.EventLifecycleEvent)
+			if !ok || lifecycleEvent.Name != "DOMContentLoaded" {
+				return
+			}
+			select {
+			case lifecycleEvents <- lifecycleEvent:
+			default:
+			}
+		})
+
+		frameID, loaderID, errorText, isDownload, err := page.Navigate(rawURL).Do(ctx)
+		if err != nil {
+			return err
+		}
+		if errorText != "" {
+			return fmt.Errorf("page load error %s", errorText)
+		}
+		if isDownload {
+			return errors.New("browser navigation became a download")
+		}
+		if loaderID == "" {
+			return nil
+		}
+
+		for {
+			select {
+			case event := <-lifecycleEvents:
+				if event.FrameID == frameID && event.LoaderID == loaderID {
+					return nil
+				}
+			case <-ctx.Done():
+				return context.Cause(ctx)
+			}
+		}
+	})
 }
 
 func (s *chromiumSession) Back(ctx context.Context, tabID string) (BackendTab, error) {

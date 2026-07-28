@@ -10,6 +10,7 @@ import (
 	storage "github.com/wandxy/morph/internal/state/core"
 	"github.com/wandxy/morph/internal/state/search"
 	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 	"github.com/wandxy/morph/pkg/gateway/pairing"
 	"github.com/wandxy/morph/pkg/str"
 )
@@ -65,6 +66,159 @@ func (m *Manager) Close() error {
 
 func (m *Manager) sessions() storage.SessionStore {
 	return m.store.Session()
+}
+
+func (m *Manager) inbox() (agentsession.InboxStore, error) {
+	if m == nil || m.store == nil {
+		return nil, errors.New("state manager is required")
+	}
+	store, ok := m.sessions().(agentsession.InboxStore)
+	if !ok {
+		return nil, errors.New("session inbox is not supported")
+	}
+	return store, nil
+}
+
+func (m *Manager) SupportsSessionInbox() bool {
+	if m == nil || m.store == nil {
+		return false
+	}
+	_, ok := m.sessions().(agentsession.InboxStore)
+	return ok
+}
+
+func (m *Manager) SubmitMessage(
+	ctx context.Context,
+	req agentsession.SubmitRequest,
+) (agentsession.QueueEntry, error) {
+	store, err := m.inbox()
+	if err != nil {
+		return agentsession.QueueEntry{}, err
+	}
+	if _, err := m.Resolve(ctx, req.SessionID); err != nil {
+		return agentsession.QueueEntry{}, err
+	}
+	return store.SubmitMessage(ctx, req)
+}
+
+func (m *Manager) GetExecutionState(
+	ctx context.Context,
+	sessionID string,
+) (agentsession.ExecutionState, error) {
+	store, err := m.inbox()
+	if err != nil {
+		return agentsession.ExecutionState{}, err
+	}
+	return store.GetExecutionState(ctx, sessionID)
+}
+
+func (m *Manager) ListEvents(
+	ctx context.Context,
+	sessionID string,
+	afterCursor int64,
+	limit int,
+) (agentsession.EventBatch, error) {
+	store, err := m.inbox()
+	if err != nil {
+		return agentsession.EventBatch{}, err
+	}
+	return store.ListEvents(ctx, sessionID, afterCursor, limit)
+}
+
+func (m *Manager) EditQueueEntry(
+	ctx context.Context,
+	req agentsession.QueueEditRequest,
+) (agentsession.QueueEntry, error) {
+	store, err := m.inbox()
+	if err != nil {
+		return agentsession.QueueEntry{}, err
+	}
+	return store.EditQueueEntry(ctx, req)
+}
+
+func (m *Manager) CancelQueueEntry(
+	ctx context.Context,
+	req agentsession.QueueMutationRequest,
+) (agentsession.QueueEntry, error) {
+	store, err := m.inbox()
+	if err != nil {
+		return agentsession.QueueEntry{}, err
+	}
+	return store.CancelQueueEntry(ctx, req)
+}
+
+func (m *Manager) PromoteQueueEntry(
+	ctx context.Context,
+	req agentsession.QueueMutationRequest,
+) (agentsession.QueueEntry, error) {
+	store, err := m.inbox()
+	if err != nil {
+		return agentsession.QueueEntry{}, err
+	}
+	return store.PromoteQueueEntry(ctx, req)
+}
+
+func (m *Manager) ClaimNextFollowUp(
+	ctx context.Context,
+	req agentsession.ClaimRequest,
+) (agentsession.QueueEntry, agentsession.ActiveRun, bool, error) {
+	store, err := m.inbox()
+	if err != nil {
+		return agentsession.QueueEntry{}, agentsession.ActiveRun{}, false, err
+	}
+	return store.ClaimNextFollowUp(ctx, req)
+}
+
+func (m *Manager) ClaimSteering(
+	ctx context.Context,
+	req agentsession.SteeringClaimRequest,
+) ([]agentsession.QueueEntry, error) {
+	store, err := m.inbox()
+	if err != nil {
+		return nil, err
+	}
+	return store.ClaimSteering(ctx, req)
+}
+
+func (m *Manager) HasPendingSteering(
+	ctx context.Context,
+	req agentsession.SteeringClaimRequest,
+) (bool, error) {
+	store, err := m.inbox()
+	if err != nil {
+		return false, err
+	}
+	return store.HasPendingSteering(ctx, req)
+}
+
+func (m *Manager) FinishSessionRun(
+	ctx context.Context,
+	req agentsession.RunFinishRequest,
+) (agentsession.ActiveRun, bool, error) {
+	store, err := m.inbox()
+	if err != nil {
+		return agentsession.ActiveRun{}, false, err
+	}
+	return store.FinishSessionRun(ctx, req)
+}
+
+func (m *Manager) ReconcileActiveRuns(
+	ctx context.Context,
+	generation string,
+) (agentsession.ReconcileResult, error) {
+	store, err := m.inbox()
+	if err != nil {
+		return agentsession.ReconcileResult{}, err
+	}
+	return store.ReconcileActiveRuns(ctx, generation)
+}
+
+func (m *Manager) ListRunnableSessions(ctx context.Context) ([]string, error) {
+	store, err := m.inbox()
+	if err != nil {
+		return nil, err
+	}
+	return store.ListRunnableSessions(ctx)
 }
 
 func (m *Manager) AutomationStore() (storage.AutomationStore, bool) {

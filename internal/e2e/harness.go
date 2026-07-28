@@ -93,7 +93,6 @@ func NewHarness(ctx context.Context, opts HarnessOptions) (*Harness, error) {
 		restoreEnv()
 		return nil, err
 	}
-
 	inspectStore, err := openHarnessInspectStore(cfg)
 	if err != nil {
 		cancel()

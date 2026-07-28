@@ -16,12 +16,15 @@ func (m model) View() tea.View {
 	if m.isCommandViewVisible() {
 		bottomPanel = m.renderCommandView()
 	}
-	mainContent := lipgloss.JoinVertical(
-		lipgloss.Left,
+	parts := []string{
 		m.renderTranscript(),
 		m.renderJumpToBottom(),
-		bottomPanel,
-	)
+	}
+	if sessionQueue := m.renderSessionQueue(); sessionQueue != "" {
+		parts = append(parts, sessionQueue)
+	}
+	parts = append(parts, bottomPanel)
+	mainContent := lipgloss.JoinVertical(lipgloss.Left, parts...)
 	view := tea.NewView(mainContent)
 	view.AltScreen = true
 	view.MouseMode = tea.MouseModeCellMotion
@@ -87,10 +90,20 @@ func (m model) getTUILayout(inputHeight int) tuiLayout {
 		)
 	}
 
-	return getTUILayoutWithInputChromeHeight(
+	queueHeight := m.getSessionQueueHeight()
+	layout := getTUILayoutWithInputChromeHeight(
 		m.width,
 		m.height,
 		inputHeight,
-		m.getInputChromeHeightForValue(m.input.Value()),
+		m.getInputChromeHeightForValue(m.input.Value())+queueHeight,
 	)
+	layout.SessionQueue = tuiRect{
+		X:      0,
+		Y:      layout.Composer.Y,
+		Width:  layout.Composer.Width,
+		Height: queueHeight,
+	}
+	layout.Composer.Y += queueHeight
+	layout.BottomStatusPanel.Y += queueHeight
+	return layout
 }

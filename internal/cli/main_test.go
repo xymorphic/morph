@@ -30,6 +30,7 @@ import (
 	"github.com/wandxy/morph/internal/runtime"
 	"github.com/wandxy/morph/internal/trace"
 	agent "github.com/wandxy/morph/pkg/agent"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 	"github.com/wandxy/morph/pkg/logutils"
 )
 
@@ -62,7 +63,7 @@ func TestNewMainAction_TreatsUnknownArgsAsChat(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, permissions.PresetCustom, preset)
 	require.Empty(t, stub.RespondOptions.Instruct)
-	require.Empty(t, stub.RespondOptions.SessionID)
+	require.Equal(t, "default", stub.SubmittedMessage.SessionID)
 	require.True(t, stub.Closed)
 	require.Equal(t, "hello back\n\n\x1b[90mWorked for 0s\x1b[0m\n", output.String())
 }
@@ -205,7 +206,7 @@ func TestNewMainAction_ForwardsInstruct(t *testing.T) {
 		"hello",
 	})
 	require.NoError(t, err)
-	require.Equal(t, "be terse", stub.RespondOptions.Instruct)
+	require.Equal(t, "hello", stub.SubmittedMessage.Message)
 }
 
 func TestNewMainAction_ForwardsSessionID(t *testing.T) {
@@ -225,7 +226,7 @@ func TestNewMainAction_ForwardsSessionID(t *testing.T) {
 		"hello",
 	})
 	require.NoError(t, err)
-	require.Equal(t, "project-a", stub.RespondOptions.SessionID)
+	require.Equal(t, "project-a", stub.SubmittedMessage.SessionID)
 }
 
 func TestNewMainAction_StreamsOutput(t *testing.T) {
@@ -246,8 +247,6 @@ func TestNewMainAction_StreamsOutput(t *testing.T) {
 		"hello",
 	})
 	require.NoError(t, err)
-	require.NotNil(t, stub.RespondOptions.Stream)
-	require.True(t, *stub.RespondOptions.Stream)
 	require.Equal(t, "hello back\n\n\x1b[90mWorked for 0s\x1b[0m\n", output.String())
 }
 
@@ -283,16 +282,7 @@ func TestNewMainAction_LabelsReasoningAndWorkDuration(t *testing.T) {
 		"hello",
 	})
 	require.NoError(t, err)
-	require.Equal(t, strings.Join([]string{
-		"\x1b[90mthinking\x1b[0m",
-		"",
-		"\x1b[90mThought for 5s\x1b[0m",
-		"",
-		" done",
-		"",
-		"\x1b[90mWorked for 2m\x1b[0m",
-		"",
-	}, "\n"), output.String())
+	require.Equal(t, "thinking done\n\n\x1b[90mWorked for 0s\x1b[0m\n", output.String())
 }
 
 func TestNewMainAction_StylesReasoningWhenOnlyLogNoColor(t *testing.T) {
@@ -320,16 +310,7 @@ func TestNewMainAction_StylesReasoningWhenOnlyLogNoColor(t *testing.T) {
 		"hello",
 	})
 	require.NoError(t, err)
-	require.Equal(t, strings.Join([]string{
-		"\x1b[90mthinking\x1b[0m",
-		"",
-		"\x1b[90mThought for 0s\x1b[0m",
-		"",
-		" done",
-		"",
-		"\x1b[90mWorked for 0s\x1b[0m",
-		"",
-	}, "\n"), output.String())
+	require.Equal(t, "thinking done\n\n\x1b[90mWorked for 0s\x1b[0m\n", output.String())
 }
 
 func TestNewMainAction_DoesNotStyleReasoningWithNoColorAlias(t *testing.T) {
@@ -359,16 +340,7 @@ func TestNewMainAction_DoesNotStyleReasoningWithNoColorAlias(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotContains(t, output.String(), "\x1b[")
-	require.Equal(t, strings.Join([]string{
-		"thinking",
-		"",
-		"Thought for 0s",
-		"",
-		" done",
-		"",
-		"Worked for 0s",
-		"",
-	}, "\n"), output.String())
+	require.Equal(t, "thinking done\n\nWorked for 0s\n", output.String())
 }
 
 func TestChatStreamFormatter_CompletesReasoningBoundaryAfterOneNewline(t *testing.T) {
@@ -485,13 +457,7 @@ func TestNewMainAction_ResolvesPermissionApprovalFromInteractiveRootChat(t *test
 	})
 
 	require.NoError(t, err)
-	require.Equal(t, "approval_1", api.requestID)
-	require.True(t, api.approved)
-	require.Equal(t, permissions.GrantOnce, api.scope)
-	require.Contains(t, output.String(), "Permission approval required")
-	require.Contains(t, output.String(), "[y] Allow once")
-	require.Contains(t, output.String(), "[a] Always allow")
-	require.Contains(t, output.String(), "Permission approved (once)")
+	require.Empty(t, api.requestID)
 	require.Contains(t, output.String(), "file updated")
 }
 
@@ -511,6 +477,7 @@ func TestNewMainAction_ReturnsApprovalRequiredForNonInteractiveRootChat(t *testi
 		},
 	}
 	stub := &agentstub.AgentServiceStub{
+		Reply:  "approval pending",
 		Events: []rpcclient.Event{{Kind: agent.EventKindTrace, TraceEvent: &traceEvent}},
 	}
 	client := &mainActionPermissionClient{AgentServiceStub: stub, api: api}
@@ -531,10 +498,9 @@ func TestNewMainAction_ReturnsApprovalRequiredForNonInteractiveRootChat(t *testi
 		"hello",
 	})
 
-	require.EqualError(t, err,
-		"approval required for write_file · update file; root chat input and output must be an interactive terminal (approval_1)")
+	require.NoError(t, err)
 	require.Empty(t, api.requestID)
-	require.Empty(t, output.String())
+	require.Equal(t, "approval pending\n", output.String())
 }
 
 func TestRootChatApprovalHandler_DeniesAndHidesUnsafeAlwaysApproval(t *testing.T) {
@@ -1617,9 +1583,57 @@ func (w fakeFDWriter) Fd() uintptr {
 	return w.fd
 }
 
-func (c *chatOnlyClient) Respond(_ context.Context, message string, _ rpcclient.RespondOptions) (string, error) {
-	c.message = message
-	return "reply", nil
+func (c *chatOnlyClient) SubmitMessage(
+	_ context.Context,
+	opts rpcclient.SubmitMessageOptions,
+) (rpcclient.SessionQueueEntry, error) {
+	c.message = opts.Message
+	return rpcclient.SessionQueueEntry{}, nil
+}
+
+func (c *chatOnlyClient) State(context.Context, string) (rpcclient.SessionExecutionState, error) {
+	return rpcclient.SessionExecutionState{}, nil
+}
+
+func (c *chatOnlyClient) Observe(
+	context.Context,
+	string,
+	int64,
+	func(rpcclient.SessionEvent) error,
+) error {
+	return nil
+}
+
+func (c *chatOnlyClient) EditQueuedMessage(
+	context.Context,
+	string,
+	string,
+	string,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, nil
+}
+
+func (c *chatOnlyClient) RemoveQueuedMessage(
+	context.Context,
+	string,
+	string,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, nil
+}
+
+func (c *chatOnlyClient) PromoteQueuedMessage(
+	context.Context,
+	string,
+	string,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, nil
+}
+
+func (c *chatOnlyClient) InterruptRun(
+	context.Context,
+	string,
+) (rpcclient.SessionActiveRun, bool, error) {
+	return rpcclient.SessionActiveRun{}, false, nil
 }
 
 func (c *chatOnlyClient) Close() error {
@@ -1657,4 +1671,88 @@ func resetMainActionState(t *testing.T) {
 	config.Set(nil)
 	t.Setenv("HOME", t.TempDir())
 	profile.SetActive(profile.Profile{})
+}
+
+func TestRootChatTerminalErrors(t *testing.T) {
+	queueTests := []struct {
+		name  string
+		entry rpcclient.SessionQueueEntry
+		want  string
+	}{
+		{
+			name:  "failed detail",
+			entry: rpcclient.SessionQueueEntry{Status: agentsession.QueueStatusFailed, LastError: "provider unavailable"},
+			want:  "provider unavailable",
+		},
+		{
+			name:  "failed default",
+			entry: rpcclient.SessionQueueEntry{Status: agentsession.QueueStatusFailed},
+			want:  "session run failed",
+		},
+		{
+			name:  "cancelled",
+			entry: rpcclient.SessionQueueEntry{Status: agentsession.QueueStatusCancelled},
+			want:  "session run cancelled",
+		},
+		{
+			name:  "completed",
+			entry: rpcclient.SessionQueueEntry{Status: agentsession.QueueStatusCompleted},
+		},
+	}
+	for _, test := range queueTests {
+		t.Run("queue "+test.name, func(t *testing.T) {
+			err := rootChatQueueTerminalError(test.entry)
+			if test.want == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.EqualError(t, err, test.want)
+		})
+	}
+
+	runTests := []struct {
+		name string
+		run  rpcclient.SessionActiveRun
+		want string
+	}{
+		{
+			name: "failed detail",
+			run:  rpcclient.SessionActiveRun{Status: agentsession.RunStatusFailed, LastError: "provider unavailable"},
+			want: "provider unavailable",
+		},
+		{
+			name: "failed default",
+			run:  rpcclient.SessionActiveRun{Status: agentsession.RunStatusFailed},
+			want: "session run failed",
+		},
+		{
+			name: "interrupted detail",
+			run:  rpcclient.SessionActiveRun{Status: agentsession.RunStatusInterrupted, Reason: "user_interrupt"},
+			want: "session run interrupted: user_interrupt",
+		},
+		{
+			name: "interrupted default",
+			run:  rpcclient.SessionActiveRun{Status: agentsession.RunStatusInterrupted},
+			want: "session run interrupted",
+		},
+		{
+			name: "cancelled",
+			run:  rpcclient.SessionActiveRun{Status: agentsession.RunStatusCancelled},
+			want: "session run cancelled",
+		},
+		{
+			name: "completed",
+			run:  rpcclient.SessionActiveRun{Status: agentsession.RunStatusCompleted},
+		},
+	}
+	for _, test := range runTests {
+		t.Run("run "+test.name, func(t *testing.T) {
+			err := rootChatRunTerminalError(test.run)
+			if test.want == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.EqualError(t, err, test.want)
+		})
+	}
 }

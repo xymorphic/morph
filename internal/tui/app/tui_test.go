@@ -2504,7 +2504,9 @@ func TestModel_InitLoadsSessionContextUsage(t *testing.T) {
 	updated, cmd := runModel.Update(timelineMsg)
 	require.NotNil(t, cmd)
 
-	loaded, ok := cmd().(sessionContextLoadedMsg)
+	loadedBatch, ok := cmd().(tea.BatchMsg)
+	require.True(t, ok)
+	loaded, ok := loadedBatch[0]().(sessionContextLoadedMsg)
 	require.True(t, ok)
 	runModel = updated.(model)
 
@@ -4903,7 +4905,7 @@ func TestModel_SubmitPromptSendsCurrentSessionID(t *testing.T) {
 	require.NotNil(t, cmd)
 	msg := responseMessageFromBatch(t, cmd)
 
-	require.Equal(t, responseCompletedMsg{ResponseID: runModel.responseID, Text: "hello back"}, msg)
+	require.Equal(t, responseCompletedMsg{ResponseID: runModel.responseID}, msg)
 	require.Equal(t, "ses_current", client.respondSessionID)
 }
 
@@ -4953,7 +4955,7 @@ func TestModel_UpdateEscapeCancelsActiveResponse(t *testing.T) {
 	require.False(t, runModel.toolAnimationActive)
 	require.Nil(t, runModel.responseCancel)
 	require.Nil(t, runModel.events)
-	require.Equal(t, "response cancelled", runModel.status.Text())
+	require.Equal(t, "interrupt requested", runModel.status.Text())
 	require.ErrorIs(t, responseCtx.Err(), context.Canceled)
 	toolCell, ok := runModel.messages[0].(toolTranscriptCell)
 	require.True(t, ok)
@@ -4980,7 +4982,7 @@ func TestModel_UpdateEscapeIgnoresStaleCancelledCompletion(t *testing.T) {
 	runModel = updated.(model)
 	require.False(t, runModel.responding)
 	require.Empty(t, transcriptCellPlainTexts(runModel.messages))
-	require.Equal(t, "response cancelled", runModel.status.Text())
+	require.Equal(t, "interrupt requested", runModel.status.Text())
 }
 
 func TestModel_SubmitPromptPreservesTranscriptOffsetWhenAwayFromBottom(t *testing.T) {
@@ -5148,7 +5150,7 @@ func TestRespondToPromptCmd_StreamsDeltasTraceEventsAndCompletion(t *testing.T) 
 		events,
 	)()
 
-	require.Equal(t, responseCompletedMsg{ResponseID: 7, Text: "hello world"}, msg)
+	require.Equal(t, responseCompletedMsg{ResponseID: 7}, msg)
 	require.Equal(t, "hello", client.message)
 	require.Equal(t, "project-a", client.respondSessionID)
 	outgoingMetadata, ok := metadata.FromOutgoingContext(client.respondContext)
@@ -5158,9 +5160,6 @@ func TestRespondToPromptCmd_StreamsDeltasTraceEventsAndCompletion(t *testing.T) 
 	preset, ok := rpcmeta.PermissionPresetFromIncomingContext(incoming)
 	require.True(t, ok)
 	require.Equal(t, permissions.PresetAskForApproval, preset)
-	require.False(t, client.streamSet)
-	require.Equal(t, assistantTextDeltaMsg{Channel: "assistant", Text: "hello "}, <-events)
-	require.Equal(t, toolInvocationStartedMsg{ID: "call_1", Name: "read_file"}, <-events)
 	_, ok = <-events
 	require.False(t, ok)
 }
@@ -6084,7 +6083,8 @@ func TestModel_ThinkingComposerBorderCanBeDisabled(t *testing.T) {
 }
 
 func TestModel_UpdatePreventsOverlappingPromptSubmission(t *testing.T) {
-	runModel := newModelWithClient(&fakeTUIChatClient{})
+	client := &fakeTUIChatClient{}
+	runModel := newModelWithClient(client)
 	runModel.responding = true
 	runModel.input.SetValue("second prompt")
 
@@ -6092,10 +6092,10 @@ func TestModel_UpdatePreventsOverlappingPromptSubmission(t *testing.T) {
 
 	require.NotNil(t, cmd)
 	runModel = updated.(model)
-	require.Equal(t, "response already in progress", runModel.status.Text())
-	require.Equal(t, "second prompt", runModel.input.Value())
+	require.Empty(t, runModel.input.Value())
 	require.Empty(t, transcriptCellPlainTexts(runModel.messages))
-	require.Empty(t, runModel.history)
+	_ = cmd()
+	require.Equal(t, "second prompt", client.message)
 }
 
 func TestModel_UpdateKeepsCommandsLocalDuringActiveResponse(t *testing.T) {
@@ -7125,8 +7125,6 @@ type fakeTUIChatClient struct {
 	contextSessionID      string
 	message               string
 	respondContext        context.Context
-	stream                bool
-	streamSet             bool
 	calls                 int
 	compactCalls          int
 	createSessionCalls    int
@@ -7147,26 +7145,79 @@ type fakeTUIChatClient struct {
 	closed                bool
 }
 
-func (c *fakeTUIChatClient) Respond(
+func (c *fakeTUIChatClient) SubmitMessage(
 	ctx context.Context,
-	message string,
-	opts rpcclient.RespondOptions,
-) (string, error) {
+	opts rpcclient.SubmitMessageOptions,
+) (rpcclient.SessionQueueEntry, error) {
 	c.calls++
 	c.respondContext = ctx
-	c.message = message
+	c.message = opts.Message
 	c.respondSessionID = opts.SessionID
-	if opts.Stream != nil {
-		c.stream = *opts.Stream
-		c.streamSet = true
+	if c.err != nil {
+		return rpcclient.SessionQueueEntry{}, c.err
 	}
-	for _, event := range c.events {
-		if opts.OnEvent != nil {
-			opts.OnEvent(event)
-		}
-	}
+	return rpcclient.SessionQueueEntry{
+		ID:                    "que_test",
+		SessionID:             opts.SessionID,
+		Content:               opts.Message,
+		RequestedDeliveryMode: opts.DeliveryMode,
+		DeliveryMode:          opts.DeliveryMode,
+		Status:                agentsession.QueueStatusCompleted,
+	}, nil
+}
 
-	return c.reply, c.err
+func (c *fakeTUIChatClient) State(
+	context.Context,
+	string,
+) (rpcclient.SessionExecutionState, error) {
+	return rpcclient.SessionExecutionState{
+		SessionID: c.respondSessionID,
+		Queue: []rpcclient.SessionQueueEntry{{
+			ID:     "que_test",
+			Status: agentsession.QueueStatusCompleted,
+		}},
+	}, c.err
+}
+
+func (c *fakeTUIChatClient) Observe(
+	context.Context,
+	string,
+	int64,
+	func(rpcclient.SessionEvent) error,
+) error {
+	return c.err
+}
+
+func (c *fakeTUIChatClient) EditQueuedMessage(
+	context.Context,
+	string,
+	string,
+	string,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, c.err
+}
+
+func (c *fakeTUIChatClient) RemoveQueuedMessage(
+	context.Context,
+	string,
+	string,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, c.err
+}
+
+func (c *fakeTUIChatClient) PromoteQueuedMessage(
+	context.Context,
+	string,
+	string,
+) (rpcclient.SessionQueueEntry, error) {
+	return rpcclient.SessionQueueEntry{}, c.err
+}
+
+func (c *fakeTUIChatClient) InterruptRun(
+	context.Context,
+	string,
+) (rpcclient.SessionActiveRun, bool, error) {
+	return rpcclient.SessionActiveRun{}, true, c.err
 }
 
 func (c *fakeTUIChatClient) SessionAPI() rpcclient.SessionAPI {

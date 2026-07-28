@@ -16,6 +16,9 @@ var slashCommandDefinitions = []slashCommandDefinition{
 	{Name: "models", Description: "Show supported models"},
 	{Name: "new-chat", Description: "Start a new chat session"},
 	{Name: "permissions", Description: "Choose a permission preset for this TUI session"},
+	{Name: "queue", Description: "Inspect or edit queued session messages"},
+	{Name: "steer", Description: "Steer the active run after its current tool batch"},
+	{Name: "interrupt", Description: "Explicitly interrupt the active session run"},
 	{Name: "archive", Description: "Show archived chat sessions"},
 	{Name: "artifact", Description: "Open or save a browser artifact"},
 	{Name: "providers", Description: "Show supported model providers"},
@@ -45,6 +48,12 @@ func (m *model) handleSlashCommand(input composerInput) tea.Cmd {
 		cmd = m.startProvidersCommand()
 	case "permissions":
 		cmd = m.startPermissionsCommand()
+	case "queue":
+		cmd = m.handleQueueCommand(input.Args)
+	case "steer":
+		cmd = m.submitSteeringMessage(input.Args)
+	case "interrupt":
+		cmd = m.requestSessionInterrupt()
 	case "setup":
 		cmd = m.startProfileSetup(true)
 	case "copy":

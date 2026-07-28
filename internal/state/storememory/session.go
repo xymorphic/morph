@@ -278,6 +278,12 @@ func (s *Store) deleteSessions(ctx context.Context, ids []string) ([]string, err
 		delete(s.sessions, id)
 		delete(s.messages, id)
 		delete(s.summaries, id)
+		if inbox := s.sessionInboxes[id]; inbox != nil {
+			for runID := range inbox.runs {
+				delete(s.sessionRunIDs, runID)
+			}
+		}
+		delete(s.sessionInboxes, id)
 		for sourceID, state := range s.vectorStates {
 			if state.SessionID == id {
 				delete(s.vectorStates, sourceID)
@@ -320,7 +326,18 @@ func (s *Store) AppendMessages(ctx context.Context, id string, messages []morphm
 		s.mu.Unlock()
 		return errors.New("session not found")
 	}
+	copied := s.appendMessagesLocked(id, session, messages)
+	s.mu.Unlock()
 
+	s.indexPersistedMessages(ctx, id, copied)
+	return nil
+}
+
+func (s *Store) appendMessagesLocked(
+	sessionID string,
+	session Session,
+	messages []morphmsg.Message,
+) []morphmsg.Message {
 	copied := cloneMessages(messages)
 	for i := range copied {
 		if copied[i].ID == 0 {
@@ -328,27 +345,32 @@ func (s *Store) AppendMessages(ctx context.Context, id string, messages []morphm
 			copied[i].ID = s.nextMessageID
 		}
 	}
-	s.messages[id] = append(s.messages[id], copied...)
+	s.messages[sessionID] = append(s.messages[sessionID], copied...)
 	if s.vectors != nil {
 		now := time.Now().UTC()
 		for _, message := range copied {
-			state := getInitialVectorIndexState(id, message, s.vectors.Chunking, now)
+			state := getInitialVectorIndexState(sessionID, message, s.vectors.Chunking, now)
 			s.vectorStates[state.SourceID] = state
 		}
 	}
 	session.UpdatedAt = time.Now().UTC()
-	s.sessions[id] = session
-	s.mu.Unlock()
+	s.sessions[sessionID] = session
+	return copied
+}
 
-	err := s.indexVectors(ctx, id, copied)
-	s.setVectorIndexResult(id, copied, err)
+func (s *Store) indexPersistedMessages(
+	ctx context.Context,
+	sessionID string,
+	messages []morphmsg.Message,
+) {
+	err := s.indexVectors(ctx, sessionID, messages)
+	s.setVectorIndexResult(sessionID, messages, err)
 	if err != nil {
 		applySafeErrorLog(s.logVectorEvent("online indexing failed"), err).
-			Str("session_id", id).
-			Int("message_count", len(copied)).
+			Str("session_id", sessionID).
+			Int("message_count", len(messages)).
 			Msg("session vector indexing failed after message persistence")
 	}
-	return nil
 }
 
 func (s *Store) GetMessages(

@@ -23,11 +23,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func TestNew_RegistersMorphServiceWithoutHealth(t *testing.T) {
+func TestNew_RegistersSessionServiceWithoutHealth(t *testing.T) {
 	server := New(&agentstub.AgentRunnerStub{}, Options{})
 
 	serviceInfo := server.GetServiceInfo()
-	require.Contains(t, serviceInfo, morphpb.MorphService_ServiceDesc.ServiceName)
 	require.Contains(t, serviceInfo, morphpb.SessionService_ServiceDesc.ServiceName)
 	require.Contains(t, serviceInfo, morphpb.BrowserService_ServiceDesc.ServiceName)
 	require.NotContains(t, serviceInfo, healthgrpc.Health_ServiceDesc.ServiceName)
@@ -37,7 +36,6 @@ func TestNew_RegistersHealthWhenEnabled(t *testing.T) {
 	server := New(&agentstub.AgentRunnerStub{}, Options{Health: true})
 
 	serviceInfo := server.GetServiceInfo()
-	require.Contains(t, serviceInfo, morphpb.MorphService_ServiceDesc.ServiceName)
 	require.Contains(t, serviceInfo, morphpb.SessionService_ServiceDesc.ServiceName)
 	require.Contains(t, serviceInfo, healthgrpc.Health_ServiceDesc.ServiceName)
 }

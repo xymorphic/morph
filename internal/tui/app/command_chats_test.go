@@ -333,7 +333,9 @@ func TestModel_UpdateChatsCommandSwitchesSelectedSession(t *testing.T) {
 	require.False(t, runModel.chatSwitching)
 	require.Equal(t, "ses_other", runModel.getCurrentSessionID())
 	require.Equal(t, "Other Chat", runModel.sessionTitle)
-	_, ok := cmd().(sessionContextLoadedMsg)
+	batch, ok := cmd().(tea.BatchMsg)
+	require.True(t, ok)
+	_, ok = batch[0]().(sessionContextLoadedMsg)
 	require.True(t, ok)
 	require.Equal(t, "ses_other", client.contextSessionID)
 }

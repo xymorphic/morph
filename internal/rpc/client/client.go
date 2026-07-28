@@ -2,12 +2,9 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/url"
-	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -25,8 +22,8 @@ import (
 	"github.com/wandxy/morph/internal/rpc/tlsconfig"
 	storage "github.com/wandxy/morph/internal/state/core"
 	"github.com/wandxy/morph/internal/state/search"
-	"github.com/wandxy/morph/internal/trace"
 	agent "github.com/wandxy/morph/pkg/agent"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 	"github.com/wandxy/morph/pkg/str"
 )
 
@@ -34,7 +31,6 @@ import (
 type Client struct {
 	conn        *grpc.ClientConn
 	reconnector rpcReconnector
-	client      morphpb.MorphServiceClient
 	Session     *SessionService
 	Model       *ModelService
 	Gateway     *GatewayService
@@ -80,12 +76,6 @@ type rpcReconnector interface {
 	Connect()
 }
 
-// RespondOptions mirrors agent response options at this package boundary.
-type RespondOptions = agent.RespondOptions
-
-// Event aliases agent.Event at this package boundary.
-type Event = agent.Event
-
 // CompactSessionResult aliases agent.CompactSessionResult at this package boundary.
 type CompactSessionResult = agent.CompactSessionResult
 
@@ -97,6 +87,8 @@ type SessionTimelineOptions = agentapi.SessionTimelineOptions
 
 // SessionTimeline mirrors the agent timeline type at this package boundary.
 type SessionTimeline = agentapi.SessionTimeline
+
+type Event = agent.Event
 
 // RepairSessionOptions aliases search.VectorRepairOptions at this package boundary.
 type RepairSessionOptions = search.VectorRepairOptions
@@ -165,13 +157,35 @@ type GatewayStatus struct {
 
 type AutomationStatus = automation.Status
 
+type SubmitMessageOptions struct {
+	SessionID          string
+	Message            string
+	Instruct           string
+	Stream             *bool
+	ClientSubmissionID string
+	DeliveryMode       agentsession.DeliveryMode
+	SteeringFallback   agentsession.SteeringFallback
+}
+
+type SessionQueueEntry = agentsession.QueueEntry
+type SessionActiveRun = agentsession.ActiveRun
+type SessionExecutionState = agentsession.ExecutionState
+type SessionEvent = agentsession.Event
+
 // ChatAPI is the chat surface exposed by local and RPC clients.
 type ChatAPI interface {
-	Respond(context.Context, string, RespondOptions) (string, error)
+	SubmitMessage(context.Context, SubmitMessageOptions) (SessionQueueEntry, error)
+	State(context.Context, string) (SessionExecutionState, error)
+	Observe(context.Context, string, int64, func(SessionEvent) error) error
+	EditQueuedMessage(context.Context, string, string, string) (SessionQueueEntry, error)
+	RemoveQueuedMessage(context.Context, string, string) (SessionQueueEntry, error)
+	PromoteQueuedMessage(context.Context, string, string) (SessionQueueEntry, error)
+	InterruptRun(context.Context, string) (SessionActiveRun, bool, error)
 }
 
 // SessionAPI is the session-management surface exposed by local and RPC clients.
 type SessionAPI interface {
+	ChatAPI
 	Create(context.Context, string) (storage.Session, error)
 	CreateWithOptions(context.Context, CreateSessionOptions) (storage.Session, error)
 	List(context.Context, ...SessionListOptions) ([]storage.Session, error)
@@ -327,7 +341,6 @@ func NewClient(ctx context.Context, opts Options) (*Client, error) {
 	return &Client{
 		conn:        conn,
 		reconnector: conn,
-		client:      morphpb.NewMorphServiceClient(conn),
 		Session:     newSessionService(morphpb.NewSessionServiceClient(conn), conn),
 		Model:       newModelService(morphpb.NewModelServiceClient(conn), conn),
 		Gateway:     newGatewayService(morphpb.NewGatewayServiceClient(conn), conn),
@@ -426,106 +439,6 @@ func prepareRPCConnection(reconnector rpcReconnector) {
 
 	reconnector.ResetConnectBackoff()
 	reconnector.Connect()
-}
-
-func (c *Client) Respond(ctx context.Context, message string, opts RespondOptions) (string, error) {
-	instructValue := str.String(opts.Instruct)
-	sessionIDValue := str.String(opts.SessionID)
-	req := &morphpb.RespondRequest{
-		Message:  message,
-		Instruct: instructValue.Trim(),
-		Id:       sessionIDValue.Trim(),
-	}
-	if opts.Stream != nil {
-		req.Stream = opts.Stream
-	}
-
-	prepareRPCConnection(c.reconnector)
-	stream, err := c.client.Respond(ctx, req)
-	if err != nil {
-		return "", err
-	}
-
-	var builder strings.Builder
-	for {
-		event, recvErr := stream.Recv()
-		if recvErr != nil {
-			if recvErr == io.EOF {
-				return builder.String(), errors.New("respond stream ended before done event")
-			}
-
-			return builder.String(), recvErr
-		}
-		switch event.GetType() {
-		case morphpb.RespondEvent_TEXT_DELTA:
-			if event.GetChannel() != morphpb.RespondEvent_REASONING {
-				builder.WriteString(event.GetText())
-			}
-			if opts.OnEvent != nil {
-				opts.OnEvent(Event{
-					Kind:    agent.EventKindTextDelta,
-					Channel: protoStreamChannelToAgentChannel(event.GetChannel()),
-					Text:    event.GetText(),
-				})
-			}
-		case morphpb.RespondEvent_TRACE_EVENT:
-			if opts.OnEvent != nil {
-				traceEvent, ok := protoRespondTraceEventToTraceEvent(event)
-				if ok {
-					opts.OnEvent(Event{
-						Kind:       agent.EventKindTrace,
-						TraceEvent: &traceEvent,
-					})
-				}
-			}
-		case morphpb.RespondEvent_ERROR:
-			eventError := str.String(event.GetError())
-			message := eventError.Trim()
-			if message == "" {
-				message = "respond stream failed"
-			}
-			return builder.String(), errors.New(message)
-		case morphpb.RespondEvent_DONE:
-			return builder.String(), nil
-		}
-	}
-}
-
-func protoRespondTraceEventToTraceEvent(event *morphpb.RespondEvent) (trace.Event, bool) {
-	if event == nil {
-		return trace.Event{}, false
-	}
-
-	traceTypeValue := str.String(event.GetTraceType())
-	eventType := traceTypeValue.Trim()
-	if eventType == "" {
-		return trace.Event{}, false
-	}
-	traceSessionIdValue := str.String(event.GetTraceSessionId())
-	traceEvent := trace.Event{
-		SessionID: traceSessionIdValue.Trim(),
-		Type:      eventType,
-		Timestamp: protoTimestampToTime(event.GetTimestamp()),
-	}
-	tracePayloadJsonValue := str.String(event.GetTracePayloadJson())
-	if payloadJSON := tracePayloadJsonValue.Trim(); payloadJSON != "" {
-		var payload any
-		if err := json.Unmarshal([]byte(payloadJSON), &payload); err != nil {
-			return trace.Event{}, false
-		}
-		traceEvent.Payload = payload
-	}
-
-	return traceEvent, true
-}
-
-func protoStreamChannelToAgentChannel(channel morphpb.RespondEvent_Channel) string {
-	switch channel {
-	case morphpb.RespondEvent_REASONING:
-		return "reasoning"
-	default:
-		return "assistant"
-	}
 }
 
 func (c *Client) SessionAPI() SessionAPI {

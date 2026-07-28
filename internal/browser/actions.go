@@ -15,16 +15,18 @@ import (
 )
 
 const (
-	defaultActionTimeout = 15 * time.Second
-	maxActionTimeout     = 2 * time.Minute
-	networkQuietPeriod   = 50 * time.Millisecond
-	maxSnapshotNodes     = 500
-	maxSnapshotChars     = 30_000
+	defaultActionTimeout             = 15 * time.Second
+	maxActionTimeout                 = 2 * time.Minute
+	networkQuietPeriod               = 50 * time.Millisecond
+	optionalNetworkSettlementTimeout = 2 * time.Second
+	maxSnapshotNodes                 = 500
+	maxSnapshotChars                 = 30_000
 )
 
 var errBackgroundAuthorityUnavailable = errors.New("browser background connection has no active action authority")
 var errBackgroundRuleRequired = errors.New("browser background connection requires an explicit structured allow rule")
 var errBackgroundNetworkPolicyDenied = errors.New("browser background connection denied by network policy")
+var errOptionalNetworkSettlementTimedOut = errors.New("optional browser network settlement timed out")
 
 func (s *Service) ResolveOperations(ctx context.Context, action Action, request ActionRequest) ([]permissions.Operation, error) {
 	inputs, err := s.ResolvePermissionInputs(ctx, action, request)
@@ -253,7 +255,7 @@ func (s *Service) Open(ctx context.Context, request ActionRequest) (Tab, error) 
 			Err: errors.New("created browser tab is outside the configured attachment scope"),
 		}
 	}
-	if err := waitForNetworkSettlement(actionCtx, backend, backendTab.ID); err != nil {
+	if err := waitForOptionalNetworkSettlement(actionCtx, backend, backendTab.ID); err != nil {
 		return Tab{}, getActionError(ActionOpen, err)
 	}
 	tab := s.setBackendTab(runtime, backendTab, true)
@@ -474,7 +476,7 @@ func (s *Service) runNavigation(
 	if err != nil {
 		return Tab{}, getActionError(action, err)
 	}
-	if err := waitForNetworkSettlement(actionCtx, backend, tab.ID); err != nil {
+	if err := waitForOptionalNetworkSettlement(actionCtx, backend, tab.ID); err != nil {
 		return Tab{}, getActionError(action, err)
 	}
 	result := s.setBackendTab(runtime, backendTab, true)
@@ -802,6 +804,26 @@ func waitForNetworkSettlement(ctx context.Context, backend InteractiveBackendSes
 		return nil
 	}
 	return settling.WaitForNetworkIdle(ctx, tabID, networkQuietPeriod)
+}
+
+func waitForOptionalNetworkSettlement(
+	ctx context.Context,
+	backend InteractiveBackendSession,
+	tabID string,
+) error {
+	settlementCtx, cancel := context.WithTimeoutCause(
+		ctx,
+		optionalNetworkSettlementTimeout,
+		errOptionalNetworkSettlementTimedOut,
+	)
+	defer cancel()
+
+	err := waitForNetworkSettlement(settlementCtx, backend, tabID)
+	if errors.Is(err, errOptionalNetworkSettlementTimedOut) ||
+		errors.Is(context.Cause(settlementCtx), errOptionalNetworkSettlementTimedOut) {
+		return nil
+	}
+	return err
 }
 
 func (s *Service) getTabForResolution(

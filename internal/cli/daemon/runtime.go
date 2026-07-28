@@ -46,6 +46,12 @@ func runDaemonOnce(ctx context.Context, cfg *config.Config) error {
 		_ = lis.Close()
 		return err
 	}
+	if runner, ok := agent.(sessionAgentRunner); ok {
+		if err := runner.StartSessionRunner(ctx); err != nil {
+			_ = lis.Close()
+			return err
+		}
+	}
 
 	err = serveDaemonServices(ctx, runtimeCfg, agent, lis)
 	if closer, ok := agent.(closeableAgentRunner); ok {

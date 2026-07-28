@@ -88,7 +88,7 @@ func TestAuthStreamServerInterceptor_PropagatesPrincipal(t *testing.T) {
 
 	stream := &authTestServerStream{ctx: ctx}
 	err = authStreamServerInterceptor(service)(nil, stream, &grpc.StreamServerInfo{
-		FullMethod: morphpb.MorphService_Respond_FullMethodName,
+		FullMethod: morphpb.SessionService_Observe_FullMethodName,
 	}, func(_ any, authenticated grpc.ServerStream) error {
 		principal, ok := rpcmeta.AuthenticatedPrincipal(authenticated.Context())
 		require.True(t, ok)

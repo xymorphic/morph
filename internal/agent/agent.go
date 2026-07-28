@@ -27,6 +27,7 @@ import (
 	"github.com/wandxy/morph/internal/trace"
 	agentcore "github.com/wandxy/morph/pkg/agent"
 	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 	pkgcache "github.com/wandxy/morph/pkg/cache"
 	"github.com/wandxy/morph/pkg/gateway/pairing"
 	"github.com/wandxy/morph/pkg/logutils"
@@ -77,10 +78,23 @@ type Agent struct {
 	recallSummaryCache *pkgcache.Cache[string, storage.SessionSummary]
 	turnCoordinator    TurnCoordinator
 	turnScope          string
+	turnMessagesMu     sync.RWMutex
 	turnMessages       []morphmsg.Message
 	approvalService    *permissions.ApprovalService
 	authorizationMu    sync.RWMutex
 	sessionAuth        map[string]permissions.AuthorizationContext
+	runnerMu           sync.Mutex
+	sessionRunners     map[string]*sessionRunner
+	runCancels         map[string]context.CancelCauseFunc
+	runnerCtx          context.Context
+	runnerCancel       context.CancelFunc
+	runnerGeneration   string
+	runnerWG           sync.WaitGroup
+	runnerStopping     bool
+	progressMu         sync.Mutex
+	progressObservers  map[string]map[chan struct{}]struct{}
+	progressHistory    map[string][]agentsession.ProgressEvent
+	progressSequence   map[string]int64
 	initialized        bool
 }
 
@@ -183,7 +197,7 @@ func (a *Agent) Start(ctx context.Context) error {
 		return err
 	}
 
-	a.turnMessages = nil
+	a.setTurnMessages(nil)
 	a.initialized = true
 
 	agentLog.Info().Msg("agent started")
@@ -584,6 +598,13 @@ func (a *Agent) Close() error {
 	if a == nil || a.stateMgr == nil {
 		return nil
 	}
+	a.runnerMu.Lock()
+	a.runnerStopping = true
+	if a.runnerCancel != nil {
+		a.runnerCancel()
+	}
+	a.runnerMu.Unlock()
+	a.runnerWG.Wait()
 
 	if !a.shouldFlushMemoryBeforeContextLoss() {
 		return a.stateMgr.Close()
@@ -687,7 +708,7 @@ func (a *Agent) Respond(ctx context.Context, msg string, opts agentcore.RespondO
 	// request instruction overrides, streaming callbacks, and emitted messages.
 	turn := a.newTurn(a.env, a.invokeToolWithEnvironment)
 	reply, err := turn.Run(ctx, msg, opts)
-	a.turnMessages = turn.Messages()
+	a.setTurnMessages(turn.Messages())
 	if err == nil {
 		a.maybeGenerateSessionTitle(ctx, turn.sessionID)
 	}
@@ -741,13 +762,24 @@ func (a *Agent) getSessionAuthorization(
 
 // TurnMessages returns a defensive copy of messages emitted by the most recent turn.
 func (a *Agent) TurnMessages() []morphmsg.Message {
-	if a == nil || len(a.turnMessages) == 0 {
+	if a == nil {
 		return nil
 	}
 
+	a.turnMessagesMu.RLock()
+	defer a.turnMessagesMu.RUnlock()
+	if len(a.turnMessages) == 0 {
+		return nil
+	}
 	messages := make([]morphmsg.Message, len(a.turnMessages))
 	copy(messages, a.turnMessages)
 	return messages
+}
+
+func (a *Agent) setTurnMessages(messages []morphmsg.Message) {
+	a.turnMessagesMu.Lock()
+	a.turnMessages = append(a.turnMessages[:0], messages...)
+	a.turnMessagesMu.Unlock()
 }
 
 // getRootRunContext creates the root run identity for a public session ID.
