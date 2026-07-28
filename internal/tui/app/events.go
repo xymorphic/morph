@@ -12,7 +12,8 @@ import (
 )
 
 type userMessageAcceptedMsg struct {
-	Text string
+	Text         string
+	QueueEntryID string
 }
 
 type assistantTextDeltaMsg struct {

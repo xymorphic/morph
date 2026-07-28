@@ -135,6 +135,13 @@ func TestGetRPCTracePayload_CoversStreamableTraceTypes(t *testing.T) {
 			ok:        true,
 		},
 		{
+			name:      "user message accepted",
+			eventType: trace.EvtUserMessageAccepted,
+			payload:   map[string]any{"message": "queued follow-up"},
+			expected:  map[string]any{"message": "queued follow-up"},
+			ok:        true,
+		},
+		{
 			name:      "run command detail",
 			eventType: trace.EvtToolInvocationStarted,
 			payload: map[string]any{

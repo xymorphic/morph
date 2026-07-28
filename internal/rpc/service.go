@@ -211,6 +211,17 @@ func getRPCTracePayload(eventType string, payload any) (any, bool) {
 	typedPayload, payloadOK := trace.DecodePayload(eventType, payload)
 
 	switch eventType {
+	case trace.EvtUserMessageAccepted:
+		userPayload, ok := typedPayload.(trace.UserMessageAcceptedPayload)
+		if !payloadOK || !ok {
+			return nil, false
+		}
+		message := str.String(userPayload.Message).Trim()
+		if message == "" {
+			message = str.String(userPayload.Text).Trim()
+		}
+		result := trace.UserMessageAcceptedPayload{Message: message}
+		return result, result.Message != ""
 	case trace.EvtToolInvocationStarted:
 		toolPayload, ok := typedPayload.(trace.ToolInvocationStartedPayload)
 		if !payloadOK || !ok {

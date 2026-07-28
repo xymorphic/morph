@@ -117,6 +117,101 @@ func TestSessionQueueTUI_BusyEnterSubmitsFollowUpWithoutTranscriptEntry(t *testi
 	require.Empty(t, runModel.messages)
 }
 
+func TestSessionQueueTUI_RendersAcceptedQueuedUserMessageExactlyOnce(t *testing.T) {
+	runModel := newModelWithClient(&sessionQueueTUIClient{})
+	runModel.sessionObserverSessionID = defaultSessionID
+	runModel.sessionObserverID = 2
+	runModel.sessionObserverEvents = make(chan tea.Msg)
+	runModel.sessionExecutionState.ActiveRun = &rpcclient.SessionActiveRun{
+		ID: "run_follow_up", QueueEntryID: "qmsg_follow_up",
+		Status: agentsession.RunStatusRunning,
+	}
+
+	applyAccepted := func(sequence int64) {
+		_ = runModel.applySessionQueueEvent(sessionQueueEventMsg{
+			SessionID:  defaultSessionID,
+			ObserverID: 2,
+			Event: rpcclient.SessionEvent{Progress: &agentsession.ProgressEvent{
+				RunID:        "run_follow_up",
+				QueueEntryID: "qmsg_follow_up",
+				Sequence:     sequence,
+				TraceEvent: &agentsession.TraceEvent{
+					Type:    trace.EvtUserMessageAccepted,
+					Payload: map[string]any{"message": "queued follow-up"},
+				},
+			}},
+		})
+	}
+
+	applyAccepted(1)
+	applyAccepted(2)
+
+	require.Equal(t, []string{"You: queued follow-up"}, transcriptCellPlainTexts(runModel.messages))
+}
+
+func TestSessionQueueTUI_DoesNotDuplicateOptimisticallyRenderedUserMessage(t *testing.T) {
+	runModel := newModelWithClient(&sessionQueueTUIClient{})
+	runModel.messages = []transcriptCell{userTranscriptCell{text: "initial prompt"}}
+	runModel.sessionObserverSessionID = defaultSessionID
+	runModel.sessionObserverID = 2
+	runModel.sessionObserverEvents = make(chan tea.Msg)
+	runModel.sessionExecutionState.ActiveRun = &rpcclient.SessionActiveRun{
+		ID: "run_initial", QueueEntryID: "qmsg_initial",
+		Status: agentsession.RunStatusRunning,
+	}
+
+	_ = runModel.applySessionQueueEvent(sessionQueueEventMsg{
+		SessionID:  defaultSessionID,
+		ObserverID: 2,
+		Event: rpcclient.SessionEvent{Progress: &agentsession.ProgressEvent{
+			RunID:        "run_initial",
+			QueueEntryID: "qmsg_initial",
+			Sequence:     1,
+			TraceEvent: &agentsession.TraceEvent{
+				Type:    trace.EvtUserMessageAccepted,
+				Payload: map[string]any{"message": "initial prompt"},
+			},
+		}},
+	})
+
+	require.Equal(t, []string{"You: initial prompt"}, transcriptCellPlainTexts(runModel.messages))
+}
+
+func TestSessionQueueTUI_AllowsSameUserMessageInLaterTurn(t *testing.T) {
+	runModel := newModelWithClient(&sessionQueueTUIClient{})
+	runModel.messages = []transcriptCell{
+		userTranscriptCell{text: "repeat"},
+		assistantTranscriptCell{text: "first response"},
+	}
+	runModel.sessionObserverSessionID = defaultSessionID
+	runModel.sessionObserverID = 2
+	runModel.sessionObserverEvents = make(chan tea.Msg)
+	runModel.sessionExecutionState.ActiveRun = &rpcclient.SessionActiveRun{
+		ID: "run_repeat", QueueEntryID: "qmsg_repeat",
+		Status: agentsession.RunStatusRunning,
+	}
+
+	_ = runModel.applySessionQueueEvent(sessionQueueEventMsg{
+		SessionID:  defaultSessionID,
+		ObserverID: 2,
+		Event: rpcclient.SessionEvent{Progress: &agentsession.ProgressEvent{
+			RunID:        "run_repeat",
+			QueueEntryID: "qmsg_repeat",
+			Sequence:     1,
+			TraceEvent: &agentsession.TraceEvent{
+				Type:    trace.EvtUserMessageAccepted,
+				Payload: map[string]any{"message": "repeat"},
+			},
+		}},
+	})
+
+	require.Equal(t, []string{
+		"You: repeat",
+		"Morph: first response",
+		"You: repeat",
+	}, transcriptCellPlainTexts(runModel.messages))
+}
+
 func TestSessionQueueTUI_ObserverRendersLiveToolEventsForActiveFollowUp(t *testing.T) {
 	runModel := newModelWithClient(&sessionQueueTUIClient{})
 	runModel.sessionObserverSessionID = defaultSessionID

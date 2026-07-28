@@ -219,6 +219,15 @@ func (m *model) stopFollowingResponseTranscript() {
 
 func (m *model) applyTUIMessage(msg any) tea.Cmd {
 	switch value := msg.(type) {
+	case userMessageAcceptedMsg:
+		if m.isUserQueueEntryRendered(value.QueueEntryID) {
+			return nil
+		}
+		m.markUserQueueEntryRendered(value.QueueEntryID)
+		if m.hasUnansweredUserMessage(value.Text) {
+			return nil
+		}
+		m.addTranscriptMessage(value)
 	case assistantTextDeltaMsg:
 		if isReasoningDeltaChannel(value.Channel) {
 			m.appendReasoningDelta(value.Text)
@@ -263,6 +272,36 @@ func (m *model) applyTUIMessage(msg any) tea.Cmd {
 	}
 
 	return nil
+}
+
+func (m *model) isUserQueueEntryRendered(entryID string) bool {
+	entryID = str.String(entryID).Trim()
+	return entryID != "" && m.renderedUserQueueEntries[entryID]
+}
+
+func (m *model) markUserQueueEntryRendered(entryID string) {
+	entryID = str.String(entryID).Trim()
+	if entryID == "" {
+		return
+	}
+	if m.renderedUserQueueEntries == nil {
+		m.renderedUserQueueEntries = make(map[string]bool)
+	}
+	m.renderedUserQueueEntries[entryID] = true
+}
+
+func (m *model) hasUnansweredUserMessage(text string) bool {
+	text = str.String(text).Trim()
+	for index := len(m.messages) - 1; index >= 0; index-- {
+		switch cell := m.messages[index].(type) {
+		case userTranscriptCell:
+			return str.String(cell.text).Trim() == text
+		case assistantTranscriptCell, errorTranscriptCell:
+			return false
+		}
+	}
+
+	return false
 }
 
 func (m *model) updatePermissionApproval(message permissionApprovalMsg) {

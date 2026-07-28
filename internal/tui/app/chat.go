@@ -155,6 +155,10 @@ func sessionProgressToTUIMessage(progress agentsession.ProgressEvent) (tea.Msg, 
 		if _, completed := message.(assistantResponseCompletedMsg); completed {
 			return nil, false
 		}
+		if accepted, ok := message.(userMessageAcceptedMsg); ok {
+			accepted.QueueEntryID = progress.QueueEntryID
+			return accepted, true
+		}
 		return message, true
 	}
 	if progress.Text == "" {

@@ -61,6 +61,7 @@ type tuiState struct {
 	sessionExecutionState      rpcclient.SessionExecutionState
 	sessionProgressSequences   map[string]int64
 	sessionDeferredProgress    []agentsession.ProgressEvent
+	renderedUserQueueEntries   map[string]bool
 	sessionQueueStale          bool
 	sessionObserverCancel      context.CancelFunc
 	sessionObserverEvents      <-chan tea.Msg
