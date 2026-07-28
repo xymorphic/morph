@@ -40,6 +40,16 @@ func (m *model) startThinkingComposer() tea.Cmd {
 	return thinkingComposerTickCmd()
 }
 
+func (m *model) startSuccessorThinkingComposer(completedEntryID string) tea.Cmd {
+	activeRun := m.sessionExecutionState.ActiveRun
+	if activeRun == nil ||
+		completedEntryID == "" ||
+		activeRun.QueueEntryID == completedEntryID {
+		return nil
+	}
+	return m.startThinkingComposer()
+}
+
 func (m *model) updateThinkingComposer() (tea.Model, tea.Cmd) {
 	if !m.isModelThinking() {
 		m.thinkingComposerActive = false
@@ -70,7 +80,7 @@ func renderThinkingStatusCell(frame int) string {
 }
 
 func (m model) isModelThinking() bool {
-	return m.responding &&
+	return m.isTranscriptResponseActive() &&
 		(m.live == nil || m.live.IsEmpty()) &&
 		m.responseRunningToolCount == 0
 }

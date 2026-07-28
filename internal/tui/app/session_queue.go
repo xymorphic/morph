@@ -192,6 +192,7 @@ func (m *model) applySessionExecutionState(msg sessionExecutionStateLoadedMsg) t
 		waitForSessionQueueEvent(events),
 	}
 	if msg.State.ActiveRun != nil {
+		cmds = append(cmds, m.startThinkingComposer())
 		cmds = append(
 			cmds,
 			m.flushDeferredSessionProgress(msg.State.ActiveRun.QueueEntryID)...,
@@ -263,6 +264,7 @@ func (m *model) applySessionQueueEvent(msg sessionQueueEventMsg) tea.Cmd {
 			run := *event.Run
 			m.sessionExecutionState.ActiveRun = &run
 			m.initializeObservedRunTranscriptFollow(previousActiveRunID)
+			cmds = append(cmds, m.startThinkingComposer())
 			cmds = append(cmds, m.flushDeferredSessionProgress(run.QueueEntryID)...)
 		} else {
 			m.sessionExecutionState.ActiveRun = nil

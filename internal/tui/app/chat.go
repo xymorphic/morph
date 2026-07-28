@@ -423,7 +423,10 @@ func (m *model) completeResponse(msg responseCompletedMsg) tea.Cmd {
 		errorMsg := sessionErrorMsg{Message: msg.Err.Error()}
 		m.addTranscriptMessage(errorMsg)
 		m.resetResponseState()
-		return m.setStatus("response failed")
+		return tea.Batch(
+			m.setStatus("response failed"),
+			m.startSuccessorThinkingComposer(msg.QueueEntryID),
+		)
 	}
 
 	m.interruptRunningToolTranscriptCells(currentTime())
@@ -433,6 +436,7 @@ func (m *model) completeResponse(msg responseCompletedMsg) tea.Cmd {
 		m.transcript.GotoBottom()
 	}
 	return tea.Batch(
+		m.startSuccessorThinkingComposer(msg.QueueEntryID),
 		loadSessionTimelineCmd(m.chatCtx, m.timeline, m.getCurrentSessionID()),
 		loadSessionTitleCmd(m.chatCtx, m.title),
 		loadSessionContextCmd(m.chatCtx, m.contextLoader, m.getCurrentSessionID()),

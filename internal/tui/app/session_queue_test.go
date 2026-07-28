@@ -210,6 +210,91 @@ func TestSessionQueueTUI_FollowsStreamWhenNextQueuedRunStarts(t *testing.T) {
 	require.Empty(t, runModel.renderJumpToBottom())
 }
 
+func TestSessionQueueTUI_QueuedRunStartsAndStopsThinking(t *testing.T) {
+	runModel := newModelWithClient(&sessionQueueTUIClient{})
+	runModel.sessionObserverSessionID = defaultSessionID
+	runModel.sessionObserverID = 2
+	runModel.sessionObserverEvents = make(chan tea.Msg)
+
+	cmd := runModel.applySessionQueueEvent(sessionQueueEventMsg{
+		SessionID:  defaultSessionID,
+		ObserverID: 2,
+		Event: rpcclient.SessionEvent{
+			Cursor: 1,
+			Run: &rpcclient.SessionActiveRun{
+				ID:           "run_follow_up",
+				QueueEntryID: "qmsg_follow_up",
+				Status:       agentsession.RunStatusRunning,
+			},
+		},
+	})
+
+	require.NotNil(t, cmd)
+	require.True(t, runModel.isModelThinking())
+	require.True(t, runModel.thinkingComposerActive)
+	require.Contains(t, stripANSI(runModel.renderBottomStatusPanel()), "Thinking")
+
+	_ = runModel.applySessionQueueEvent(sessionQueueEventMsg{
+		SessionID:  defaultSessionID,
+		ObserverID: 2,
+		Event: rpcclient.SessionEvent{
+			Cursor: 2,
+			Run: &rpcclient.SessionActiveRun{
+				ID:           "run_follow_up",
+				QueueEntryID: "qmsg_follow_up",
+				Status:       agentsession.RunStatusCompleted,
+			},
+		},
+	})
+
+	require.False(t, runModel.isModelThinking())
+	_, next := runModel.updateThinkingComposer()
+	require.Nil(t, next)
+	require.False(t, runModel.thinkingComposerActive)
+}
+
+func TestSessionQueueTUI_HydratedActiveRunStartsThinking(t *testing.T) {
+	runModel := newModelWithClient(&sessionQueueTUIClient{})
+
+	cmd := runModel.applySessionExecutionState(sessionExecutionStateLoadedMsg{
+		State: rpcclient.SessionExecutionState{
+			SessionID: defaultSessionID,
+			ActiveRun: &rpcclient.SessionActiveRun{
+				ID:           "run_follow_up",
+				QueueEntryID: "qmsg_follow_up",
+				Status:       agentsession.RunStatusRunning,
+			},
+		},
+	})
+
+	require.NotNil(t, cmd)
+	require.True(t, runModel.isModelThinking())
+	require.True(t, runModel.thinkingComposerActive)
+	require.Contains(t, stripANSI(runModel.renderBottomStatusPanel()), "Thinking")
+}
+
+func TestSessionQueueTUI_PreviousResponseCompletionRestartsSuccessorThinking(t *testing.T) {
+	runModel := newModelWithClient(&sessionQueueTUIClient{})
+	runModel.responding = true
+	runModel.responseID = 4
+	runModel.thinkingComposerActive = true
+	runModel.sessionExecutionState.ActiveRun = &rpcclient.SessionActiveRun{
+		ID:           "run_follow_up",
+		QueueEntryID: "qmsg_follow_up",
+		Status:       agentsession.RunStatusRunning,
+	}
+
+	_ = runModel.completeResponse(responseCompletedMsg{
+		ResponseID:   4,
+		QueueEntryID: "qmsg_initial",
+		Text:         "first response",
+	})
+
+	require.False(t, runModel.responding)
+	require.True(t, runModel.isModelThinking())
+	require.True(t, runModel.thinkingComposerActive)
+}
+
 func TestSessionQueueTUI_DoesNotFollowQueuedRunWhenAlreadyScrolled(t *testing.T) {
 	runModel := newModelWithClient(&sessionQueueTUIClient{})
 	runModel.height = 10
