@@ -97,7 +97,8 @@ func (s fanoutTraceSession) Close() {
 func isStreamableTraceEvent(eventType string) bool {
 	eventTypeValue2 := str.String(eventType)
 	switch eventTypeValue2.Trim() {
-	case trace.EvtToolInvocationStarted,
+	case trace.EvtUserMessageAccepted,
+		trace.EvtToolInvocationStarted,
 		trace.EvtToolInvocationCompleted,
 		trace.EvtPermissionApprovalChanged,
 		trace.EvtInputSafetyBlocked,

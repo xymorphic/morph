@@ -17,6 +17,28 @@ func TestIsStreamableTraceEvent_IncludesPermissionApprovalLifecycle(t *testing.T
 	require.True(t, isStreamableTraceEvent(trace.EvtPermissionApprovalChanged))
 }
 
+func TestTraceFanoutSessionStreamsAcceptedUserBeforeCompaction(t *testing.T) {
+	var streamed []trace.Event
+	session := newFanoutTraceSession(nil, "default", func(event trace.Event) {
+		streamed = append(streamed, event)
+	})
+
+	session.Record(
+		trace.EvtUserMessageAccepted,
+		trace.UserMessageAcceptedPayload{Message: "queued follow-up"},
+	)
+	session.Record(
+		trace.EvtContextCompactionRunning,
+		trace.CompactionEventPayload{SessionID: "default", Status: "running"},
+	)
+
+	require.Len(t, streamed, 2)
+	require.Equal(t, []string{
+		trace.EvtUserMessageAccepted,
+		trace.EvtContextCompactionRunning,
+	}, []string{streamed[0].Type, streamed[1].Type})
+}
+
 func TestTraceFanoutSessionStreamsOnlyAllowedRedactedEvents(t *testing.T) {
 	primary := &mocks.TraceSessionStub{SessionID: "primary"}
 	var streamed []trace.Event

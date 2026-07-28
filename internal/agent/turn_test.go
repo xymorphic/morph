@@ -613,13 +613,17 @@ func TestTurn_RunStreamsReasoningAndTraceEvents(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, "hello", reply)
-	require.Len(t, events, 3)
+	require.Len(t, events, 4)
+	require.Equal(t, agentcore.EventKindTrace, events[0].Kind)
+	acceptedEvent, ok := events[0].TraceEvent.(*trace.Event)
+	require.True(t, ok)
+	require.Equal(t, trace.EvtUserMessageAccepted, acceptedEvent.Type)
 	require.Equal(t, []agentcore.Event{
 		{Kind: agentcore.EventKindTextDelta, Channel: string(models.StreamChannelReasoning), Text: "think"},
 		{Kind: agentcore.EventKindTextDelta, Channel: string(models.StreamChannelAssistant), Text: "hello"},
-	}, events[:2])
-	require.Equal(t, agentcore.EventKindTrace, events[2].Kind)
-	traceEvent, ok := events[2].TraceEvent.(*trace.Event)
+	}, events[1:3])
+	require.Equal(t, agentcore.EventKindTrace, events[3].Kind)
+	traceEvent, ok := events[3].TraceEvent.(*trace.Event)
 	require.True(t, ok)
 	require.Equal(t, trace.EvtFinalAssistantResponse, traceEvent.Type)
 	require.Equal(t, requestInstructionName, turn.requestInstruction.Name)
