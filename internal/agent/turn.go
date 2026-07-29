@@ -599,6 +599,7 @@ func (t *Turn) Run(ctx context.Context, msg string, opts agentcore.RespondOption
 				resp               *models.Response
 				reasoningStartedAt time.Time
 				reasoningEndedAt   time.Time
+				reasoningSummary   strings.Builder
 			)
 
 			if streamingEnabled {
@@ -607,12 +608,15 @@ func (t *Turn) Run(ctx context.Context, msg string, opts agentcore.RespondOption
 						return
 					}
 
-					if delta.Channel == models.StreamChannelReasoning {
+					if isReasoningStreamChannel(delta.Channel) {
 						now := time.Now().UTC()
 						if reasoningStartedAt.IsZero() {
 							reasoningStartedAt = now
 						}
 						reasoningEndedAt = now
+					}
+					if delta.Channel == models.StreamChannelReasoningSummary {
+						reasoningSummary.WriteString(delta.Text)
 					}
 					event := agentcore.Event{Kind: EventKindTextDelta, Channel: string(delta.Channel), Text: delta.Text}
 					if opts.OnEvent != nil {
@@ -651,7 +655,11 @@ func (t *Turn) Run(ctx context.Context, msg string, opts agentcore.RespondOption
 			}
 
 			// Mark model inference timing for diagnostics/storage.
-			t.recordModelReasoningCompleted(reasoningStartedAt, reasoningEndedAt)
+			t.recordModelReasoningCompleted(
+				reasoningStartedAt,
+				reasoningEndedAt,
+				reasoningSummary.String(),
+			)
 			recordModelResponse(traceSession, resp)
 
 			agentLog.Info().
@@ -892,6 +900,11 @@ func (t *Turn) appendSessionMessages(messages []morphmsg.Message) error {
 	return t.sessionStore.AppendMessages(t.ctx, t.sessionID, messages)
 }
 
+func isReasoningStreamChannel(channel models.StreamChannel) bool {
+	return channel == models.StreamChannelReasoning ||
+		channel == models.StreamChannelReasoningSummary
+}
+
 // applyAssistantOutputSafety performs output safety checks on assistant responses if enabled.
 // For streaming, checks are deferred to client side.
 func (t *Turn) applyAssistantOutputSafety(traceSession trace.Session, output string, streamingEnabled bool) string {
@@ -911,7 +924,11 @@ func (t *Turn) applyAssistantOutputSafety(traceSession trace.Session, output str
 }
 
 // recordModelReasoningCompleted logs and saves model inference duration for a turn.
-func (t *Turn) recordModelReasoningCompleted(startedAt time.Time, endedAt time.Time) {
+func (t *Turn) recordModelReasoningCompleted(
+	startedAt time.Time,
+	endedAt time.Time,
+	summary string,
+) {
 	if t == nil || t.traceRecorder == nil || t.sessionID == "" || startedAt.IsZero() {
 		return
 	}
@@ -922,11 +939,15 @@ func (t *Turn) recordModelReasoningCompleted(startedAt time.Time, endedAt time.T
 
 	duration := max(endedAt.Sub(startedAt).Round(time.Millisecond), time.Second)
 
+	sanitizedSummary, _ := t.getOutputRedactor().Sanitize(summary).(string)
 	event := agentsession.TraceEvent{
 		SessionID: t.sessionID,
 		Type:      trace.EvtModelReasoningCompleted,
 		Timestamp: endedAt,
-		Payload:   trace.ModelReasoningCompletedPayload{DurationMS: duration.Milliseconds()},
+		Payload: trace.ModelReasoningCompletedPayload{
+			DurationMS: duration.Milliseconds(),
+			Summary:    sanitizedSummary,
+		},
 	}
 	if _, err := t.traceRecorder.AppendTraceEvent(t.ctx, event); err != nil {
 		if !errors.Is(err, storage.ErrTraceStoreUnsupported) {

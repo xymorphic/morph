@@ -21,8 +21,9 @@ type Client interface {
 type StreamChannel string
 
 const (
-	StreamChannelAssistant StreamChannel = "assistant"
-	StreamChannelReasoning StreamChannel = "reasoning"
+	StreamChannelAssistant        StreamChannel = "assistant"
+	StreamChannelReasoning        StreamChannel = "reasoning"
+	StreamChannelReasoningSummary StreamChannel = "reasoning_summary"
 )
 
 type StreamDelta struct {

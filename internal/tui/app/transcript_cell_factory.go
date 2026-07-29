@@ -45,7 +45,19 @@ func (transcriptCellFactory) Assistant(text string) transcriptCell {
 }
 
 func (transcriptCellFactory) Reasoning(text string, startedAt time.Time) transcriptCell {
-	return newReasoningTranscriptCell(text, startedAt)
+	return newThinkingTranscriptCell("", text, startedAt)
+}
+
+func (transcriptCellFactory) CompletedThinking(
+	id string,
+	summary string,
+	duration time.Duration,
+) transcriptCell {
+	if cell := newCompletedThinkingTranscriptCell(id, summary, duration); cell != nil {
+		return cell
+	}
+
+	return transcriptCellFactory{}.Thought(duration)
 }
 
 func (transcriptCellFactory) Thought(duration time.Duration) transcriptCell {
@@ -143,7 +155,7 @@ func (factory transcriptCellFactory) FromTUIMessage(msg any) transcriptCell {
 	case assistantResponseCompletedMsg:
 		return factory.Assistant(value.Text)
 	case reasoningCompletedMsg:
-		return factory.Thought(value.Duration)
+		return factory.CompletedThinking(value.ID, value.Summary, value.Duration)
 	case toolInvocationStartedMsg:
 		return factory.Tool(toolTranscriptCellInput{
 			ID:           value.ID,

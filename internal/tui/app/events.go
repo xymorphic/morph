@@ -27,6 +27,8 @@ type assistantResponseCompletedMsg struct {
 
 type reasoningCompletedMsg struct {
 	Duration time.Duration
+	Summary  string
+	ID       string
 }
 
 type toolInvocationStartedMsg struct {
@@ -138,7 +140,10 @@ func traceEventToTUIMessage(event trace.Event) (any, bool) {
 	case trace.EvtModelReasoningCompleted:
 		payload, ok := typedPayload.(trace.ModelReasoningCompletedPayload)
 		if payloadOK && ok && payload.DurationMS > 0 {
-			return reasoningCompletedMsg{Duration: time.Duration(payload.DurationMS) * time.Millisecond}, true
+			return reasoningCompletedMsg{
+				Duration: time.Duration(payload.DurationMS) * time.Millisecond,
+				Summary:  payload.Summary,
+			}, true
 		}
 	case trace.EvtToolInvocationStarted:
 		msg, ok := toolCallPayloadToTUIMessage(event.Payload)

@@ -207,7 +207,7 @@ func isTranscriptCellIdentityCacheable(cell transcriptCell) bool {
 	switch cell.(type) {
 	case userTranscriptCell,
 		assistantTranscriptCell,
-		reasoningTranscriptCell,
+		thinkingTranscriptCell,
 		thoughtTranscriptCell,
 		safetyTranscriptCell,
 		errorTranscriptCell,

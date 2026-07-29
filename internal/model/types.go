@@ -13,8 +13,9 @@ type Client = agentmodel.Client
 type StreamChannel = agentmodel.StreamChannel
 
 const (
-	StreamChannelAssistant = agentmodel.StreamChannelAssistant
-	StreamChannelReasoning = agentmodel.StreamChannelReasoning
+	StreamChannelAssistant        = agentmodel.StreamChannelAssistant
+	StreamChannelReasoning        = agentmodel.StreamChannelReasoning
+	StreamChannelReasoningSummary = agentmodel.StreamChannelReasoningSummary
 )
 
 type StreamDelta = agentmodel.StreamDelta

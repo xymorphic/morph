@@ -3462,6 +3462,49 @@ func TestModel_UpdateDoesNotOpenTranscriptLinkWithRightClick(t *testing.T) {
 	require.False(t, updated.(model).selection.active)
 }
 
+func TestModel_UpdateTogglesCompletedThinkingSummaryWithClick(t *testing.T) {
+	runModel := newModel()
+	runModel.width = 100
+	runModel.height = 20
+	runModel.resize()
+	runModel.messages = []transcriptCell{thinkingTranscriptCell{
+		id:        "live-1",
+		summary:   "Checked the queue and current run.",
+		duration:  4 * time.Second,
+		completed: true,
+	}}
+	runModel.setTranscriptContent()
+	runModel.transcript.GotoTop()
+
+	clickToggle := func(current model, label string) model {
+		lines := strings.Split(stripANSI(current.transcript.View()), "\n")
+		row := indexLineContaining(lines, label)
+		require.NotEqual(t, -1, row)
+		column := strings.Index(lines[row], label)
+		require.NotEqual(t, -1, column)
+
+		updated, cmd := current.Update(tea.MouseClickMsg(tea.Mouse{
+			Button: tea.MouseLeft,
+			X:      column,
+			Y:      current.getTranscriptTop() + row,
+		}))
+		require.Nil(t, cmd)
+		return updated.(model)
+	}
+
+	require.Contains(t, stripANSI(runModel.transcript.View()), "View thinking")
+	require.NotContains(t, stripANSI(runModel.transcript.View()), "Checked the queue")
+
+	runModel = clickToggle(runModel, "View thinking")
+	require.Contains(t, stripANSI(runModel.transcript.View()), "Hide thinking")
+	require.Contains(t, stripANSI(runModel.transcript.View()), "Checked the queue and current run.")
+
+	runModel = clickToggle(runModel, "Hide thinking")
+	require.Contains(t, stripANSI(runModel.transcript.View()), "View thinking")
+	require.NotContains(t, stripANSI(runModel.transcript.View()), "Checked the queue")
+	require.False(t, runModel.selection.active)
+}
+
 func TestModel_UpdateDoesNotScrollTranscriptWhenTypingComposerText(t *testing.T) {
 	runModel := newModel()
 	runModel.height = 10
@@ -6326,6 +6369,11 @@ func TestModel_UpdateRendersReasoningDeltasOutsideAssistantStream(t *testing.T) 
 
 	runModel = updated.(model)
 	require.Empty(t, runModel.live)
+	thinking, ok := runModel.messages[1].(thinkingTranscriptCell)
+	require.True(t, ok)
+	require.Equal(t, "first token", thinking.summary)
+	require.True(t, thinking.completed)
+	require.False(t, thinking.expanded)
 	require.Equal(t, []string{
 		"You: hello",
 		"Thought: 3s",
@@ -6336,6 +6384,23 @@ func TestModel_UpdateRendersReasoningDeltasOutsideAssistantStream(t *testing.T) 
 	require.Contains(t, content, "answer")
 	require.NotContains(t, content, "Reasoning:")
 	require.NotContains(t, content, "first token")
+}
+
+func TestModel_UpdateRendersReasoningSummaryChannel(t *testing.T) {
+	runModel := newModel()
+
+	updated, cmd := runModel.Update(assistantTextDeltaMsg{
+		Channel: string(modelcatalog.StreamChannelReasoningSummary),
+		Text:    "Checked the active run.",
+	})
+
+	require.Nil(t, cmd)
+	runModel = updated.(model)
+	require.Len(t, runModel.messages, 1)
+	thinking, ok := runModel.messages[0].(thinkingTranscriptCell)
+	require.True(t, ok)
+	require.Equal(t, "Checked the active run.", thinking.summary)
+	require.Contains(t, stripANSI(runModel.transcript.View()), "Checked the active run.")
 }
 
 func TestModel_UpdateReasoningCompletedCollapsesEarlierThinkingCell(t *testing.T) {

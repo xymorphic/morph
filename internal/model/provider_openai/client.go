@@ -251,6 +251,15 @@ func (c *OpenAIClient) getModelOwner(model string) string {
 	return ownerValue.Trim()
 }
 
+func (c *OpenAIClient) isReasoningModel(model string) bool {
+	if c == nil {
+		return false
+	}
+
+	modelDef, ok := c.registryOrDefault().GetModel(c.provider, model)
+	return ok && modelDef.Reasoning
+}
+
 func normalizeProvider(provider string) string {
 	providerValue := str.String(provider)
 	return providerValue.Normalized()

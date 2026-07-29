@@ -283,6 +283,10 @@ func sessionTimelineToTranscriptCells(timeline rpcclient.SessionTimeline) []tran
 			if hasMessageTranscript && isMessageBackedTimelineEvent(msg) {
 				continue
 			}
+			if reasoning, ok := msg.(reasoningCompletedMsg); ok {
+				reasoning.ID = fmt.Sprintf("trace-%d", event.Event.Sequence)
+				msg = reasoning
+			}
 
 			if cell := tuiMessageToTranscriptCell(msg); cell != nil && !cell.IsEmpty() {
 				entries = append(entries, transcriptTimelineEntry{

@@ -209,6 +209,15 @@ func TestOpenAIClient_GetModelOwnerHandlesNilClient(t *testing.T) {
 	require.NotNil(t, client.registryOrDefault())
 }
 
+func TestOpenAIClient_IsReasoningModelUsesRegistryCapability(t *testing.T) {
+	client := &OpenAIClient{provider: "openai"}
+
+	require.True(t, client.isReasoningModel("gpt-5.5"))
+	require.False(t, client.isReasoningModel("gpt-4o"))
+	require.False(t, client.isReasoningModel("missing"))
+	require.False(t, (*OpenAIClient)(nil).isReasoningModel("gpt-5.5"))
+}
+
 func TestOpenAIClient_ChatRequiresModel(t *testing.T) {
 	client := &OpenAIClient{api: models.APIOpenAICompletions}
 
@@ -603,7 +612,8 @@ func TestOpenAIClient_ChatUsesRefusalAsOutputText(t *testing.T) {
 func TestOpenAIClient_ChatReturnsResponseAndBuildsResponsesRequest(t *testing.T) {
 	var captured responses.ResponseNewParams
 	client := &OpenAIClient{
-		api: models.APIOpenAIResponses,
+		api:      models.APIOpenAIResponses,
+		provider: "openai",
 		createResponse: func(_ context.Context, params responses.ResponseNewParams) (*responses.Response, error) {
 			captured = params
 			return &responses.Response{
@@ -646,6 +656,7 @@ func TestOpenAIClient_ChatReturnsResponseAndBuildsResponsesRequest(t *testing.T)
 	require.Contains(t, rawText, `"parallel_tool_calls":true`)
 	require.Contains(t, rawText, `"tool_choice":"auto"`)
 	require.Contains(t, rawText, `"include":["reasoning.encrypted_content"]`)
+	require.Contains(t, rawText, `"reasoning":{"summary":"auto"}`)
 	require.Contains(t, rawText, `"max_output_tokens":111`)
 	require.Contains(t, rawText, `"temperature":0.5`)
 	require.Contains(t, rawText, `"type":"message"`)
@@ -1997,7 +2008,7 @@ func TestHandesponsesStreamEvent_ReturnsReasoningSummaryTextDelta(t *testing.T) 
 
 	require.NoError(t, err)
 	require.Nil(t, terminal)
-	require.Equal(t, StreamDelta{Channel: models.StreamChannelReasoning, Text: "summary"}, delta)
+	require.Equal(t, StreamDelta{Channel: models.StreamChannelReasoningSummary, Text: "summary"}, delta)
 }
 
 func TestHandesponsesStreamEvent_ReturnsCompletedTerminalResponse(t *testing.T) {

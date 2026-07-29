@@ -352,7 +352,11 @@ func getRPCTracePayload(eventType string, payload any) (any, bool) {
 		if !payloadOK || !ok {
 			return nil, false
 		}
-		result := trace.ModelReasoningCompletedPayload{DurationMS: reasoningPayload.DurationMS}
+		summaryValue := str.String(reasoningPayload.Summary)
+		result := trace.ModelReasoningCompletedPayload{
+			DurationMS: reasoningPayload.DurationMS,
+			Summary:    summaryValue.Trim(),
+		}
 		return result, result.DurationMS != 0
 	case trace.EvtFinalAssistantResponse:
 		finalPayload, ok := typedPayload.(trace.FinalAssistantResponsePayload)

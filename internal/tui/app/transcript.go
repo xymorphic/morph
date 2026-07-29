@@ -8,6 +8,7 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	models "github.com/wandxy/morph/internal/model"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/pkg/str"
 )
@@ -550,28 +551,34 @@ func (m *model) refreshTranscriptContentAfterMessageUpdate() {
 }
 
 func (m *model) appendReasoningDelta(delta string) {
-	cell := newReasoningTranscriptCell(delta, currentTime())
-	if cell == nil || cell.IsEmpty() {
+	deltaValue := str.String(delta)
+	if deltaValue.Trim() == "" {
 		return
 	}
 	if m.reasoningStartedAt.IsZero() {
 		m.reasoningStartedAt = currentTime()
 	}
 
-	if len(m.messages) > 0 && m.messages[len(m.messages)-1].Kind() == transcriptCellReasoning {
+	if len(m.messages) > 0 && m.messages[len(m.messages)-1].Kind() == transcriptCellThinking {
 		index := len(m.messages) - 1
 		m.applyAction(replaceTranscriptCellAction{
 			Index: index,
-			Cell:  appendReasoningTranscriptCell(m.messages[index], delta),
+			Cell:  appendThinkingTranscriptCell(m.messages[index], delta),
 		})
 		m.trackReasoningTranscriptIndex(index)
 	} else {
+		cell := newThinkingTranscriptCell(m.nextThinkingTranscriptCellID(), delta, currentTime())
 		m.applyAction(appendTranscriptCellAction{Cell: cell})
 		m.trackReasoningTranscriptIndex(len(m.messages) - 1)
 	}
 
 	m.setTranscriptContentForResponseUpdate()
 	m.resize()
+}
+
+func (m *model) nextThinkingTranscriptCellID() string {
+	m.thinkingCellSequence++
+	return fmt.Sprintf("live-%d", m.thinkingCellSequence)
 }
 
 func (m *model) appendAssistantDelta(delta string) {
@@ -738,7 +745,7 @@ func (m model) getCurrentReasoningTranscriptIndex() (int, bool) {
 	if m.reasoningMessageIndex >= 0 &&
 		m.reasoningMessageIndex < len(m.messages) &&
 		m.messages[m.reasoningMessageIndex] != nil &&
-		m.messages[m.reasoningMessageIndex].Kind() == transcriptCellReasoning {
+		m.messages[m.reasoningMessageIndex].Kind() == transcriptCellThinking {
 		return m.reasoningMessageIndex, true
 	}
 
@@ -747,7 +754,7 @@ func (m model) getCurrentReasoningTranscriptIndex() (int, bool) {
 		if messageIndex < 0 || messageIndex >= len(m.messages) || m.messages[messageIndex] == nil {
 			continue
 		}
-		if m.messages[messageIndex].Kind() == transcriptCellReasoning {
+		if m.messages[messageIndex].Kind() == transcriptCellThinking {
 			return messageIndex, true
 		}
 	}
@@ -762,7 +769,7 @@ func (m model) getActiveReasoningTranscriptIndices() []int {
 		if seen[index] || index < 0 || index >= len(m.messages) {
 			continue
 		}
-		if m.messages[index] == nil || m.messages[index].Kind() != transcriptCellReasoning {
+		if m.messages[index] == nil || m.messages[index].Kind() != transcriptCellThinking {
 			continue
 		}
 
@@ -788,7 +795,7 @@ func (m model) getReasoningTranscriptDuration(index int, endedAt time.Time) time
 		return time.Second
 	}
 
-	cell, ok := m.messages[index].(reasoningTranscriptCell)
+	cell, ok := m.messages[index].(thinkingTranscriptCell)
 	if !ok || cell.startedAt.IsZero() {
 		if m.reasoningStartedAt.IsZero() {
 			return time.Second
@@ -801,9 +808,16 @@ func (m model) getReasoningTranscriptDuration(index int, endedAt time.Time) time
 }
 
 func (m *model) replaceReasoningTranscriptCellWithThought(index int, duration time.Duration) {
+	cell, ok := m.messages[index].(thinkingTranscriptCell)
+	if !ok {
+		return
+	}
+	cell.duration = normalizeThoughtDuration(duration)
+	cell.completed = true
+	cell.expanded = false
 	m.applyAction(replaceTranscriptCellAction{
 		Index: index,
-		Cell:  thoughtTranscriptCell{duration: normalizeThoughtDuration(duration)},
+		Cell:  cell,
 	})
 	m.untrackReasoningTranscriptIndex(index)
 	if !m.hasActiveReasoningTranscriptCells() {
@@ -838,31 +852,80 @@ func normalizeThoughtDuration(duration time.Duration) time.Duration {
 	return duration
 }
 
-func newReasoningTranscriptCell(text string, startedAt time.Time) transcriptCell {
-	textValue := str.String(text)
-	if textValue.Trim() == "" {
+func newThinkingTranscriptCell(id string, summary string, startedAt time.Time) transcriptCell {
+	summaryValue := str.String(summary)
+	if summaryValue.Trim() == "" {
 		return nil
 	}
 
-	return reasoningTranscriptCell{text: text, startedAt: startedAt}
+	return thinkingTranscriptCell{
+		id:        id,
+		summary:   summary,
+		startedAt: startedAt,
+	}
 }
 
-func appendReasoningTranscriptCell(cell transcriptCell, delta string) transcriptCell {
+func newCompletedThinkingTranscriptCell(
+	id string,
+	summary string,
+	duration time.Duration,
+) transcriptCell {
+	cell := newThinkingTranscriptCell(id, summary, time.Time{})
+	thinkingCell, ok := cell.(thinkingTranscriptCell)
+	if !ok {
+		return nil
+	}
+
+	thinkingCell.duration = normalizeThoughtDuration(duration)
+	thinkingCell.completed = true
+	return thinkingCell
+}
+
+func appendThinkingTranscriptCell(cell transcriptCell, delta string) transcriptCell {
 	deltaValue := str.String(delta)
 	if deltaValue.Trim() == "" {
 		return cell
 	}
 
-	reasoningCell, ok := cell.(reasoningTranscriptCell)
-	if !ok {
-		return newReasoningTranscriptCell(delta, currentTime())
+	thinkingCell, ok := cell.(thinkingTranscriptCell)
+	if !ok || thinkingCell.completed {
+		return cell
 	}
 
-	reasoningCell.text += delta
-	return reasoningCell
+	thinkingCell.summary += delta
+	return thinkingCell
+}
+
+func (m *model) toggleThinkingTranscriptCell(id string) bool {
+	idValue := str.String(id)
+	id = idValue.Trim()
+	if id == "" {
+		return false
+	}
+
+	for index, message := range m.messages {
+		cell, ok := message.(thinkingTranscriptCell)
+		if !ok || !cell.completed || cell.id != id {
+			continue
+		}
+
+		position := m.getTranscriptWindowPosition()
+		cell.expanded = !cell.expanded
+		m.applyAction(replaceTranscriptCellAction{Index: index, Cell: cell})
+		m.refreshTranscriptContentAtPosition(position)
+		return true
+	}
+
+	return false
 }
 
 func isReasoningDeltaChannel(channel string) bool {
 	channelValue := str.String(channel)
-	return channelValue.Normalized() == "reasoning"
+	switch channelValue.Normalized() {
+	case string(models.StreamChannelReasoning),
+		string(models.StreamChannelReasoningSummary):
+		return true
+	default:
+		return false
+	}
 }

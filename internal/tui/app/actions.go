@@ -129,6 +129,7 @@ func (clearTranscriptAction) apply(state *tuiState) {
 	state.reasoningStartedAt = time.Time{}
 	state.reasoningMessageIndex = -1
 	state.reasoningMessageIndices = nil
+	state.thinkingCellSequence = 0
 }
 
 func (action replaceTranscriptCellAction) apply(state *tuiState) {

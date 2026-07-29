@@ -54,7 +54,16 @@ func TestDecodePayload_CoversAllKnownEventTypes(t *testing.T) {
 
 	for _, eventType := range AllTraceEventTypes() {
 		t.Run(eventType, func(t *testing.T) {
-			decoded, ok := DecodePayload(eventType, payload)
+			eventPayload := payload
+			if eventType == EvtModelReasoningCompleted {
+				eventPayload = make(map[string]any, len(payload))
+				for key, value := range payload {
+					eventPayload[key] = value
+				}
+				eventPayload["summary"] = "Checked the current state."
+			}
+
+			decoded, ok := DecodePayload(eventType, eventPayload)
 			require.True(t, ok)
 			require.NotNil(t, decoded)
 		})

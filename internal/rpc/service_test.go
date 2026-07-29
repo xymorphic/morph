@@ -531,6 +531,13 @@ func TestGetRPCTracePayload_CoversStreamableTraceTypes(t *testing.T) {
 			ok:        true,
 		},
 		{
+			name:      "model reasoning summary",
+			eventType: trace.EvtModelReasoningCompleted,
+			payload:   map[string]any{"duration_ms": int64(2000), "summary": "Checked the current state."},
+			expected:  map[string]any{"duration_ms": int64(2000), "summary": "Checked the current state."},
+			ok:        true,
+		},
+		{
 			name:      "final assistant response",
 			eventType: trace.EvtFinalAssistantResponse,
 			payload:   map[string]any{"text": "done", "raw": "SECRET=example"},

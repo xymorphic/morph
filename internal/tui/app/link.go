@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -14,6 +15,8 @@ import (
 )
 
 var openExternalLink = defaultOpenExternalLink
+
+const thinkingTranscriptLinkScheme = "morph-thinking"
 
 func (m *model) openTranscriptLinkAtMouse(msg tea.MouseClickMsg) (tea.Cmd, bool) {
 	mouse := msg.Mouse()
@@ -30,6 +33,12 @@ func (m *model) openTranscriptLinkAtMouse(msg tea.MouseClickMsg) (tea.Cmd, bool)
 		return m.startBrowserArtifactAction(artifact, action), true
 	}
 	if link, ok := linkAtRenderedPosition(m.transcript.View(), row, mouse.X); ok {
+		if id, internal := parseThinkingTranscriptLink(link); internal {
+			if !m.toggleThinkingTranscriptCell(id) {
+				return m.setStatus("thinking summary unavailable"), true
+			}
+			return nil, true
+		}
 		return m.runEffect(openLinkEffect{URL: link}), true
 	}
 
@@ -109,7 +118,7 @@ func parseTerminalHyperlinkEscape(line string, start int) (int, string, bool) {
 		return payloadEnd + terminatorWidth, "", true
 	}
 
-	return payloadEnd + terminatorWidth, sanitizeClickableLink(parts[2]), true
+	return payloadEnd + terminatorWidth, sanitizeTranscriptLink(parts[2]), true
 }
 
 func findOSCEnd(line string, start int) (int, int, bool) {
@@ -168,6 +177,64 @@ func sanitizeClickableLink(raw string) string {
 	default:
 		return ""
 	}
+}
+
+func sanitizeTranscriptLink(raw string) string {
+	if external := sanitizeClickableLink(raw); external != "" {
+		return external
+	}
+	if _, ok := parseThinkingTranscriptLink(raw); ok {
+		return raw
+	}
+	return ""
+}
+
+func getThinkingTranscriptLink(id string) string {
+	idValue := str.String(id)
+	id = idValue.Trim()
+	if !isThinkingTranscriptCellID(id) {
+		return ""
+	}
+
+	return thinkingTranscriptLinkScheme + "://" + id
+}
+
+func parseThinkingTranscriptLink(raw string) (string, bool) {
+	rawValue := str.String(raw)
+	raw = rawValue.Trim()
+	if raw == "" {
+		return "", false
+	}
+
+	parsed, err := url.Parse(raw)
+	if err != nil ||
+		parsed.Scheme != thinkingTranscriptLinkScheme ||
+		parsed.Host == "" ||
+		parsed.Path != "" ||
+		parsed.User != nil ||
+		parsed.Port() != "" ||
+		parsed.RawQuery != "" ||
+		parsed.Fragment != "" ||
+		!isThinkingTranscriptCellID(parsed.Host) {
+		return "", false
+	}
+
+	return parsed.Host, true
+}
+
+func isThinkingTranscriptCellID(id string) bool {
+	var sequence string
+	switch {
+	case strings.HasPrefix(id, "live-"):
+		sequence = strings.TrimPrefix(id, "live-")
+	case strings.HasPrefix(id, "trace-"):
+		sequence = strings.TrimPrefix(id, "trace-")
+	default:
+		return false
+	}
+
+	value, err := strconv.ParseUint(sequence, 10, 64)
+	return err == nil && value > 0
 }
 
 func defaultOpenExternalLink(raw string) error {

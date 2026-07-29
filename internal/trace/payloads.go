@@ -95,7 +95,8 @@ type UserMessageAcceptedPayload struct {
 
 // ModelReasoningCompletedPayload is the trace payload for model reasoning completed.
 type ModelReasoningCompletedPayload struct {
-	DurationMS int64 `json:"duration_ms,omitempty"`
+	DurationMS int64  `json:"duration_ms,omitempty"`
+	Summary    string `json:"summary,omitempty"`
 }
 
 // FinalAssistantResponsePayload is the trace payload for final assistant response.

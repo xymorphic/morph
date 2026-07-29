@@ -198,7 +198,7 @@ func TestTranscriptRenderCache_SingleCellIdentityTypesContainNoPointers(t *testi
 	cells := []transcriptCell{
 		userTranscriptCell{},
 		assistantTranscriptCell{},
-		reasoningTranscriptCell{},
+		thinkingTranscriptCell{},
 		thoughtTranscriptCell{},
 		safetyTranscriptCell{},
 		errorTranscriptCell{},
@@ -224,7 +224,7 @@ func TestTranscriptRenderCache_MatchesUncachedRenderer(t *testing.T) {
 	cells := []transcriptCell{
 		userTranscriptCell{text: "Show **browser** state"},
 		assistantTranscriptCell{text: "Opening the page.", duration: 2 * time.Second},
-		reasoningTranscriptCell{text: "Inspecting the available controls.", startedAt: now},
+		thinkingTranscriptCell{summary: "Inspecting the available controls.", startedAt: now},
 		thoughtTranscriptCell{duration: 3 * time.Second},
 		safetyTranscriptCell{action: "blocked", findingIDs: []string{"prompt_exfiltration"}},
 		errorTranscriptCell{message: "page unavailable"},

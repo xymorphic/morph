@@ -37,8 +37,8 @@ func (lipglossTranscriptRenderer) RenderCell(cell transcriptCell, ctx transcript
 		return renderUserTranscriptCell(value.text, ctx.Width)
 	case assistantTranscriptCell:
 		return renderAssistantTranscriptCell(value, ctx.Width)
-	case reasoningTranscriptCell:
-		return renderReasoningTranscriptCell(value.text, ctx.Width)
+	case thinkingTranscriptCell:
+		return renderThinkingTranscriptCell(value, ctx.Width)
 	case thoughtTranscriptCell:
 		return renderThoughtTranscriptCell(formatToolTranscriptDuration(value.duration))
 	case safetyTranscriptCell:
@@ -530,29 +530,43 @@ func renderAssistantTranscriptWorkLabel(duration time.Duration) string {
 		Render(assistantTranscriptWorkGlyph + "Worked for " + formatToolTranscriptDuration(duration))
 }
 
-func renderReasoningTranscriptCell(body string, width int) string {
+func renderThinkingTranscriptCell(cell thinkingTranscriptCell, width int) string {
 	contentWidth := max(width, 1)
 	wrapWidth := max(contentWidth-4, 1)
 	titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(defaultTUITheme.ToolTitle))
 	branchStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(defaultTUITheme.ToolBranch))
 	textStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(defaultTUITheme.ToolDetail))
-	bodyValue2 := str.String(body)
+	bodyValue2 := str.String(cell.summary)
 	lines := strings.Split(bodyValue2.Trim(), "\n")
-	reasoningLines := make([]string, 0, len(lines))
+	summaryLines := make([]string, 0, len(lines))
 	for _, line := range lines {
 		lineValue2 := str.String(line)
 		line = lineValue2.Trim()
 		if line != "" {
-			reasoningLines = append(reasoningLines, line)
+			summaryLines = append(summaryLines, line)
 		}
 	}
-	if len(reasoningLines) == 0 {
+	if len(summaryLines) == 0 {
 		return ""
 	}
 
-	rendered := []string{titleStyle.Render("Thinking")}
+	title := titleStyle.Render("Thinking")
+	if cell.completed {
+		duration := formatToolTranscriptDuration(normalizeThoughtDuration(cell.duration))
+		label := "View thinking"
+		if cell.expanded {
+			label = "Hide thinking"
+		}
+		title = renderThoughtTranscriptCell(duration) + "  " +
+			renderThinkingTranscriptToggleLink(cell.id, label)
+		if !cell.expanded {
+			return title
+		}
+	}
+
+	rendered := []string{title}
 	first := true
-	for _, line := range reasoningLines {
+	for _, line := range summaryLines {
 		for _, wrapped := range strings.Split(wordwrap.String(line, wrapWidth), "\n") {
 			wrappedValue2 := str.String(wrapped)
 			wrapped = wrappedValue2.Trim()
@@ -582,6 +596,25 @@ func renderThoughtTranscriptCell(body string) string {
 	return lipgloss.NewStyle().
 		Foreground(lipgloss.Color(defaultTUITheme.ToolBranch)).
 		Render("Thought for " + duration)
+}
+
+func renderThinkingTranscriptToggleLink(id string, label string) string {
+	labelValue := str.String(label)
+	label = labelValue.Trim()
+	if label == "" {
+		return ""
+	}
+
+	rendered := lipgloss.NewStyle().
+		Underline(true).
+		Foreground(lipgloss.Color(defaultTUITheme.NoticeForeground)).
+		Render(label)
+	target := getThinkingTranscriptLink(id)
+	if target == "" {
+		return rendered
+	}
+
+	return "\x1b]8;;" + target + "\a" + rendered + "\x1b]8;;\a"
 }
 
 func renderErrorTranscriptCell(message string, width int) string {
@@ -656,7 +689,7 @@ func transcriptCellLabelStyle(kind transcriptCellKind) lipgloss.Style {
 		return style.Foreground(lipgloss.Color("39"))
 	case transcriptCellAssistant:
 		return style.Foreground(lipgloss.Color("83"))
-	case transcriptCellReasoning:
+	case transcriptCellThinking:
 		return style.Foreground(lipgloss.Color("246"))
 	case transcriptCellThought:
 		return style.Foreground(lipgloss.Color("244"))

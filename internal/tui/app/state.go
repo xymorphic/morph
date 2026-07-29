@@ -45,6 +45,7 @@ type tuiState struct {
 	reasoningStartedAt         time.Time
 	reasoningMessageIndex      int
 	reasoningMessageIndices    []int
+	thinkingCellSequence       uint64
 	history                    []string
 	historyAt                  int
 	draft                      string

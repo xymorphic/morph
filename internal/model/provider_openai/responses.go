@@ -26,6 +26,11 @@ func (responsesHandler) Complete(
 	onTextDelta func(StreamDelta),
 ) (*Response, error) {
 	params := buildResponsesRequest(req)
+	if client.isReasoningModel(req.Model) {
+		params.Reasoning = shared.ReasoningParam{
+			Summary: shared.ReasoningSummaryAuto,
+		}
+	}
 	if req.DebugRequests {
 		logRequestDebugMetadata(req)
 	}
@@ -198,7 +203,7 @@ func HandesponsesStreamEvent(event responses.ResponseStreamEventUnion) (StreamDe
 		}, nil, nil
 	case "response.reasoning_summary_text.delta":
 		return StreamDelta{
-			Channel: models.StreamChannelReasoning,
+			Channel: models.StreamChannelReasoningSummary,
 			Text:    event.AsResponseReasoningSummaryTextDelta().Delta,
 		}, nil, nil
 	case "response.completed":

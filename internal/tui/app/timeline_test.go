@@ -528,7 +528,7 @@ func TestTUIMessageToTranscriptCell_MapsLiveDisplayMessages(t *testing.T) {
 	}{
 		{name: "user", msg: userMessageAcceptedMsg{Text: "hello"}, want: "You: hello"},
 		{name: "assistant delta", msg: assistantTextDeltaMsg{Text: "hi"}, want: "Morph: hi"},
-		{name: "reasoning delta", msg: assistantTextDeltaMsg{Channel: "reasoning", Text: "thinking"}, want: "Reasoning: thinking"},
+		{name: "reasoning delta", msg: assistantTextDeltaMsg{Channel: "reasoning", Text: "thinking"}, want: "Thinking: thinking"},
 		{name: "assistant complete", msg: assistantResponseCompletedMsg{Text: "done"}, want: "Morph: done"},
 		{name: "tool started", msg: toolInvocationStartedMsg{Name: "read_file"}, want: transcriptCellPlainText(toolTranscriptTestCell("", "read_file", ""))},
 		{name: "tool completed", msg: toolInvocationCompletedMsg{Name: "read_file"}, want: transcriptCellPlainText(toolTranscriptTestCell("", "read_file", "", true))},
@@ -578,9 +578,9 @@ func TestTranscriptCells_ExposeTypedCellContract(t *testing.T) {
 		},
 		{
 			name:       "reasoning",
-			cell:       reasoningTranscriptCell{text: "thinking", startedAt: startedAt},
-			kind:       transcriptCellReasoning,
-			plainText:  "Reasoning: thinking",
+			cell:       thinkingTranscriptCell{summary: "thinking", startedAt: startedAt},
+			kind:       transcriptCellThinking,
+			plainText:  "Thinking: thinking",
 			renderText: "Thinking",
 		},
 		{
@@ -654,7 +654,7 @@ func TestTranscriptCells_ReportEmptyState(t *testing.T) {
 	cases := []transcriptCell{
 		userTranscriptCell{text: " "},
 		assistantTranscriptCell{text: " "},
-		reasoningTranscriptCell{text: " "},
+		thinkingTranscriptCell{summary: " "},
 		thoughtTranscriptCell{},
 		safetyTranscriptCell{},
 		errorTranscriptCell{},
@@ -694,7 +694,10 @@ func TestRenderTranscriptCell_StylesCanonicalCells(t *testing.T) {
 }
 
 func TestRenderTranscriptCell_RendersReasoningDeltas(t *testing.T) {
-	rendered := renderTranscriptTestCellWithWidth(reasoningTranscriptCell{text: "first token\nsecond token"}, 40)
+	rendered := renderTranscriptTestCellWithWidth(
+		thinkingTranscriptCell{summary: "first token\nsecond token"},
+		40,
+	)
 
 	plain := stripANSI(rendered)
 	require.Contains(t, plain, "Thinking")
@@ -709,6 +712,28 @@ func TestRenderTranscriptCell_RendersCollapsedThought(t *testing.T) {
 	plain := stripANSI(rendered)
 	require.Equal(t, "Thought for 3s", plain)
 	require.NotContains(t, plain, "Thought:")
+}
+
+func TestRenderTranscriptCell_RendersFoldableThinkingSummary(t *testing.T) {
+	cell := thinkingTranscriptCell{
+		id:        "trace-7",
+		summary:   "Checked the current state.",
+		duration:  3 * time.Second,
+		completed: true,
+	}
+
+	rendered := renderTranscriptTestCellWithWidth(cell, 60)
+	plain := stripANSI(rendered)
+	require.Contains(t, plain, "Thought for 3s")
+	require.Contains(t, plain, "View thinking")
+	require.NotContains(t, plain, cell.summary)
+	require.Contains(t, rendered, "\x1b]8;;morph-thinking://trace-7\a")
+
+	cell.expanded = true
+	rendered = renderTranscriptTestCellWithWidth(cell, 60)
+	plain = stripANSI(rendered)
+	require.Contains(t, plain, "Hide thinking")
+	require.Contains(t, plain, "└ Checked the current state.")
 }
 
 func TestRenderTranscriptCells_GroupsAdjacentToolOperationsByAction(t *testing.T) {
@@ -2149,9 +2174,13 @@ func TestSessionTimelineToTranscriptCells_RendersPersistedThoughtSummary(t *test
 		},
 		TraceEvents: []agentapi.SessionTimelineTraceEvent{{
 			Event: agentsession.TraceEvent{
+				Sequence:  7,
 				Type:      trace.EvtModelReasoningCompleted,
 				Timestamp: now.Add(time.Second),
-				Payload:   map[string]any{"duration_ms": float64(2000)},
+				Payload: map[string]any{
+					"duration_ms": float64(2000),
+					"summary":     "Checked the current state.",
+				},
 			},
 		}},
 	})
@@ -2161,6 +2190,12 @@ func TestSessionTimelineToTranscriptCells_RendersPersistedThoughtSummary(t *test
 		"Thought: 2s",
 		"Morph: done\nWorked for 2s",
 	}, transcriptCellPlainTexts(cells))
+	thinking, ok := cells[1].(thinkingTranscriptCell)
+	require.True(t, ok)
+	require.Equal(t, "trace-7", thinking.id)
+	require.Equal(t, "Checked the current state.", thinking.summary)
+	require.True(t, thinking.completed)
+	require.False(t, thinking.expanded)
 }
 
 func TestSessionTimelineToTranscriptCells_UsesPersistedToolCallInputForToolDetails(t *testing.T) {

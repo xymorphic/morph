@@ -14,7 +14,7 @@ type transcriptCellKind string
 const (
 	transcriptCellUser       transcriptCellKind = "user"
 	transcriptCellAssistant  transcriptCellKind = "assistant"
-	transcriptCellReasoning  transcriptCellKind = "reasoning"
+	transcriptCellThinking   transcriptCellKind = "thinking"
 	transcriptCellThought    transcriptCellKind = "thought"
 	transcriptCellTool       transcriptCellKind = "tool"
 	transcriptCellSafety     transcriptCellKind = "safety"
@@ -48,9 +48,13 @@ type assistantTranscriptCell struct {
 	duration time.Duration
 }
 
-type reasoningTranscriptCell struct {
-	text      string
+type thinkingTranscriptCell struct {
+	id        string
+	summary   string
 	startedAt time.Time
+	duration  time.Duration
+	completed bool
+	expanded  bool
 }
 
 type thoughtTranscriptCell struct {
@@ -118,20 +122,28 @@ func (cell assistantTranscriptCell) IsEmpty() bool {
 	return textValue3.Trim() == ""
 }
 
-func (cell reasoningTranscriptCell) Kind() transcriptCellKind {
-	return transcriptCellReasoning
+func (cell thinkingTranscriptCell) Kind() transcriptCellKind {
+	return transcriptCellThinking
 }
 
-func (cell reasoningTranscriptCell) PlainText() string {
+func (cell thinkingTranscriptCell) PlainText() string {
 	if cell.IsEmpty() {
 		return ""
 	}
 
-	return "Reasoning: " + cell.text
+	if cell.completed && !cell.expanded {
+		return "Thought: " + formatToolTranscriptDuration(cell.duration)
+	}
+
+	text := "Thinking: " + cell.summary
+	if cell.completed {
+		text += "\nThought: " + formatToolTranscriptDuration(cell.duration)
+	}
+	return text
 }
 
-func (cell reasoningTranscriptCell) IsEmpty() bool {
-	textValue4 := str.String(cell.text)
+func (cell thinkingTranscriptCell) IsEmpty() bool {
+	textValue4 := str.String(cell.summary)
 	return textValue4.Trim() == ""
 }
 

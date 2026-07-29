@@ -102,12 +102,18 @@ func TestTraceEventToTUIMessage_ConvertsAssistantResponseCompleted(t *testing.T)
 
 func TestTraceEventToTUIMessage_ConvertsReasoningCompleted(t *testing.T) {
 	msg, ok := traceEventToTUIMessage(trace.Event{
-		Type:    trace.EvtModelReasoningCompleted,
-		Payload: map[string]any{"duration_ms": float64(2500)},
+		Type: trace.EvtModelReasoningCompleted,
+		Payload: map[string]any{
+			"duration_ms": float64(2500),
+			"summary":     "Checked the current state.",
+		},
 	})
 
 	require.True(t, ok)
-	require.Equal(t, reasoningCompletedMsg{Duration: 2500 * time.Millisecond}, msg)
+	require.Equal(t, reasoningCompletedMsg{
+		Duration: 2500 * time.Millisecond,
+		Summary:  "Checked the current state.",
+	}, msg)
 }
 
 func TestTraceEventToTUIMessage_ConvertsAutoCompactionEvent(t *testing.T) {
