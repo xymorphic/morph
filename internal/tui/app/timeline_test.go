@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -205,6 +206,169 @@ func TestLoadSessionTimelineCmdHandlesNilClientAndNilContext(t *testing.T) {
 	require.NotNil(t, cmd)
 	require.Equal(t, sessionTimelineLoadedMsg{Timeline: client.timeline}, cmd())
 	require.Equal(t, "session-a", client.timelineSessionID)
+}
+
+func TestLoadOlderSessionTimelineCmdRequestsPreviousMessageAndTracePages(t *testing.T) {
+	page := client.SessionTimeline{SessionID: "session-a"}
+	fakeClient := &fakeTUIChatClient{timeline: page}
+	timeline := client.SessionTimeline{
+		SessionID: "session-a",
+		Messages: []agentapi.SessionTimelineMessage{
+			{Offset: 100},
+			{Offset: 199},
+		},
+		TraceEvents: []agentapi.SessionTimelineTraceEvent{
+			{Event: agentsession.TraceEvent{Sequence: 501}},
+			{Event: agentsession.TraceEvent{Sequence: 600}},
+		},
+		MessagesHasMore:    true,
+		TracesHasMore:      true,
+		FirstTraceSequence: 501,
+		LastTraceSequence:  600,
+	}
+
+	cmd := loadOlderSessionTimelineCmd(context.Background(), fakeClient, timeline)
+
+	require.NotNil(t, cmd)
+	require.Equal(t, olderSessionTimelineLoadedMsg{
+		Timeline: page,
+		Options: client.SessionTimelineOptions{
+			SessionID:     "session-a",
+			MessageOffset: 0,
+			MessageLimit:  100,
+			TraceOffset:   1,
+			TraceLimit:    500,
+		},
+	}, cmd())
+	require.Equal(t, []client.SessionTimelineOptions{{
+		SessionID:     "session-a",
+		MessageOffset: 0,
+		MessageLimit:  100,
+		TraceOffset:   1,
+		TraceLimit:    500,
+	}}, fakeClient.timelineOptions)
+}
+
+func TestModel_PrependsOlderTimelineWithoutMovingViewportOrDroppingLiveCells(t *testing.T) {
+	runModel := newTranscriptWindowTestModel(80, 12)
+	runModel.sessionID = "session-a"
+	runModel.loadedTimeline = timelineMessagePage(10, 10)
+	baseCells := sessionTimelineToTranscriptCells(runModel.loadedTimeline)
+	runModel.timelineBaseCells = len(baseCells)
+	runModel.messages = append(baseCells, assistantTranscriptCell{text: "live suffix"})
+	runModel.renderTranscriptWindowIntoViewport(transcriptWindowHead)
+	runModel.transcript.SetYOffset(len(runModel.getTranscriptHeaderLines()))
+	visibleBefore := firstNonemptyTranscriptLine(runModel.transcript.View())
+	require.Contains(t, visibleBefore, "history-0010")
+	page := timelineMessagePage(0, 10)
+
+	runModel.prependOlderSessionTimeline(page, client.SessionTimelineOptions{
+		SessionID:     "session-a",
+		MessageOffset: 0,
+		MessageLimit:  10,
+	})
+
+	require.Equal(t, visibleBefore, firstNonemptyTranscriptLine(runModel.transcript.View()))
+	require.Len(t, runModel.loadedTimeline.Messages, 20)
+	require.Len(t, runModel.messages, 21)
+	require.Equal(t, "Morph: live suffix", transcriptCellPlainText(runModel.messages[20]))
+	require.False(t, runModel.loadedTimeline.MessagesHasMore)
+}
+
+func TestModel_LoadsOlderTimelineOnlyOnceWhileRequestIsPending(t *testing.T) {
+	fakeClient := &fakeTUIChatClient{timeline: timelineMessagePage(0, 10)}
+	runModel := newTranscriptWindowTestModel(80, 12)
+	runModel.sessionID = "session-a"
+	runModel.timeline = fakeClient
+	runModel.loadedTimeline = timelineMessagePage(10, 10)
+	runModel.timelineBaseCells = 10
+	runModel.messages = sessionTimelineToTranscriptCells(runModel.loadedTimeline)
+	runModel.renderTranscriptWindowIntoViewport(transcriptWindowHead)
+	runModel.transcript.GotoTop()
+
+	cmd := runModel.loadOlderTimelinePageIfNeeded()
+
+	require.NotNil(t, cmd)
+	require.True(t, runModel.timelinePageLoading)
+	require.Nil(t, runModel.loadOlderTimelinePageIfNeeded())
+	msg, ok := cmd().(olderSessionTimelineLoadedMsg)
+	require.True(t, ok)
+	updated, updateCmd := runModel.Update(msg)
+	require.Nil(t, updateCmd)
+	runModel = updated.(model)
+	require.False(t, runModel.timelinePageLoading)
+	require.Len(t, runModel.loadedTimeline.Messages, 20)
+}
+
+func TestMergeSessionTimelinesKeepsPagingTowardOldestTraceSequence(t *testing.T) {
+	current := client.SessionTimeline{
+		SessionID: "session-a",
+		TraceEvents: []agentapi.SessionTimelineTraceEvent{
+			{Event: agentsession.TraceEvent{Sequence: 1_001}},
+			{Event: agentsession.TraceEvent{Sequence: 1_002}},
+		},
+		TracesHasMore:      true,
+		FirstTraceSequence: 1_001,
+		LastTraceSequence:  1_002,
+	}
+	page := client.SessionTimeline{
+		SessionID: "session-a",
+		TraceEvents: []agentapi.SessionTimelineTraceEvent{
+			{Event: agentsession.TraceEvent{Sequence: 501}},
+			{Event: agentsession.TraceEvent{Sequence: 1_001}},
+		},
+	}
+
+	merged := mergeSessionTimelines(current, page, client.SessionTimelineOptions{
+		SessionID:   "session-a",
+		TraceOffset: 501,
+		TraceLimit:  500,
+	})
+
+	require.Equal(t, []int{501, 1_001, 1_002}, []int{
+		merged.TraceEvents[0].Event.Sequence,
+		merged.TraceEvents[1].Event.Sequence,
+		merged.TraceEvents[2].Event.Sequence,
+	})
+	require.Equal(t, 501, merged.FirstTraceSequence)
+	require.Equal(t, 1_002, merged.LastTraceSequence)
+	require.True(t, merged.TracesHasMore)
+
+	merged = mergeSessionTimelines(merged, client.SessionTimeline{
+		SessionID: "session-a",
+		TraceEvents: []agentapi.SessionTimelineTraceEvent{
+			{Event: agentsession.TraceEvent{Sequence: 1}},
+			{Event: agentsession.TraceEvent{Sequence: 501}},
+		},
+	}, client.SessionTimelineOptions{
+		SessionID:   "session-a",
+		TraceOffset: 1,
+		TraceLimit:  500,
+	})
+
+	require.Equal(t, 1, merged.FirstTraceSequence)
+	require.False(t, merged.TracesHasMore)
+}
+
+func timelineMessagePage(offset, count int) client.SessionTimeline {
+	messages := make([]agentapi.SessionTimelineMessage, count)
+	for index := range messages {
+		messageOffset := offset + index
+		messages[index] = agentapi.SessionTimelineMessage{
+			Offset: messageOffset,
+			Message: morphmsg.Message{
+				Role:      morphmsg.RoleAssistant,
+				Content:   fmt.Sprintf("history-%04d", messageOffset),
+				CreatedAt: time.Unix(int64(messageOffset), 0),
+			},
+		}
+	}
+
+	return client.SessionTimeline{
+		SessionID:       "session-a",
+		Messages:        messages,
+		MessagesHasMore: offset > 0,
+	}
 }
 
 func TestLoadStartupSessionTimelineCmdHandlesNilClientAndNilContext(t *testing.T) {

@@ -7183,6 +7183,7 @@ type fakeTUIChatClient struct {
 	timeline              rpcclient.SessionTimeline
 	timelineErr           error
 	timelineSessionID     string
+	timelineOptions       []rpcclient.SessionTimelineOptions
 	currentSession        storage.Session
 	currentSessionErr     error
 	providerList          rpcclient.ProviderList
@@ -7453,6 +7454,7 @@ func (c *fakeTUIChatClient) Timeline(
 ) (rpcclient.SessionTimeline, error) {
 	c.timelineCalls++
 	c.timelineSessionID = opts.SessionID
+	c.timelineOptions = append(c.timelineOptions, opts)
 	return c.timeline, c.timelineErr
 }
 

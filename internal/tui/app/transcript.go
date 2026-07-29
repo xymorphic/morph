@@ -195,7 +195,7 @@ func (m *model) updateTranscriptWithScrollTracking(msg tea.Msg) (tea.Model, tea.
 	}
 	m.markResponseTranscriptScrolled(offset, true)
 
-	return *m, cmd
+	return *m, tea.Batch(cmd, m.loadOlderTimelinePageIfNeeded())
 }
 
 func (m *model) markResponseTranscriptScrolled(previousOffset int, scrollInput bool) {

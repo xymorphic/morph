@@ -49,6 +49,9 @@ type model struct {
 	transcriptCache      *transcriptRenderCache
 	transcriptBlockCache transcriptBlockCache
 	transcriptLayout     transcriptLayoutState
+	loadedTimeline       rpcclient.SessionTimeline
+	timelineBaseCells    int
+	timelinePageLoading  bool
 	transcriptRenders    uint64
 	transcriptResizes    uint64
 }

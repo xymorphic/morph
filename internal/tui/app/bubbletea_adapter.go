@@ -130,6 +130,15 @@ func (m model) handleAsyncMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 				msg.Timeline.SessionID,
 			),
 		), true
+	case olderSessionTimelineLoadedMsg:
+		m.prependOlderSessionTimeline(msg.Timeline, msg.Options)
+		return m, nil, true
+	case olderSessionTimelineLoadFailedMsg:
+		if msg.SessionID == m.getCurrentSessionID() {
+			m.timelinePageLoading = false
+			return m, m.setStatus("older transcript unavailable"), true
+		}
+		return m, nil, true
 	case sessionExecutionStateLoadedMsg:
 		cmd := m.applySessionExecutionState(msg)
 		return m, cmd, true
@@ -541,7 +550,7 @@ func (m model) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd, bool)
 		}
 	}
 	if m.scrollTranscriptWithKey(msg) {
-		return m, nil, true
+		return m, m.loadOlderTimelinePageIfNeeded(), true
 	}
 
 	return m, nil, false

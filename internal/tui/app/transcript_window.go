@@ -304,6 +304,43 @@ func (m model) getTranscriptWindowPosition() transcriptWindowPosition {
 	}
 }
 
+func (m *model) getTranscriptAbsoluteTopLine() int {
+	blocks := m.getTranscriptWindowBlocks()
+	line := 0
+	for index := 0; index < min(m.transcriptWindow.startBlock, len(blocks)); index++ {
+		line += len(m.renderTranscriptWindowBlock(blocks[index]))
+	}
+
+	return line + m.transcriptWindow.startLine + m.transcript.YOffset()
+}
+
+func (m *model) getTranscriptRenderedLineCount() int {
+	lineCount := 0
+	for _, block := range m.getTranscriptWindowBlocks() {
+		lineCount += len(m.renderTranscriptWindowBlock(block))
+	}
+
+	return lineCount
+}
+
+func (m *model) renderTranscriptWindowAtAbsoluteLine(line int) {
+	blocks := m.getTranscriptWindowBlocks()
+	line = min(max(line, 0), max(m.getTranscriptRenderedLineCount()-1, 0))
+	windowStart := max(line-max(m.transcript.Height(), 1), 0)
+	startBlock, startLine, moved := m.moveTranscriptWindowPositionForward(
+		blocks,
+		0,
+		0,
+		windowStart,
+	)
+	m.transcriptWindow.startBlock = startBlock
+	m.transcriptWindow.startLine = startLine
+	streamingRenderAt := m.streamingRenderAt
+	prepended := m.renderTranscriptWindowIntoViewport(transcriptWindowCurrent)
+	m.streamingRenderAt = streamingRenderAt
+	m.transcript.SetYOffset(line - moved + prepended)
+}
+
 func (m *model) shiftTranscriptWindowUp() bool {
 	if m.selection.active {
 		return m.expandTranscriptSelectionWindow(-1)

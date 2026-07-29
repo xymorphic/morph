@@ -41,6 +41,20 @@ type sessionTitleLoadedMsg struct {
 
 type sessionTitleLoadFailedMsg struct{}
 
+type olderSessionTimelineLoadedMsg struct {
+	Timeline rpcclient.SessionTimeline
+	Options  rpcclient.SessionTimelineOptions
+}
+
+type olderSessionTimelineLoadFailedMsg struct {
+	SessionID string
+}
+
+const (
+	sessionTimelineMessagePageSize = 100
+	sessionTimelineTracePageSize   = 500
+)
+
 func loadSessionTimelineCmd(ctx context.Context, client sessionTimelineLoader, sessionID string) tea.Cmd {
 	if client == nil {
 		return nil
@@ -167,9 +181,79 @@ func loadSessionTitleCmd(ctx context.Context, client sessionTitleLoader) tea.Cmd
 	}
 }
 
+func loadOlderSessionTimelineCmd(
+	ctx context.Context,
+	client sessionTimelineLoader,
+	timeline rpcclient.SessionTimeline,
+) tea.Cmd {
+	if client == nil {
+		return nil
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	options, ok := getOlderSessionTimelineOptions(timeline)
+	if !ok {
+		return nil
+	}
+
+	return func() tea.Msg {
+		page, err := client.Timeline(ctx, options)
+		if err != nil {
+			return olderSessionTimelineLoadFailedMsg{SessionID: timeline.SessionID}
+		}
+
+		return olderSessionTimelineLoadedMsg{
+			Timeline: page,
+			Options:  options,
+		}
+	}
+}
+
+func getOlderSessionTimelineOptions(
+	timeline rpcclient.SessionTimeline,
+) (rpcclient.SessionTimelineOptions, bool) {
+	if timeline.SessionID == "" || (!timeline.MessagesHasMore && !timeline.TracesHasMore) {
+		return rpcclient.SessionTimelineOptions{}, false
+	}
+
+	options := rpcclient.SessionTimelineOptions{SessionID: timeline.SessionID}
+	if timeline.MessagesHasMore && len(timeline.Messages) > 0 {
+		firstOffset := timeline.Messages[0].Offset
+		options.MessageOffset = max(firstOffset-sessionTimelineMessagePageSize, 0)
+		options.MessageLimit = firstOffset - options.MessageOffset
+	} else {
+		options.MessageOffset = getTimelineNextMessageOffset(timeline.Messages)
+		options.MessageLimit = 1
+	}
+
+	if timeline.TracesHasMore && timeline.FirstTraceSequence > 1 {
+		options.TraceOffset = max(timeline.FirstTraceSequence-sessionTimelineTracePageSize, 1)
+		options.TraceLimit = timeline.FirstTraceSequence - options.TraceOffset
+	} else {
+		options.TraceOffset = max(timeline.LastTraceSequence+1, 1)
+		options.TraceLimit = 1
+	}
+
+	return options, true
+}
+
+func getTimelineNextMessageOffset(messages []agentapi.SessionTimelineMessage) int {
+	if len(messages) == 0 {
+		return 0
+	}
+
+	return messages[len(messages)-1].Offset + 1
+}
+
 func (m *model) hydrateSessionTimeline(timeline rpcclient.SessionTimeline) tea.Cmd {
 	cells := sessionTimelineToTranscriptCells(timeline)
 
+	m.loadedTimeline = timeline
+	m.timelineBaseCells = len(cells)
+	m.timelinePageLoading = false
 	m.applyAction(setSessionAction{
 		ID:    timeline.SessionID,
 		Title: getSessionTimelineDisplayName(timeline),
@@ -188,6 +272,148 @@ func (m *model) hydrateSessionTimeline(timeline rpcclient.SessionTimeline) tea.C
 	}
 
 	return cmd
+}
+
+func (m *model) loadOlderTimelinePageIfNeeded() tea.Cmd {
+	if m.timelinePageLoading || m.selection.active || !m.isNearLoadedTranscriptStart() {
+		return nil
+	}
+
+	cmd := loadOlderSessionTimelineCmd(m.chatCtx, m.timeline, m.loadedTimeline)
+	if cmd == nil {
+		return nil
+	}
+
+	m.timelinePageLoading = true
+
+	return cmd
+}
+
+func (m model) isNearLoadedTranscriptStart() bool {
+	return m.transcriptWindow.startBlock == 0 &&
+		m.transcriptWindow.startLine == 0 &&
+		m.transcript.YOffset() <= max(m.transcript.Height(), 1)
+}
+
+func (m *model) prependOlderSessionTimeline(
+	page rpcclient.SessionTimeline,
+	options rpcclient.SessionTimelineOptions,
+) {
+	m.timelinePageLoading = false
+	if page.SessionID != m.getCurrentSessionID() ||
+		page.SessionID != m.loadedTimeline.SessionID {
+		return
+	}
+
+	oldTop := m.getTranscriptAbsoluteTopLine()
+	oldLineCount := m.getTranscriptRenderedLineCount()
+	localSuffix := cloneTranscriptCells(m.messages[min(m.timelineBaseCells, len(m.messages)):])
+	m.loadedTimeline = mergeSessionTimelines(m.loadedTimeline, page, options)
+	baseCells := sessionTimelineToTranscriptCells(m.loadedTimeline)
+	cells := make([]transcriptCell, 0, len(baseCells)+len(localSuffix))
+	cells = append(cells, baseCells...)
+	cells = append(cells, localSuffix...)
+	m.timelineBaseCells = len(baseCells)
+	m.applyAction(setTranscriptCellsAction{Cells: cells})
+
+	addedLines := max(m.getTranscriptRenderedLineCount()-oldLineCount, 0)
+	m.renderTranscriptWindowAtAbsoluteLine(oldTop + addedLines)
+}
+
+func mergeSessionTimelines(
+	current rpcclient.SessionTimeline,
+	page rpcclient.SessionTimeline,
+	options rpcclient.SessionTimelineOptions,
+) rpcclient.SessionTimeline {
+	merged := current
+	merged.Messages = mergeTimelineMessages(current.Messages, page.Messages)
+	merged.TraceEvents = mergeTimelineTraceEvents(current.TraceEvents, page.TraceEvents)
+	merged.MessagesHasMore = len(merged.Messages) > 0 && merged.Messages[0].Offset > 0
+	merged.FirstTraceSequence = getTimelineFirstTraceSequence(merged.TraceEvents)
+	merged.LastTraceSequence = getTimelineLastTraceSequence(merged.TraceEvents)
+	merged.TracesHasMore = hasOlderTimelineTraces(current, page, options)
+	merged.TracesTruncatedBefore = page.TracesTruncatedBefore
+
+	return merged
+}
+
+func mergeTimelineMessages(
+	current []agentapi.SessionTimelineMessage,
+	page []agentapi.SessionTimelineMessage,
+) []agentapi.SessionTimelineMessage {
+	byOffset := make(map[int]agentapi.SessionTimelineMessage, len(current)+len(page))
+	for _, message := range current {
+		byOffset[message.Offset] = message
+	}
+	for _, message := range page {
+		byOffset[message.Offset] = message
+	}
+
+	messages := make([]agentapi.SessionTimelineMessage, 0, len(byOffset))
+	for _, message := range byOffset {
+		messages = append(messages, message)
+	}
+	sort.SliceStable(messages, func(left, right int) bool {
+		return messages[left].Offset < messages[right].Offset
+	})
+
+	return messages
+}
+
+func mergeTimelineTraceEvents(
+	current []agentapi.SessionTimelineTraceEvent,
+	page []agentapi.SessionTimelineTraceEvent,
+) []agentapi.SessionTimelineTraceEvent {
+	bySequence := make(
+		map[int]agentapi.SessionTimelineTraceEvent,
+		len(current)+len(page),
+	)
+	for _, event := range current {
+		bySequence[event.Event.Sequence] = event
+	}
+	for _, event := range page {
+		bySequence[event.Event.Sequence] = event
+	}
+
+	events := make([]agentapi.SessionTimelineTraceEvent, 0, len(bySequence))
+	for _, event := range bySequence {
+		events = append(events, event)
+	}
+	sort.SliceStable(events, func(left, right int) bool {
+		return events[left].Event.Sequence < events[right].Event.Sequence
+	})
+
+	return events
+}
+
+func hasOlderTimelineTraces(
+	current rpcclient.SessionTimeline,
+	page rpcclient.SessionTimeline,
+	options rpcclient.SessionTimelineOptions,
+) bool {
+	if !current.TracesHasMore || options.TraceLimit <= 1 || len(page.TraceEvents) == 0 {
+		return false
+	}
+
+	firstSequence := page.TraceEvents[0].Event.Sequence
+
+	return options.TraceOffset > 1 && firstSequence <= options.TraceOffset
+}
+
+func getTimelineFirstTraceSequence(events []agentapi.SessionTimelineTraceEvent) int {
+	if len(events) == 0 {
+		return 0
+	}
+
+	return int(events[0].Event.Sequence)
+}
+
+func getTimelineLastTraceSequence(events []agentapi.SessionTimelineTraceEvent) int {
+	if len(events) == 0 {
+		return 0
+	}
+
+	return int(events[len(events)-1].Event.Sequence)
 }
 
 func (m *model) refreshSessionTitleFromSession(session storage.Session) {
