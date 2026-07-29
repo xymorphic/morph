@@ -1,7 +1,7 @@
 ---
 title: "feat: Add catalog-driven reasoning effort controls"
 type: feat
-status: active
+status: completed
 date: 2026-07-29
 deepened: 2026-07-29
 ---
@@ -10,7 +10,7 @@ deepened: 2026-07-29
 
 ## Summary
 
-Let users inspect and set the reasoning effort for the current session with `/effort`, apply that setting consistently to future main-model turns, and display the active effort beside the model name. Make provider, API, and model catalog metadata authoritative so Morph sends an effort control only when the exact catalog tuple declares it supported; provider drift remains an ordinary request failure rather than triggering an inferred fallback.
+Let users inspect and set the reasoning effort for the current session with `/effort`, apply that setting consistently to future main-model turns, and display the selected effort beside the model name. Make provider, API, and model catalog metadata authoritative so Morph sends an effort control only when the exact catalog tuple declares it supported; provider drift remains an ordinary request failure rather than triggering an inferred fallback.
 
 ## Problem Frame
 
@@ -51,11 +51,11 @@ A single global list is not correct. OpenAI, Anthropic, OpenRouter, Copilot, and
 
 ### TUI and command experience
 
-- R19. `/effort` with no argument opens a selector/status view for the current session using the catalog's effort order and marking the raw override, effective value, default source, and any fallback.
+- R19. `/effort` with no argument opens a selector/status view for the current session using the catalog's effort order and marking the raw override, effective value, default source, and any fallback. During a run, it presents the active-run snapshot separately from the selected next-turn effort.
 - R20. `/effort <value>` sets the current session override, while `/effort default` and `/effort reset` clear it. Input is trimmed and matched case-insensitively to a catalog token, then stored and displayed in canonical form.
 - R21. A reasoning model without adjustable efforts reports that effort control is unavailable; a non-reasoning model reports it as not applicable. Neither case mutates the session or emits a provider effort field.
-- R22. When idle, the header and composer status bar render one shared model label in the form `Model Display Name (effective effort)` when an effective effort exists. Models without an effective effort retain the existing unsuffixed display name.
-- R23. During a run, the model label reflects the active-run snapshot. If `/effort` changes the next-turn value, the command confirms that timing and the label changes after the active run becomes terminal rather than misrepresenting the in-flight request.
+- R22. The header and composer status bar render one shared model label in the form `Model Display Name (effective effort)` when an effective effort exists. Models without an effective effort retain the existing unsuffixed display name.
+- R23. A successful `/effort` change updates the model label immediately, including during an active run. If the active-run snapshot differs, command and selector feedback state that the current turn keeps its prior effort while the newly displayed effort applies to the next turn.
 - R24. Session hydration, session switching, reconnect after `/models`, and effort mutation all refresh from authoritative session reasoning state. A model switch does not claim a final fallback in the TUI until the daemon reconnects and returns the new tuple's resolution.
 
 ### Compatibility and verification
@@ -76,7 +76,7 @@ A single global list is not correct. OpenAI, Anthropic, OpenRouter, Copilot, and
 - KTD-7. **Make queue claim and effort snapshot one atomic transition.** A multi-step tool turn must not change compute policy halfway through, and a pre-claim resolve or post-claim patch leaves a race with `/effort`. The claim contract receives immutable tuple/capability/profile context, reads the raw override under the existing store transaction or memory lock, invokes the shared resolver, and creates the active run with its snapshot in that same critical section.
 - KTD-8. **Make stale-selector protection explicit and concurrent writes simple.** The setter includes the provider/API/model tuple used to present the choices. The server rejects a tuple mismatch and otherwise applies last-write-wins, returning authoritative state.
 - KTD-9. **Keep provider adapters mechanical.** Capability resolution happens before a generic request reaches an adapter. The adapter maps a validated value to its protocol field, merges it with existing request structures, and fails rather than approximating an unencodable value.
-- KTD-10. **Render current execution truth.** While idle, chrome shows the next effective effort. While a run is active, it shows the persisted active-run snapshot; command feedback explains when a changed value will take effect.
+- KTD-10. **Render the selected session setting immediately.** Chrome always shows the current effective session effort, even when an active run retains a prior snapshot. `/effort` feedback and its selector/status view expose the active-versus-next distinction without delaying the user's visible selection.
 - KTD-11. **Preserve the in-progress thinking-summary implementation.** Replace its OpenAI model-name/boolean check with resolved request metadata, but retain the separate summary stream channel, encrypted-content inclusion, trace propagation, and expandable thinking cell.
 
 ---
@@ -167,7 +167,7 @@ The generic request transports the resolved effort and summary intent. Each adap
 | The session runs `/effort default` | The raw override clears; effective effort falls to the supported profile value, then catalog default if needed |
 | Session override `high` is active on model A, then `/models` switches to non-adjustable model B | The stored `high` remains dormant, no effort is sent for B, reconnect explains `session_override_unsupported`, and switching back to A restores `high` |
 | A client opened A's effort selector, another client switches to B, then the first submits `high` | The server rejects the stale tuple without mutation and the TUI refreshes choices for B |
-| Run R is active at `low`, then `/effort high` succeeds | R and all of its tool-loop requests remain `low`; the command says `high` applies to the next turn; the active label remains `low` until R ends |
+| Run R is active at `low`, then `/effort high` succeeds | R and all of its tool-loop requests remain `low`; the model label changes to `high` immediately; command and selector feedback say the current turn remains `low` and `high` applies to the next turn |
 | Q1 and Q2 are queued; Q1 claims `high`; the user sets `low` during Q1 | Q1 stays `high`; Q2 snapshots `low` when claimed |
 | A steering entry is delivered after the setting changes | Steering uses the active run's original snapshot because it is part of that turn |
 | Anthropic structured output and effort are both active | The request contains both `output_config.format` and `output_config.effort`; neither overwrites the other |
@@ -247,15 +247,15 @@ The generic request transports the resolved effort and summary intent. Each adap
 
 ### U5. Add `/effort` and truthful TUI model chrome
 
-- **Goal:** Make effort selection discoverable and keep the visible model label synchronized with server execution state.
+- **Goal:** Make effort selection discoverable and keep the visible model label synchronized with the effective session setting.
 - **Requirements:** R19, R20, R21, R22, R23, R24.
 - **Dependencies:** U4.
 - **Files:** `internal/tui/app/commands.go`, `internal/tui/app/command_effort.go`, `internal/tui/app/command_view.go`, `internal/tui/app/state.go`, `internal/tui/app/chrome.go`, `internal/tui/app/bottom_status_panel.go`, `internal/tui/app/command_models.go`, `internal/tui/app/model.go`, `cmd/tui/program.go`, TUI client interfaces, and related tests.
-- **Approach:** Register `/effort` through the existing definition/dispatch/effect/action pattern. With no argument, open a compact selector that preserves catalog order and identifies override/default/effective sources; direct arguments use the same server mutation. Keep the raw display name and reasoning state as separate model fields, then use one formatter for header and composer status bar. While responding, prefer the active snapshot for the suffix and show successful changes as “applies to the next turn.” On run completion, session switch, hydration, or reconnect, replace local reasoning state with the server response.
+- **Approach:** Register `/effort` through the existing definition/dispatch/effect/action pattern. With no argument, open a compact selector that preserves catalog order and identifies override/default/effective sources; while a run is active, show separate current-turn and next-turn values. Direct arguments use the same server mutation. Keep the raw display name and reasoning state as separate model fields, then use one formatter for header and composer status bar. Apply a successful server response to the suffix immediately, including while responding, and explain when the active snapshot differs. On session switch, hydration, or reconnect, replace local reasoning state with the server response.
 - **Model switching:** Keep the existing profile-save/daemon-restart lifecycle. Immediately suppress the old effort suffix once a different model selection enters restart-pending state, because it belongs to the old tuple. Reconnect, reload RuntimeModel and Session State, and accept reasoning state only when its tuple matches the reconnected runtime tuple; otherwise retry hydration. A model switch interrupts an active run through existing daemon-restart behavior, unlike `/effort`, which preserves the active snapshot.
 - **Responsive behavior:** Preserve current status-bar functionality and define the effort suffix as part of the model segment's truncation budget. At narrow widths, truncate the model segment according to existing priorities rather than displacing permission or context-usage state.
 - **Test scenarios:** Menu registration and parsing; ordered keyboard/mouse selection; direct set and both reset aliases; canonical case matching; non-reasoning and non-adjustable models; fallback explanation; stale mutation refresh; active-versus-next value; session isolation; queued-turn transition; reconnect after model switch; header/status consistency; narrow terminal snapshots; unchanged composer status functionality.
-- **Verification:** The TUI always names the effort actually used by an active run or, while idle, the effort the next claimed turn will use.
+- **Verification:** The model label changes immediately to the effective session effort, while `/effort` feedback accurately identifies any different effort retained by the active run.
 
 ### U6. Document, validate, and protect provider drift
 

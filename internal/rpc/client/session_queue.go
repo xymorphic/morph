@@ -76,8 +76,77 @@ func (s *SessionService) State(
 		OldestPendingCreated: protoTimestampToTime(
 			response.GetOldestPendingCreatedAt(),
 		),
-		Progress: progress,
+		Progress:  progress,
+		Reasoning: protoToSessionReasoningSettings(response.GetReasoning()),
 	}, nil
+}
+
+func (s *SessionService) SetReasoningEffort(
+	ctx context.Context,
+	opts SetReasoningEffortOptions,
+) (agentsession.ReasoningSettings, error) {
+	client, err := s.getClient()
+	if err != nil {
+		return agentsession.ReasoningSettings{}, err
+	}
+	prepareRPCConnection(s.reconnector)
+	response, err := client.SetReasoningEffort(
+		ctx,
+		&morphpb.SetSessionReasoningEffortRequest{
+			Id:               opts.SessionID,
+			ExpectedProvider: opts.ExpectedProvider,
+			ExpectedApi:      opts.ExpectedAPI,
+			ExpectedModel:    opts.ExpectedModel,
+			Effort:           opts.Effort,
+			Reset_:           opts.Reset,
+		},
+	)
+	if err != nil {
+		return agentsession.ReasoningSettings{}, err
+	}
+	return protoToSessionReasoningSettings(response.GetReasoning()), nil
+}
+
+func protoToSessionReasoningSettings(
+	value *morphpb.SessionReasoningSettings,
+) agentsession.ReasoningSettings {
+	if value == nil {
+		return agentsession.ReasoningSettings{}
+	}
+	efforts := make([]agentsession.ReasoningEffort, len(value.GetSupportedEfforts()))
+	for index, effort := range value.GetSupportedEfforts() {
+		efforts[index] = agentsession.ReasoningEffort(effort)
+	}
+	settings := agentsession.ReasoningSettings{
+		Model: agentsession.ReasoningModelTuple{
+			Provider:    value.GetModel().GetProvider(),
+			API:         value.GetModel().GetApi(),
+			Model:       value.GetModel().GetModel(),
+			DisplayName: value.GetModel().GetDisplayName(),
+		},
+		SupportedEfforts: efforts,
+		SessionOverride:  agentsession.ReasoningEffort(value.GetSessionOverride()),
+		ProfileDefault:   agentsession.ReasoningEffort(value.GetProfileDefault()),
+		CatalogDefault:   agentsession.ReasoningEffort(value.GetCatalogDefault()),
+		EffectiveEffort:  agentsession.ReasoningEffort(value.GetEffectiveEffort()),
+		DormantEffort:    agentsession.ReasoningEffort(value.GetDormantEffort()),
+		Source:           agentsession.ReasoningResolutionSource(value.GetSource()),
+		Fallback:         agentsession.ReasoningFallbackCode(value.GetFallback()),
+		Reasoning:        value.GetReasoning(),
+		Adjustable:       value.GetAdjustable(),
+		SummarySupported: value.GetSummarySupported(),
+	}
+	if active := value.GetActiveRun(); active != nil {
+		snapshot := agentsession.ReasoningSnapshot{
+			Provider: active.GetProvider(),
+			API:      active.GetApi(),
+			Model:    active.GetModel(),
+			Effort:   agentsession.ReasoningEffort(active.GetEffort()),
+			Summary:  active.GetSummary(),
+		}
+		settings.ActiveRunSnapshot = &snapshot
+	}
+	return settings
 }
 
 func (s *SessionService) Observe(
@@ -241,6 +310,16 @@ func (c *Client) State(ctx context.Context, sessionID string) (SessionExecutionS
 	return c.Session.State(ctx, sessionID)
 }
 
+func (c *Client) SetReasoningEffort(
+	ctx context.Context,
+	opts SetReasoningEffortOptions,
+) (agentsession.ReasoningSettings, error) {
+	if c == nil || c.Session == nil {
+		return agentsession.ReasoningSettings{}, errors.New("RPC client is unavailable")
+	}
+	return c.Session.SetReasoningEffort(ctx, opts)
+}
+
 func (c *Client) Observe(
 	ctx context.Context,
 	sessionID string,
@@ -356,6 +435,13 @@ func protoToSessionActiveRun(run *morphpb.SessionActiveRun) *SessionActiveRun {
 		UpdatedAt:    protoTimestampToTime(run.GetUpdatedAt()),
 		Reason:       run.GetReason(),
 		LastError:    run.GetLastError(),
+		Reasoning: agentsession.ReasoningSnapshot{
+			Provider: run.GetReasoning().GetProvider(),
+			API:      run.GetReasoning().GetApi(),
+			Model:    run.GetReasoning().GetModel(),
+			Effort:   agentsession.ReasoningEffort(run.GetReasoning().GetEffort()),
+			Summary:  run.GetReasoning().GetSummary(),
+		},
 	}
 }
 

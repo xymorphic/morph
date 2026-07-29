@@ -3,6 +3,7 @@ package storememory
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -65,6 +66,108 @@ func TestMemoryStore_SaveAndGet(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "hello", message.Content)
 	require.False(t, loaded.UpdatedAt.IsZero())
+}
+
+func TestMemoryStore_PatchReasoningEffortOverride(t *testing.T) {
+	store := NewStore()
+	original := Session{
+		ID:                       testSessionA,
+		Title:                    "Original",
+		EpisodicCheckpointOffset: 7,
+	}
+	require.NoError(t, store.Save(context.Background(), original))
+	require.NoError(t, store.Save(context.Background(), Session{ID: testSessionB}))
+
+	unknown := "future-effort"
+	patched, err := store.Patch(context.Background(), testSessionA, SessionPatch{
+		ReasoningEffortOverride: &unknown,
+	})
+	require.NoError(t, err)
+	require.Equal(t, unknown, patched.ReasoningEffortOverride)
+	require.Equal(t, "Original", patched.Title)
+	require.Equal(t, 7, patched.EpisodicCheckpointOffset)
+
+	unchanged, err := store.Patch(context.Background(), testSessionA, SessionPatch{})
+	require.NoError(t, err)
+	require.Equal(t, unknown, unchanged.ReasoningEffortOverride)
+
+	require.NoError(t, store.Save(context.Background(), Session{
+		ID:    testSessionA,
+		Title: "Updated",
+	}))
+	loaded, ok, err := store.Get(context.Background(), testSessionA, base.SessionGetOptions{})
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, unknown, loaded.ReasoningEffortOverride)
+	require.Equal(t, "Updated", loaded.Title)
+
+	other, ok, err := store.Get(context.Background(), testSessionB, base.SessionGetOptions{})
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Empty(t, other.ReasoningEffortOverride)
+
+	empty := ""
+	cleared, err := store.Patch(context.Background(), testSessionA, SessionPatch{
+		ReasoningEffortOverride: &empty,
+	})
+	require.NoError(t, err)
+	require.Empty(t, cleared.ReasoningEffortOverride)
+}
+
+func TestMemoryStore_PatchReasoningEffortOverrideSurvivesArchive(t *testing.T) {
+	store := NewStore()
+	require.NoError(t, store.Save(context.Background(), Session{ID: testSessionA}))
+	effort := "xhigh"
+	_, err := store.Patch(context.Background(), testSessionA, SessionPatch{
+		ReasoningEffortOverride: &effort,
+	})
+	require.NoError(t, err)
+	require.NoError(t, store.AppendMessages(context.Background(), testSessionA, []morphmsg.Message{{
+		Role:    morphmsg.RoleUser,
+		Content: "hello",
+	}}))
+
+	now := time.Now().UTC()
+	archived := requireArchiveSession(t, store, testSessionA, now, now.Add(time.Hour))
+	require.Equal(t, effort, archived.ReasoningEffortOverride)
+	unarchived, err := store.Unarchive(context.Background(), testSessionA)
+	require.NoError(t, err)
+	require.Equal(t, effort, unarchived.ReasoningEffortOverride)
+}
+
+func TestMemoryStore_PatchReasoningEffortOverrideConcurrentSetters(t *testing.T) {
+	store := NewStore()
+	require.NoError(t, store.Save(context.Background(), Session{ID: testSessionA}))
+
+	values := []string{"low", "medium", "high", "xhigh"}
+	start := make(chan struct{})
+	errs := make(chan error, len(values))
+	var wg sync.WaitGroup
+	for _, value := range values {
+		value := value
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, err := store.Patch(context.Background(), testSessionA, SessionPatch{
+				ReasoningEffortOverride: &value,
+			})
+			errs <- err
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
+	}
+
+	final := "none"
+	patched, err := store.Patch(context.Background(), testSessionA, SessionPatch{
+		ReasoningEffortOverride: &final,
+	})
+	require.NoError(t, err)
+	require.Equal(t, final, patched.ReasoningEffortOverride)
 }
 
 func TestMemoryStore_AggregateCapabilities(t *testing.T) {

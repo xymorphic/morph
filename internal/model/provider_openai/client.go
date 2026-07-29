@@ -243,21 +243,12 @@ func (c *OpenAIClient) getModelOwner(model string) string {
 		return ""
 	}
 
-	modelDef, ok := c.registryOrDefault().GetModel(c.provider, model)
+	modelDef, ok := c.registryOrDefault().GetModelForAPI(c.provider, c.api, model)
 	if !ok {
 		return ""
 	}
 	ownerValue := str.String(modelDef.Owner)
 	return ownerValue.Trim()
-}
-
-func (c *OpenAIClient) isReasoningModel(model string) bool {
-	if c == nil {
-		return false
-	}
-
-	modelDef, ok := c.registryOrDefault().GetModel(c.provider, model)
-	return ok && modelDef.Reasoning
 }
 
 func normalizeProvider(provider string) string {

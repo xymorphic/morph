@@ -950,11 +950,15 @@ func TestModelService_SelectModelSendsTrimmedIDAndProvider(t *testing.T) {
 	}}
 	client := NewModelService(stub)
 
-	model, err := client.SelectModel(context.Background(), " gpt-4o ", ModelSelectOptions{Provider: " openai "})
+	model, err := client.SelectModel(context.Background(), " gpt-4o ", ModelSelectOptions{
+		Provider: " openai ",
+		API:      " openai-responses ",
+	})
 
 	require.NoError(t, err)
 	require.Equal(t, "gpt-4o", stub.SelectReq.GetId())
 	require.Equal(t, "openai", stub.SelectReq.GetProvider())
+	require.Equal(t, "openai-responses", stub.SelectReq.GetApi())
 	require.Equal(t, "gpt-4o", model.ID)
 	require.True(t, model.Current)
 }

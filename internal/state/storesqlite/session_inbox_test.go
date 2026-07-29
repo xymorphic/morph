@@ -791,6 +791,62 @@ func activateInboxTestRunner(t *testing.T, store *Store, generation string) {
 	require.NoError(t, err)
 }
 
+func TestSQLiteStore_ClaimPersistsReasoningSnapshotAtomically(t *testing.T) {
+	ctx := context.Background()
+	path := t.TempDir() + "/session.db"
+	store, err := NewStore(path)
+	require.NoError(t, err)
+	require.NoError(t, store.Save(ctx, Session{
+		ID:                      testSessionA,
+		ReasoningEffortOverride: "high",
+	}))
+	activateInboxTestRunner(t, store, "generation-reasoning")
+	submitInboxTestMessage(
+		t,
+		store,
+		"reason",
+		"reason",
+		agentsession.DeliveryModeFollowUp,
+	)
+
+	_, run, claimed, err := store.ClaimNextFollowUp(ctx, agentsession.ClaimRequest{
+		SessionID:  testSessionA,
+		RunID:      nanoid.MustFromSeed("run_", "reasoning", "RunSeed"),
+		Generation: "generation-reasoning",
+		Reasoning:  sqliteTestReasoningClaimContext(),
+	})
+	require.NoError(t, err)
+	require.True(t, claimed)
+	require.Equal(t, agentsession.ReasoningEffort("high"), run.Reasoning.Effort)
+
+	low := "low"
+	_, err = store.Patch(ctx, testSessionA, SessionPatch{ReasoningEffortOverride: &low})
+	require.NoError(t, err)
+	reopened, err := NewStore(path)
+	require.NoError(t, err)
+	state, err := reopened.GetExecutionState(ctx, testSessionA)
+	require.NoError(t, err)
+	require.NotNil(t, state.ActiveRun)
+	require.Equal(t, run.Reasoning, state.ActiveRun.Reasoning)
+}
+
+func sqliteTestReasoningClaimContext() agentsession.ReasoningClaimContext {
+	return agentsession.ReasoningClaimContext{
+		Model: agentsession.ReasoningModelTuple{
+			Provider: "anthropic",
+			API:      "anthropic-messages",
+			Model:    "claude-test",
+		},
+		Capability: agentsession.ReasoningCapability{
+			Efforts:       []agentsession.ReasoningEffort{"low", "medium", "high"},
+			DefaultEffort: "medium",
+		},
+		Reasoning:    true,
+		CatalogFound: true,
+		APISupported: true,
+	}
+}
+
 func getInboxTestEntry(
 	t *testing.T,
 	entries []agentsession.QueueEntry,

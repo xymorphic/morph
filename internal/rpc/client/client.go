@@ -167,6 +167,15 @@ type SubmitMessageOptions struct {
 	SteeringFallback   agentsession.SteeringFallback
 }
 
+type SetReasoningEffortOptions struct {
+	SessionID        string
+	ExpectedProvider string
+	ExpectedAPI      string
+	ExpectedModel    string
+	Effort           string
+	Reset            bool
+}
+
 type SessionQueueEntry = agentsession.QueueEntry
 type SessionActiveRun = agentsession.ActiveRun
 type SessionExecutionState = agentsession.ExecutionState
@@ -187,6 +196,10 @@ type ChatAPI interface {
 // SessionAPI is the session-management surface exposed by local and RPC clients.
 type SessionAPI interface {
 	ChatAPI
+	SetReasoningEffort(
+		context.Context,
+		SetReasoningEffortOptions,
+	) (agentsession.ReasoningSettings, error)
 	Create(context.Context, string) (storage.Session, error)
 	CreateWithOptions(context.Context, CreateSessionOptions) (storage.Session, error)
 	List(context.Context, ...SessionListOptions) ([]storage.Session, error)

@@ -349,6 +349,9 @@ func isLoopbackGatewayAddress(address string) bool {
 }
 
 func (c *Config) validateModelSettings() error {
+	if err := validateReasoningSettings(c.Models); err != nil {
+		return err
+	}
 	if err := validateModelRoleAPI("model API", c.MainModelAPIEffective(), modelGenerationAPIs()); err != nil {
 		return err
 	}

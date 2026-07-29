@@ -33,6 +33,7 @@ type chatRequest struct {
 	Tools    []chatTool     `json:"tools,omitempty"`
 	Format   any            `json:"format,omitempty"`
 	Options  map[string]any `json:"options,omitempty"`
+	Think    string         `json:"think,omitempty"`
 }
 
 type chatMessage struct {
@@ -80,6 +81,7 @@ type normalizedRequest struct {
 	ContextLength    int
 	MaxOutputTokens  int64
 	Temperature      float64
+	Reasoning        *models.ReasoningOptions
 }
 
 func NewOllamaClient(baseURL string, headers map[string]string) (*OllamaClient, error) {
@@ -290,6 +292,10 @@ func normalizeRequest(req Request) (normalizedRequest, error) {
 		return normalizedRequest{}, err
 	}
 	instructionsValue := str.String(req.Instructions)
+	reasoning, err := normalizeReasoningOptions(req.Reasoning)
+	if err != nil {
+		return normalizedRequest{}, err
+	}
 	return normalizedRequest{
 		Model:            model,
 		Instructions:     instructionsValue.Trim(),
@@ -299,7 +305,21 @@ func normalizeRequest(req Request) (normalizedRequest, error) {
 		ContextLength:    req.ContextLength,
 		MaxOutputTokens:  req.MaxOutputTokens,
 		Temperature:      req.Temperature,
+		Reasoning:        reasoning,
 	}, nil
+}
+
+func normalizeReasoningOptions(value *models.ReasoningOptions) (*models.ReasoningOptions, error) {
+	if value == nil {
+		return nil, nil
+	}
+	effort := str.String(value.Effort).Normalized()
+	switch effort {
+	case "low", "medium", "high":
+	default:
+		return nil, fmt.Errorf("ollama reasoning effort %q is not supported as a native think level", effort)
+	}
+	return &models.ReasoningOptions{Effort: effort}, nil
 }
 
 func normalizeMessages(messages []morphmsg.Message) ([]morphmsg.Message, error) {
@@ -430,6 +450,9 @@ func buildChatRequest(req normalizedRequest, stream bool) chatRequest {
 		Tools:    toolsToChatTools(req.Tools),
 		Format:   structuredOutputToFormat(req.StructuredOutput),
 		Options:  buildOptions(req),
+	}
+	if req.Reasoning != nil {
+		providerReq.Think = req.Reasoning.Effort
 	}
 
 	return providerReq

@@ -7,6 +7,7 @@ import (
 
 	commandplan "github.com/wandxy/morph/internal/command"
 	"github.com/wandxy/morph/internal/constants"
+	modelprovider "github.com/wandxy/morph/internal/model/provider"
 	"github.com/wandxy/morph/internal/permissions"
 )
 
@@ -89,9 +90,11 @@ func TestCloneConfig_ClonesNestedValues(t *testing.T) {
 					Headers: map[string]string{"X-Test": "value"},
 					Models: map[string]ProviderModelMetadata{
 						"gpt-4o": {
-							SupportsTools:  new(true),
-							SupportsVision: new(true),
-							Reasoning:      new(true),
+							SupportsTools:    new(true),
+							SupportsVision:   new(true),
+							Reasoning:        new(true),
+							ReasoningEfforts: []modelprovider.ReasoningEffort{"low", "high"},
+							ReasoningSummary: new(true),
 						},
 					},
 				},
@@ -117,6 +120,8 @@ func TestCloneConfig_ClonesNestedValues(t *testing.T) {
 	*cloned.Models.Providers["openai"].Models["gpt-4o"].SupportsTools = false
 	*cloned.Models.Providers["openai"].Models["gpt-4o"].SupportsVision = false
 	*cloned.Models.Providers["openai"].Models["gpt-4o"].Reasoning = false
+	cloned.Models.Providers["openai"].Models["gpt-4o"].ReasoningEfforts[0] = "changed"
+	*cloned.Models.Providers["openai"].Models["gpt-4o"].ReasoningSummary = false
 	*cloned.Personalities["researcher"].Memory.Pinned = false
 	*cloned.Personalities["researcher"].Tools.Filesystem = false
 	*cloned.Personalities["researcher"].Model.Stream = true
@@ -129,6 +134,12 @@ func TestCloneConfig_ClonesNestedValues(t *testing.T) {
 	require.True(t, *cfg.Models.Providers["openai"].Models["gpt-4o"].SupportsTools)
 	require.True(t, *cfg.Models.Providers["openai"].Models["gpt-4o"].SupportsVision)
 	require.True(t, *cfg.Models.Providers["openai"].Models["gpt-4o"].Reasoning)
+	require.Equal(
+		t,
+		[]modelprovider.ReasoningEffort{"low", "high"},
+		cfg.Models.Providers["openai"].Models["gpt-4o"].ReasoningEfforts,
+	)
+	require.True(t, *cfg.Models.Providers["openai"].Models["gpt-4o"].ReasoningSummary)
 	require.True(t, *cfg.Personalities["researcher"].Memory.Pinned)
 	require.True(t, *cfg.Personalities["researcher"].Tools.Filesystem)
 	require.False(t, *cfg.Personalities["researcher"].Model.Stream)

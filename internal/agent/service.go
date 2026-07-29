@@ -22,6 +22,7 @@ type ModelListOptions struct {
 
 type ModelSelectOptions struct {
 	Provider string
+	API      string
 }
 
 type ProviderList struct {
@@ -55,6 +56,10 @@ type ServiceAPI interface {
 type SessionQueueAPI interface {
 	SubmitSessionMessage(context.Context, agentsession.SubmitRequest) (agentsession.QueueEntry, error)
 	GetSessionExecutionState(context.Context, string) (agentsession.ExecutionState, error)
+	SetSessionReasoningEffort(
+		context.Context,
+		agentsession.SetReasoningEffortRequest,
+	) (agentsession.ReasoningSettings, error)
 	ObserveSessionEvents(context.Context, string, int64, func(agentsession.Event) error) error
 	EditSessionQueueEntry(context.Context, agentsession.QueueEditRequest) (agentsession.QueueEntry, error)
 	CancelSessionQueueEntry(context.Context, agentsession.QueueMutationRequest) (agentsession.QueueEntry, error)

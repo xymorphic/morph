@@ -51,11 +51,13 @@ replaceable activity.
 
 The implementation has two delivery modes and one separate control operation:
 
-| Term | Meaning | Starts a new turn? | Changes the active run? |
-| --- | --- | --- | --- |
-| Follow-up | A queued user message that waits until no run is active | Yes | No |
-| Steering | A message bound to one active run and delivered after a persisted tool batch | No | Yes |
-| Interrupt | A control request that terminates the active run | No | It stops it |
+
+| Term      | Meaning                                                                      | Starts a new turn? | Changes the active run? |
+| --------- | ---------------------------------------------------------------------------- | ------------------ | ----------------------- |
+| Follow-up | A queued user message that waits until no run is active                      | Yes                | No                      |
+| Steering  | A message bound to one active run and delivered after a persisted tool batch | No                 | Yes                     |
+| Interrupt | A control request that terminates the active run                             | No                 | It stops it             |
+
 
 “Intercept” is not a third queue mode in the domain model.
 
@@ -97,6 +99,8 @@ flowchart TD
     PR --> OB
 ```
 
+
+
 The important ownership boundaries are:
 
 1. `SessionService` exposes submission, state, observation, mutation, and interruption.
@@ -106,21 +110,27 @@ The important ownership boundaries are:
 5. A `Turn` owns the live model context for one follow-up.
 6. Observers consume state; they do not own the runner or its cancellation context.
 
+
+
 ## 5. The domain objects
+
+
 
 ### Queue entry
 
 A queue entry records more than message text:
 
-| Field group | Purpose |
-| --- | --- |
-| Identity | Queue ID, session ID, and client submission ID |
-| Content | Message text plus optional instruction and stream override |
-| Delivery | Requested mode, effective mode, steering fallback, and target run ID |
-| Ordering | Immutable sequence and mutable promotion priority |
-| Lifecycle | Status and created, updated, started, and completed times |
-| Provenance | Actor, surface, surface kind, and profile derived by the server |
-| Diagnostics | Last safe error or terminal reason |
+
+| Field group | Purpose                                                              |
+| ----------- | -------------------------------------------------------------------- |
+| Identity    | Queue ID, session ID, and client submission ID                       |
+| Content     | Message text plus optional instruction and stream override           |
+| Delivery    | Requested mode, effective mode, steering fallback, and target run ID |
+| Ordering    | Immutable sequence and mutable promotion priority                    |
+| Lifecycle   | Status and created, updated, started, and completed times            |
+| Provenance  | Actor, surface, surface kind, and profile derived by the server      |
+| Diagnostics | Last safe error or terminal reason                                   |
+
 
 `RequestedDeliveryMode` and `DeliveryMode` are intentionally distinct. A client may request steering while no active run
 exists. With follow-up fallback, the stored entry remembers that steering was requested but makes its effective
@@ -161,6 +171,8 @@ events:
 - progress is kept in a bounded in-process history and has a separate sequence;
 - a daemon restart can preserve SQLite queue/run state but cannot preserve process-local progress deltas;
 - the final transcript remains authoritative after the run persists its messages.
+
+
 
 ## 6. Core invariants
 
@@ -204,6 +216,8 @@ sequenceDiagram
     A-->>RPC: Queue entry
     RPC-->>C: Submission acknowledgement
 ```
+
+
 
 Acceptance does not mean completion. It means the inbox has accepted a specific, inspectable entry.
 
@@ -255,6 +269,8 @@ sequenceDiagram
         S->>S: terminal entry + terminal run + events
     end
 ```
+
+
 
 The runner repeatedly claims one follow-up, waits for that run to finish, then checks the inbox again. Independent
 follow-ups are never merged into one prompt.
@@ -308,11 +324,15 @@ sequenceDiagram
     T->>M: next request sees tool results, then steering
 ```
 
+
+
 Both persistence and live-context injection are necessary:
 
 - persistence makes steering part of durable conversation history;
 - live injection makes the already-running `Turn` see it immediately;
 - a later summary refresh or context rebuild can still recover it from persisted history.
+
+
 
 ### The no-tool-boundary edge case
 
@@ -367,14 +387,16 @@ The runner can therefore continue with the next follow-up after the interrupted 
 
 This differs from observer cancellation:
 
-| Action | Active run | Pending queue | Observer |
-| --- | --- | --- | --- |
-| Cancel `Observe` context | Continues | Preserved | Detached |
-| Close or reconnect TUI | Continues | Preserved | Replaced |
-| Press Escape during an active TUI response | Requests run interruption | Preserved | Current response state resets |
-| Run `/interrupt` | Explicitly requests run interruption | Preserved | May remain attached or rehydrate |
-| Daemon shutdown | Run becomes cancelled if it settles | Pending entries remain in durable storage | Ends |
-| Restart reconciliation | Old run becomes `daemon_restart` interrupted | Pending follow-ups remain | Rehydrates |
+
+| Action                                     | Active run                                   | Pending queue                             | Observer                         |
+| ------------------------------------------ | -------------------------------------------- | ----------------------------------------- | -------------------------------- |
+| Cancel `Observe` context                   | Continues                                    | Preserved                                 | Detached                         |
+| Close or reconnect TUI                     | Continues                                    | Preserved                                 | Replaced                         |
+| Press Escape during an active TUI response | Requests run interruption                    | Preserved                                 | Current response state resets    |
+| Run `/interrupt`                           | Explicitly requests run interruption         | Preserved                                 | May remain attached or rehydrate |
+| Daemon shutdown                            | Run becomes cancelled if it settles          | Pending entries remain in durable storage | Ends                             |
+| Restart reconciliation                     | Old run becomes `daemon_restart` interrupted | Pending follow-ups remain                 | Rehydrates                       |
+
 
 The system intentionally does not retry an interrupted or abandoned active entry automatically. Its tools may have
 performed external effects whose completion is unknown.
@@ -436,6 +458,8 @@ sequenceDiagram
     S-->>C: event 42
 ```
 
+
+
 An event committed between `State` and `Observe` is replayed because it has a later cursor. The client does not need to
 attach atomically to a live channel.
 
@@ -450,15 +474,21 @@ has expired, the observer rehydrates. Durable transcript messages are the eventu
 
 The session queue is exposed through `SessionService`:
 
-| RPC | Role |
-| --- | --- |
-| `SubmitMessage` | Accept a follow-up or steering entry |
-| `State` | Return authoritative queue/run state and the observation cursor |
-| `Observe` | Replay and follow session events after a cursor |
-| `EditQueuedMessage` | Change the content of a pending entry |
-| `RemoveQueuedMessage` | Cancel a pending entry |
-| `PromoteQueuedMessage` | Raise a pending entry's priority |
-| `InterruptRun` | Explicitly terminate the active run |
+
+| RPC                    | Role                                                            |
+| ---------------------- | --------------------------------------------------------------- |
+| `SubmitMessage`        | Accept a follow-up or steering entry                            |
+| `State`                | Return authoritative queue/run state and the observation cursor |
+| `Observe`              | Replay and follow session events after a cursor                 |
+| `EditQueuedMessage`    | Change the content of a pending entry                           |
+| `RemoveQueuedMessage`  | Cancel a pending entry                                          |
+| `PromoteQueuedMessage` | Raise a pending entry's priority                                |
+| `InterruptRun`         | Explicitly terminate the active run                             |
+
+
+`State` requires `read` access to the target session, and reasoning-effort updates require `update` access. Custom
+permission policies must allow those operations explicitly; otherwise the server rejects the request without reading
+or mutating session state.
 
 The old request-owned `MorphService.Respond` path has been removed. TUI and root CLI chat now submit a message, read
 state, observe until terminal state, and then load the durable timeline.
@@ -486,16 +516,18 @@ An authorization context already restricted to one session cannot be used to sub
 
 Both storage backends satisfy the same `InboxStore` interface and enforce the same observable semantics:
 
-| Concern | SQLite | Memory |
-| --- | --- | --- |
-| Queue entries | `session_queue_entries` | Per-session entry map |
-| Active and terminal runs | `session_runs` | Per-session run map |
-| Cursor state | `session_execution_state` | Per-session counters |
-| Replay events | `session_events` | Per-session event slice |
-| Client-submission deduplication | Unique session/submission index | Submission-ID map |
-| Concurrency boundary | Database transaction and write retry | Store mutex |
-| Survives process restart | Yes | No |
-| Production durability | Yes | No |
+
+| Concern                         | SQLite                               | Memory                  |
+| ------------------------------- | ------------------------------------ | ----------------------- |
+| Queue entries                   | `session_queue_entries`              | Per-session entry map   |
+| Active and terminal runs        | `session_runs`                       | Per-session run map     |
+| Cursor state                    | `session_execution_state`            | Per-session counters    |
+| Replay events                   | `session_events`                     | Per-session event slice |
+| Client-submission deduplication | Unique session/submission index      | Submission-ID map       |
+| Concurrency boundary            | Database transaction and write retry | Store mutex             |
+| Survives process restart        | Yes                                  | No                      |
+| Production durability           | Yes                                  | No                      |
+
 
 SQLite performs each queue/run state transition and its replay-event append in one transaction. It also persists the
 current runner generation.
@@ -515,7 +547,11 @@ Both stores:
 - block archived sessions from being claimed;
 - remove inbox state when the session is deleted.
 
+
+
 ## 17. Queue and run state machines
+
+
 
 ### Follow-up queue entry
 
@@ -530,6 +566,10 @@ stateDiagram-v2
     active --> cancelled: daemon shutdown cancellation
 ```
 
+
+
+
+
 ### Steering queue entry
 
 ```mermaid
@@ -539,6 +579,8 @@ stateDiagram-v2
     pending --> cancelled: user removes or reject fallback wins
     pending --> pending: converted to follow-up fallback
 ```
+
+
 
 After conversion, the second `pending` state has effective delivery mode `follow_up`, no target run, and can later
 transition through the follow-up lifecycle.
@@ -553,6 +595,8 @@ stateDiagram-v2
     running --> failed
     running --> cancelled
 ```
+
+
 
 Terminal transitions are idempotent: finishing an already-terminal run reports that no new transition occurred.
 
@@ -577,21 +621,23 @@ Pending rows show a compact one-line preview and right-side actions:
 
 The main interactions are:
 
-| Interaction | Result |
-| --- | --- |
-| Enter while idle | Submit a server-owned follow-up and observe its run |
-| Enter while busy | Add a pending follow-up instead of rejecting input |
-| `/steer <message>` | Request steering with follow-up fallback |
-| `/interrupt` | Explicitly interrupt the active run |
-| `/queue` | Refresh state |
-| `/queue edit <id> <message>` | Edit a pending entry |
-| `/queue remove <id>` | Cancel a pending entry |
-| `/queue promote <id>` | Raise a pending entry to run next |
-| `ctrl+q` | Enter or leave queue focus |
-| `↑`/`↓` or `k`/`j` | Change selected pending row |
-| Enter on a selected row | Promote it |
-| `e` on a selected row | Edit it in the composer |
-| `x`, Delete, or Backspace | Remove it |
+
+| Interaction                  | Result                                              |
+| ---------------------------- | --------------------------------------------------- |
+| Enter while idle             | Submit a server-owned follow-up and observe its run |
+| Enter while busy             | Add a pending follow-up instead of rejecting input  |
+| `/steer <message>`           | Request steering with follow-up fallback            |
+| `/interrupt`                 | Explicitly interrupt the active run                 |
+| `/queue`                     | Refresh state                                       |
+| `/queue edit <id> <message>` | Edit a pending entry                                |
+| `/queue remove <id>`         | Cancel a pending entry                              |
+| `/queue promote <id>`        | Raise a pending entry to run next                   |
+| `ctrl+q`                     | Enter or leave queue focus                          |
+| `↑`/`↓` or `k`/`j`           | Change selected pending row                         |
+| Enter on a selected row      | Promote it                                          |
+| `e` on a selected row        | Edit it in the composer                             |
+| `x`, Delete, or Backspace    | Remove it                                           |
+
 
 Mouse users can select rows and click the same right-side actions.
 
@@ -615,6 +661,8 @@ If observation closes unexpectedly, the TUI marks queue state stale, disables qu
 status, and reloads `State`. Drafting can continue, but submitting or mutating waits for authoritative rehydration.
 
 ## 19. Failure and race scenarios
+
+
 
 ### Lost submit acknowledgement
 
@@ -686,17 +734,19 @@ events.
 
 The implementation is protected at several layers:
 
-| Layer | Main behavior under test |
-| --- | --- |
-| Domain/storage | Validation, idempotency, ordering, mutation preconditions, steering binding, fallback, retention |
-| Memory parity | Same inbox contract without SQLite and successful memory-backed runner execution |
-| SQLite durability | Reopen ordering, transactional claims, restart reconciliation, deletion cleanup |
-| Agent runner | Observer independence, interrupt preservation, safe post-tool steering, one session runner |
-| Turn loop | Steering callback placement after persisted tool results |
-| RPC service | Request mapping, state/observe, cursor errors, mutations, interrupt status |
-| RPC client | Proto conversions and public delegation |
-| TUI | Panel layout, icons, keyboard/mouse actions, draft-preserving edit, reconnect/stale state |
-| E2E adapter | Submit-state-observe lifecycle, reconnect, terminal error mapping |
+
+| Layer             | Main behavior under test                                                                         |
+| ----------------- | ------------------------------------------------------------------------------------------------ |
+| Domain/storage    | Validation, idempotency, ordering, mutation preconditions, steering binding, fallback, retention |
+| Memory parity     | Same inbox contract without SQLite and successful memory-backed runner execution                 |
+| SQLite durability | Reopen ordering, transactional claims, restart reconciliation, deletion cleanup                  |
+| Agent runner      | Observer independence, interrupt preservation, safe post-tool steering, one session runner       |
+| Turn loop         | Steering callback placement after persisted tool results                                         |
+| RPC service       | Request mapping, state/observe, cursor errors, mutations, interrupt status                       |
+| RPC client        | Proto conversions and public delegation                                                          |
+| TUI               | Panel layout, icons, keyboard/mouse actions, draft-preserving edit, reconnect/stale state        |
+| E2E adapter       | Submit-state-observe lifecycle, reconnect, terminal error mapping                                |
+
 
 The most important regression test is not merely that steering text reaches the model. It must prove the ordering:
 
@@ -706,6 +756,8 @@ all matching tool results
 steering user message
 next model request
 ```
+
+
 
 ## 22. Design trade-offs and current boundaries
 
@@ -718,34 +770,40 @@ next model request
 - Restart recovery interrupts ambiguous active work instead of automatically retrying it.
 - Generation fencing assumes the supported single-daemon ownership model.
 - The queue stores terminal entries for bounded state presentation; the current state response limits terminal history
-  rather than acting as an indefinite audit archive.
+rather than acting as an indefinite audit archive.
 - Queue state is authoritative. The TUI must not invent transcript messages for pending entries.
+
+
 
 ## 23. Source map
 
-| Concern | Primary source |
-| --- | --- |
-| Queue, run, event, progress, and `InboxStore` contracts | `pkg/agent/session/session.go` |
-| State-manager delegation | `internal/state/manager/manager.go` |
-| SQLite inbox and durable event transactions | `internal/state/storesqlite/session_inbox.go` |
-| Memory inbox parity | `internal/state/storememory/session_inbox.go` |
-| Daemon-owned per-session runner | `internal/agent/session_runner.go` |
-| Safe post-tool steering callback | `internal/agent/turn.go` |
-| Session queue RPC handlers | `internal/rpc/session_queue_service.go` |
-| Protobuf service and data contract | `internal/rpc/proto/morph.proto` |
-| RPC client mapping | `internal/rpc/client/session_queue.go` |
-| TUI submission routing | `internal/tui/app/composer_submit.go` |
-| TUI queue hydration, actions, editing, and rendering | `internal/tui/app/session_queue.go` |
-| TUI panel placement | `internal/tui/app/view.go` and `internal/tui/app/layout.go` |
-| TUI slash commands | `internal/tui/app/commands.go` |
-| Root CLI submit/state/observe adapter | `internal/cli/main.go` |
-| Queue lifecycle traces | `internal/trace/events.go` and `internal/trace/payloads.go` |
-| Agent runner tests | `internal/agent/session_runner_test.go` |
-| SQLite inbox tests | `internal/state/storesqlite/session_inbox_test.go` |
-| Memory inbox tests | `internal/state/storememory/session_inbox_test.go` |
-| TUI queue tests | `internal/tui/app/session_queue_test.go` |
-| RPC service tests | `internal/rpc/session_queue_service_test.go` |
-| RPC client tests | `internal/rpc/client/session_queue_test.go` |
+
+| Concern                                                 | Primary source                                              |
+| ------------------------------------------------------- | ----------------------------------------------------------- |
+| Queue, run, event, progress, and `InboxStore` contracts | `pkg/agent/session/session.go`                              |
+| State-manager delegation                                | `internal/state/manager/manager.go`                         |
+| SQLite inbox and durable event transactions             | `internal/state/storesqlite/session_inbox.go`               |
+| Memory inbox parity                                     | `internal/state/storememory/session_inbox.go`               |
+| Daemon-owned per-session runner                         | `internal/agent/session_runner.go`                          |
+| Safe post-tool steering callback                        | `internal/agent/turn.go`                                    |
+| Session queue RPC handlers                              | `internal/rpc/session_queue_service.go`                     |
+| Protobuf service and data contract                      | `internal/rpc/proto/morph.proto`                            |
+| RPC client mapping                                      | `internal/rpc/client/session_queue.go`                      |
+| TUI submission routing                                  | `internal/tui/app/composer_submit.go`                       |
+| TUI queue hydration, actions, editing, and rendering    | `internal/tui/app/session_queue.go`                         |
+| TUI panel placement                                     | `internal/tui/app/view.go` and `internal/tui/app/layout.go` |
+| TUI slash commands                                      | `internal/tui/app/commands.go`                              |
+| Root CLI submit/state/observe adapter                   | `internal/cli/main.go`                                      |
+| Queue lifecycle traces                                  | `internal/trace/events.go` and `internal/trace/payloads.go` |
+| Agent runner tests                                      | `internal/agent/session_runner_test.go`                     |
+| SQLite inbox tests                                      | `internal/state/storesqlite/session_inbox_test.go`          |
+| Memory inbox tests                                      | `internal/state/storememory/session_inbox_test.go`          |
+| TUI queue tests                                         | `internal/tui/app/session_queue_test.go`                    |
+| RPC service tests                                       | `internal/rpc/session_queue_service_test.go`                |
+| RPC client tests                                        | `internal/rpc/client/session_queue_test.go`                 |
+
+
+
 
 ## 24. Contributor checklist
 
@@ -772,6 +830,8 @@ When changing session queue behavior, ask:
 19. Does editing preserve the user's pre-existing composer draft?
 20. Are terminal errors and restart reasons visible without leaking message content?
 
+
+
 ## 25. Final mental model
 
 The session message queue separates four responsibilities:
@@ -795,10 +855,10 @@ history, losing work on reconnect, or turning every new message into an implicit
 ## 26. Related reading
 
 - [Session Message Queue Plan](../plans/2026-07-26-001-feat-session-message-queue-plan.md), for the original
-  requirements and implementation units.
+requirements and implementation units.
 - [Permission System Study](./permissions-system-study.md), for the authorization context reconstructed when queued
-  work executes.
+work executes.
 - [Morph RPC Authentication](./morph-rpc-authentication-course.md), for authentication and method-scope enforcement
-  around session RPCs.
+around session RPCs.
 - [Semantic Tool Indexing Study](./semantic-tool-indexing-study.md), for how persisted tool results remain searchable
-  after a turn.
+after a turn.

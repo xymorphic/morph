@@ -1,6 +1,9 @@
 package provider
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/wandxy/morph/internal/constants"
 	"github.com/wandxy/morph/pkg/str"
 )
@@ -31,6 +34,32 @@ const (
 	// InputImage identifies image input support.
 	InputImage InputKind = "image"
 )
+
+type ReasoningEffort string
+
+type ReasoningCapability struct {
+	Efforts       []ReasoningEffort
+	DefaultEffort ReasoningEffort
+	Summary       bool
+}
+
+type ModelKey struct {
+	Provider string
+	API      string
+	Model    string
+}
+
+func CanonicalModelKey(providerID, apiID, modelID string) ModelKey {
+	providerValue := str.String(providerID)
+	apiValue := str.String(apiID)
+	modelValue := str.String(modelID)
+
+	return ModelKey{
+		Provider: providerValue.Normalized(),
+		API:      apiValue.Normalized(),
+		Model:    modelValue.Trim(),
+	}
+}
 
 // APIDefinition describes a request protocol adapter known to the model registry.
 type APIDefinition struct {
@@ -73,25 +102,27 @@ type ProviderDefinition struct {
 
 // ModelDefinition describes provider-specific model metadata used for resolution and validation.
 type ModelDefinition struct {
-	ID             string
-	Name           string
-	Owner          string
-	Provider       string
-	API            string
-	Input          []InputKind
-	Reasoning      bool
-	SupportsTools  bool
-	SupportsOAuth  bool
-	DisplayDefault bool
-	ContextWindow  int
-	MaxTokens      int
+	ID                    string
+	Name                  string
+	Owner                 string
+	Provider              string
+	API                   string
+	Input                 []InputKind
+	Reasoning             bool
+	ReasoningCapabilities ReasoningCapability
+	SupportsTools         bool
+	SupportsOAuth         bool
+	DisplayDefault        bool
+	ContextWindow         int
+	MaxTokens             int
 }
 
 // Registry stores API, provider, and model definitions for model resolution.
 type Registry struct {
 	apis      map[string]APIDefinition
 	providers map[string]ProviderDefinition
-	models    map[string]map[string]ModelDefinition
+	models    map[ModelKey]ModelDefinition
+	modelKeys map[string][]ModelKey
 }
 
 // NewRegistry builds a registry from API, provider, and model definitions.
@@ -103,7 +134,8 @@ func NewRegistry(
 	r := &Registry{
 		apis:      make(map[string]APIDefinition, len(apis)),
 		providers: make(map[string]ProviderDefinition, len(providers)),
-		models:    make(map[string]map[string]ModelDefinition),
+		models:    make(map[ModelKey]ModelDefinition),
+		modelKeys: make(map[string][]ModelKey),
 	}
 
 	for _, api := range apis {
@@ -128,19 +160,24 @@ func NewRegistry(
 	}
 
 	for _, model := range models {
-		iDValue := str.String(model.ID)
-		model.ID = iDValue.Trim()
+		key := CanonicalModelKey(model.Provider, model.API, model.ID)
+		model.ID = key.Model
 		model.Owner = normalizeID(model.Owner)
-		model.Provider = normalizeID(model.Provider)
-		model.API = normalizeID(model.API)
-		if model.Provider == "" || model.ID == "" {
+		model.Provider = key.Provider
+		model.API = key.API
+		if key.Provider == "" || key.API == "" || key.Model == "" {
 			continue
 		}
-		model.Input = append([]InputKind(nil), model.Input...)
-		if r.models[model.Provider] == nil {
-			r.models[model.Provider] = make(map[string]ModelDefinition)
+		capability, err := NormalizeReasoningCapability(model.Reasoning, model.ReasoningCapabilities)
+		if err != nil {
+			panic(fmt.Sprintf("invalid reasoning capability for %s/%s/%s: %v", key.Provider, key.API, key.Model, err))
 		}
-		r.models[model.Provider][model.ID] = model
+		model.ReasoningCapabilities = capability
+		model.Input = append([]InputKind(nil), model.Input...)
+		if _, exists := r.models[key]; !exists {
+			r.modelKeys[key.Provider] = append(r.modelKeys[key.Provider], key)
+		}
+		r.models[key] = model
 	}
 
 	return r
@@ -197,7 +234,6 @@ func (r *Registry) GetProviders() []ProviderDefinition {
 	return providers
 }
 
-// GetModel looks up a model definition by provider ID and model ID.
 func (r *Registry) GetModel(providerID, modelID string) (ModelDefinition, bool) {
 	if r == nil {
 		return ModelDefinition{}, false
@@ -210,14 +246,45 @@ func (r *Registry) GetModel(providerID, modelID string) (ModelDefinition, bool) 
 		return ModelDefinition{}, false
 	}
 
-	byProvider := r.models[providerID]
-	model, ok := byProvider[modelID]
+	if provider, ok := r.providers[providerID]; ok && provider.DefaultAPI != "" {
+		if model, ok := r.models[CanonicalModelKey(providerID, provider.DefaultAPI, modelID)]; ok {
+			return cloneModelDefinition(model), true
+		}
+	}
+
+	var found ModelDefinition
+	for _, key := range r.modelKeys[providerID] {
+		if key.Model != modelID {
+			continue
+		}
+		if found.ID != "" {
+			return ModelDefinition{}, false
+		}
+		found = r.models[key]
+	}
+
+	return cloneModelDefinition(found), found.ID != ""
+}
+
+func (r *Registry) GetModelForAPI(providerID, apiID, modelID string) (ModelDefinition, bool) {
+	if r == nil {
+		return ModelDefinition{}, false
+	}
+
+	key := CanonicalModelKey(providerID, apiID, modelID)
+	if key.Provider == "" || key.API == "" || key.Model == "" {
+		return ModelDefinition{}, false
+	}
+	model, ok := r.models[key]
 	if !ok {
 		return ModelDefinition{}, false
 	}
 
-	model.Input = append([]InputKind(nil), model.Input...)
-	return model, true
+	return cloneModelDefinition(model), true
+}
+
+func (r *Registry) GetModelByKey(key ModelKey) (ModelDefinition, bool) {
+	return r.GetModelForAPI(key.Provider, key.API, key.Model)
 }
 
 // GetModels returns model definitions registered for a provider.
@@ -226,18 +293,80 @@ func (r *Registry) GetModels(providerID string) []ModelDefinition {
 		return nil
 	}
 
-	byProvider := r.models[normalizeID(providerID)]
-	if len(byProvider) == 0 {
+	keys := r.modelKeys[normalizeID(providerID)]
+	if len(keys) == 0 {
 		return nil
 	}
 
-	models := make([]ModelDefinition, 0, len(byProvider))
-	for _, model := range byProvider {
-		model.Input = append([]InputKind(nil), model.Input...)
-		models = append(models, model)
+	models := make([]ModelDefinition, 0, len(keys))
+	for _, key := range keys {
+		models = append(models, cloneModelDefinition(r.models[key]))
 	}
 
 	return models
+}
+
+func NormalizeReasoningCapability(
+	reasoning bool,
+	capability ReasoningCapability,
+) (ReasoningCapability, error) {
+	normalized := ReasoningCapability{
+		Efforts: make([]ReasoningEffort, 0, len(capability.Efforts)),
+		Summary: capability.Summary,
+	}
+	seen := make(map[string]struct{}, len(capability.Efforts))
+	for _, effort := range capability.Efforts {
+		value := strings.TrimSpace(string(effort))
+		if value == "" {
+			return ReasoningCapability{}, fmt.Errorf("effort values must not be blank")
+		}
+		key := strings.ToLower(value)
+		if key == "default" || key == "reset" {
+			return ReasoningCapability{}, fmt.Errorf("effort value %q is reserved", value)
+		}
+		if _, ok := seen[key]; ok {
+			return ReasoningCapability{}, fmt.Errorf("effort value %q is duplicated", value)
+		}
+		seen[key] = struct{}{}
+		normalized.Efforts = append(normalized.Efforts, ReasoningEffort(value))
+	}
+
+	defaultValue := strings.TrimSpace(string(capability.DefaultEffort))
+	if defaultValue != "" {
+		for _, effort := range normalized.Efforts {
+			if strings.EqualFold(string(effort), defaultValue) {
+				normalized.DefaultEffort = effort
+				break
+			}
+		}
+		if normalized.DefaultEffort == "" {
+			return ReasoningCapability{}, fmt.Errorf("default effort %q is not supported", defaultValue)
+		}
+	}
+
+	if !reasoning && (len(normalized.Efforts) > 0 || normalized.DefaultEffort != "" || normalized.Summary) {
+		return ReasoningCapability{}, fmt.Errorf("non-reasoning models cannot advertise efforts or summaries")
+	}
+	if len(normalized.Efforts) > 0 && normalized.DefaultEffort == "" {
+		return ReasoningCapability{}, fmt.Errorf("adjustable reasoning models require a default effort")
+	}
+	if len(normalized.Efforts) == 0 && normalized.DefaultEffort != "" {
+		return ReasoningCapability{}, fmt.Errorf("default effort requires supported efforts")
+	}
+	if len(normalized.Efforts) == 0 {
+		normalized.Efforts = nil
+	}
+
+	return normalized, nil
+}
+
+func cloneModelDefinition(model ModelDefinition) ModelDefinition {
+	model.Input = append([]InputKind(nil), model.Input...)
+	model.ReasoningCapabilities.Efforts = append(
+		[]ReasoningEffort(nil),
+		model.ReasoningCapabilities.Efforts...,
+	)
+	return model
 }
 
 // GetProviderIDs returns the provider IDs registered in the registry.

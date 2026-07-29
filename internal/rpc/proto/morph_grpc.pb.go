@@ -38,6 +38,7 @@ const (
 	SessionService_PromoteQueuedMessage_FullMethodName = "/morph.v1.SessionService/PromoteQueuedMessage"
 	SessionService_SteerQueuedMessage_FullMethodName   = "/morph.v1.SessionService/SteerQueuedMessage"
 	SessionService_InterruptRun_FullMethodName         = "/morph.v1.SessionService/InterruptRun"
+	SessionService_SetReasoningEffort_FullMethodName   = "/morph.v1.SessionService/SetReasoningEffort"
 )
 
 // SessionServiceClient is the client API for SessionService service.
@@ -63,6 +64,7 @@ type SessionServiceClient interface {
 	PromoteQueuedMessage(ctx context.Context, in *PromoteQueuedSessionMessageRequest, opts ...grpc.CallOption) (*PromoteQueuedSessionMessageResponse, error)
 	SteerQueuedMessage(ctx context.Context, in *SteerQueuedSessionMessageRequest, opts ...grpc.CallOption) (*SteerQueuedSessionMessageResponse, error)
 	InterruptRun(ctx context.Context, in *InterruptSessionRunRequest, opts ...grpc.CallOption) (*InterruptSessionRunResponse, error)
+	SetReasoningEffort(ctx context.Context, in *SetSessionReasoningEffortRequest, opts ...grpc.CallOption) (*SetSessionReasoningEffortResponse, error)
 }
 
 type sessionServiceClient struct {
@@ -272,6 +274,16 @@ func (c *sessionServiceClient) InterruptRun(ctx context.Context, in *InterruptSe
 	return out, nil
 }
 
+func (c *sessionServiceClient) SetReasoningEffort(ctx context.Context, in *SetSessionReasoningEffortRequest, opts ...grpc.CallOption) (*SetSessionReasoningEffortResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetSessionReasoningEffortResponse)
+	err := c.cc.Invoke(ctx, SessionService_SetReasoningEffort_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SessionServiceServer is the server API for SessionService service.
 // All implementations must embed UnimplementedSessionServiceServer
 // for forward compatibility.
@@ -295,6 +307,7 @@ type SessionServiceServer interface {
 	PromoteQueuedMessage(context.Context, *PromoteQueuedSessionMessageRequest) (*PromoteQueuedSessionMessageResponse, error)
 	SteerQueuedMessage(context.Context, *SteerQueuedSessionMessageRequest) (*SteerQueuedSessionMessageResponse, error)
 	InterruptRun(context.Context, *InterruptSessionRunRequest) (*InterruptSessionRunResponse, error)
+	SetReasoningEffort(context.Context, *SetSessionReasoningEffortRequest) (*SetSessionReasoningEffortResponse, error)
 	mustEmbedUnimplementedSessionServiceServer()
 }
 
@@ -361,6 +374,9 @@ func (UnimplementedSessionServiceServer) SteerQueuedMessage(context.Context, *St
 }
 func (UnimplementedSessionServiceServer) InterruptRun(context.Context, *InterruptSessionRunRequest) (*InterruptSessionRunResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InterruptRun not implemented")
+}
+func (UnimplementedSessionServiceServer) SetReasoningEffort(context.Context, *SetSessionReasoningEffortRequest) (*SetSessionReasoningEffortResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetReasoningEffort not implemented")
 }
 func (UnimplementedSessionServiceServer) mustEmbedUnimplementedSessionServiceServer() {}
 func (UnimplementedSessionServiceServer) testEmbeddedByValue()                        {}
@@ -718,6 +734,24 @@ func _SessionService_InterruptRun_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SessionService_SetReasoningEffort_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetSessionReasoningEffortRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServiceServer).SetReasoningEffort(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SessionService_SetReasoningEffort_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServiceServer).SetReasoningEffort(ctx, req.(*SetSessionReasoningEffortRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SessionService_ServiceDesc is the grpc.ServiceDesc for SessionService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -796,6 +830,10 @@ var SessionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InterruptRun",
 			Handler:    _SessionService_InterruptRun_Handler,
+		},
+		{
+			MethodName: "SetReasoningEffort",
+			Handler:    _SessionService_SetReasoningEffort_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

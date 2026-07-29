@@ -1421,6 +1421,60 @@ func activateMemoryInboxRunner(t *testing.T, store *Store, generation string) {
 	require.NoError(t, err)
 }
 
+func TestMemoryStore_ClaimSnapshotsReasoningUnderSessionLock(t *testing.T) {
+	ctx := context.Background()
+	store := NewStore()
+	require.NoError(t, store.Save(ctx, Session{
+		ID:                      testSessionA,
+		ReasoningEffortOverride: "high",
+	}))
+	activateMemoryInboxRunner(t, store, "generation-reasoning")
+	submitMemoryInboxMessage(
+		t,
+		store,
+		"reason",
+		"reason",
+		agentsession.DeliveryModeFollowUp,
+		agentsession.SteeringFallbackFollowUp,
+	)
+
+	_, run, claimed, err := store.ClaimNextFollowUp(ctx, agentsession.ClaimRequest{
+		SessionID:  testSessionA,
+		RunID:      memoryInboxRunID("reasoning"),
+		Generation: "generation-reasoning",
+		Reasoning:  testReasoningClaimContext(),
+	})
+	require.NoError(t, err)
+	require.True(t, claimed)
+	require.Equal(t, agentsession.ReasoningEffort("high"), run.Reasoning.Effort)
+	require.True(t, run.Reasoning.Summary)
+
+	low := "low"
+	_, err = store.Patch(ctx, testSessionA, SessionPatch{ReasoningEffortOverride: &low})
+	require.NoError(t, err)
+	state, err := store.GetExecutionState(ctx, testSessionA)
+	require.NoError(t, err)
+	require.Equal(t, agentsession.ReasoningEffort("high"), state.ActiveRun.Reasoning.Effort)
+}
+
+func testReasoningClaimContext() agentsession.ReasoningClaimContext {
+	return agentsession.ReasoningClaimContext{
+		Model: agentsession.ReasoningModelTuple{
+			Provider: "openai",
+			API:      "openai-responses",
+			Model:    "gpt-test",
+		},
+		Capability: agentsession.ReasoningCapability{
+			Efforts:       []agentsession.ReasoningEffort{"low", "medium", "high"},
+			DefaultEffort: "medium",
+			Summary:       true,
+		},
+		Reasoning:    true,
+		CatalogFound: true,
+		APISupported: true,
+	}
+}
+
 func getMemoryInboxEntry(
 	t *testing.T,
 	entries []agentsession.QueueEntry,

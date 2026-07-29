@@ -381,6 +381,229 @@ func TestDefaultRegistry_RegistersBuiltInModelsByProvider(t *testing.T) {
 	require.Equal(t, APIAnthropicMessages, haiku.API)
 }
 
+func TestRegistry_GetModelForAPIUsesExactTransportIdentity(t *testing.T) {
+	registry := NewRegistry(
+		nil,
+		[]ProviderDefinition{{ID: "example", DefaultAPI: "responses"}},
+		[]ModelDefinition{
+			{
+				ID:        "shared-model",
+				Provider:  " Example ",
+				API:       " Responses ",
+				Reasoning: true,
+				ReasoningCapabilities: ReasoningCapability{
+					Efforts:       []ReasoningEffort{"low", "high"},
+					DefaultEffort: "low",
+				},
+			},
+			{
+				ID:       "shared-model",
+				Provider: "example",
+				API:      "completions",
+			},
+		},
+	)
+
+	responses, ok := registry.GetModelForAPI("EXAMPLE", "responses", "shared-model")
+	require.True(t, ok)
+	require.Equal(t, []ReasoningEffort{"low", "high"}, responses.ReasoningCapabilities.Efforts)
+
+	completions, ok := registry.GetModelByKey(ModelKey{
+		Provider: "example",
+		API:      "completions",
+		Model:    "shared-model",
+	})
+	require.True(t, ok)
+	require.False(t, completions.Reasoning)
+	require.Empty(t, completions.ReasoningCapabilities.Efforts)
+
+	defaultModel, ok := registry.GetModel("example", "shared-model")
+	require.True(t, ok)
+	require.Equal(t, "responses", defaultModel.API)
+}
+
+func TestRegistry_ClonesReasoningCapabilityEfforts(t *testing.T) {
+	efforts := []ReasoningEffort{"high", "low"}
+	registry := NewRegistry(nil, nil, []ModelDefinition{{
+		ID:        "reasoner",
+		Provider:  "example",
+		API:       "responses",
+		Reasoning: true,
+		ReasoningCapabilities: ReasoningCapability{
+			Efforts:       efforts,
+			DefaultEffort: "high",
+		},
+	}})
+	efforts[0] = "changed"
+
+	first, ok := registry.GetModelForAPI("example", "responses", "reasoner")
+	require.True(t, ok)
+	require.Equal(t, []ReasoningEffort{"high", "low"}, first.ReasoningCapabilities.Efforts)
+	first.ReasoningCapabilities.Efforts[0] = "changed"
+
+	second, ok := registry.GetModelForAPI("example", "responses", "reasoner")
+	require.True(t, ok)
+	require.Equal(t, []ReasoningEffort{"high", "low"}, second.ReasoningCapabilities.Efforts)
+}
+
+func TestNormalizeReasoningCapability_ValidatesMetadata(t *testing.T) {
+	tests := []struct {
+		name       string
+		reasoning  bool
+		capability ReasoningCapability
+		want       string
+	}{
+		{
+			name:      "non-reasoning efforts",
+			reasoning: false,
+			capability: ReasoningCapability{
+				Efforts:       []ReasoningEffort{"low"},
+				DefaultEffort: "low",
+			},
+			want: "non-reasoning models cannot advertise efforts or summaries",
+		},
+		{
+			name:      "non-reasoning summary",
+			reasoning: false,
+			capability: ReasoningCapability{
+				Summary: true,
+			},
+			want: "non-reasoning models cannot advertise efforts or summaries",
+		},
+		{
+			name:      "blank effort",
+			reasoning: true,
+			capability: ReasoningCapability{
+				Efforts:       []ReasoningEffort{" "},
+				DefaultEffort: "low",
+			},
+			want: "effort values must not be blank",
+		},
+		{
+			name:      "duplicate effort",
+			reasoning: true,
+			capability: ReasoningCapability{
+				Efforts:       []ReasoningEffort{"low", "LOW"},
+				DefaultEffort: "low",
+			},
+			want: `effort value "LOW" is duplicated`,
+		},
+		{
+			name:      "reserved effort",
+			reasoning: true,
+			capability: ReasoningCapability{
+				Efforts:       []ReasoningEffort{"reset"},
+				DefaultEffort: "reset",
+			},
+			want: `effort value "reset" is reserved`,
+		},
+		{
+			name:      "missing default",
+			reasoning: true,
+			capability: ReasoningCapability{
+				Efforts: []ReasoningEffort{"low"},
+			},
+			want: "adjustable reasoning models require a default effort",
+		},
+		{
+			name:      "unsupported default",
+			reasoning: true,
+			capability: ReasoningCapability{
+				Efforts:       []ReasoningEffort{"low"},
+				DefaultEffort: "high",
+			},
+			want: `default effort "high" is not supported`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NormalizeReasoningCapability(tt.reasoning, tt.capability)
+			require.EqualError(t, err, tt.want)
+		})
+	}
+}
+
+func TestDefaultRegistry_ReasoningMetadataIsTransportSpecific(t *testing.T) {
+	registry := DefaultRegistry()
+
+	openAI, ok := registry.GetModelForAPI(
+		constants.ModelProviderOpenAI,
+		APIOpenAIResponses,
+		"gpt-5.5",
+	)
+	require.True(t, ok)
+	require.Equal(
+		t,
+		[]ReasoningEffort{"none", "low", "medium", "high", "xhigh"},
+		openAI.ReasoningCapabilities.Efforts,
+	)
+	require.Equal(t, ReasoningEffort("medium"), openAI.ReasoningCapabilities.DefaultEffort)
+	require.True(t, openAI.ReasoningCapabilities.Summary)
+
+	openAICodex, ok := registry.GetModelForAPI(
+		constants.ModelProviderOpenAICodex,
+		APIOpenAIResponses,
+		"gpt-5.5",
+	)
+	require.True(t, ok)
+	require.Equal(t, openAI.ReasoningCapabilities, openAICodex.ReasoningCapabilities)
+
+	openRouter, ok := registry.GetModelForAPI(
+		constants.ModelProviderOpenRouter,
+		APIOpenAIResponses,
+		"openai/gpt-5.5",
+	)
+	require.True(t, ok)
+	require.True(t, openRouter.Reasoning)
+	require.Equal(
+		t,
+		[]ReasoningEffort{"xhigh", "high", "medium", "low", "none"},
+		openRouter.ReasoningCapabilities.Efforts,
+	)
+	require.Equal(t, ReasoningEffort("medium"), openRouter.ReasoningCapabilities.DefaultEffort)
+	require.True(t, openRouter.ReasoningCapabilities.Summary)
+
+	openRouterPro, ok := registry.GetModelForAPI(
+		constants.ModelProviderOpenRouter,
+		APIOpenAIResponses,
+		"openai/gpt-5.5-pro",
+	)
+	require.True(t, ok)
+	require.Equal(
+		t,
+		[]ReasoningEffort{"xhigh", "high", "medium"},
+		openRouterPro.ReasoningCapabilities.Efforts,
+	)
+	require.Equal(t, ReasoningEffort("medium"), openRouterPro.ReasoningCapabilities.DefaultEffort)
+
+	openRouterUnknown, ok := registry.GetModelForAPI(
+		constants.ModelProviderOpenRouter,
+		APIOpenAIResponses,
+		"openrouter/auto",
+	)
+	require.True(t, ok)
+	require.Empty(t, openRouterUnknown.ReasoningCapabilities.Efforts)
+
+	copilot, ok := registry.GetModelForAPI(
+		constants.ModelProviderGitHubCopilot,
+		APIOpenAIResponses,
+		"gpt-5.5",
+	)
+	require.True(t, ok)
+	require.Empty(t, copilot.ReasoningCapabilities.Efforts)
+	require.False(t, copilot.ReasoningCapabilities.Summary)
+
+	ollama, ok := registry.GetModelForAPI(
+		constants.ModelProviderOllama,
+		APIOllamaNative,
+		"qwen3.5:latest",
+	)
+	require.True(t, ok)
+	require.True(t, ollama.Reasoning)
+	require.Empty(t, ollama.ReasoningCapabilities.Efforts)
+}
+
 func TestRegistry_GetModelsReturnsClonedProviderModels(t *testing.T) {
 	registry := DefaultRegistry()
 

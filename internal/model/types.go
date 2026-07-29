@@ -20,6 +20,7 @@ const (
 
 type StreamDelta = agentmodel.StreamDelta
 type Request = agentmodel.Request
+type ReasoningOptions = agentmodel.ReasoningOptions
 type StructuredOutput = agentmodel.StructuredOutput
 type Response = agentmodel.Response
 type ToolDefinition = agentmodel.ToolDefinition

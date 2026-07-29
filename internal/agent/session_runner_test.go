@@ -25,6 +25,7 @@ import (
 	agentcore "github.com/wandxy/morph/pkg/agent"
 	morphmsg "github.com/wandxy/morph/pkg/agent/message"
 	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	"github.com/wandxy/morph/pkg/nanoid"
 )
 
 type sessionRunnerModelClient struct {
@@ -134,10 +135,12 @@ func TestSessionRunner_ProcessesMemoryBackedQueue(t *testing.T) {
 	core := NewAgent(context.Background(), &config.Config{
 		Platform: storage.SessionOriginSourceCLI,
 		Models: config.ModelsConfig{Main: config.MainModelConfig{
-			Name:          "model",
-			API:           models.APIOpenAIResponses,
-			ContextLength: 8192,
-			Stream:        &stream,
+			Name:            "gpt-5.5",
+			Provider:        "openai",
+			API:             models.APIOpenAIResponses,
+			ContextLength:   8192,
+			Stream:          &stream,
+			ReasoningEffort: "high",
 		}},
 	}, client)
 	require.NoError(t, core.Start(context.Background()))
@@ -170,6 +173,11 @@ func TestSessionRunner_ProcessesMemoryBackedQueue(t *testing.T) {
 	})
 	require.Nil(t, state.ActiveRun)
 	require.Equal(t, 1, client.requestCount())
+	request := client.requestAt(0)
+	require.Equal(t, "openai", request.Provider)
+	require.Equal(t, models.APIOpenAIResponses, request.API)
+	require.Equal(t, "gpt-5.5", request.Model)
+	require.Equal(t, &models.ReasoningOptions{Effort: "high", Summary: true}, request.Reasoning)
 
 	messages, err := store.GetMessages(
 		context.Background(),
@@ -180,6 +188,191 @@ func TestSessionRunner_ProcessesMemoryBackedQueue(t *testing.T) {
 	require.Len(t, messages, 2)
 	require.Equal(t, "memory-backed", messages[0].Content)
 	require.Equal(t, "reply", messages[1].Content)
+}
+
+func TestAgent_SessionReasoningStateSetResetAndActiveSnapshot(t *testing.T) {
+	ctx := context.Background()
+	store := storememory.NewStore()
+	require.NoError(t, store.Save(ctx, storage.Session{ID: storage.DefaultSessionID}))
+	manager, err := statemanager.NewManager(store, time.Hour, time.Hour)
+	require.NoError(t, err)
+	core := &Agent{
+		cfg: &config.Config{Models: config.ModelsConfig{Main: config.MainModelConfig{
+			Name:            "gpt-5.5",
+			Provider:        "openai",
+			API:             models.APIOpenAIResponses,
+			ReasoningEffort: "medium",
+		}}},
+		stateMgr:    manager,
+		env:         &mocks.EnvironmentStub{},
+		initialized: true,
+	}
+	authorized := permissions.WithContext(ctx, permissions.AuthorizationContext{
+		Actor:     permissions.Actor{Kind: permissions.ActorLocalOwner},
+		Surface:   permissions.SurfaceTUI,
+		SessionID: storage.DefaultSessionID,
+	})
+
+	state, err := core.GetSessionExecutionState(authorized, storage.DefaultSessionID)
+	require.NoError(t, err)
+	require.True(t, state.Reasoning.Adjustable)
+	require.Equal(t, agentsession.ReasoningEffort("medium"), state.Reasoning.EffectiveEffort)
+	require.Equal(t, agentsession.ReasoningResolutionSourceProfileDefault, state.Reasoning.Source)
+
+	expected := agentsession.ReasoningModelTuple{
+		Provider: "openai",
+		API:      models.APIOpenAIResponses,
+		Model:    "gpt-5.5",
+	}
+	_, err = core.SetSessionReasoningEffort(
+		authorized,
+		agentsession.SetReasoningEffortRequest{
+			SessionID:     storage.DefaultSessionID,
+			ExpectedModel: expected,
+			Effort:        "ultra",
+		},
+	)
+	require.ErrorIs(t, err, agentsession.ErrReasoningUnsupported)
+	persisted, err := manager.Resolve(ctx, storage.DefaultSessionID)
+	require.NoError(t, err)
+	require.Empty(t, persisted.ReasoningEffortOverride)
+
+	settings, err := core.SetSessionReasoningEffort(
+		authorized,
+		agentsession.SetReasoningEffortRequest{
+			SessionID:     storage.DefaultSessionID,
+			ExpectedModel: expected,
+			Effort:        "HIGH",
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, agentsession.ReasoningEffort("high"), settings.SessionOverride)
+	require.Equal(t, agentsession.ReasoningEffort("high"), settings.EffectiveEffort)
+
+	core.setPendingModelSelection(models.Option{
+		ID:       "gpt-5.4",
+		Name:     "GPT-5.4",
+		Provider: "openai",
+		API:      models.APIOpenAIResponses,
+	})
+	_, err = core.SetSessionReasoningEffort(
+		authorized,
+		agentsession.SetReasoningEffortRequest{
+			SessionID:     storage.DefaultSessionID,
+			ExpectedModel: expected,
+			Effort:        "low",
+		},
+	)
+	require.ErrorIs(t, err, agentsession.ErrReasoningStaleTuple)
+	require.Equal(t, "gpt-5.5", core.getReasoningClaimContext().Model.Model)
+	core.modelSelectionMu.Lock()
+	core.pendingModel = nil
+	core.modelSelectionMu.Unlock()
+
+	_, err = core.SetSessionReasoningEffort(
+		authorized,
+		agentsession.SetReasoningEffortRequest{
+			SessionID: storage.DefaultSessionID,
+			ExpectedModel: agentsession.ReasoningModelTuple{
+				Provider: "openai",
+				API:      models.APIOpenAIResponses,
+				Model:    "stale-model",
+			},
+			Effort: "low",
+		},
+	)
+	require.ErrorIs(t, err, agentsession.ErrReasoningStaleTuple)
+	persisted, err = manager.Resolve(ctx, storage.DefaultSessionID)
+	require.NoError(t, err)
+	require.Equal(t, "high", persisted.ReasoningEffortOverride)
+
+	_, err = store.ReconcileActiveRuns(ctx, "generation-reasoning-state")
+	require.NoError(t, err)
+	_, err = store.SubmitMessage(ctx, agentsession.SubmitRequest{
+		ID:                 nanoid.MustFromSeed("qmsg_", "reasoning-state", "QueueSeed"),
+		SessionID:          storage.DefaultSessionID,
+		Content:            "reason",
+		ClientSubmissionID: "reasoning-state",
+		DeliveryMode:       agentsession.DeliveryModeFollowUp,
+	})
+	require.NoError(t, err)
+	_, run, claimed, err := store.ClaimNextFollowUp(ctx, agentsession.ClaimRequest{
+		SessionID:  storage.DefaultSessionID,
+		RunID:      nanoid.MustFromSeed("run_", "reasoning-state", "RunSeed"),
+		Generation: "generation-reasoning-state",
+		Reasoning:  core.getReasoningClaimContext(),
+	})
+	require.NoError(t, err)
+	require.True(t, claimed)
+
+	state, err = core.GetSessionExecutionState(authorized, storage.DefaultSessionID)
+	require.NoError(t, err)
+	require.Equal(t, run.Reasoning, *state.Reasoning.ActiveRunSnapshot)
+
+	settings, err = core.SetSessionReasoningEffort(
+		authorized,
+		agentsession.SetReasoningEffortRequest{
+			SessionID:     storage.DefaultSessionID,
+			ExpectedModel: expected,
+			Reset:         true,
+		},
+	)
+	require.NoError(t, err)
+	require.Empty(t, settings.SessionOverride)
+	require.Equal(t, agentsession.ReasoningEffort("medium"), settings.EffectiveEffort)
+	require.Equal(t, agentsession.ReasoningEffort("high"), settings.ActiveRunSnapshot.Effort)
+}
+
+func TestAgent_SetSessionReasoningEffortRejectsInvalidAndUnavailable(t *testing.T) {
+	store := storememory.NewStore()
+	require.NoError(t, store.Save(context.Background(), storage.Session{
+		ID:                      storage.DefaultSessionID,
+		ReasoningEffortOverride: "high",
+	}))
+	manager, err := statemanager.NewManager(store, time.Hour, time.Hour)
+	require.NoError(t, err)
+	core := &Agent{
+		cfg: &config.Config{Models: config.ModelsConfig{Main: config.MainModelConfig{
+			Name:     "gpt-4o",
+			Provider: "openai",
+			API:      models.APIOpenAIResponses,
+		}}},
+		stateMgr:    manager,
+		env:         &mocks.EnvironmentStub{},
+		initialized: true,
+	}
+	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
+		Actor:     permissions.Actor{Kind: permissions.ActorLocalOwner},
+		Surface:   permissions.SurfaceTUI,
+		SessionID: storage.DefaultSessionID,
+	})
+	expected := agentsession.ReasoningModelTuple{
+		Provider: "openai",
+		API:      models.APIOpenAIResponses,
+		Model:    "gpt-4o",
+	}
+
+	_, err = core.SetSessionReasoningEffort(ctx, agentsession.SetReasoningEffortRequest{
+		SessionID: storage.DefaultSessionID, ExpectedModel: expected,
+	})
+	require.ErrorIs(t, err, agentsession.ErrReasoningInvalid)
+	_, err = core.SetSessionReasoningEffort(ctx, agentsession.SetReasoningEffortRequest{
+		SessionID: storage.DefaultSessionID, ExpectedModel: expected, Effort: "low", Reset: true,
+	})
+	require.ErrorIs(t, err, agentsession.ErrReasoningInvalid)
+	_, err = core.SetSessionReasoningEffort(ctx, agentsession.SetReasoningEffortRequest{
+		SessionID: storage.DefaultSessionID, ExpectedModel: expected, Effort: "low",
+	})
+	require.ErrorIs(t, err, agentsession.ErrReasoningUnavailable)
+
+	settings, err := core.SetSessionReasoningEffort(ctx, agentsession.SetReasoningEffortRequest{
+		SessionID: storage.DefaultSessionID, ExpectedModel: expected, Reset: true,
+	})
+	require.NoError(t, err)
+	require.Empty(t, settings.SessionOverride)
+	persisted, err := manager.Resolve(ctx, storage.DefaultSessionID)
+	require.NoError(t, err)
+	require.Empty(t, persisted.ReasoningEffortOverride)
 }
 
 func TestSessionRunner_AcceptanceOutlivesObserverAndInterruptPreservesFollowUps(t *testing.T) {

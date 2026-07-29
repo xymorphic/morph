@@ -54,6 +54,14 @@ func (s *Service) State(
 		return nil, status.Error(codes.InvalidArgument, "session state request is required")
 	}
 	ctx = sessionQueueAuthorizationContext(ctx, req.GetId())
+	if err := s.checkPermission(ctx, permissions.Operation{
+		Resource: permissions.ResourceSession,
+		Action:   permissions.ActionRead,
+		Effects:  []permissions.Effect{permissions.EffectRead},
+		Target:   req.GetId(),
+	}); err != nil {
+		return nil, err
+	}
 	state, err := api.GetSessionExecutionState(ctx, req.GetId())
 	if err != nil {
 		return nil, getGRPCError(err)
@@ -83,7 +91,97 @@ func (s *Service) State(
 		QueueDepth:             int32(state.QueueDepth),
 		OldestPendingCreatedAt: timeToProtoTimestamp(state.OldestPendingCreated),
 		Progress:               progress,
+		Reasoning:              sessionReasoningSettingsToProto(state.Reasoning, state.ActiveRun),
 	}, nil
+}
+
+func (s *Service) SetReasoningEffort(
+	ctx context.Context,
+	req *morphpb.SetSessionReasoningEffortRequest,
+) (*morphpb.SetSessionReasoningEffortResponse, error) {
+	api, err := s.getSessionQueueAPI()
+	if err != nil {
+		return nil, err
+	}
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "set reasoning effort request is required")
+	}
+	ctx = sessionQueueAuthorizationContext(ctx, req.GetId())
+	if err := s.checkPermission(ctx, permissions.Operation{
+		Resource: permissions.ResourceSession,
+		Action:   permissions.ActionUpdate,
+		Effects:  []permissions.Effect{permissions.EffectWrite},
+		Target:   req.GetId(),
+	}); err != nil {
+		return nil, err
+	}
+	reasoning, err := api.SetSessionReasoningEffort(
+		ctx,
+		agentsession.SetReasoningEffortRequest{
+			SessionID: req.GetId(),
+			ExpectedModel: agentsession.ReasoningModelTuple{
+				Provider: req.GetExpectedProvider(),
+				API:      req.GetExpectedApi(),
+				Model:    req.GetExpectedModel(),
+			},
+			Effort: agentsession.ReasoningEffort(req.GetEffort()),
+			Reset:  req.GetReset_(),
+		},
+	)
+	if err != nil {
+		return nil, getGRPCError(err)
+	}
+	return &morphpb.SetSessionReasoningEffortResponse{
+		Reasoning: sessionReasoningSettingsToProto(reasoning, nil),
+	}, nil
+}
+
+func sessionReasoningSettingsToProto(
+	settings agentsession.ReasoningSettings,
+	activeRun *agentsession.ActiveRun,
+) *morphpb.SessionReasoningSettings {
+	efforts := make([]string, len(settings.SupportedEfforts))
+	for index, effort := range settings.SupportedEfforts {
+		efforts[index] = string(effort)
+	}
+	var snapshot *morphpb.ReasoningRunSnapshot
+	if activeRun != nil {
+		snapshot = reasoningRunSnapshotToProto(activeRun.Reasoning)
+	} else if settings.ActiveRunSnapshot != nil {
+		snapshot = reasoningRunSnapshotToProto(*settings.ActiveRunSnapshot)
+	}
+	return &morphpb.SessionReasoningSettings{
+		Model: &morphpb.ReasoningModelTuple{
+			Provider:    settings.Model.Provider,
+			Api:         settings.Model.API,
+			Model:       settings.Model.Model,
+			DisplayName: settings.Model.DisplayName,
+		},
+		Reasoning:        settings.Reasoning,
+		Adjustable:       settings.Adjustable,
+		SupportedEfforts: efforts,
+		SessionOverride:  string(settings.SessionOverride),
+		ProfileDefault:   string(settings.ProfileDefault),
+		CatalogDefault:   string(settings.CatalogDefault),
+		EffectiveEffort:  string(settings.EffectiveEffort),
+		DormantEffort:    string(settings.DormantEffort),
+		Source:           string(settings.Source),
+		Fallback:         string(settings.Fallback),
+		SummarySupported: settings.SummarySupported,
+		ActiveRun:        snapshot,
+	}
+}
+
+func reasoningRunSnapshotToProto(
+	snapshot agentsession.ReasoningSnapshot,
+) *morphpb.ReasoningRunSnapshot {
+	return &morphpb.ReasoningRunSnapshot{
+		Provider: snapshot.Provider,
+		Api:      snapshot.API,
+		Model:    snapshot.Model,
+		Effort:   string(snapshot.Effort),
+		Summary:  snapshot.Summary,
+	}
 }
 
 func (s *Service) Observe(
@@ -289,6 +387,13 @@ func sessionActiveRunToProto(run *agentsession.ActiveRun) *morphpb.SessionActive
 		UpdatedAt:    timeToProtoTimestamp(run.UpdatedAt),
 		Reason:       run.Reason,
 		LastError:    run.LastError,
+		Reasoning: &morphpb.ReasoningRunSnapshot{
+			Provider: run.Reasoning.Provider,
+			Api:      run.Reasoning.API,
+			Model:    run.Reasoning.Model,
+			Effort:   string(run.Reasoning.Effort),
+			Summary:  run.Reasoning.Summary,
+		},
 	}
 }
 

@@ -2054,11 +2054,14 @@ func TestService_SelectModelReturnsSelectedOption(t *testing.T) {
 	}
 	svc := newAllowedService(stub)
 
-	resp, err := svc.SelectModel(context.Background(), &morphpb.SelectModelRequest{Id: "gpt-4o", Provider: "openai"})
+	resp, err := svc.SelectModel(context.Background(), &morphpb.SelectModelRequest{
+		Id: "gpt-4o", Provider: "openai", Api: "openai-responses",
+	})
 
 	require.NoError(t, err)
 	require.Equal(t, "gpt-4o", stub.SelectedModelID)
 	require.Equal(t, "openai", stub.SelectedModelOptions.Provider)
+	require.Equal(t, "openai-responses", stub.SelectedModelOptions.API)
 	require.Equal(t, "gpt-4o", resp.GetModel().GetId())
 	require.True(t, resp.GetModel().GetCurrent())
 }

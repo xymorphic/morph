@@ -102,9 +102,11 @@ func (s *ModelService) SelectModel(
 	prepareRPCConnection(s.reconnector)
 	modelID := str.String(id)
 	provider := str.String(selectOpts.Provider)
+	api := str.String(selectOpts.API)
 	resp, err := client.SelectModel(ctx, &morphpb.SelectModelRequest{
 		Id:       modelID.Trim(),
 		Provider: provider.Trim(),
+		Api:      api.Trim(),
 	})
 	if err != nil {
 		return ModelOption{}, err

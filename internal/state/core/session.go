@@ -43,6 +43,7 @@ type Session struct {
 	Compaction                 SessionCompaction
 	Origin                     SessionOrigin
 	ID                         string
+	ReasoningEffortOverride    string
 	EpisodicCheckpointOffset   int
 	LastPromptTokens           int
 	ReflectionCheckpointOffset int
@@ -70,6 +71,10 @@ type SessionCreateOptions struct {
 type CheckpointPatch struct {
 	EpisodicOffset   *int
 	ReflectionOffset *int
+}
+
+type SessionPatch struct {
+	ReasoningEffortOverride *string
 }
 
 // SessionCompactionStatus records whether session history has been compacted.
@@ -160,6 +165,7 @@ type SessionReconcileResult = agentsession.ReconcileResult
 // SessionMetadataStore defines persisted session metadata operations.
 type SessionMetadataStore interface {
 	Save(ctx context.Context, session Session) error
+	Patch(ctx context.Context, id string, patch SessionPatch) (Session, error)
 	Get(ctx context.Context, id string, opts SessionGetOptions) (Session, bool, error)
 	List(ctx context.Context, opts SessionListOptions) ([]Session, error)
 	Rename(ctx context.Context, req SessionRenameRequest) (Session, error)

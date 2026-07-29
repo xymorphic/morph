@@ -416,6 +416,10 @@ func (s *Store) ClaimNextFollowUp(
 		Status:       agentsession.RunStatusRunning,
 		StartedAt:    now,
 		UpdatedAt:    now,
+		Reasoning: agentsession.ResolveReasoningSnapshot(
+			req.Reasoning,
+			s.sessions[req.SessionID].ReasoningEffortOverride,
+		),
 	}
 	inbox.runs[run.ID] = run
 	s.sessionRunIDs[run.ID] = struct{}{}

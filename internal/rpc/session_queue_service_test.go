@@ -47,6 +47,10 @@ func TestSessionQueueService_SubmitStateObserveAndInterrupt(t *testing.T) {
 	run := agentsession.ActiveRun{
 		ID: "run_test", SessionID: "default", QueueEntryID: entry.ID,
 		Status: agentsession.RunStatusInterrupted,
+		Reasoning: agentsession.ReasoningSnapshot{
+			Provider: "openai", API: "openai-responses", Model: "gpt-5.5",
+			Effort: "low", Summary: true,
+		},
 	}
 	api := &agentstub.AgentServiceStub{
 		QueueEntry: entry,
@@ -69,6 +73,18 @@ func TestSessionQueueService_SubmitStateObserveAndInterrupt(t *testing.T) {
 					},
 				},
 			}},
+			Reasoning: agentsession.ReasoningSettings{
+				Model: agentsession.ReasoningModelTuple{
+					Provider: "openai", API: "openai-responses",
+					Model: "gpt-5.5", DisplayName: "GPT-5.5",
+				},
+				SupportedEfforts: []agentsession.ReasoningEffort{"low", "high"},
+				SessionOverride:  "high",
+				EffectiveEffort:  "high",
+				Reasoning:        true,
+				Adjustable:       true,
+				SummarySupported: true,
+			},
 		},
 		SessionEvents: []agentsession.Event{{
 			SessionID: "default", Type: agentsession.EventTypeRunInterrupted,
@@ -93,6 +109,10 @@ func TestSessionQueueService_SubmitStateObserveAndInterrupt(t *testing.T) {
 		InterruptedRun:  run,
 		RunTransitioned: true,
 	}
+	api.ExecutionState.ActiveRun = &agentsession.ActiveRun{Reasoning: agentsession.ReasoningSnapshot{
+		Provider: "openai", API: "openai-responses", Model: "gpt-5.5",
+		Effort: "low", Summary: true,
+	}}
 	service := newAllowedService(api)
 	streamEnabled := false
 
@@ -125,6 +145,10 @@ func TestSessionQueueService_SubmitStateObserveAndInterrupt(t *testing.T) {
 		`{"detail":"read_file secret.txt","id":"call_1","name":"read_file"}`,
 		state.GetProgress()[0].GetTraceEvent().GetPayloadJson(),
 	)
+	require.Equal(t, "gpt-5.5", state.GetReasoning().GetModel().GetModel())
+	require.Equal(t, []string{"low", "high"}, state.GetReasoning().GetSupportedEfforts())
+	require.Equal(t, "low", state.GetReasoning().GetActiveRun().GetEffort())
+	require.Equal(t, "low", state.GetActiveRun().GetReasoning().GetEffort())
 
 	stream := &sessionObserveServerStub{ctx: context.Background()}
 	require.NoError(t, service.Observe(
@@ -141,6 +165,7 @@ func TestSessionQueueService_SubmitStateObserveAndInterrupt(t *testing.T) {
 		trace.EvtToolInvocationCompleted,
 		stream.responses[0].GetEvent().GetProgressTraceEvent().GetType(),
 	)
+	require.Equal(t, "low", stream.responses[0].GetEvent().GetRun().GetReasoning().GetEffort())
 	require.NotContains(
 		t,
 		stream.responses[0].GetEvent().GetProgressTraceEvent().GetPayloadJson(),
@@ -154,6 +179,90 @@ func TestSessionQueueService_SubmitStateObserveAndInterrupt(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, interrupted.GetTransitioned())
 	require.Equal(t, agentsession.RunStatusInterrupted, agentsession.RunStatus(interrupted.GetRun().GetStatus()))
+}
+
+func TestSessionQueueService_SetReasoningEffortMapsRequestAndResponse(t *testing.T) {
+	api := &agentstub.AgentServiceStub{ReasoningSettings: agentsession.ReasoningSettings{
+		Model: agentsession.ReasoningModelTuple{
+			Provider: "openai", API: "openai-responses", Model: "gpt-5.5",
+		},
+		SupportedEfforts: []agentsession.ReasoningEffort{"low", "high"},
+		SessionOverride:  "high",
+		EffectiveEffort:  "high",
+		Reasoning:        true,
+		Adjustable:       true,
+	}}
+	response, err := newAllowedService(api).SetReasoningEffort(
+		context.Background(),
+		&morphpb.SetSessionReasoningEffortRequest{
+			Id:               "default",
+			ExpectedProvider: "openai",
+			ExpectedApi:      "openai-responses",
+			ExpectedModel:    "gpt-5.5",
+			Effort:           "HIGH",
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, "default", api.SetReasoningOptions.SessionID)
+	require.Equal(t, "openai", api.SetReasoningOptions.ExpectedProvider)
+	require.Equal(t, "HIGH", api.SetReasoningOptions.Effort)
+	require.Equal(t, "high", response.GetReasoning().GetEffectiveEffort())
+}
+
+func TestSessionQueueService_SetReasoningEffortRejectsNilRequest(t *testing.T) {
+	response, err := newAllowedService(&agentstub.AgentServiceStub{}).
+		SetReasoningEffort(context.Background(), nil)
+
+	require.Nil(t, response)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
+func TestSessionQueueService_MapsReasoningErrors(t *testing.T) {
+	for _, test := range []struct {
+		err  error
+		code codes.Code
+	}{
+		{err: agentsession.ErrReasoningStaleTuple, code: codes.FailedPrecondition},
+		{err: agentsession.ErrReasoningUnavailable, code: codes.FailedPrecondition},
+		{err: agentsession.ErrReasoningUnsupported, code: codes.InvalidArgument},
+		{err: agentsession.ErrReasoningInvalid, code: codes.InvalidArgument},
+	} {
+		response, err := newAllowedService(&agentstub.AgentServiceStub{Err: test.err}).
+			SetReasoningEffort(
+				context.Background(),
+				&morphpb.SetSessionReasoningEffortRequest{
+					Id: "default", ExpectedProvider: "openai",
+					ExpectedApi: "openai-responses", ExpectedModel: "gpt-5.5",
+					Effort: "high",
+				},
+			)
+		require.Nil(t, response)
+		require.Equal(t, test.code, status.Code(err))
+	}
+}
+
+func TestSessionQueueService_StateAndSetRequireExplicitPermissions(t *testing.T) {
+	api := &agentstub.AgentServiceStub{}
+	service := NewServiceWithOptions(api, ServiceOptions{PermissionPolicy: deniedRPCPolicy()})
+
+	state, err := service.State(
+		context.Background(),
+		&morphpb.GetSessionStateRequest{Id: "default"},
+	)
+	require.Nil(t, state)
+	require.Equal(t, codes.PermissionDenied, status.Code(err))
+
+	response, err := service.SetReasoningEffort(
+		context.Background(),
+		&morphpb.SetSessionReasoningEffortRequest{
+			Id: "default", ExpectedProvider: "openai",
+			ExpectedApi: "openai-responses", ExpectedModel: "gpt-5.5",
+			Effort: "high",
+		},
+	)
+	require.Nil(t, response)
+	require.Equal(t, codes.PermissionDenied, status.Code(err))
+	require.Empty(t, api.SetReasoningOptions.SessionID)
 }
 
 func TestSessionQueueService_MapsQueueMutations(t *testing.T) {

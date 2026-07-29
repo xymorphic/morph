@@ -2,7 +2,9 @@ package provider_anthropic
 
 import (
 	"errors"
+	"fmt"
 
+	models "github.com/wandxy/morph/internal/model"
 	morphmsg "github.com/wandxy/morph/pkg/agent/message"
 	"github.com/wandxy/morph/pkg/str"
 )
@@ -19,6 +21,7 @@ type normalizedGenerateRequest struct {
 	Temperature      float64
 	DebugRequests    bool
 	SubscriptionAuth bool
+	Reasoning        *models.ReasoningOptions
 }
 
 func normalizeGenerateRequest(req Request) (normalizedGenerateRequest, error) {
@@ -46,6 +49,10 @@ func normalizeGenerateRequest(req Request) (normalizedGenerateRequest, error) {
 		maxOutputTokens = defaultMaxOutputTokens
 	}
 	instructionsValue := str.String(req.Instructions)
+	reasoning, err := normalizeReasoningOptions(req.Reasoning)
+	if err != nil {
+		return normalizedGenerateRequest{}, err
+	}
 	return normalizedGenerateRequest{
 		Model:            model,
 		Instructions:     instructionsValue.Trim(),
@@ -55,7 +62,21 @@ func normalizeGenerateRequest(req Request) (normalizedGenerateRequest, error) {
 		MaxOutputTokens:  maxOutputTokens,
 		Temperature:      req.Temperature,
 		DebugRequests:    req.DebugRequests,
+		Reasoning:        reasoning,
 	}, nil
+}
+
+func normalizeReasoningOptions(value *models.ReasoningOptions) (*models.ReasoningOptions, error) {
+	if value == nil {
+		return nil, nil
+	}
+	effort := str.String(value.Effort).Normalized()
+	switch effort {
+	case "low", "medium", "high", "xhigh", "max":
+	default:
+		return nil, fmt.Errorf("anthropic reasoning effort %q is not supported by the installed SDK", effort)
+	}
+	return &models.ReasoningOptions{Effort: effort}, nil
 }
 
 func normalizeStructuredOutput(value *StructuredOutput) *StructuredOutput {

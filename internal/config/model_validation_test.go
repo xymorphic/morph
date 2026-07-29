@@ -154,6 +154,60 @@ func TestConfig_ValidateRejectsProviderAPIIncompatibilityWithoutNetwork(t *testi
 	require.EqualError(t, err, `model API "openai-responses" is not supported by provider "anthropic"`)
 }
 
+func TestValidateReasoningSettings_AllowsDormantProfilePreference(t *testing.T) {
+	err := validateReasoningSettings(ModelsConfig{
+		Main: MainModelConfig{ReasoningEffort: "future-provider-level"},
+	})
+
+	require.NoError(t, err)
+}
+
+func TestValidateReasoningSettings_PreservesNoneAsExplicitPreference(t *testing.T) {
+	cfg := ModelsConfig{Main: MainModelConfig{ReasoningEffort: " none "}}
+	config := &Config{Models: cfg}
+	config.Normalize()
+
+	require.Equal(t, modelprovider.ReasoningEffort("none"), config.Models.Main.ReasoningEffort)
+	require.NoError(t, validateReasoningSettings(config.Models))
+}
+
+func TestValidateReasoningSettings_RejectsReservedProfilePreference(t *testing.T) {
+	err := validateReasoningSettings(ModelsConfig{
+		Main: MainModelConfig{ReasoningEffort: "RESET"},
+	})
+
+	require.EqualError(t, err, `models.main.reasoningEffort "RESET" is reserved`)
+}
+
+func TestValidateReasoningSettings_ValidatesCustomModelMetadata(t *testing.T) {
+	reasoning := true
+	valid := ModelsConfig{
+		Providers: map[string]ProviderModelConfig{
+			"example": {
+				Models: map[string]ProviderModelMetadata{
+					"reasoner": {
+						Reasoning:              &reasoning,
+						ReasoningEfforts:       []modelprovider.ReasoningEffort{"high", "low"},
+						ReasoningEffortDefault: "high",
+					},
+				},
+			},
+		},
+	}
+	require.NoError(t, validateReasoningSettings(valid))
+
+	invalid := valid
+	metadata := invalid.Providers["example"].Models["reasoner"]
+	metadata.ReasoningEfforts = []modelprovider.ReasoningEffort{"low", "LOW"}
+	invalid.Providers["example"].Models["reasoner"] = metadata
+	err := validateReasoningSettings(invalid)
+	require.EqualError(
+		t,
+		err,
+		`models.providers.example.models.reasoner reasoning metadata is invalid: effort value "LOW" is duplicated`,
+	)
+}
+
 func TestConfig_ValidateRejectsFreeFormModelWhenProviderRequiresKnownModels(t *testing.T) {
 	stubModelRegistry(t, modelprovider.NewRegistry(
 		[]modelprovider.APIDefinition{{ID: modelprovider.APIOpenAIResponses}},

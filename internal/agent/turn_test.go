@@ -28,8 +28,39 @@ import (
 	agentcore "github.com/wandxy/morph/pkg/agent"
 	morphmsg "github.com/wandxy/morph/pkg/agent/message"
 	agentprompt "github.com/wandxy/morph/pkg/agent/prompt"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 	agenttool "github.com/wandxy/morph/pkg/agent/tool"
 )
+
+func TestTurn_ReasoningSnapshotOwnsMainRequestIdentityAndOptions(t *testing.T) {
+	turn := &Turn{cfg: &config.Config{
+		Models: config.ModelsConfig{Main: config.MainModelConfig{
+			Name:     "new-model",
+			Provider: "new-provider",
+			API:      models.APIAnthropicMessages,
+		}},
+	}}
+	turn.setReasoningSnapshot(agentsession.ReasoningSnapshot{
+		Provider: "openai",
+		API:      models.APIOpenAIResponses,
+		Model:    "claimed-model",
+		Effort:   "high",
+		Summary:  true,
+	})
+
+	provider, api, model := turn.getMainModelRequestIdentity()
+	require.Equal(t, "openai", provider)
+	require.Equal(t, models.APIOpenAIResponses, api)
+	require.Equal(t, "claimed-model", model)
+	require.Equal(t, &models.ReasoningOptions{Effort: "high", Summary: true}, turn.getReasoningOptions())
+}
+
+func TestTurn_ReasoningOptionsPreserveSummaryWithoutEffort(t *testing.T) {
+	turn := &Turn{}
+	turn.setReasoningSnapshot(agentsession.ReasoningSnapshot{Summary: true})
+
+	require.Equal(t, &models.ReasoningOptions{Summary: true}, turn.getReasoningOptions())
+}
 
 func TestTurn_LoadInitializesSessionState(t *testing.T) {
 	store := &stateStoreStub{

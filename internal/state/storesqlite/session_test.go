@@ -149,6 +149,143 @@ func TestSQLiteStore_SessionLifecycle(t *testing.T) {
 	require.Empty(t, current)
 }
 
+func TestSQLiteStore_PatchReasoningEffortOverride(t *testing.T) {
+	store, err := NewStore(filepath.Join(t.TempDir(), "session.db"))
+	require.NoError(t, err)
+	original := Session{
+		ID:                         testSessionA,
+		Title:                      "Original",
+		EpisodicCheckpointOffset:   7,
+		ReflectionCheckpointOffset: 9,
+	}
+	require.NoError(t, store.Save(context.Background(), original))
+	require.NoError(t, store.Save(context.Background(), Session{ID: testSessionB}))
+
+	unknown := "future-effort"
+	patched, err := store.Patch(context.Background(), testSessionA, SessionPatch{
+		ReasoningEffortOverride: &unknown,
+	})
+	require.NoError(t, err)
+	require.Equal(t, unknown, patched.ReasoningEffortOverride)
+	require.Equal(t, "Original", patched.Title)
+	require.Equal(t, 7, patched.EpisodicCheckpointOffset)
+	require.Equal(t, 9, patched.ReflectionCheckpointOffset)
+
+	unchanged, err := store.Patch(context.Background(), testSessionA, SessionPatch{})
+	require.NoError(t, err)
+	require.Equal(t, unknown, unchanged.ReasoningEffortOverride)
+
+	require.NoError(t, store.Save(context.Background(), Session{
+		ID:    testSessionA,
+		Title: "Updated",
+	}))
+	loaded, ok, err := store.Get(context.Background(), testSessionA, base.SessionGetOptions{})
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, unknown, loaded.ReasoningEffortOverride)
+	require.Equal(t, "Updated", loaded.Title)
+
+	require.NoError(t, store.AppendMessages(context.Background(), testSessionA, []morphmsg.Message{{
+		Role:    morphmsg.RoleUser,
+		Content: "hello",
+	}}))
+	now := time.Now().UTC()
+	archived, err := store.Archive(context.Background(), testSessionA, base.SessionArchiveRequest{
+		ArchivedAt: now,
+		ExpiresAt:  now.Add(time.Hour),
+	})
+	require.NoError(t, err)
+	require.Equal(t, unknown, archived.ReasoningEffortOverride)
+	unarchived, err := store.Unarchive(context.Background(), testSessionA)
+	require.NoError(t, err)
+	require.Equal(t, unknown, unarchived.ReasoningEffortOverride)
+
+	other, ok, err := store.Get(context.Background(), testSessionB, base.SessionGetOptions{})
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Empty(t, other.ReasoningEffortOverride)
+
+	empty := ""
+	cleared, err := store.Patch(context.Background(), testSessionA, SessionPatch{
+		ReasoningEffortOverride: &empty,
+	})
+	require.NoError(t, err)
+	require.Empty(t, cleared.ReasoningEffortOverride)
+
+	var record sessionModel
+	require.NoError(t, store.db.First(&record, "id = ?", testSessionA).Error)
+	require.Nil(t, record.ReasoningEffortOverride)
+}
+
+func TestSQLiteStore_MigratesReasoningEffortOverrideColumn(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "legacy.db")), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.Exec(`
+		CREATE TABLE sessions (
+			id text PRIMARY KEY,
+			created_at datetime,
+			updated_at datetime
+		)
+	`).Error)
+
+	store, err := NewStoreFromDB(db)
+	require.NoError(t, err)
+	require.True(t, store.db.Migrator().HasColumn(&sessionModel{}, "ReasoningEffortOverride"))
+	require.NoError(t, store.Save(context.Background(), Session{ID: testSessionA}))
+
+	effort := "high"
+	_, err = store.Patch(context.Background(), testSessionA, SessionPatch{
+		ReasoningEffortOverride: &effort,
+	})
+	require.NoError(t, err)
+
+	loaded, ok, err := store.Get(context.Background(), testSessionA, base.SessionGetOptions{})
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, effort, loaded.ReasoningEffortOverride)
+}
+
+func TestSQLiteStore_PatchReasoningEffortOverrideConcurrentSetters(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "session.db")
+	store, err := NewStore(path)
+	require.NoError(t, err)
+	secondStore, err := NewStore(path)
+	require.NoError(t, err)
+	require.NoError(t, store.Save(context.Background(), Session{ID: testSessionA}))
+
+	values := []string{"low", "medium", "high", "xhigh"}
+	stores := []*Store{store, secondStore, store, secondStore}
+	start := make(chan struct{})
+	errs := make(chan error, len(values))
+	var wg sync.WaitGroup
+	for i, value := range values {
+		value := value
+		target := stores[i]
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, patchErr := target.Patch(context.Background(), testSessionA, SessionPatch{
+				ReasoningEffortOverride: &value,
+			})
+			errs <- patchErr
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for patchErr := range errs {
+		require.NoError(t, patchErr)
+	}
+
+	final := "none"
+	patched, err := secondStore.Patch(context.Background(), testSessionA, SessionPatch{
+		ReasoningEffortOverride: &final,
+	})
+	require.NoError(t, err)
+	require.Equal(t, final, patched.ReasoningEffortOverride)
+}
+
 func TestSQLiteStore_ConcurrentMessageAppendsKeepUniqueSequences(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "session.db")

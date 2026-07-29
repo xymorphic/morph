@@ -345,6 +345,8 @@ func cloneProviderModelMetadata(values map[string]ProviderModelMetadata) map[str
 		value.SupportsTools = cloneBoolPtr(value.SupportsTools)
 		value.SupportsVision = cloneBoolPtr(value.SupportsVision)
 		value.Reasoning = cloneBoolPtr(value.Reasoning)
+		value.ReasoningEfforts = slices.Clone(value.ReasoningEfforts)
+		value.ReasoningSummary = cloneBoolPtr(value.ReasoningSummary)
 		cloned[model] = value
 	}
 

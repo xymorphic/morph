@@ -519,7 +519,8 @@ func TestModel_ModelsCommandReportsUnavailableStates(t *testing.T) {
 		Kind:   commandViewKindModels,
 		Models: []rpcclient.ModelOption{{ID: "gpt-4o"}},
 	})
-	msg = selectModelCmd(context.Background(), client, "openai", "gpt-4o")()
+	msg = selectModelCmd(context.Background(), client, "openai", "openai-responses", "gpt-4o")()
+	require.Equal(t, "openai-responses", client.selectedModelAPI)
 	updated, cmd := runModel.updateModelsCommandView(msg)
 	require.NotNil(t, cmd)
 	require.Equal(t, "model selection unavailable", updated.(model).status.Text())
@@ -584,15 +585,15 @@ func TestModel_ModelSelectionEdgeCases(t *testing.T) {
 	require.NotNil(t, cmd)
 	require.Equal(t, "model selection unavailable", updated.(model).status.Text())
 
-	require.Nil(t, selectModelCmd(context.Background(), nil, "openai", "gpt-4o"))
+	require.Nil(t, selectModelCmd(context.Background(), nil, "openai", "", "gpt-4o"))
 	client := &fakeTUIChatClient{selectedModel: rpcclient.ModelOption{ID: "gpt-4o"}}
 	var nilContext context.Context
-	msg := selectModelCmd(nilContext, client, "openai", "gpt-4o")()
+	msg := selectModelCmd(nilContext, client, "openai", "", "gpt-4o")()
 	require.NoError(t, msg.(modelSelectedMsg).Err)
 	require.Equal(t, "gpt-4o", msg.(modelSelectedMsg).Model.ID)
 	require.Equal(t, "openai", client.selectedModelProvider)
 
-	msg = selectModelCmd(context.Background(), &fakeTUIChatClient{}, "openai", "")()
+	msg = selectModelCmd(context.Background(), &fakeTUIChatClient{}, "openai", "", "")()
 	require.EqualError(t, msg.(modelSelectedMsg).Err, "model id is required")
 
 	updated, cmd = runModel.completeSelectModel(modelSelectedMsg{})
@@ -735,10 +736,10 @@ func TestModel_ProviderAPIKeyPromptEdgeCases(t *testing.T) {
 	require.NotNil(t, cmd)
 	require.Equal(t, "provider API key unavailable", updated.(model).status.Text())
 
-	require.Nil(t, setProviderAPIKeyCmd(context.Background(), nil, "openrouter", "openai/gpt-4o", "key"))
+	require.Nil(t, setProviderAPIKeyCmd(context.Background(), nil, "openrouter", "", "openai/gpt-4o", "key"))
 
 	var nilContext context.Context
-	cmd = setProviderAPIKeyCmd(nilContext, &fakeTUIChatClient{}, "openrouter", "openai/gpt-4o", "key")
+	cmd = setProviderAPIKeyCmd(nilContext, &fakeTUIChatClient{}, "openrouter", "", "openai/gpt-4o", "key")
 	require.NotNil(t, cmd)
 	require.Equal(t, "openrouter", cmd().(providerAPIKeySetMsg).Provider)
 

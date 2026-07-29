@@ -33,6 +33,16 @@ func TestParseComposerInput_ClassifiesInput(t *testing.T) {
 			},
 		},
 		{
+			name: "effort command preserves argument case",
+			text: " /EFFORT High ",
+			want: composerInput{
+				Kind: composerInputCommand,
+				Text: "/EFFORT High",
+				Name: "effort",
+				Args: "High",
+			},
+		},
+		{
 			name: "local command",
 			text: " !git status ",
 			want: composerInput{

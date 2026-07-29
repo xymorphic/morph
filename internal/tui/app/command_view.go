@@ -10,6 +10,7 @@ import (
 
 	rpcclient "github.com/wandxy/morph/internal/rpc/client"
 	storage "github.com/wandxy/morph/internal/state/core"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 	"github.com/wandxy/morph/pkg/str"
 )
 
@@ -23,27 +24,34 @@ const (
 	commandViewKindModels         = "models"
 	commandViewKindApproval       = "permission-approval"
 	commandViewKindPermissions    = "permissions"
+	commandViewKindEffort         = "effort"
 	commandViewKindProviderAPIKey = "provider-api-key"
 	commandViewKindProviders      = "providers"
 	commandViewKindArtifactSave   = "artifact-save"
 )
 
 type commandViewPayload struct {
-	TitleIcon       string
-	TitleLeft       string
-	TitleSubtext    string
-	TitleRight      string
-	AccentColor     string
-	TitleRightColor string
-	Content         string
-	Height          int
-	Kind            string
-	Chats           []storage.Session
-	Models          []rpcclient.ModelOption
-	Providers       []rpcclient.ProviderOption
-	ModelProvider   string
-	ModelAuthType   string
-	PendingModelID  string
+	TitleIcon        string
+	TitleLeft        string
+	TitleSubtext     string
+	TitleRight       string
+	AccentColor      string
+	TitleRightColor  string
+	Content          string
+	Height           int
+	Kind             string
+	Chats            []storage.Session
+	Models           []rpcclient.ModelOption
+	Providers        []rpcclient.ProviderOption
+	ModelProvider    string
+	ModelAuthType    string
+	PendingModelID   string
+	PendingModelAPI  string
+	EffortSessionID  string
+	EffortModel      agentsession.ReasoningModelTuple
+	Efforts          []agentsession.ReasoningEffort
+	EffortReasoning  bool
+	EffortAdjustable bool
 }
 
 type commandViewSelectionAutoScrollTickMsg struct{}
@@ -98,6 +106,7 @@ func (m model) renderCommandView() string {
 		m.isModelsCommandView() ||
 		m.isPermissionApprovalCommandView() ||
 		m.isPermissionsCommandView() ||
+		m.isEffortCommandView() ||
 		m.isProvidersCommandView() ||
 		m.isProviderAPIKeyCommandView() ||
 		m.isBrowserArtifactSaveCommandView() {
@@ -173,6 +182,11 @@ func (m model) getCommandViewFrame() commandViewFrame {
 			Width:  contentWidth,
 			Height: contentHeight,
 			Offset: m.commandViewOffset,
+		})
+	}
+	if m.isEffortCommandView() {
+		content = m.renderEffortCommandViewContent(commandViewContent{
+			Width: contentWidth, Height: contentHeight, Offset: m.commandViewOffset,
 		})
 	}
 	if m.isProviderAPIKeyCommandView() {
@@ -367,6 +381,9 @@ func (m *model) updateCommandView(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if m.isPermissionsCommandView() {
 		return m.updatePermissionsCommandView(msg)
+	}
+	if m.isEffortCommandView() {
+		return m.updateEffortCommandView(msg)
 	}
 	if m.isProviderAPIKeyCommandView() {
 		return m.updateProviderAPIKeyCommandView(msg)

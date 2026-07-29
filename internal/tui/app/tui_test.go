@@ -2957,9 +2957,9 @@ func TestGetModelDisplayName_RemovesProviderPrefix(t *testing.T) {
 }
 
 func TestGetRuntimeModelDisplayName_UsesCatalogName(t *testing.T) {
-	require.Equal(t, "GPT-5.5", getRuntimeModelDisplayName("openai-codex", "gpt-5.5"))
-	require.Equal(t, "OpenAI: GPT-5.5", getRuntimeModelDisplayName("openrouter", "openai/gpt-5.5"))
-	require.Equal(t, "custom-model", getRuntimeModelDisplayName("custom", "owner/custom-model"))
+	require.Equal(t, "GPT-5.5", getRuntimeModelDisplayName("openai-codex", "", "gpt-5.5"))
+	require.Equal(t, "OpenAI: GPT-5.5", getRuntimeModelDisplayName("openrouter", "", "openai/gpt-5.5"))
+	require.Equal(t, "custom-model", getRuntimeModelDisplayName("custom", "", "owner/custom-model"))
 }
 
 func TestGetMorphBannerColor_UsesLastColorForOutOfRangeIndex(t *testing.T) {
@@ -3217,7 +3217,7 @@ func TestModel_RenderBottomStatusPanelKeepsMutedCellsWhenThinking(t *testing.T) 
 
 	content := runModel.renderBottomStatusPanel()
 
-	require.Contains(t, content, renderBottomStatusMutedCell("openai/gpt-4o-mini"))
+	require.Contains(t, content, renderBottomStatusMutedCell("gpt-4o-mini"))
 	require.Contains(t, content, renderBottomStatusMutedCell(statusCancelSuffix))
 	require.NotContains(t, stripANSI(content), defaultSessionTitle)
 }
@@ -7194,12 +7194,19 @@ type fakeTUIChatClient struct {
 	selectModelErr        error
 	selectedModelID       string
 	selectedModelProvider string
+	selectedModelAPI      string
 	providerAPIKey        string
 	providerAPIKeyID      string
 	providerAPIKeyErr     error
 	contextStatus         rpcclient.ContextStatus
 	contextErr            error
 	contextSessionID      string
+	reasoningSettings     agentsession.ReasoningSettings
+	reasoningErr          error
+	reasoningOptions      rpcclient.SetReasoningEffortOptions
+	reasoningCalls        int
+	runtimeModel          rpcclient.ModelRuntime
+	runtimeModelErr       error
 	message               string
 	respondContext        context.Context
 	calls                 int
@@ -7254,6 +7261,15 @@ func (c *fakeTUIChatClient) State(
 			Status: agentsession.QueueStatusCompleted,
 		}},
 	}, c.err
+}
+
+func (c *fakeTUIChatClient) SetReasoningEffort(
+	_ context.Context,
+	opts rpcclient.SetReasoningEffortOptions,
+) (agentsession.ReasoningSettings, error) {
+	c.reasoningCalls++
+	c.reasoningOptions = opts
+	return c.reasoningSettings, c.reasoningErr
 }
 
 func (c *fakeTUIChatClient) Observe(
@@ -7319,7 +7335,7 @@ func (c *fakeTUIChatClient) ListProviders(context.Context) (rpcclient.ProviderLi
 }
 
 func (c *fakeTUIChatClient) RuntimeModel(context.Context) (rpcclient.ModelRuntime, error) {
-	return rpcclient.ModelRuntime{}, nil
+	return c.runtimeModel, c.runtimeModelErr
 }
 
 func (c *fakeTUIChatClient) ListModels(_ context.Context, opts ...rpcclient.ModelListOptions) (rpcclient.ModelList, error) {
@@ -7335,6 +7351,7 @@ func (c *fakeTUIChatClient) SelectModel(_ context.Context, id string, opts ...rp
 	c.selectedModelID = id
 	if len(opts) > 0 {
 		c.selectedModelProvider = opts[0].Provider
+		c.selectedModelAPI = opts[0].API
 	}
 	iDValue := str.String(c.selectedModel.ID)
 	if iDValue.Trim() != "" {

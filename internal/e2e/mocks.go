@@ -98,6 +98,13 @@ type storageStoreStub struct {
 }
 
 func (s *storageStoreStub) Save(context.Context, storage.Session) error { return nil }
+func (s *storageStoreStub) Patch(
+	context.Context,
+	string,
+	storage.SessionPatch,
+) (storage.Session, error) {
+	return storage.Session{}, nil
+}
 func (s *storageStoreStub) Get(context.Context, string, storage.SessionGetOptions) (storage.Session, bool, error) {
 	return storage.Session{}, false, nil
 }
@@ -239,6 +246,13 @@ func (s rpcAdapterClientStub) State(
 			Status: agentsession.QueueStatusCompleted,
 		}},
 	}, nil
+}
+
+func (s rpcAdapterClientStub) SetReasoningEffort(
+	context.Context,
+	rpcclient.SetReasoningEffortOptions,
+) (agentsession.ReasoningSettings, error) {
+	return agentsession.ReasoningSettings{}, nil
 }
 
 func (s rpcAdapterClientStub) Observe(

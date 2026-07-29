@@ -450,6 +450,10 @@ func openAIReasoningModel(
 ) ModelDefinition {
 	model := openAIModel(id, name, input, contextWindow, maxTokens)
 	model.Reasoning = true
+	model.ReasoningCapabilities.Summary = true
+	if capability, ok := openAIReasoningCapability(id); ok {
+		model.ReasoningCapabilities = capability
+	}
 
 	return model
 }
@@ -461,7 +465,7 @@ func openAICodexModel(
 	contextWindow int,
 	maxTokens int,
 ) ModelDefinition {
-	return ModelDefinition{
+	model := ModelDefinition{
 		ID:            id,
 		Name:          name,
 		Owner:         constants.ModelProviderOpenAI,
@@ -473,6 +477,12 @@ func openAICodexModel(
 		ContextWindow: contextWindow,
 		MaxTokens:     maxTokens,
 	}
+	model.ReasoningCapabilities.Summary = true
+	if capability, ok := openAIReasoningCapability(id); ok {
+		model.ReasoningCapabilities = capability
+	}
+
+	return model
 }
 
 func ollamaModel(
@@ -602,8 +612,28 @@ func openRouterReasoningModel(
 ) ModelDefinition {
 	model := openRouterModel(id, name, input, contextWindow, maxTokens)
 	model.Reasoning = true
+	if capability, ok := openRouterReasoningCapability(id); ok {
+		model.ReasoningCapabilities = capability
+	}
 
 	return model
+}
+
+func openRouterReasoningCapability(id string) (ReasoningCapability, bool) {
+	capability := ReasoningCapability{
+		Efforts:       []ReasoningEffort{"xhigh", "high", "medium", "low", "none"},
+		DefaultEffort: "medium",
+		Summary:       true,
+	}
+	switch id {
+	case "openai/gpt-5.5", "openai/gpt-5.4-mini", "openai/gpt-5.4-nano":
+		return capability, true
+	case "openai/gpt-5.5-pro":
+		capability.Efforts = []ReasoningEffort{"xhigh", "high", "medium"}
+		return capability, true
+	default:
+		return ReasoningCapability{}, false
+	}
 }
 
 func anthropicModel(
@@ -647,6 +677,7 @@ func anthropicReasoningModel(
 ) ModelDefinition {
 	model := anthropicModel(id, name, input, contextWindow, maxTokens)
 	model.Reasoning = true
+	model.ReasoningCapabilities = anthropicReasoningCapability(id)
 
 	return model
 }
@@ -660,8 +691,60 @@ func anthropicOAuthReasoningModel(
 ) ModelDefinition {
 	model := anthropicOAuthModel(id, name, input, contextWindow, maxTokens)
 	model.Reasoning = true
+	model.ReasoningCapabilities = anthropicReasoningCapability(id)
 
 	return model
+}
+
+func openAIReasoningCapability(id string) (ReasoningCapability, bool) {
+	var capability ReasoningCapability
+	switch id {
+	case "gpt-5":
+		capability.Efforts = []ReasoningEffort{"minimal", "low", "medium", "high"}
+		capability.DefaultEffort = "medium"
+	case "gpt-5.1":
+		capability.Efforts = []ReasoningEffort{"none", "low", "medium", "high"}
+		capability.DefaultEffort = "none"
+	case "gpt-5.2":
+		capability.Efforts = []ReasoningEffort{"none", "low", "medium", "high", "xhigh"}
+		capability.DefaultEffort = "none"
+	case "gpt-5.4":
+		capability.Efforts = []ReasoningEffort{"none", "low", "medium", "high", "xhigh"}
+		capability.DefaultEffort = "none"
+	case "gpt-5.4-pro":
+		capability.Efforts = []ReasoningEffort{"medium", "high", "xhigh"}
+		capability.DefaultEffort = "medium"
+	case "gpt-5.5":
+		capability.Efforts = []ReasoningEffort{"none", "low", "medium", "high", "xhigh"}
+		capability.DefaultEffort = "medium"
+	case "gpt-5.5-pro":
+		capability.Efforts = []ReasoningEffort{"medium", "high", "xhigh"}
+		capability.DefaultEffort = "high"
+	default:
+		return ReasoningCapability{}, false
+	}
+	capability.Summary = true
+
+	return capability, true
+}
+
+func anthropicReasoningCapability(id string) ReasoningCapability {
+	var efforts []ReasoningEffort
+	switch {
+	case strings.Contains(id, "opus-4-7"):
+		efforts = []ReasoningEffort{"low", "medium", "high", "xhigh", "max"}
+	case strings.Contains(id, "opus-4-6"), strings.Contains(id, "sonnet-4-6"):
+		efforts = []ReasoningEffort{"low", "medium", "high", "max"}
+	case strings.Contains(id, "opus-4-5"):
+		efforts = []ReasoningEffort{"low", "medium", "high"}
+	default:
+		return ReasoningCapability{}
+	}
+
+	return ReasoningCapability{
+		Efforts:       efforts,
+		DefaultEffort: "high",
+	}
 }
 
 func getModelOwnerFromID(id string) string {

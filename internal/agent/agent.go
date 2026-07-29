@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	envtypes "github.com/wandxy/morph/internal/environment/types"
 	"github.com/wandxy/morph/internal/guardrails"
 	models "github.com/wandxy/morph/internal/model"
+	modelprovider "github.com/wandxy/morph/internal/model/provider"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/profile"
 	storage "github.com/wandxy/morph/internal/state/core"
@@ -92,6 +94,9 @@ type Agent struct {
 	runnerGeneration   string
 	runnerWG           sync.WaitGroup
 	runnerStopping     bool
+	modelRegistry      *modelprovider.Registry
+	modelSelectionMu   sync.RWMutex
+	pendingModel       *agentsession.ReasoningClaimContext
 	progressMu         sync.Mutex
 	progressObservers  map[string]map[chan struct{}]struct{}
 	progressHistory    map[string][]agentsession.ProgressEvent
@@ -123,6 +128,7 @@ func NewAgent(ctx context.Context, cfg *config.Config, modelClient models.Client
 		modelClient:        modelClient,
 		summaryClient:      summaryClient,
 		rerankerClient:     rerankerClient,
+		modelRegistry:      modelprovider.DefaultRegistry(),
 		recallSummaryCache: newRecallSummaryCache(),
 		turnCoordinator:    defaultTurnCoordinator,
 		turnScope:          getTurnCoordinationScope(),
@@ -272,17 +278,28 @@ func (a *Agent) ListProviders(context.Context) (ProviderList, error) {
 	}
 
 	auth := make(map[string]string)
-	currentProviderModels, err := listModelOptions(models.OptionQuery{Provider: a.cfg.Models.Main.Provider})
+	currentProviderModels, err := listModelOptions(models.OptionQuery{
+		Provider: a.cfg.Models.Main.Provider,
+		Registry: a.getModelRegistry(),
+		Config:   a.cfg,
+	})
 	if err != nil {
 		return ProviderList{}, err
 	}
 	auth[a.cfg.Models.Main.Provider] = a.getProviderAuthTypeForModelList(a.cfg.Models.Main.Provider, currentProviderModels)
-	for _, provider := range models.ListProviders(models.ProviderQuery{Current: a.cfg.Models.Main.Provider}) {
+	for _, provider := range models.ListProviders(models.ProviderQuery{
+		Current:  a.cfg.Models.Main.Provider,
+		Registry: a.getModelRegistry(),
+	}) {
 		if _, ok := auth[provider.ID]; ok {
 			continue
 		}
 
-		providerModels, err := listModelOptions(models.OptionQuery{Provider: provider.ID})
+		providerModels, err := listModelOptions(models.OptionQuery{
+			Provider: provider.ID,
+			Registry: a.getModelRegistry(),
+			Config:   a.cfg,
+		})
 		if err != nil {
 			return ProviderList{}, err
 		}
@@ -291,8 +308,9 @@ func (a *Agent) ListProviders(context.Context) (ProviderList, error) {
 
 	return ProviderList{
 		Providers: models.ListProviders(models.ProviderQuery{
-			Current: a.cfg.Models.Main.Provider,
-			Auth:    auth,
+			Current:  a.cfg.Models.Main.Provider,
+			Auth:     auth,
+			Registry: a.getModelRegistry(),
 		}),
 	}, nil
 }
@@ -319,6 +337,8 @@ func (a *Agent) ListModels(_ context.Context, opts ...ModelListOptions) (ModelLi
 	modelsForProvider, err := listModelOptions(models.OptionQuery{
 		Provider: provider,
 		Current:  a.getCurrentModelForProvider(provider),
+		Registry: a.getModelRegistry(),
+		Config:   a.cfg,
 	})
 	if err != nil {
 		return ModelList{}, err
@@ -332,6 +352,8 @@ func (a *Agent) ListModels(_ context.Context, opts ...ModelListOptions) (ModelLi
 			Provider:  provider,
 			Current:   a.getCurrentModelForProvider(provider),
 			OAuthOnly: true,
+			Registry:  a.getModelRegistry(),
+			Config:    a.cfg,
 		})
 		if err != nil {
 			return ModelList{}, err
@@ -433,8 +455,10 @@ func (a *Agent) SelectModel(ctx context.Context, id string, opts ...ModelSelectO
 	if id == "" {
 		return models.Option{}, errors.New("model id is required")
 	}
-	providerValue7 := str.String(getModelSelectOptions(opts...).Provider)
+	selectOptions := getModelSelectOptions(opts...)
+	providerValue7 := str.String(selectOptions.Provider)
 	provider := providerValue7.Normalized()
+	api := str.String(selectOptions.API).Normalized()
 	list, err := a.ListModels(ctx, ModelListOptions{Provider: provider})
 	if err != nil {
 		return models.Option{}, err
@@ -443,9 +467,22 @@ func (a *Agent) SelectModel(ctx context.Context, id string, opts ...ModelSelectO
 	var selected models.Option
 	for _, option := range list.Models {
 		iDValue := str.String(option.ID)
-		if iDValue.Trim() == id {
+		if iDValue.Trim() != id {
+			continue
+		}
+		if api != "" {
+			if !strings.EqualFold(strings.TrimSpace(option.API), api) {
+				continue
+			}
 			selected = option
-			selected.Current = true
+			break
+		}
+		if selected.ID == "" {
+			selected = option
+		}
+		providerDefinition, ok := a.getModelRegistry().GetProvider(list.Provider)
+		if ok && strings.EqualFold(strings.TrimSpace(option.API), providerDefinition.DefaultAPI) {
+			selected = option
 			break
 		}
 	}
@@ -463,7 +500,54 @@ func (a *Agent) SelectModel(ctx context.Context, id string, opts ...ModelSelectO
 		return models.Option{}, err
 	}
 
+	selected.Current = true
+	a.setPendingModelSelection(selected)
 	return selected, nil
+}
+
+func (a *Agent) getModelRegistry() *modelprovider.Registry {
+	if a != nil && a.modelRegistry != nil {
+		return a.modelRegistry
+	}
+
+	return modelprovider.DefaultRegistry()
+}
+
+func (a *Agent) setPendingModelSelection(selected models.Option) {
+	if a == nil {
+		return
+	}
+
+	context := a.getReasoningClaimContextForTuple(agentsession.ReasoningModelTuple{
+		Provider:    selected.Provider,
+		API:         selected.API,
+		Model:       selected.ID,
+		DisplayName: selected.Name,
+	})
+	a.modelSelectionMu.Lock()
+	a.pendingModel = &context
+	a.modelSelectionMu.Unlock()
+}
+
+func (a *Agent) getReasoningStateContext() agentsession.ReasoningClaimContext {
+	if a == nil {
+		return agentsession.ReasoningClaimContext{}
+	}
+
+	a.modelSelectionMu.RLock()
+	pending := a.pendingModel
+	if pending != nil {
+		value := *pending
+		value.Capability.Efforts = append(
+			[]agentsession.ReasoningEffort(nil),
+			pending.Capability.Efforts...,
+		)
+		a.modelSelectionMu.RUnlock()
+		return value
+	}
+	a.modelSelectionMu.RUnlock()
+
+	return a.getReasoningClaimContext()
 }
 
 func (a *Agent) checkModelSelectionAuth(provider string, selected models.Option) error {
@@ -708,6 +792,10 @@ func (a *Agent) Respond(ctx context.Context, msg string, opts agentcore.RespondO
 	// Turn owns per-response state such as loaded history, retrieved memory,
 	// request instruction overrides, streaming callbacks, and emitted messages.
 	turn := a.newTurn(a.env, a.invokeToolWithEnvironment)
+	turn.setReasoningSnapshot(agentsession.ResolveReasoningSnapshot(
+		a.getReasoningClaimContext(),
+		session.ReasoningEffortOverride,
+	))
 	reply, err := turn.Run(ctx, msg, opts)
 	a.setTurnMessages(turn.Messages())
 	if err == nil {
@@ -715,6 +803,87 @@ func (a *Agent) Respond(ctx context.Context, msg string, opts agentcore.RespondO
 	}
 
 	return reply, err
+}
+
+func (a *Agent) getReasoningClaimContext() agentsession.ReasoningClaimContext {
+	if a == nil || a.cfg == nil {
+		return agentsession.ReasoningClaimContext{}
+	}
+
+	return a.getReasoningClaimContextForTuple(agentsession.ReasoningModelTuple{
+		Provider: str.String(a.cfg.Models.Main.Provider).Normalized(),
+		API:      str.String(a.cfg.MainModelAPIEffective()).Normalized(),
+		Model:    str.String(a.cfg.Models.Main.Name).Trim(),
+	})
+}
+
+func (a *Agent) getReasoningClaimContextForTuple(
+	tuple agentsession.ReasoningModelTuple,
+) agentsession.ReasoningClaimContext {
+	if a == nil || a.cfg == nil {
+		return agentsession.ReasoningClaimContext{}
+	}
+
+	providerID := str.String(tuple.Provider).Normalized()
+	apiID := str.String(tuple.API).Normalized()
+	modelID := str.String(tuple.Model).Trim()
+	context := agentsession.ReasoningClaimContext{
+		Model: agentsession.ReasoningModelTuple{
+			Provider:    providerID,
+			API:         apiID,
+			Model:       modelID,
+			DisplayName: strings.TrimSpace(tuple.DisplayName),
+		},
+		ProfileDefault: agentsession.ReasoningEffort(a.cfg.Models.Main.ReasoningEffort),
+		APISupported:   isReasoningAPI(apiID),
+	}
+
+	options, err := listModelOptions(models.OptionQuery{
+		Provider: providerID,
+		API:      apiID,
+		Current:  modelID,
+		Config:   a.cfg,
+		Registry: a.getModelRegistry(),
+	})
+	if err != nil {
+		return context
+	}
+	for _, option := range options {
+		if !strings.EqualFold(option.Provider, providerID) ||
+			!strings.EqualFold(option.API, apiID) ||
+			option.ID != modelID {
+			continue
+		}
+		if context.Model.DisplayName == "" {
+			context.Model.DisplayName = option.Name
+		}
+		context.Reasoning = option.Reasoning
+		context.CatalogFound = true
+		context.Capability = agentsession.ReasoningCapability{
+			Efforts: make([]agentsession.ReasoningEffort, len(option.ReasoningCapabilities.Efforts)),
+			DefaultEffort: agentsession.ReasoningEffort(
+				option.ReasoningCapabilities.DefaultEffort,
+			),
+			Summary: option.ReasoningCapabilities.Summary,
+		}
+		for index, effort := range option.ReasoningCapabilities.Efforts {
+			context.Capability.Efforts[index] = agentsession.ReasoningEffort(effort)
+		}
+		break
+	}
+	return context
+}
+
+func isReasoningAPI(api string) bool {
+	switch api {
+	case models.APIOpenAICompletions,
+		models.APIOpenAIResponses,
+		models.APIAnthropicMessages,
+		models.APIOllamaNative:
+		return true
+	default:
+		return false
+	}
 }
 
 func (a *Agent) setSessionAuthorization(

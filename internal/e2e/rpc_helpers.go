@@ -109,6 +109,8 @@ models:
 rpc:
   address: %s
   port: %d
+permissions:
+  preset: approve
 log:
   noColor: %t
 `,

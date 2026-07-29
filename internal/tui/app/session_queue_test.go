@@ -47,6 +47,13 @@ func (c *sessionQueueTUIClient) State(
 	return c.state, c.err
 }
 
+func (c *sessionQueueTUIClient) SetReasoningEffort(
+	context.Context,
+	rpcclient.SetReasoningEffortOptions,
+) (agentsession.ReasoningSettings, error) {
+	return agentsession.ReasoningSettings{}, c.err
+}
+
 func (c *sessionQueueTUIClient) Observe(
 	_ context.Context,
 	_ string,
@@ -250,6 +257,26 @@ func TestSessionQueueTUI_QueuedRunStartsAndStopsThinking(t *testing.T) {
 	require.False(t, runModel.isModelThinking())
 	_, next := runModel.updateThinkingComposer()
 	require.Nil(t, next)
+	require.False(t, runModel.thinkingComposerActive)
+}
+
+func TestSessionQueueTUI_EscapeInterruptsObservedQueuedRun(t *testing.T) {
+	client := &sessionQueueTUIClient{}
+	runModel := newModelWithClient(client)
+	runModel.sessionExecutionState.ActiveRun = &rpcclient.SessionActiveRun{
+		ID:           "run_follow_up",
+		QueueEntryID: "qmsg_follow_up",
+		Status:       agentsession.RunStatusRunning,
+	}
+	runModel.thinkingComposerActive = true
+
+	updated, cmd := runModel.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+
+	require.NotNil(t, cmd)
+	runModel = updated.(model)
+	runSessionQueueTestCmd(cmd)
+	require.Equal(t, 1, client.interrupts)
+	require.Equal(t, "interrupt requested", runModel.status.Text())
 	require.False(t, runModel.thinkingComposerActive)
 }
 

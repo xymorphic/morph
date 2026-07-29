@@ -88,6 +88,7 @@ func TestOllamaClient_CompleteConvertsRequestAndResponse(t *testing.T) {
 		ContextLength:   8192,
 		MaxOutputTokens: 32,
 		Temperature:     0.2,
+		Reasoning:       &models.ReasoningOptions{Effort: "medium"},
 	})
 
 	require.NoError(t, err)
@@ -104,6 +105,7 @@ func TestOllamaClient_CompleteConvertsRequestAndResponse(t *testing.T) {
 
 	require.Equal(t, "llama3.2:3b", captured.Model)
 	require.False(t, captured.Stream)
+	require.Equal(t, "medium", captured.Think)
 	require.Equal(t, []chatMessage{
 		{Role: "system", Content: "be brief"},
 		{Role: "user", Content: "hello"},
@@ -500,6 +502,19 @@ func TestOllamaClient_NormalizeRequestRejectsInvalidInput(t *testing.T) {
 		Tools:    []ToolDefinition{{Name: " "}},
 	})
 	require.EqualError(t, err, "tool name is required")
+
+	_, err = normalizeRequest(Request{
+		Model:    "qwen3.5:latest",
+		Messages: []morphmsg.Message{{Role: morphmsg.RoleUser, Content: "hello"}},
+		Reasoning: &models.ReasoningOptions{
+			Effort: "xhigh",
+		},
+	})
+	require.EqualError(
+		t,
+		err,
+		`ollama reasoning effort "xhigh" is not supported as a native think level`,
+	)
 }
 
 func TestOllamaClient_NormalizesOptionalValues(t *testing.T) {

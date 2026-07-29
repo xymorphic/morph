@@ -27,6 +27,30 @@ func TestSessionQueueClient_MapsSubmitStateAndObserve(t *testing.T) {
 		},
 		StateResp: &morphpb.GetSessionStateResponse{
 			Id: "default", Cursor: 4, RetainedCursorFloor: 2, QueueDepth: 1,
+			ActiveRun: &morphpb.SessionActiveRun{
+				Id: "run_test",
+				Reasoning: &morphpb.ReasoningRunSnapshot{
+					Provider: "openai", Api: "openai-responses",
+					Model: "gpt-5.5", Effort: "low", Summary: true,
+				},
+			},
+			Reasoning: &morphpb.SessionReasoningSettings{
+				Model: &morphpb.ReasoningModelTuple{
+					Provider: "openai", Api: "openai-responses",
+					Model: "gpt-5.5", DisplayName: "GPT-5.5",
+				},
+				Reasoning:        true,
+				Adjustable:       true,
+				SupportedEfforts: []string{"low", "high"},
+				SessionOverride:  "high",
+				EffectiveEffort:  "high",
+				Source:           "session_override",
+				SummarySupported: true,
+				ActiveRun: &morphpb.ReasoningRunSnapshot{
+					Provider: "openai", Api: "openai-responses",
+					Model: "gpt-5.5", Effort: "low", Summary: true,
+				},
+			},
 			Progress: []*morphpb.SessionProgressEvent{{
 				RunId:        "run_test",
 				QueueEntryId: "qmsg_test",
@@ -43,7 +67,14 @@ func TestSessionQueueClient_MapsSubmitStateAndObserve(t *testing.T) {
 		ObserveEvents: []*morphpb.ObserveSessionResponse{{
 			Event: &morphpb.SessionEvent{
 				SessionId: "default", Cursor: 5,
-				Type:                 string(agentsession.EventTypeQueueUpdated),
+				Type: string(agentsession.EventTypeQueueUpdated),
+				Run: &morphpb.SessionActiveRun{
+					Id: "run_test",
+					Reasoning: &morphpb.ReasoningRunSnapshot{
+						Provider: "openai", Api: "openai-responses",
+						Model: "gpt-5.5", Effort: "low", Summary: true,
+					},
+				},
 				ProgressKind:         "text_delta",
 				ProgressChannel:      "assistant",
 				ProgressText:         "done",
@@ -56,6 +87,15 @@ func TestSessionQueueClient_MapsSubmitStateAndObserve(t *testing.T) {
 				},
 			},
 		}},
+		SetReasoningResp: &morphpb.SetSessionReasoningEffortResponse{
+			Reasoning: &morphpb.SessionReasoningSettings{
+				Model: &morphpb.ReasoningModelTuple{
+					Provider: "openai", Api: "openai-responses", Model: "gpt-5.5",
+				},
+				SessionOverride: "high", EffectiveEffort: "high",
+				SupportedEfforts: []string{"low", "high"},
+			},
+		},
 	}
 	client := NewSessionService(stub)
 
@@ -95,6 +135,35 @@ func TestSessionQueueClient_MapsSubmitStateAndObserve(t *testing.T) {
 			},
 		},
 	}}, state.Progress)
+	require.Equal(t, agentsession.ReasoningEffort("high"), state.Reasoning.EffectiveEffort)
+	require.Equal(t, agentsession.ReasoningEffort("low"), state.Reasoning.ActiveRunSnapshot.Effort)
+	require.Equal(t, agentsession.ReasoningEffort("low"), state.ActiveRun.Reasoning.Effort)
+
+	reasoning, err := client.SetReasoningEffort(
+		context.Background(),
+		SetReasoningEffortOptions{
+			SessionID: "default", ExpectedProvider: "openai",
+			ExpectedAPI: "openai-responses", ExpectedModel: "gpt-5.5",
+			Effort: "HIGH",
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, "default", stub.SetReasoningReq.GetId())
+	require.Equal(t, "openai-responses", stub.SetReasoningReq.GetExpectedApi())
+	require.Equal(t, "HIGH", stub.SetReasoningReq.GetEffort())
+	require.Equal(t, agentsession.ReasoningEffort("high"), reasoning.EffectiveEffort)
+
+	_, err = client.SetReasoningEffort(
+		context.Background(),
+		SetReasoningEffortOptions{
+			SessionID: "default", ExpectedProvider: "openai",
+			ExpectedAPI: "openai-responses", ExpectedModel: "gpt-5.5",
+			Reset: true,
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, stub.SetReasoningReq.GetReset_())
+	require.Empty(t, stub.SetReasoningReq.GetEffort())
 
 	var events []SessionEvent
 	require.NoError(t, client.Observe(context.Background(), "default", state.Cursor, func(event SessionEvent) error {
@@ -103,6 +172,7 @@ func TestSessionQueueClient_MapsSubmitStateAndObserve(t *testing.T) {
 	}))
 	require.Len(t, events, 1)
 	require.Equal(t, int64(5), events[0].Cursor)
+	require.Equal(t, agentsession.ReasoningEffort("low"), events[0].Run.Reasoning.Effort)
 	require.Equal(t, &agentsession.ProgressEvent{
 		RunID:        "run_test",
 		QueueEntryID: "qmsg_test",
@@ -189,6 +259,9 @@ func TestSessionQueueClient_PublicClientDelegatesQueueOperations(t *testing.T) {
 			Entry: &morphpb.SessionQueueEntry{Id: "qmsg_test"},
 		},
 		StateResp: &morphpb.GetSessionStateResponse{Id: "default"},
+		SetReasoningResp: &morphpb.SetSessionReasoningEffortResponse{
+			Reasoning: &morphpb.SessionReasoningSettings{EffectiveEffort: "high"},
+		},
 		EditQueuedResp: &morphpb.EditQueuedSessionMessageResponse{
 			Entry: &morphpb.SessionQueueEntry{Id: "qmsg_test"},
 		},
@@ -209,6 +282,12 @@ func TestSessionQueueClient_PublicClientDelegatesQueueOperations(t *testing.T) {
 	require.NoError(t, err)
 	_, err = client.State(context.Background(), "default")
 	require.NoError(t, err)
+	reasoning, err := client.SetReasoningEffort(
+		context.Background(),
+		SetReasoningEffortOptions{SessionID: "default", Effort: "high"},
+	)
+	require.NoError(t, err)
+	require.Equal(t, agentsession.ReasoningEffort("high"), reasoning.EffectiveEffort)
 	require.NoError(t, client.Observe(context.Background(), "default", 0, func(SessionEvent) error {
 		return nil
 	}))
@@ -227,6 +306,11 @@ func TestSessionQueueClient_PublicClientDelegatesQueueOperations(t *testing.T) {
 	_, err = unavailable.SubmitMessage(context.Background(), SubmitMessageOptions{})
 	require.EqualError(t, err, "RPC client is unavailable")
 	_, err = unavailable.State(context.Background(), "default")
+	require.EqualError(t, err, "RPC client is unavailable")
+	_, err = unavailable.SetReasoningEffort(
+		context.Background(),
+		SetReasoningEffortOptions{SessionID: "default"},
+	)
 	require.EqualError(t, err, "RPC client is unavailable")
 	require.EqualError(
 		t,

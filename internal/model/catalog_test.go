@@ -492,6 +492,85 @@ func TestCatalogHelpersHandleFallbacks(t *testing.T) {
 	require.Equal(t, OptionSourceDiscovery, converted[0].Source)
 }
 
+func TestMergeOptions_UsesExactModelTupleAndClonesReasoningEfforts(t *testing.T) {
+	primaryEfforts := []modelprovider.ReasoningEffort{"high", "low"}
+	primary := []Option{{
+		ID:       "shared",
+		Provider: "example",
+		API:      "responses",
+		ReasoningCapabilities: modelprovider.ReasoningCapability{
+			Efforts:       primaryEfforts,
+			DefaultEffort: "high",
+		},
+	}}
+	secondary := []Option{
+		{ID: "shared", Provider: "example", API: "responses"},
+		{ID: "shared", Provider: "example", API: "completions"},
+	}
+
+	merged := mergeOptions(primary, secondary, false)
+	require.Len(t, merged, 2)
+	require.Equal(t, "responses", merged[0].API)
+	require.Equal(t, "completions", merged[1].API)
+
+	primaryEfforts[0] = "changed"
+	require.Equal(
+		t,
+		[]modelprovider.ReasoningEffort{"high", "low"},
+		merged[0].ReasoningCapabilities.Efforts,
+	)
+}
+
+func TestListOptions_MarksCurrentByExactAPI(t *testing.T) {
+	registry := modelprovider.NewRegistry(
+		nil,
+		nil,
+		[]modelprovider.ModelDefinition{
+			{ID: "shared", Provider: "example", API: modelprovider.APIOpenAIResponses},
+			{ID: "shared", Provider: "example", API: modelprovider.APIOpenAICompletions},
+		},
+	)
+
+	options, err := ListOptions(OptionQuery{
+		Provider: "example",
+		API:      modelprovider.APIOpenAICompletions,
+		Current:  "shared",
+		Registry: registry,
+	})
+	require.NoError(t, err)
+	require.Len(t, options, 2)
+
+	for _, option := range options {
+		require.Equal(t, option.API == modelprovider.APIOpenAICompletions, option.Current)
+	}
+}
+
+func TestListOptions_MarksCurrentUsingProviderDefaultAPI(t *testing.T) {
+	registry := modelprovider.NewRegistry(
+		nil,
+		[]modelprovider.ProviderDefinition{{
+			ID:         "example",
+			DefaultAPI: modelprovider.APIOpenAICompletions,
+		}},
+		[]modelprovider.ModelDefinition{
+			{ID: "shared", Provider: "example", API: modelprovider.APIOpenAIResponses},
+			{ID: "shared", Provider: "example", API: modelprovider.APIOpenAICompletions},
+		},
+	)
+
+	options, err := ListOptions(OptionQuery{
+		Provider: "example",
+		Current:  "shared",
+		Registry: registry,
+	})
+	require.NoError(t, err)
+	require.Len(t, options, 2)
+
+	for _, option := range options {
+		require.Equal(t, option.API == modelprovider.APIOpenAICompletions, option.Current)
+	}
+}
+
 func TestListExplicitConfigOptionsFiltersAndMapsMetadata(t *testing.T) {
 	supportsVision := true
 	cfg := config.NewProfileConfig()
@@ -528,6 +607,38 @@ func TestListExplicitConfigOptionsFiltersAndMapsMetadata(t *testing.T) {
 		"vision:latest",
 		true,
 	))
+}
+
+func TestListExplicitConfigOptionsMapsReasoningMetadata(t *testing.T) {
+	reasoning := true
+	summary := true
+	cfg := config.NewProfileConfig()
+	cfg.Models.Providers = map[string]config.ProviderModelConfig{
+		constants.ModelProviderOpenAI: {
+			API: modelprovider.APIOpenAIResponses,
+			Models: map[string]config.ProviderModelMetadata{
+				"custom-reasoner": {
+					Reasoning:              &reasoning,
+					ReasoningEfforts:       []modelprovider.ReasoningEffort{"high", "low"},
+					ReasoningEffortDefault: "high",
+					ReasoningSummary:       &summary,
+				},
+			},
+		},
+	}
+
+	options := listExplicitConfigOptions(
+		cfg,
+		nil,
+		constants.ModelProviderOpenAI,
+		"custom-reasoner",
+		false,
+	)
+	require.Len(t, options, 1)
+	require.True(t, options[0].Reasoning)
+	require.Equal(t, []modelprovider.ReasoningEffort{"high", "low"}, options[0].ReasoningCapabilities.Efforts)
+	require.Equal(t, modelprovider.ReasoningEffort("high"), options[0].ReasoningCapabilities.DefaultEffort)
+	require.True(t, options[0].ReasoningCapabilities.Summary)
 }
 
 func findOption(t *testing.T, options []Option, id string) Option {

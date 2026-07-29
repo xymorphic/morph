@@ -83,6 +83,10 @@ instead. Event names: [Trace Events](./trace-events).
 | `Repair` | Repair vector/search artifacts (`Vector` repair type; optional `full`) |
 | `Status` | Context usage: offset, tokens, compaction status |
 | `Timeline` | Paginated messages and trace events for inspection |
+| `SetReasoningEffort` | Set or reset the session's next-turn reasoning-effort override |
+
+Reading session execution state requires session `read` permission. Changing reasoning effort requires session `update`
+permission. Custom permission policies must allow these operations explicitly.
 
 ### Timeline pagination
 

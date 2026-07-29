@@ -17,6 +17,7 @@ import (
 	rpcclient "github.com/wandxy/morph/internal/rpc/client"
 	storage "github.com/wandxy/morph/internal/state/core"
 	tui "github.com/wandxy/morph/internal/tui/app"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 	"github.com/wandxy/morph/pkg/logutils"
 )
 
@@ -374,6 +375,13 @@ func (c *fakeTUIChatClient) State(
 	string,
 ) (rpcclient.SessionExecutionState, error) {
 	return rpcclient.SessionExecutionState{}, nil
+}
+
+func (c *fakeTUIChatClient) SetReasoningEffort(
+	context.Context,
+	rpcclient.SetReasoningEffortOptions,
+) (agentsession.ReasoningSettings, error) {
+	return agentsession.ReasoningSettings{}, nil
 }
 
 func (c *fakeTUIChatClient) Observe(

@@ -195,7 +195,11 @@ func TestOpenAIClient_GetProviderModelIDUsesConfiguredRegistry(t *testing.T) {
 			API:      models.APIOpenAIResponses,
 		}},
 	)
-	client := &OpenAIClient{provider: "openrouter", registry: registry}
+	client := &OpenAIClient{
+		provider: "openrouter",
+		api:      models.APIOpenAIResponses,
+		registry: registry,
+	}
 
 	require.Equal(t, "custom-model", client.getProviderModelID("custom-model"))
 	require.Equal(t, "custom-owner", client.getModelOwner("custom-model"))
@@ -207,15 +211,6 @@ func TestOpenAIClient_GetModelOwnerHandlesNilClient(t *testing.T) {
 
 	require.Empty(t, client.getModelOwner("gpt-4o-mini"))
 	require.NotNil(t, client.registryOrDefault())
-}
-
-func TestOpenAIClient_IsReasoningModelUsesRegistryCapability(t *testing.T) {
-	client := &OpenAIClient{provider: "openai"}
-
-	require.True(t, client.isReasoningModel("gpt-5.5"))
-	require.False(t, client.isReasoningModel("gpt-4o"))
-	require.False(t, client.isReasoningModel("missing"))
-	require.False(t, (*OpenAIClient)(nil).isReasoningModel("gpt-5.5"))
 }
 
 func TestOpenAIClient_ChatRequiresModel(t *testing.T) {
@@ -642,6 +637,7 @@ func TestOpenAIClient_ChatReturnsResponseAndBuildsResponsesRequest(t *testing.T)
 		Tools:           []ToolDefinition{{Name: "time", Description: "Returns the current time.", InputSchema: map[string]any{"type": "object"}}},
 		MaxOutputTokens: 111,
 		Temperature:     0.5,
+		Reasoning:       &models.ReasoningOptions{Effort: "high", Summary: true},
 	})
 	require.NoError(t, err)
 	require.Equal(t, &Response{ID: "resp_456", Model: "gpt-5.1", OutputText: "hello from responses"}, resp)
@@ -656,7 +652,7 @@ func TestOpenAIClient_ChatReturnsResponseAndBuildsResponsesRequest(t *testing.T)
 	require.Contains(t, rawText, `"parallel_tool_calls":true`)
 	require.Contains(t, rawText, `"tool_choice":"auto"`)
 	require.Contains(t, rawText, `"include":["reasoning.encrypted_content"]`)
-	require.Contains(t, rawText, `"reasoning":{"summary":"auto"}`)
+	require.Contains(t, rawText, `"reasoning":{"effort":"high","summary":"auto"}`)
 	require.Contains(t, rawText, `"max_output_tokens":111`)
 	require.Contains(t, rawText, `"temperature":0.5`)
 	require.Contains(t, rawText, `"type":"message"`)
@@ -1267,6 +1263,47 @@ func TestBuildChatCompletionsRequestIncludesPlainAssistantMessage(t *testing.T) 
 	require.NoError(t, err)
 	require.Contains(t, string(raw), `"role":"assistant"`)
 	require.Contains(t, string(raw), `"content":"hello back"`)
+}
+
+func TestBuildChatCompletionsRequestIncludesExplicitReasoningEffort(t *testing.T) {
+	params := buildChatCompletionsRequest(normalizedGenerateRequest{
+		Model:     "test-model",
+		API:       models.APIOpenAICompletions,
+		Messages:  []morphmsg.Message{{Role: morphmsg.RoleUser, Content: "hello"}},
+		Reasoning: &models.ReasoningOptions{Effort: "max"},
+	})
+
+	raw, err := json.Marshal(params)
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"reasoning_effort":"max"`)
+}
+
+func TestBuildResponsesRequestIncludesSummaryWithoutEffort(t *testing.T) {
+	params := buildResponsesRequest(normalizedGenerateRequest{
+		Model:     "test-model",
+		API:       models.APIOpenAIResponses,
+		Messages:  []morphmsg.Message{{Role: morphmsg.RoleUser, Content: "hello"}},
+		Reasoning: &models.ReasoningOptions{Summary: true},
+	})
+	raw, err := json.Marshal(params)
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"reasoning":{"summary":"auto"}`)
+	require.NotContains(t, string(raw), `"effort"`)
+}
+
+func TestNormalizeGenerateRequestRejectsUnknownReasoningEffort(t *testing.T) {
+	_, err := normalizeGenerateRequest(Request{
+		Model:     "test-model",
+		API:       models.APIOpenAIResponses,
+		Messages:  []morphmsg.Message{{Role: morphmsg.RoleUser, Content: "hello"}},
+		Reasoning: &models.ReasoningOptions{Effort: "approximate"},
+	})
+
+	require.EqualError(
+		t,
+		err,
+		`OpenAI reasoning effort "approximate" is not supported by the installed SDK`,
+	)
 }
 
 func TestBuildChatCompletionsRequestIncludesAssistantToolCallContent(t *testing.T) {

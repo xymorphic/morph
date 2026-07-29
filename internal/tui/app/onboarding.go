@@ -457,6 +457,7 @@ func (m *model) startProfileModelSetup() tea.Cmd {
 	m.setupModelBaseURL = ""
 	m.setupProviderAPIKey = ""
 	m.setupPendingModelID = ""
+	m.setupPendingModelAPI = ""
 	m.setupNoticeTitle = ""
 	m.setupNoticeMessage = ""
 	m.setupNoticeHint = ""
@@ -507,6 +508,7 @@ func (m *model) selectCurrentSetupAuthMethodOption() (tea.Model, tea.Cmd) {
 	m.setupModelProvider = ""
 	m.setupProviderAPIKey = ""
 	m.setupPendingModelID = ""
+	m.setupPendingModelAPI = ""
 	m.setupItemSelected = 0
 	m.setupOffset = 0
 	m.resize()
@@ -684,6 +686,7 @@ func (m *model) submitSetupProviderAPIKey() (tea.Model, tea.Cmd) {
 	provider := setupModelProviderValue.Trim()
 	setupPendingModelIDValue := str.String(m.setupPendingModelID)
 	modelID := setupPendingModelIDValue.Trim()
+	api := str.String(m.setupPendingModelAPI).Trim()
 	value2 := str.String(m.apiKeyInput.Value())
 	apiKey := value2.Trim()
 	if provider == "" {
@@ -698,8 +701,13 @@ func (m *model) submitSetupProviderAPIKey() (tea.Model, tea.Cmd) {
 		return m.showSetupModelSelection()
 	}
 
-	option := rpcclient.ModelOption{ID: modelID, Provider: provider}
-	if model, ok := modelprovider.DefaultRegistry().GetModel(provider, modelID); ok {
+	option := rpcclient.ModelOption{ID: modelID, Provider: provider, API: api}
+	registry := modelprovider.DefaultRegistry()
+	model, ok := registry.GetModelForAPI(provider, api, modelID)
+	if api == "" {
+		model, ok = registry.GetModel(provider, modelID)
+	}
+	if ok {
 		option.Name = model.Name
 		option.API = model.API
 		option.ContextWindow = model.ContextWindow
@@ -733,6 +741,7 @@ func (m *model) showSetupBaseURLPrompt(providerID string, baseURL string) (tea.M
 	m.setupModels = nil
 	m.setupProviderAPIKey = ""
 	m.setupPendingModelID = ""
+	m.setupPendingModelAPI = ""
 	m.setupNoticeTitle = ""
 	m.setupNoticeMessage = ""
 	m.setupNoticeHint = ""
@@ -816,6 +825,7 @@ func (m *model) showLocalProviderUnavailableNotice(baseURL string) (tea.Model, t
 	m.setupNoticeAction = setupNoticeActionLocalUnavailable
 	m.setupNoticeTitle = "Ollama not reachable"
 	m.setupPendingModelID = ""
+	m.setupPendingModelAPI = ""
 	m.setupNoticeMessage = strings.Join(message, "\n")
 	m.setupNoticeHint = "enter to retry · esc to edit base URL"
 	m.resize()
@@ -1416,6 +1426,7 @@ func (m *model) showSetupProviderAPIKeyPrompt(option rpcclient.ModelOption) (tea
 	m.setupModelProvider = provider
 	iDValue10 := str.String(option.ID)
 	m.setupPendingModelID = iDValue10.Trim()
+	m.setupPendingModelAPI = option.API
 	m.apiKeyInput = newProviderAPIKeyInput("API key for " + getProviderDisplayName(provider))
 	m.prefillSetupProviderAPIKeyInput(provider)
 	m.resize()
@@ -1433,6 +1444,7 @@ func (m *model) showSetupProviderAPIKeyPromptForProvider(provider string) (tea.M
 	m.setupModelStep = setupModelStepAPIKey
 	m.setupModelProvider = provider
 	m.setupPendingModelID = ""
+	m.setupPendingModelAPI = ""
 	m.apiKeyInput = newProviderAPIKeyInput("API key for " + getProviderDisplayName(provider))
 	m.prefillSetupProviderAPIKeyInput(provider)
 	m.resize()
@@ -1569,7 +1581,7 @@ func (m *model) applySetupModelSelectionToRuntime(option rpcclient.ModelOption) 
 	m.runtimeInfo.EmbeddingModel = info.EmbeddingModel
 	m.runtimeInfo.Storage = info.Storage
 	m.runtimeInfo.Streaming = info.Streaming
-	m.modelName = getRuntimeModelDisplayName(info.Provider, info.Model)
+	m.modelName = getRuntimeModelDisplayName(info.Provider, info.API, info.Model)
 }
 
 func (m *model) refreshSetupModelRuntimeCmd(option rpcclient.ModelOption) tea.Cmd {
@@ -1591,7 +1603,10 @@ func (m *model) refreshSetupModelRuntimeCmd(option rpcclient.ModelOption) tea.Cm
 			ctx = context.Background()
 		}
 
-		model, err := client.SelectModel(ctx, modelID, rpcclient.ModelSelectOptions{Provider: provider})
+		model, err := client.SelectModel(ctx, modelID, rpcclient.ModelSelectOptions{
+			Provider: provider,
+			API:      option.API,
+		})
 
 		return setupModelRuntimeSelectedMsg{Model: model, Err: err}
 	}
@@ -1789,6 +1804,7 @@ func (m *model) showSetupAuthMethodSelection() (tea.Model, tea.Cmd) {
 	m.setupModelBaseURL = ""
 	m.setupProviderAPIKey = ""
 	m.setupPendingModelID = ""
+	m.setupPendingModelAPI = ""
 	m.setupNoticeTitle = ""
 	m.setupNoticeMessage = ""
 	m.setupNoticeHint = ""
@@ -1817,6 +1833,7 @@ func (m *model) showSetupProviderSelection() (tea.Model, tea.Cmd) {
 	m.setupModelBaseURL = ""
 	m.setupProviderAPIKey = ""
 	m.setupPendingModelID = ""
+	m.setupPendingModelAPI = ""
 	m.setupNoticeTitle = ""
 	m.setupNoticeMessage = ""
 	m.setupNoticeHint = ""
@@ -1842,6 +1859,7 @@ func (m *model) showSetupModelSelection() (tea.Model, tea.Cmd) {
 	m.setupNoticeHint = ""
 	m.setupNoticeAction = ""
 	m.setupPendingModelID = ""
+	m.setupPendingModelAPI = ""
 	m.resize()
 
 	return *m, m.setStatus("choose a model")
@@ -2658,6 +2676,7 @@ func (m *model) clearProfileModelSetup() {
 	m.setupModelBaseURL = ""
 	m.setupProviderAPIKey = ""
 	m.setupPendingModelID = ""
+	m.setupPendingModelAPI = ""
 	m.setupNoticeTitle = ""
 	m.setupNoticeMessage = ""
 	m.setupNoticeHint = ""

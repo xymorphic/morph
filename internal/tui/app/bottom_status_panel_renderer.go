@@ -36,9 +36,11 @@ func (lipglossBottomStatusPanelRenderer) Render(panel bottomStatusPanel) string 
 		}
 		segments = append(segments, renderBottomStatusMutedCell(label))
 	}
+	modelBudget := getBottomStatusModelBudget(panel, segments)
+	modelName := truncateCommandMenuText(panel.ModelName, modelBudget)
 	segments = append(
 		segments,
-		renderBottomStatusMutedCell(panel.ModelName),
+		renderBottomStatusMutedCell(modelName),
 		renderBottomStatusMutedCell(panel.Status),
 	)
 	if panel.Thinking {
@@ -58,6 +60,32 @@ func (lipglossBottomStatusPanelRenderer) Render(panel bottomStatusPanel) string 
 		Padding(0, panel.HorizontalPadding).
 		Width(panel.Width).
 		Render(spaceBetweenBottomStatusPanel(left, right, panel.ContentWidth))
+}
+
+func getBottomStatusModelBudget(panel bottomStatusPanel, leading []string) int {
+	reserved := lipgloss.Width(renderBottomStatusMutedCell(panel.Context))
+	segmentCount := 0
+	for _, segment := range leading {
+		if width := lipgloss.Width(segment); width > 0 {
+			reserved += width
+			segmentCount++
+		}
+	}
+	if panel.Thinking {
+		reserved += lipgloss.Width(renderThinkingStatusCell(panel.ThinkingFrame))
+		segmentCount++
+	}
+	if statusWidth := lipgloss.Width(renderBottomStatusMutedCell(panel.Status)); statusWidth > 0 {
+		reserved += statusWidth
+		segmentCount++
+	}
+	if segmentCount > 0 {
+		reserved += segmentCount * 3
+	}
+	if strings.TrimSpace(panel.Context) != "" {
+		reserved += 3
+	}
+	return max(panel.ContentWidth-reserved, 1)
 }
 
 func renderBottomStatusDangerCell(text string) string {

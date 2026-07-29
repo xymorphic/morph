@@ -108,7 +108,7 @@ func newModelWithClientContextAndConfig(ctx context.Context, client rpcclient.Ch
 		_ = appModel.startProfileSetup(false)
 	}
 	appModel.runtimeInfo = runtimeInfo
-	appModel.modelName = getRuntimeModelDisplayName(runtimeInfo.Provider, runtimeInfo.Model)
+	appModel.modelName = getRuntimeModelDisplayName(runtimeInfo.Provider, runtimeInfo.API, runtimeInfo.Model)
 	appModel.permissionPolicy = permissionPolicy
 	appModel.permissionPreset = permissionPreset
 	appModel.fullAccess = permissionPreset == permissions.PresetFullAccess

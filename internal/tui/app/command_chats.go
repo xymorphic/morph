@@ -836,6 +836,7 @@ func (m *model) selectChatsCommandSession() (tea.Model, tea.Cmd) {
 	m.cancelResponseAndDrainEvents()
 	m.resetResponseState()
 	m.chatSwitching = true
+	m.applyAction(setSessionReasoningAction{})
 
 	return *m, tea.Batch(
 		m.setStatus("switching chat"),

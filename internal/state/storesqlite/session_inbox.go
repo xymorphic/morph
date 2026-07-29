@@ -79,16 +79,21 @@ func (sessionQueueEntryModel) TableName() string {
 }
 
 type sessionRunModel struct {
-	ID           string `gorm:"primaryKey"`
-	SessionID    string `gorm:"index"`
-	QueueEntryID string `gorm:"index"`
-	Generation   string
-	Status       string `gorm:"index"`
-	StartedAt    time.Time
-	CompletedAt  time.Time
-	UpdatedAt    time.Time
-	Reason       string
-	LastError    string `gorm:"type:text"`
+	ID                string `gorm:"primaryKey"`
+	SessionID         string `gorm:"index"`
+	QueueEntryID      string `gorm:"index"`
+	Generation        string
+	Status            string `gorm:"index"`
+	StartedAt         time.Time
+	CompletedAt       time.Time
+	UpdatedAt         time.Time
+	Reason            string
+	LastError         string `gorm:"type:text"`
+	ReasoningProvider string
+	ReasoningAPI      string
+	ReasoningModel    string
+	ReasoningEffort   string
+	ReasoningSummary  bool
 }
 
 func (sessionRunModel) TableName() string {
@@ -132,7 +137,6 @@ func (s *Store) SubmitMessage(
 			if err := requireSession(tx, req.SessionID); err != nil {
 				return err
 			}
-
 			var existing sessionQueueEntryModel
 			err = tx.Where(
 				"session_id = ? AND client_submission_id = ?",
@@ -523,6 +527,12 @@ func (s *Store) ClaimNextFollowUp(
 			if err := requireSession(tx, req.SessionID); err != nil {
 				return err
 			}
+			var sessionRecord sessionModel
+			if err := tx.Select("id", "reasoning_effort_override").
+				Where("id = ?", req.SessionID).
+				First(&sessionRecord).Error; err != nil {
+				return err
+			}
 
 			var activeCount int64
 			if err := tx.Model(&sessionRunModel{}).
@@ -555,14 +565,23 @@ func (s *Store) ClaimNextFollowUp(
 			if err := tx.Save(&queueRecord).Error; err != nil {
 				return err
 			}
+			reasoning := agentsession.ResolveReasoningSnapshot(
+				req.Reasoning,
+				reasoningOverrideValue(sessionRecord.ReasoningEffortOverride),
+			)
 			runRecord := sessionRunModel{
-				ID:           req.RunID,
-				SessionID:    req.SessionID,
-				QueueEntryID: queueRecord.ID,
-				Generation:   req.Generation,
-				Status:       string(agentsession.RunStatusRunning),
-				StartedAt:    now,
-				UpdatedAt:    now,
+				ID:                req.RunID,
+				SessionID:         req.SessionID,
+				QueueEntryID:      queueRecord.ID,
+				Generation:        req.Generation,
+				Status:            string(agentsession.RunStatusRunning),
+				StartedAt:         now,
+				UpdatedAt:         now,
+				ReasoningProvider: reasoning.Provider,
+				ReasoningAPI:      reasoning.API,
+				ReasoningModel:    reasoning.Model,
+				ReasoningEffort:   string(reasoning.Effort),
+				ReasoningSummary:  reasoning.Summary,
 			}
 			if err := tx.Create(&runRecord).Error; err != nil {
 				return err
@@ -1172,7 +1191,21 @@ func runModelToActiveRun(record sessionRunModel) agentsession.ActiveRun {
 		UpdatedAt:    record.UpdatedAt,
 		Reason:       record.Reason,
 		LastError:    record.LastError,
+		Reasoning: agentsession.ReasoningSnapshot{
+			Provider: record.ReasoningProvider,
+			API:      record.ReasoningAPI,
+			Model:    record.ReasoningModel,
+			Effort:   agentsession.ReasoningEffort(record.ReasoningEffort),
+			Summary:  record.ReasoningSummary,
+		},
 	}
+}
+
+func reasoningOverrideValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func isSameSubmission(entry agentsession.QueueEntry, req agentsession.SubmitRequest) bool {

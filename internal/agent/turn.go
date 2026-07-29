@@ -158,6 +158,7 @@ type Turn struct {
 	planHydrated bool
 
 	afterToolBatchPersisted func(context.Context) (bool, error)
+	reasoningSnapshot       agentsession.ReasoningSnapshot
 }
 
 // NewTurnWithSessionStore returns a turn with reusable session dependencies.
@@ -562,14 +563,17 @@ func (t *Turn) Run(ctx context.Context, msg string, opts agentcore.RespondOption
 			}
 
 			// Build model request and assemble all prompt-side context for completion.
+			provider, api, model := t.getMainModelRequestIdentity()
 			request := models.Request{
-				Model:         t.cfg.Models.Main.Name,
-				API:           t.cfg.MainModelAPIEffective(),
+				Model:         model,
+				Provider:      provider,
+				API:           api,
 				Instructions:  t.buildRequestInstructions(availableToolDefinitions),
 				Messages:      t.Context(),
 				Tools:         availableToolDefinitions,
 				ContextLength: t.cfg.Models.Main.ContextLength,
 				DebugRequests: t.cfg.Debug.Requests,
+				Reasoning:     t.getReasoningOptions(),
 			}
 
 			// Refresh summary and possibly adjust session context after model request construction.
@@ -585,9 +589,9 @@ func (t *Turn) Run(ctx context.Context, msg string, opts agentcore.RespondOption
 			recordModelRequest(traceSession, request)
 
 			agentLog.Info().
-				Str("provider", t.cfg.Models.Main.Provider).
-				Str("api", t.cfg.MainModelAPIEffective()).
-				Str("model", t.cfg.Models.Main.Name).
+				Str("provider", request.Provider).
+				Str("api", request.API).
+				Str("model", request.Model).
 				Bool("stream", streamingEnabled).
 				Int("context_messages", len(request.Messages)).
 				Int("tools", len(request.Tools)).
@@ -631,9 +635,9 @@ func (t *Turn) Run(ctx context.Context, msg string, opts agentcore.RespondOption
 			// Model request failed or provided no response.
 			if err != nil {
 				agentLog.Warn().
-					Str("provider", t.cfg.Models.Main.Provider).
-					Str("api", t.cfg.MainModelAPIEffective()).
-					Str("model", t.cfg.Models.Main.Name).
+					Str("provider", request.Provider).
+					Str("api", request.API).
+					Str("model", request.Model).
 					Bool("stream", streamingEnabled).
 					Str("error_kind", getAgentModelErrorKind(err)).
 					Msg("model request dispatch failed")
@@ -644,9 +648,9 @@ func (t *Turn) Run(ctx context.Context, msg string, opts agentcore.RespondOption
 			if resp == nil {
 				err = errors.New("model response is required")
 				agentLog.Warn().
-					Str("provider", t.cfg.Models.Main.Provider).
-					Str("api", t.cfg.MainModelAPIEffective()).
-					Str("model", t.cfg.Models.Main.Name).
+					Str("provider", request.Provider).
+					Str("api", request.API).
+					Str("model", request.Model).
 					Bool("stream", streamingEnabled).
 					Str("error_kind", "missing_response").
 					Msg("model request dispatch failed")
@@ -663,9 +667,9 @@ func (t *Turn) Run(ctx context.Context, msg string, opts agentcore.RespondOption
 			recordModelResponse(traceSession, resp)
 
 			agentLog.Info().
-				Str("provider", t.cfg.Models.Main.Provider).
-				Str("api", t.cfg.MainModelAPIEffective()).
-				Str("model", t.cfg.Models.Main.Name).
+				Str("provider", request.Provider).
+				Str("api", request.API).
+				Str("model", request.Model).
 				Str("response_model", resp.Model).
 				Bool("stream", streamingEnabled).
 				Int("prompt_tokens", resp.PromptTokens).
@@ -1315,14 +1319,17 @@ func (t *Turn) summaryFallback(ctx context.Context, budget envbudget.IterationBu
 		return "", err
 	}
 
+	provider, api, model := t.getMainModelRequestIdentity()
 	request := models.Request{
-		Model:         t.cfg.Models.Main.Name,
-		API:           t.cfg.MainModelAPIEffective(),
+		Model:         model,
+		Provider:      provider,
+		API:           api,
 		Instructions:  t.buildRequestInstructions(nil, instruct.BuildSummary(budget.Remaining())),
 		Messages:      t.Context(),
 		Tools:         nil,
 		ContextLength: t.cfg.Models.Main.ContextLength,
 		DebugRequests: t.cfg.Debug.Requests,
+		Reasoning:     t.getReasoningOptions(),
 	}
 
 	traceSession.Record(
@@ -1334,9 +1341,9 @@ func (t *Turn) summaryFallback(ctx context.Context, budget envbudget.IterationBu
 	recordModelRequest(traceSession, request)
 
 	agentLog.Info().
-		Str("provider", t.cfg.Models.Main.Provider).
-		Str("api", t.cfg.MainModelAPIEffective()).
-		Str("model", t.cfg.Models.Main.Name).
+		Str("provider", request.Provider).
+		Str("api", request.API).
+		Str("model", request.Model).
 		Int("context_messages", len(request.Messages)).
 		Bool("debug_requests", t.cfg.Debug.Requests).
 		Msg("summary fallback model request started")
@@ -1346,9 +1353,9 @@ func (t *Turn) summaryFallback(ctx context.Context, budget envbudget.IterationBu
 		agentLog.Error().
 			Err(err).
 			Str("session_id", t.sessionID).
-			Str("provider", t.cfg.Models.Main.Provider).
-			Str("api", t.cfg.MainModelAPIEffective()).
-			Str("model", t.cfg.Models.Main.Name).
+			Str("provider", request.Provider).
+			Str("api", request.API).
+			Str("model", request.Model).
 			Str("error_kind", getAgentModelErrorKind(err)).
 			Msg("summary fallback model request failed")
 		wrapped := fmt.Errorf("iteration limit reached and summary failed: %w", err)
@@ -1360,9 +1367,9 @@ func (t *Turn) summaryFallback(ctx context.Context, budget envbudget.IterationBu
 		err = errors.New("model response is required")
 		agentLog.Error().
 			Str("session_id", t.sessionID).
-			Str("provider", t.cfg.Models.Main.Provider).
-			Str("api", t.cfg.MainModelAPIEffective()).
-			Str("model", t.cfg.Models.Main.Name).
+			Str("provider", request.Provider).
+			Str("api", request.API).
+			Str("model", request.Model).
 			Str("error_kind", "missing_response").
 			Msg("summary fallback model request failed")
 		traceSession.Record(trace.EvtSessionFailed, trace.SessionFailedPayload{Error: err.Error()})
@@ -1371,9 +1378,9 @@ func (t *Turn) summaryFallback(ctx context.Context, budget envbudget.IterationBu
 
 	recordModelResponse(traceSession, resp)
 	agentLog.Info().
-		Str("provider", t.cfg.Models.Main.Provider).
-		Str("api", t.cfg.MainModelAPIEffective()).
-		Str("model", t.cfg.Models.Main.Name).
+		Str("provider", request.Provider).
+		Str("api", request.API).
+		Str("model", request.Model).
 		Str("response_model", resp.Model).
 		Int("prompt_tokens", resp.PromptTokens).
 		Int("completion_tokens", resp.CompletionTokens).
@@ -1406,6 +1413,33 @@ func (t *Turn) summaryFallback(ctx context.Context, budget envbudget.IterationBu
 
 	traceSession.Record(trace.EvtFinalAssistantResponse, trace.FinalAssistantResponsePayload{Message: reply})
 	return reply, nil
+}
+
+func (t *Turn) setReasoningSnapshot(snapshot agentsession.ReasoningSnapshot) {
+	if t == nil {
+		return
+	}
+	t.reasoningSnapshot = snapshot
+}
+
+func (t *Turn) getReasoningOptions() *models.ReasoningOptions {
+	if t == nil || t.reasoningSnapshot.Effort == "" && !t.reasoningSnapshot.Summary {
+		return nil
+	}
+	return &models.ReasoningOptions{
+		Effort:  string(t.reasoningSnapshot.Effort),
+		Summary: t.reasoningSnapshot.Summary,
+	}
+}
+
+func (t *Turn) getMainModelRequestIdentity() (string, string, string) {
+	if t != nil && t.reasoningSnapshot.Model != "" {
+		return t.reasoningSnapshot.Provider, t.reasoningSnapshot.API, t.reasoningSnapshot.Model
+	}
+	if t == nil || t.cfg == nil {
+		return "", "", ""
+	}
+	return t.cfg.Models.Main.Provider, t.cfg.MainModelAPIEffective(), t.cfg.Models.Main.Name
 }
 
 // getAgentModelErrorKind standardizes error kind reporting for model errors.

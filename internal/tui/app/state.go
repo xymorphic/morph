@@ -32,6 +32,11 @@ type tuiState struct {
 	namePromptErrorStartedAt   time.Time
 	modelName                  string
 	runtimeInfo                runtimeInfo
+	reasoning                  agentsession.ReasoningSettings
+	modelRestartPending        bool
+	runtimeStateRetryKey       string
+	runtimeStateRetryAttempts  int
+	effortSavingSessionID      string
 	context                    string
 	fullAccess                 bool
 	permissionPolicy           permissions.Policy
@@ -102,6 +107,7 @@ type tuiState struct {
 	setupModelBaseURL          string
 	setupProviderAPIKey        string
 	setupPendingModelID        string
+	setupPendingModelAPI       string
 	setupNoticeTitle           string
 	setupNoticeMessage         string
 	setupNoticeHint            string
@@ -125,22 +131,28 @@ type tuiState struct {
 }
 
 type commandViewState struct {
-	Visible         bool
-	Kind            string
-	TitleIcon       string
-	TitleLeft       string
-	TitleSubtext    string
-	TitleRight      string
-	AccentColor     string
-	TitleRightColor string
-	Content         string
-	Height          int
-	Chats           []storage.Session
-	Models          []rpcclient.ModelOption
-	Providers       []rpcclient.ProviderOption
-	ModelProvider   string
-	ModelAuthType   string
-	PendingModelID  string
+	Visible          bool
+	Kind             string
+	TitleIcon        string
+	TitleLeft        string
+	TitleSubtext     string
+	TitleRight       string
+	AccentColor      string
+	TitleRightColor  string
+	Content          string
+	Height           int
+	Chats            []storage.Session
+	Models           []rpcclient.ModelOption
+	Providers        []rpcclient.ProviderOption
+	ModelProvider    string
+	ModelAuthType    string
+	PendingModelID   string
+	PendingModelAPI  string
+	EffortSessionID  string
+	EffortModel      agentsession.ReasoningModelTuple
+	Efforts          []agentsession.ReasoningEffort
+	EffortReasoning  bool
+	EffortAdjustable bool
 }
 
 type commandViewSelection struct {

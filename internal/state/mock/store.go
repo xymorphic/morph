@@ -19,6 +19,7 @@ type Store struct {
 	ListWithOptionsFunc       func(context.Context, storage.SessionListOptions) ([]storage.Session, error)
 	RenameFunc                func(context.Context, storage.SessionRenameRequest) (storage.Session, error)
 	SaveFunc                  func(context.Context, storage.Session) error
+	PatchFunc                 func(context.Context, string, storage.SessionPatch) (storage.Session, error)
 	SaveSummaryFunc           func(context.Context, storage.SessionSummary) error
 	SaveGatewayBindingFunc    func(context.Context, storage.GatewayBinding) error
 	DeleteFunc                func(context.Context, string) error
@@ -85,6 +86,18 @@ func (s *Store) Save(ctx context.Context, session storage.Session) error {
 	}
 
 	return nil
+}
+
+func (s *Store) Patch(
+	ctx context.Context,
+	id string,
+	patch storage.SessionPatch,
+) (storage.Session, error) {
+	if s.PatchFunc != nil {
+		return s.PatchFunc(ctx, id, patch)
+	}
+
+	return storage.Session{}, nil
 }
 
 func (s *Store) Get(ctx context.Context, id string, opts storage.SessionGetOptions) (storage.Session, bool, error) {

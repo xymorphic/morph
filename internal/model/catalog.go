@@ -14,21 +14,26 @@ import (
 )
 
 type Option struct {
-	ID             string
-	Name           string
-	Provider       string
-	API            string
-	ContextWindow  int
-	MaxTokens      int
-	Input          []string
-	Reasoning      bool
-	SupportsTools  bool
-	SupportsOAuth  bool
-	DisplayDefault bool
-	Current        bool
-	LocalMissing   bool
-	BaseURL        string
-	Source         OptionSource
+	ID                    string
+	Name                  string
+	Provider              string
+	API                   string
+	ContextWindow         int
+	MaxTokens             int
+	Input                 []string
+	Reasoning             bool
+	ReasoningCapabilities modelprovider.ReasoningCapability
+	SupportsTools         bool
+	SupportsOAuth         bool
+	DisplayDefault        bool
+	Current               bool
+	LocalMissing          bool
+	BaseURL               string
+	Source                OptionSource
+}
+
+func (option Option) Key() modelprovider.ModelKey {
+	return modelprovider.CanonicalModelKey(option.Provider, option.API, option.ID)
 }
 
 type OptionSource string
@@ -56,6 +61,7 @@ type ProviderOption struct {
 type OptionQuery struct {
 	Context             context.Context
 	Provider            string
+	API                 string
 	Current             string
 	OAuthOnly           bool
 	Registry            *modelprovider.Registry
@@ -119,9 +125,35 @@ func ListOptions(query OptionQuery) ([]Option, error) {
 		options = mergeOptions(discovered, options, true)
 	}
 
+	setCurrentOption(options, provider, getCurrentOptionAPI(query, registry, provider), current)
 	sortOptions(options)
 
 	return options, nil
+}
+
+func getCurrentOptionAPI(query OptionQuery, registry *modelprovider.Registry, provider string) string {
+	apiValue := str.String(query.API)
+	if api := apiValue.Normalized(); api != "" {
+		return api
+	}
+	if query.Config != nil && strings.EqualFold(query.Config.Models.Main.Provider, provider) {
+		configAPIValue := str.String(query.Config.MainModelAPIEffective())
+		if api := configAPIValue.Normalized(); api != "" {
+			return api
+		}
+	}
+
+	return getProviderDefaultAPI(registry, provider)
+}
+
+func setCurrentOption(options []Option, provider, api, current string) {
+	if api == "" {
+		return
+	}
+	currentKey := modelprovider.CanonicalModelKey(provider, api, current)
+	for i := range options {
+		options[i].Current = options[i].Key() == currentKey
+	}
 }
 
 func getDiscoveredLocalOptions(
@@ -219,6 +251,10 @@ func cloneOptionsWithCurrent(options []Option, current string) []Option {
 	current = currentValue2.Trim()
 	for _, option := range options {
 		option.Input = append([]string(nil), option.Input...)
+		option.ReasoningCapabilities.Efforts = append(
+			[]modelprovider.ReasoningEffort(nil),
+			option.ReasoningCapabilities.Efforts...,
+		)
 		iDValue := str.String(option.ID)
 		option.Current = iDValue.Trim() == current
 		cloned = append(cloned, option)
@@ -372,20 +408,21 @@ func listExplicitConfigOptions(
 		baseURLValue4 := str.String(providerConfig.BaseURL)
 		currentValue5 := str.String(current)
 		option := Option{
-			ID:             modelID,
-			Name:           modelID,
-			Provider:       provider,
-			API:            api,
-			ContextWindow:  metadata.ContextLength,
-			MaxTokens:      int(metadata.MaxOutputTokens),
-			Input:          []string{string(modelprovider.InputText)},
-			Current:        modelID == currentValue4.Trim(),
-			LocalMissing:   false,
-			BaseURL:        baseURLValue4.Trim(),
-			Source:         OptionSourceConfig,
-			SupportsTools:  boolPtrValue(metadata.SupportsTools),
-			Reasoning:      boolPtrValue(metadata.Reasoning),
-			DisplayDefault: modelID == currentValue5.Trim(),
+			ID:                    modelID,
+			Name:                  modelID,
+			Provider:              provider,
+			API:                   api,
+			ContextWindow:         metadata.ContextLength,
+			MaxTokens:             int(metadata.MaxOutputTokens),
+			Input:                 []string{string(modelprovider.InputText)},
+			Current:               modelID == currentValue4.Trim(),
+			LocalMissing:          false,
+			BaseURL:               baseURLValue4.Trim(),
+			Source:                OptionSourceConfig,
+			SupportsTools:         boolPtrValue(metadata.SupportsTools),
+			Reasoning:             boolPtrValue(metadata.Reasoning),
+			ReasoningCapabilities: metadata.ReasoningCapability(),
+			DisplayDefault:        modelID == currentValue5.Trim(),
 		}
 		if boolPtrValue(metadata.SupportsVision) {
 			option.Input = append(option.Input, string(modelprovider.InputImage))
@@ -449,15 +486,19 @@ func boolPtrValue(value *bool) bool {
 
 func mergeOptions(primary []Option, secondary []Option, markSecondaryMissing bool) []Option {
 	merged := make([]Option, 0, len(primary)+len(secondary))
-	seen := make(map[string]struct{}, len(primary)+len(secondary))
+	seen := make(map[modelprovider.ModelKey]struct{}, len(primary)+len(secondary))
 	for _, option := range primary {
 		iDValue4 := str.String(option.ID)
 		option.ID = iDValue4.Trim()
 		if option.ID == "" {
 			continue
 		}
+		option.ReasoningCapabilities.Efforts = append(
+			[]modelprovider.ReasoningEffort(nil),
+			option.ReasoningCapabilities.Efforts...,
+		)
 		merged = append(merged, option)
-		seen[strings.ToLower(option.ID)] = struct{}{}
+		seen[option.Key()] = struct{}{}
 	}
 	for _, option := range secondary {
 		iDValue5 := str.String(option.ID)
@@ -465,9 +506,13 @@ func mergeOptions(primary []Option, secondary []Option, markSecondaryMissing boo
 		if option.ID == "" {
 			continue
 		}
-		if _, ok := seen[strings.ToLower(option.ID)]; ok {
+		if _, ok := seen[option.Key()]; ok {
 			continue
 		}
+		option.ReasoningCapabilities.Efforts = append(
+			[]modelprovider.ReasoningEffort(nil),
+			option.ReasoningCapabilities.Efforts...,
+		)
 		if markSecondaryMissing {
 			option.LocalMissing = true
 		}
@@ -522,21 +567,28 @@ func modelDefinitionToOption(model modelprovider.ModelDefinition, current string
 	providerValue3 := str.String(model.Provider)
 	aPIValue4 := str.String(model.API)
 	iDValue7 := str.String(model.ID)
-	return Option{
-		ID:             iDValue6.Trim(),
-		Name:           nameValue.Trim(),
-		Provider:       providerValue3.Trim(),
-		API:            aPIValue4.Trim(),
-		ContextWindow:  model.ContextWindow,
-		MaxTokens:      model.MaxTokens,
-		Input:          inputs,
-		Reasoning:      model.Reasoning,
-		SupportsTools:  model.SupportsTools,
-		SupportsOAuth:  model.SupportsOAuth,
-		DisplayDefault: model.DisplayDefault,
-		Current:        iDValue7.Trim() == current,
-		Source:         OptionSourceCatalog,
+	option := Option{
+		ID:                    iDValue6.Trim(),
+		Name:                  nameValue.Trim(),
+		Provider:              providerValue3.Trim(),
+		API:                   aPIValue4.Trim(),
+		ContextWindow:         model.ContextWindow,
+		MaxTokens:             model.MaxTokens,
+		Input:                 inputs,
+		Reasoning:             model.Reasoning,
+		ReasoningCapabilities: model.ReasoningCapabilities,
+		SupportsTools:         model.SupportsTools,
+		SupportsOAuth:         model.SupportsOAuth,
+		DisplayDefault:        model.DisplayDefault,
+		Current:               iDValue7.Trim() == current,
+		Source:                OptionSourceCatalog,
 	}
+	option.ReasoningCapabilities.Efforts = append(
+		[]modelprovider.ReasoningEffort(nil),
+		model.ReasoningCapabilities.Efforts...,
+	)
+
+	return option
 }
 
 func modelDefinitionsToOptions(

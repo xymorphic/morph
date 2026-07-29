@@ -26,11 +26,6 @@ func (responsesHandler) Complete(
 	onTextDelta func(StreamDelta),
 ) (*Response, error) {
 	params := buildResponsesRequest(req)
-	if client.isReasoningModel(req.Model) {
-		params.Reasoning = shared.ReasoningParam{
-			Summary: shared.ReasoningSummaryAuto,
-		}
-	}
 	if req.DebugRequests {
 		logRequestDebugMetadata(req)
 	}
@@ -270,6 +265,14 @@ func buildResponsesRequest(req normalizedGenerateRequest) responses.ResponseNewP
 		Input:   responses.ResponseNewParamsInputUnion{OfInputItemList: items},
 		Include: []responses.ResponseIncludable{responses.ResponseIncludableReasoningEncryptedContent},
 		Store:   openai.Bool(false),
+	}
+	if req.Reasoning != nil {
+		params.Reasoning = shared.ReasoningParam{
+			Effort: shared.ReasoningEffort(req.Reasoning.Effort),
+		}
+		if req.Reasoning.Summary {
+			params.Reasoning.Summary = shared.ReasoningSummaryAuto
+		}
 	}
 	if req.Instructions != "" {
 		params.Instructions = openai.String(req.Instructions)

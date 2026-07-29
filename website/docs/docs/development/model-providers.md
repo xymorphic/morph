@@ -18,6 +18,68 @@ OAuth support, and display defaults.
 Local providers use the same registry path so `/models`, `/providers`, setup, doctor, and runtime session metadata do
 not need one-off local-only branches.
 
+Model identity is the exact `(provider, API, model)` tuple. Do not infer reasoning capabilities from a model name shared
+by another provider or API mode. Ambiguous legacy provider/model lookups deliberately return no match.
+
+## Reasoning Capabilities
+
+A reasoning-capable model may declare an ordered set of adjustable effort tokens, a default token, and reasoning-summary
+support. Catalog order is preserved through RPC and is the order shown by `/effort`; there is no global effort enum and
+Morph does not approximate unsupported values.
+
+Built-in capability metadata is intentionally conservative:
+
+- OpenAI Responses and Chat Completions requests serialize an explicit catalog-supported effort. Responses requests may
+  also request a reasoning summary when the exact tuple supports summaries.
+- Anthropic Messages serializes the effort through `output_config.effort` for catalog-declared models.
+- Native Ollama serializes catalog-declared levels through `think`.
+- OpenRouter, GitHub Copilot, discovered local models, and unknown custom tuples remain non-adjustable unless their exact
+  metadata declares supported efforts.
+
+Provider rejection or SDK drift is an ordinary request error. Morph does not silently retry with a different effort.
+The active run captures provider, API, model, effort, and summary settings when it claims a queued message, so all model
+requests in that run—including tool loops and summary fallback—use one immutable policy.
+
+### Profile defaults and custom models
+
+Set a profile-level default for the main model:
+
+```yaml
+models:
+  main:
+    provider: openai
+    api: openai-responses
+    name: gpt-5.5
+    reasoningEffort: high
+```
+
+The value must be supported by the selected exact catalog tuple. A session `/effort` override takes precedence; clearing
+it restores the profile default, then the catalog default.
+
+Explicit custom models can declare their own capability metadata:
+
+```yaml
+models:
+  providers:
+    custom:
+      api: openai-responses
+      baseUrl: https://models.example.test/v1
+      models:
+        reasoning-model:
+          reasoning: true
+          reasoningEfforts: [low, medium, high]
+          reasoningEffortDefault: medium
+          reasoningSummary: true
+  main:
+    provider: custom
+    api: openai-responses
+    name: reasoning-model
+```
+
+`reasoningEfforts` must contain unique, non-empty tokens. `reasoningEffortDefault` must be one of those tokens.
+`reasoningSummary` declares summary support independently of adjustable effort. If metadata is absent or uncertain,
+leave the model non-adjustable; natural-language claims or provider-family resemblance are not sufficient.
+
 ## Local Provider Catalog Flow
 
 The model catalog combines several sources:

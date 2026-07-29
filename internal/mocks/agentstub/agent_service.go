@@ -87,6 +87,8 @@ type AgentServiceStub struct {
 	SubmittedMessage     rpcclient.SubmitMessageOptions
 	QueueEntry           rpcclient.SessionQueueEntry
 	ExecutionState       rpcclient.SessionExecutionState
+	SetReasoningOptions  rpcclient.SetReasoningEffortOptions
+	ReasoningSettings    agentsession.ReasoningSettings
 	SessionEvents        []rpcclient.SessionEvent
 	InterruptedRun       rpcclient.SessionActiveRun
 	RunTransitioned      bool
@@ -161,6 +163,14 @@ func (s *AgentServiceStub) State(context.Context, string) (rpcclient.SessionExec
 		s.ExecutionState.Queue = []rpcclient.SessionQueueEntry{s.QueueEntry}
 	}
 	return s.ExecutionState, s.Err
+}
+
+func (s *AgentServiceStub) SetReasoningEffort(
+	_ context.Context,
+	opts rpcclient.SetReasoningEffortOptions,
+) (agentsession.ReasoningSettings, error) {
+	s.SetReasoningOptions = opts
+	return s.ReasoningSettings, s.Err
 }
 
 func (s *AgentServiceStub) Observe(
@@ -242,6 +252,20 @@ func (s *AgentServiceStub) GetSessionExecutionState(
 	sessionID string,
 ) (agentsession.ExecutionState, error) {
 	return s.State(ctx, sessionID)
+}
+
+func (s *AgentServiceStub) SetSessionReasoningEffort(
+	ctx context.Context,
+	req agentsession.SetReasoningEffortRequest,
+) (agentsession.ReasoningSettings, error) {
+	return s.SetReasoningEffort(ctx, rpcclient.SetReasoningEffortOptions{
+		SessionID:        req.SessionID,
+		ExpectedProvider: req.ExpectedModel.Provider,
+		ExpectedAPI:      req.ExpectedModel.API,
+		ExpectedModel:    req.ExpectedModel.Model,
+		Effort:           string(req.Effort),
+		Reset:            req.Reset,
+	})
 }
 
 func (s *AgentServiceStub) ObserveSessionEvents(

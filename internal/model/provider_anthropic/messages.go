@@ -66,11 +66,12 @@ func buildMessagesRequest(req normalizedGenerateRequest) (anthropic.MessageNewPa
 		params.Temperature = anthropic.Float(req.Temperature)
 	}
 	if req.StructuredOutput != nil {
-		params.OutputConfig = anthropic.OutputConfigParam{
-			Format: anthropic.JSONOutputFormatParam{
-				Schema: req.StructuredOutput.Schema,
-			},
+		params.OutputConfig.Format = anthropic.JSONOutputFormatParam{
+			Schema: req.StructuredOutput.Schema,
 		}
+	}
+	if req.Reasoning != nil {
+		params.OutputConfig.Effort = anthropic.OutputConfigEffort(req.Reasoning.Effort)
 	}
 
 	return params, nil

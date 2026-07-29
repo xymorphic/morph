@@ -18,6 +18,7 @@ import (
 
 const sessionQueueDisplayLimit = 5
 const sessionQueueStateRetryDelay = 500 * time.Millisecond
+const sessionRuntimeStateRetryLimit = 5
 
 const (
 	sessionQueueSteerIcon   = "↳"
@@ -34,7 +35,9 @@ type sessionQueuePanelRow struct {
 }
 
 type sessionExecutionStateLoadedMsg struct {
-	State rpcclient.SessionExecutionState
+	State         rpcclient.SessionExecutionState
+	Runtime       rpcclient.ModelRuntime
+	RuntimeLoaded bool
 }
 
 type sessionExecutionStateLoadFailedMsg struct {
@@ -82,6 +85,43 @@ func loadSessionExecutionStateCmd(
 			return sessionExecutionStateLoadFailedMsg{Err: err}
 		}
 		return sessionExecutionStateLoadedMsg{State: state}
+	}
+}
+
+func loadSessionRuntimeStateCmd(
+	ctx context.Context,
+	client rpcclient.ChatAPI,
+	modelClient rpcclient.ModelAPI,
+	sessionID string,
+) tea.Cmd {
+	if client == nil || strings.TrimSpace(sessionID) == "" {
+		return nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return func() tea.Msg {
+		runtime := rpcclient.ModelRuntime{}
+		runtimeLoaded := false
+		if modelClient != nil {
+			value, err := modelClient.RuntimeModel(ctx)
+			if err != nil {
+				return sessionExecutionStateLoadFailedMsg{Err: err}
+			}
+			runtime = value
+			runtimeLoaded = strings.TrimSpace(runtime.Provider) != "" ||
+				strings.TrimSpace(runtime.API) != "" ||
+				strings.TrimSpace(runtime.Model) != ""
+		}
+		state, err := client.State(ctx, sessionID)
+		if err != nil {
+			return sessionExecutionStateLoadFailedMsg{Err: err}
+		}
+		return sessionExecutionStateLoadedMsg{
+			State:         state,
+			Runtime:       runtime,
+			RuntimeLoaded: runtimeLoaded,
+		}
 	}
 }
 
@@ -152,6 +192,11 @@ func (m *model) applySessionExecutionState(msg sessionExecutionStateLoadedMsg) t
 	if msg.State.SessionID != m.getCurrentSessionID() {
 		return nil
 	}
+	reasoningReported := hasReasoningModelTuple(msg.State.Reasoning.Model)
+	reasoningMismatch := msg.RuntimeLoaded &&
+		reasoningReported &&
+		!reasoningTupleMatchesRuntime(msg.State.Reasoning.Model, msg.Runtime)
+
 	previousActiveRunID := m.getActiveSessionRunID()
 	if msg.State.SessionID != m.sessionObserverSessionID {
 		m.sessionProgressSequences = nil
@@ -162,6 +207,47 @@ func (m *model) applySessionExecutionState(msg sessionExecutionStateLoadedMsg) t
 		m.sessionObserverCancel()
 	}
 	m.sessionExecutionState = msg.State
+	var reasoningStateCmd tea.Cmd
+	switch {
+	case reasoningMismatch:
+		m.applyAction(setSessionReasoningAction{})
+		retryKey := getSessionRuntimeStateRetryKey(msg)
+		if retryKey != m.runtimeStateRetryKey {
+			m.runtimeStateRetryKey = retryKey
+			m.runtimeStateRetryAttempts = 0
+		}
+		if m.runtimeStateRetryAttempts >= sessionRuntimeStateRetryLimit {
+			reasoningStateCmd = m.setStatus("reasoning state still waiting for daemon restart")
+			break
+		}
+		m.runtimeStateRetryAttempts++
+		reasoningStateCmd = tea.Batch(
+			m.setStatus("reasoning state reconnecting"),
+			retrySessionRuntimeStateLoadCmd(
+				m.chatCtx,
+				m.chatClient,
+				m.modelClient,
+				msg.State.SessionID,
+				m.runtimeStateRetryAttempts,
+			),
+		)
+	case msg.RuntimeLoaded:
+		m.resetSessionRuntimeStateRetry()
+		m.applyAction(setSessionReasoningAction{Settings: msg.State.Reasoning})
+		m.modelRestartPending = false
+		m.runtimeInfo.Provider = msg.Runtime.Provider
+		m.runtimeInfo.API = msg.Runtime.API
+		m.runtimeInfo.Model = msg.Runtime.Model
+		m.modelName = getRuntimeModelDisplayName(msg.Runtime.Provider, msg.Runtime.API, msg.Runtime.Model)
+	default:
+		m.resetSessionRuntimeStateRetry()
+		if !m.modelRestartPending && reasoningModelTupleMatchesRuntimeInfo(
+			msg.State.Reasoning.Model,
+			m.runtimeInfo,
+		) {
+			m.applyAction(setSessionReasoningAction{Settings: msg.State.Reasoning})
+		}
+	}
 	m.initializeObservedRunTranscriptFollow(previousActiveRunID)
 	m.sessionQueueStale = false
 	m.setSessionQueueSelectionByID(selectedEntryID)
@@ -190,6 +276,9 @@ func (m *model) applySessionExecutionState(msg sessionExecutionStateLoadedMsg) t
 			events,
 		),
 		waitForSessionQueueEvent(events),
+	}
+	if reasoningStateCmd != nil {
+		cmds = append(cmds, reasoningStateCmd)
 	}
 	if msg.State.ActiveRun != nil {
 		cmds = append(cmds, m.startThinkingComposer())
@@ -220,6 +309,79 @@ func (m *model) applySessionExecutionState(msg sessionExecutionStateLoadedMsg) t
 		)
 	}
 	return tea.Batch(cmds...)
+}
+
+func retrySessionRuntimeStateLoadCmd(
+	ctx context.Context,
+	client rpcclient.ChatAPI,
+	modelClient rpcclient.ModelAPI,
+	sessionID string,
+	attempts ...int,
+) tea.Cmd {
+	return func() tea.Msg {
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		delay := sessionQueueStateRetryDelay
+		if len(attempts) > 0 {
+			for attempt := 1; attempt < attempts[0] && delay < 4*time.Second; attempt++ {
+				delay *= 2
+			}
+		}
+		timer := time.NewTimer(delay)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-timer.C:
+		}
+		cmd := loadSessionRuntimeStateCmd(ctx, client, modelClient, sessionID)
+		if cmd == nil {
+			return nil
+		}
+		return cmd()
+	}
+}
+
+func getSessionRuntimeStateRetryKey(msg sessionExecutionStateLoadedMsg) string {
+	return strings.Join([]string{
+		msg.State.SessionID,
+		msg.State.Reasoning.Model.Provider,
+		msg.State.Reasoning.Model.API,
+		msg.State.Reasoning.Model.Model,
+		msg.Runtime.Provider,
+		msg.Runtime.API,
+		msg.Runtime.Model,
+	}, "\x00")
+}
+
+func (m *model) resetSessionRuntimeStateRetry() {
+	m.runtimeStateRetryKey = ""
+	m.runtimeStateRetryAttempts = 0
+}
+
+func reasoningModelTupleMatchesRuntimeInfo(
+	tuple agentsession.ReasoningModelTuple,
+	runtime runtimeInfo,
+) bool {
+	return strings.EqualFold(strings.TrimSpace(tuple.Provider), strings.TrimSpace(runtime.Provider)) &&
+		strings.EqualFold(strings.TrimSpace(tuple.API), strings.TrimSpace(runtime.API)) &&
+		strings.EqualFold(strings.TrimSpace(tuple.Model), strings.TrimSpace(runtime.Model))
+}
+
+func reasoningTupleMatchesRuntime(
+	tuple agentsession.ReasoningModelTuple,
+	runtime rpcclient.ModelRuntime,
+) bool {
+	return strings.EqualFold(strings.TrimSpace(tuple.Provider), strings.TrimSpace(runtime.Provider)) &&
+		strings.EqualFold(strings.TrimSpace(tuple.API), strings.TrimSpace(runtime.API)) &&
+		strings.EqualFold(strings.TrimSpace(tuple.Model), strings.TrimSpace(runtime.Model))
+}
+
+func hasReasoningModelTuple(tuple agentsession.ReasoningModelTuple) bool {
+	return strings.TrimSpace(tuple.Provider) != "" ||
+		strings.TrimSpace(tuple.API) != "" ||
+		strings.TrimSpace(tuple.Model) != ""
 }
 
 func (m *model) applySessionQueueEvent(msg sessionQueueEventMsg) tea.Cmd {
@@ -263,11 +425,13 @@ func (m *model) applySessionQueueEvent(msg sessionQueueEventMsg) tea.Cmd {
 			previousActiveRunID := m.getActiveSessionRunID()
 			run := *event.Run
 			m.sessionExecutionState.ActiveRun = &run
+			m.setActiveRunReasoning(run.Reasoning)
 			m.initializeObservedRunTranscriptFollow(previousActiveRunID)
 			cmds = append(cmds, m.startThinkingComposer())
 			cmds = append(cmds, m.flushDeferredSessionProgress(run.QueueEntryID)...)
 		} else {
 			m.sessionExecutionState.ActiveRun = nil
+			m.setActiveRunReasoning(agentsession.ReasoningSnapshot{})
 			m.dropDeferredSessionProgress(event.Run.QueueEntryID)
 		}
 	}
@@ -292,6 +456,20 @@ func (m *model) applySessionQueueEvent(msg sessionQueueEventMsg) tea.Cmd {
 		)
 	}
 	return tea.Batch(cmds...)
+}
+
+func (m *model) setActiveRunReasoning(snapshot agentsession.ReasoningSnapshot) {
+	if strings.TrimSpace(snapshot.Provider) == "" &&
+		strings.TrimSpace(snapshot.API) == "" &&
+		strings.TrimSpace(snapshot.Model) == "" &&
+		strings.TrimSpace(string(snapshot.Effort)) == "" {
+		m.reasoning.ActiveRunSnapshot = nil
+		m.sessionExecutionState.Reasoning.ActiveRunSnapshot = nil
+		return
+	}
+	value := snapshot
+	m.reasoning.ActiveRunSnapshot = &value
+	m.sessionExecutionState.Reasoning.ActiveRunSnapshot = &value
 }
 
 func (m model) getActiveSessionRunID() string {
@@ -375,7 +553,7 @@ func (m *model) handleSessionQueueEventsClosed(msg sessionQueueEventsClosedMsg) 
 	m.resizeForSessionQueue()
 	return tea.Batch(
 		m.setStatus("session queue reconnecting"),
-		loadSessionExecutionStateCmd(m.chatCtx, m.chatClient, msg.SessionID),
+		loadSessionRuntimeStateCmd(m.chatCtx, m.chatClient, m.modelClient, msg.SessionID),
 	)
 }
 

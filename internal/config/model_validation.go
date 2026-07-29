@@ -34,7 +34,11 @@ func applyRegistryModelMetadata(cfg *Config, requestedContextLength int) {
 		return
 	}
 
-	model, ok := modelRegistry.GetModel(cfg.Models.Main.Provider, cfg.Models.Main.Name)
+	model, ok := modelRegistry.GetModelForAPI(
+		cfg.Models.Main.Provider,
+		cfg.MainModelAPIEffective(),
+		cfg.Models.Main.Name,
+	)
 	if !ok || model.ContextWindow <= 0 {
 		return
 	}
@@ -42,6 +46,32 @@ func applyRegistryModelMetadata(cfg *Config, requestedContextLength int) {
 	if requestedContextLength <= 0 || requestedContextLength > model.ContextWindow {
 		cfg.Models.Main.ContextLength = model.ContextWindow
 	}
+}
+
+func validateReasoningSettings(cfg ModelsConfig) error {
+	preference := strings.TrimSpace(string(cfg.Main.ReasoningEffort))
+	if strings.EqualFold(preference, "default") || strings.EqualFold(preference, "reset") {
+		return fmt.Errorf("models.main.reasoningEffort %q is reserved", preference)
+	}
+
+	for providerID, provider := range cfg.Providers {
+		for modelID, metadata := range provider.Models {
+			reasoning := metadata.Reasoning != nil && *metadata.Reasoning
+			if _, err := modelprovider.NormalizeReasoningCapability(
+				reasoning,
+				metadata.ReasoningCapability(),
+			); err != nil {
+				return fmt.Errorf(
+					"models.providers.%s.models.%s reasoning metadata is invalid: %w",
+					providerID,
+					modelID,
+					err,
+				)
+			}
+		}
+	}
+
+	return nil
 }
 
 func validateProviderAPI(field string, providerID string, apiID string) error {
@@ -94,8 +124,13 @@ func validateRegistryModel(
 		return fmt.Errorf("%s provider must be one of: %s", field, getModelProviderList())
 	}
 
-	model, known := modelRegistry.GetModel(provider.ID, modelID)
+	model, known := modelRegistry.GetModelForAPI(provider.ID, apiID, modelID)
 	if !known {
+		if registered, registeredOnAnotherAPI := modelRegistry.GetModel(provider.ID, modelID); registeredOnAnotherAPI {
+			if _, ok := allowedAPIs[registered.API]; !ok {
+				return fmt.Errorf("%s %q is not compatible with this model role", field, modelID)
+			}
+		}
 		if provider.RequiresKnownModel || !provider.SupportsModels {
 			return fmt.Errorf("%s %q is not registered for provider %q", field, modelID, provider.ID)
 		}

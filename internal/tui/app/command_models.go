@@ -48,6 +48,7 @@ type modelSelectedMsg struct {
 
 type providerAPIKeySetMsg struct {
 	Provider string
+	API      string
 	ModelID  string
 	Err      error
 }
@@ -755,11 +756,17 @@ func (m *model) selectCurrentModelOption() (tea.Model, tea.Cmd) {
 	statusCmd := next.setStatus("selecting model")
 	return next, tea.Batch(
 		statusCmd,
-		selectModelCmd(m.chatCtx, client, m.commandView.ModelProvider, modelID),
+		selectModelCmd(m.chatCtx, client, m.commandView.ModelProvider, model.API, modelID),
 	)
 }
 
-func selectModelCmd(ctx context.Context, client modelSelector, provider string, modelID string) tea.Cmd {
+func selectModelCmd(
+	ctx context.Context,
+	client modelSelector,
+	provider string,
+	api string,
+	modelID string,
+) tea.Cmd {
 	if client == nil {
 		return nil
 	}
@@ -774,7 +781,10 @@ func selectModelCmd(ctx context.Context, client modelSelector, provider string, 
 			return modelSelectedMsg{Err: errors.New("model id is required")}
 		}
 
-		model, err := client.SelectModel(ctx, modelID, rpcclient.ModelSelectOptions{Provider: provider})
+		model, err := client.SelectModel(ctx, modelID, rpcclient.ModelSelectOptions{
+			Provider: provider,
+			API:      api,
+		})
 		return modelSelectedMsg{Model: model, Err: err}
 	}
 }
@@ -783,10 +793,26 @@ func (m *model) completeSelectModel(msg modelSelectedMsg) (tea.Model, tea.Cmd) {
 	if msg.Err != nil {
 		if getModelSelectionLoginCommand(msg.Err) != "" {
 			m.addTranscriptMessage(sessionErrorMsg{Message: getModelSelectionLoginCommand(msg.Err)})
-			return *m, m.setStatus("model authentication required")
+			return *m, tea.Batch(
+				m.setStatus("model authentication required"),
+				loadSessionRuntimeStateCmd(
+					m.chatCtx,
+					m.chatClient,
+					m.modelClient,
+					m.getCurrentSessionID(),
+				),
+			)
 		}
 
-		return *m, m.setStatus("model selection unavailable")
+		return *m, tea.Batch(
+			m.setStatus("model selection unavailable"),
+			loadSessionRuntimeStateCmd(
+				m.chatCtx,
+				m.chatClient,
+				m.modelClient,
+				m.getCurrentSessionID(),
+			),
+		)
 	}
 
 	iDValue4 := str.String(msg.Model.ID)
@@ -805,7 +831,15 @@ func (m *model) completeSelectModel(msg modelSelectedMsg) (tea.Model, tea.Cmd) {
 	m.commandViewOffset = 0
 
 	next := m.hideCommandView()
-	return next, next.setStatus("model selected; daemon restarting")
+	return next, tea.Batch(
+		next.setStatus("model selected; daemon restarting"),
+		retrySessionRuntimeStateLoadCmd(
+			next.chatCtx,
+			next.chatClient,
+			next.modelClient,
+			next.getCurrentSessionID(),
+		),
+	)
 }
 
 func getModelSelectionLoginCommand(err error) string {
@@ -888,6 +922,7 @@ func (m *model) showProviderAPIKeyPrompt(option rpcclient.ModelOption) (tea.Mode
 		Kind:            commandViewKindProviderAPIKey,
 		ModelProvider:   provider,
 		PendingModelID:  iDValue7.Trim(),
+		PendingModelAPI: option.API,
 		Height:          commandViewMinHeight,
 	})
 
@@ -907,6 +942,7 @@ func (m *model) submitProviderAPIKey() (tea.Model, tea.Cmd) {
 	provider := modelProviderValue4.Trim()
 	pendingModelIDValue := str.String(m.commandView.PendingModelID)
 	modelID := pendingModelIDValue.Trim()
+	api := str.String(m.commandView.PendingModelAPI).Trim()
 	value3 := str.String(m.apiKeyInput.Value())
 	apiKey := value3.Trim()
 	if provider == "" || modelID == "" {
@@ -923,7 +959,7 @@ func (m *model) submitProviderAPIKey() (tea.Model, tea.Cmd) {
 
 	return *m, tea.Batch(
 		m.setStatus("saving provider API key"),
-		setProviderAPIKeyCmd(m.chatCtx, client, provider, modelID, apiKey),
+		setProviderAPIKeyCmd(m.chatCtx, client, provider, api, modelID, apiKey),
 	)
 }
 
@@ -931,6 +967,7 @@ func setProviderAPIKeyCmd(
 	ctx context.Context,
 	client providerAPIKeySetter,
 	provider string,
+	api string,
 	modelID string,
 	apiKey string,
 ) tea.Cmd {
@@ -946,6 +983,7 @@ func setProviderAPIKeyCmd(
 		err := client.SetProviderAPIKey(ctx, provider, apiKey)
 		return providerAPIKeySetMsg{
 			Provider: provider,
+			API:      api,
 			ModelID:  modelID,
 			Err:      err,
 		}
@@ -965,7 +1003,7 @@ func (m *model) completeProviderAPIKeySet(msg providerAPIKeySetMsg) (tea.Model, 
 	next := m.hideCommandView()
 	return next, tea.Batch(
 		next.setStatus("selecting model"),
-		selectModelCmd(m.chatCtx, client, msg.Provider, msg.ModelID),
+		selectModelCmd(m.chatCtx, client, msg.Provider, msg.API, msg.ModelID),
 	)
 }
 
@@ -977,7 +1015,11 @@ func (m *model) applySelectedModelToRuntime(option rpcclient.ModelOption) {
 	}
 
 	m.modelName = getSelectedModelDisplayName(option)
+	m.modelRestartPending = true
+	m.resetSessionRuntimeStateRetry()
+	m.applyAction(setSessionReasoningAction{})
 	m.runtimeInfo.Model = modelID
+	m.runtimeInfo.API = option.API
 	m.runtimeInfo.SummaryModel = modelID
 	providerValue4 := str.String(option.Provider)
 	if provider := providerValue4.Trim(); provider != "" {
@@ -997,7 +1039,7 @@ func getSelectedModelDisplayName(option rpcclient.ModelOption) string {
 		return name
 	}
 
-	return getRuntimeModelDisplayName(option.Provider, option.ID)
+	return getRuntimeModelDisplayName(option.Provider, option.API, option.ID)
 }
 
 func orderModelsCommandOptions(models []rpcclient.ModelOption) []rpcclient.ModelOption {

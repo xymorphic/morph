@@ -1668,6 +1668,32 @@ func TestManager_UpdateCheckpoints_ForwardsToStore(t *testing.T) {
 	require.EqualError(t, nilManager.UpdateCheckpoints(context.Background(), testSessionA, storage.CheckpointPatch{}), "state manager is required")
 }
 
+func TestManager_PatchSession_ForwardsFocusedPatch(t *testing.T) {
+	effort := "high"
+	store := &storagemock.Store{
+		PatchFunc: func(_ context.Context, id string, patch storage.SessionPatch) (storage.Session, error) {
+			require.Equal(t, testSessionA, id)
+			require.NotNil(t, patch.ReasoningEffortOverride)
+			require.Equal(t, effort, *patch.ReasoningEffortOverride)
+			return storage.Session{ID: id, ReasoningEffortOverride: effort}, nil
+		},
+	}
+	manager, err := NewManager(store, time.Hour, 24*time.Hour)
+	require.NoError(t, err)
+
+	patched, err := manager.PatchSession(
+		context.Background(),
+		"  "+testSessionA+"  ",
+		storage.SessionPatch{ReasoningEffortOverride: &effort},
+	)
+	require.NoError(t, err)
+	require.Equal(t, effort, patched.ReasoningEffortOverride)
+
+	var nilManager *Manager
+	_, err = nilManager.PatchSession(context.Background(), testSessionA, storage.SessionPatch{})
+	require.EqualError(t, err, "state manager is required")
+}
+
 func TestManager_UpdateLastPromptTokensReturnsSaveError(t *testing.T) {
 	manager, err := NewManager(&storagemock.Store{
 		GetFunc: func(context.Context, string) (storage.Session, bool, error) {

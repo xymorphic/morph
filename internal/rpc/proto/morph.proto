@@ -26,6 +26,7 @@ service SessionService {
   rpc PromoteQueuedMessage(PromoteQueuedSessionMessageRequest) returns (PromoteQueuedSessionMessageResponse);
   rpc SteerQueuedMessage(SteerQueuedSessionMessageRequest) returns (SteerQueuedSessionMessageResponse);
   rpc InterruptRun(InterruptSessionRunRequest) returns (InterruptSessionRunResponse);
+  rpc SetReasoningEffort(SetSessionReasoningEffortRequest) returns (SetSessionReasoningEffortResponse);
 }
 
 service ModelService {
@@ -321,6 +322,7 @@ message SessionActiveRun {
   google.protobuf.Timestamp updated_at = 8;
   string reason = 9;
   string last_error = 10;
+  ReasoningRunSnapshot reasoning = 11;
 }
 
 message SessionEvent {
@@ -376,6 +378,51 @@ message GetSessionStateResponse {
   int32 queue_depth = 6;
   google.protobuf.Timestamp oldest_pending_created_at = 7;
   repeated SessionProgressEvent progress = 8;
+  SessionReasoningSettings reasoning = 9;
+}
+
+message ReasoningModelTuple {
+  string provider = 1;
+  string api = 2;
+  string model = 3;
+  string display_name = 4;
+}
+
+message ReasoningRunSnapshot {
+  string provider = 1;
+  string api = 2;
+  string model = 3;
+  string effort = 4;
+  bool summary = 5;
+}
+
+message SessionReasoningSettings {
+  ReasoningModelTuple model = 1;
+  bool reasoning = 2;
+  bool adjustable = 3;
+  repeated string supported_efforts = 4;
+  string session_override = 5;
+  string profile_default = 6;
+  string catalog_default = 7;
+  string effective_effort = 8;
+  string dormant_effort = 9;
+  string source = 10;
+  string fallback = 11;
+  bool summary_supported = 12;
+  ReasoningRunSnapshot active_run = 13;
+}
+
+message SetSessionReasoningEffortRequest {
+  string id = 1;
+  string expected_provider = 2;
+  string expected_api = 3;
+  string expected_model = 4;
+  string effort = 5;
+  bool reset = 6;
+}
+
+message SetSessionReasoningEffortResponse {
+  SessionReasoningSettings reasoning = 1;
 }
 
 message ObserveSessionRequest {
@@ -486,6 +533,7 @@ message ListModelsResponse {
 message SelectModelRequest {
   string id = 1;
   string provider = 2;
+  string api = 3;
 }
 
 message SelectModelResponse {

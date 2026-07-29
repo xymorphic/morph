@@ -27,6 +27,8 @@ type MessageRecord = base.MessageRecord
 // CheckpointPatch aliases base.CheckpointPatch at this package boundary.
 type CheckpointPatch = base.CheckpointPatch
 
+type SessionPatch = base.SessionPatch
+
 func (s *Store) Save(_ context.Context, session Session) error {
 	if s == nil {
 		return errors.New("store is required")
@@ -43,6 +45,7 @@ func (s *Store) Save(_ context.Context, session Session) error {
 
 	if existing, ok := s.sessions[session.ID]; ok {
 		session.CreatedAt = existing.CreatedAt
+		session.ReasoningEffortOverride = existing.ReasoningEffortOverride
 		if !session.Archived && session.ArchivedAt.IsZero() && session.ExpiresAt.IsZero() {
 			session.Archived = existing.Archived
 			session.ArchivedAt = existing.ArchivedAt
@@ -97,6 +100,35 @@ func (s *Store) Save(_ context.Context, session Session) error {
 
 	s.sessions[session.ID] = session
 	return nil
+}
+
+func (s *Store) Patch(_ context.Context, id string, patch SessionPatch) (Session, error) {
+	if s == nil {
+		return Session{}, errors.New("store is required")
+	}
+
+	idValue := str.String(id)
+	id = idValue.Trim()
+	if err := base.ValidateSessionID(id); err != nil {
+		return Session{}, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, ok := s.sessions[id]
+	if !ok {
+		return Session{}, errors.New("session not found")
+	}
+	if patch.ReasoningEffortOverride == nil {
+		return session, nil
+	}
+
+	session.ReasoningEffortOverride = *patch.ReasoningEffortOverride
+	session.UpdatedAt = time.Now().UTC()
+	s.sessions[id] = session
+
+	return session, nil
 }
 
 func (s *Store) UpdateCheckpoints(_ context.Context, id string, patch CheckpointPatch) error {

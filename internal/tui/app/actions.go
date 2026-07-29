@@ -7,6 +7,7 @@ import (
 	storage "github.com/wandxy/morph/internal/state/core"
 	tuistate "github.com/wandxy/morph/internal/tui/state"
 	tuitranscript "github.com/wandxy/morph/internal/tui/transcript"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 	"github.com/wandxy/morph/pkg/str"
 )
 
@@ -51,22 +52,32 @@ type setSessionContextAction struct {
 	Context string
 }
 
+type setSessionReasoningAction struct {
+	Settings agentsession.ReasoningSettings
+}
+
 type showCommandViewAction struct {
-	TitleIcon       string
-	TitleLeft       string
-	TitleSubtext    string
-	TitleRight      string
-	AccentColor     string
-	TitleRightColor string
-	Content         string
-	Height          int
-	Kind            string
-	Chats           []storage.Session
-	Models          []rpcclient.ModelOption
-	Providers       []rpcclient.ProviderOption
-	ModelProvider   string
-	ModelAuthType   string
-	PendingModelID  string
+	TitleIcon        string
+	TitleLeft        string
+	TitleSubtext     string
+	TitleRight       string
+	AccentColor      string
+	TitleRightColor  string
+	Content          string
+	Height           int
+	Kind             string
+	Chats            []storage.Session
+	Models           []rpcclient.ModelOption
+	Providers        []rpcclient.ProviderOption
+	ModelProvider    string
+	ModelAuthType    string
+	PendingModelID   string
+	PendingModelAPI  string
+	EffortSessionID  string
+	EffortModel      agentsession.ReasoningModelTuple
+	Efforts          []agentsession.ReasoningEffort
+	EffortReasoning  bool
+	EffortAdjustable bool
 }
 
 type hideCommandViewAction struct{}
@@ -161,10 +172,15 @@ func (action setSessionAction) apply(state *tuiState) {
 		return
 	}
 
+	previousSessionID := state.sessionID
 	iDValue := str.String(action.ID)
 	state.sessionID = iDValue.Trim()
 	if state.sessionID == "" {
 		state.sessionID = defaultSessionID
+	}
+	if previousSessionID != state.sessionID {
+		state.runtimeStateRetryKey = ""
+		state.runtimeStateRetryAttempts = 0
 	}
 	setSessionTitleAction{Title: action.Title}.apply(state)
 }
@@ -176,6 +192,21 @@ func (action setSessionContextAction) apply(state *tuiState) {
 
 	contextValue := str.String(action.Context)
 	state.context = contextValue.Trim()
+}
+
+func (action setSessionReasoningAction) apply(state *tuiState) {
+	if state == nil {
+		return
+	}
+	action.Settings.SupportedEfforts = append(
+		[]agentsession.ReasoningEffort(nil),
+		action.Settings.SupportedEfforts...,
+	)
+	if action.Settings.ActiveRunSnapshot != nil {
+		snapshot := *action.Settings.ActiveRunSnapshot
+		action.Settings.ActiveRunSnapshot = &snapshot
+	}
+	state.reasoning = action.Settings
 }
 
 func (action showCommandViewAction) apply(state *tuiState) {
@@ -194,23 +225,30 @@ func (action showCommandViewAction) apply(state *tuiState) {
 	modelProviderValue := str.String(action.ModelProvider)
 	modelAuthTypeValue := str.String(action.ModelAuthType)
 	pendingModelIDValue := str.String(action.PendingModelID)
+	pendingModelAPIValue := str.String(action.PendingModelAPI)
 	state.commandView = commandViewState{
-		Visible:         true,
-		Kind:            kindValue.Trim(),
-		TitleIcon:       titleIconValue.Trim(),
-		TitleLeft:       titleLeftValue.Trim(),
-		TitleSubtext:    titleSubtextValue.Trim(),
-		TitleRight:      titleRightValue.Trim(),
-		AccentColor:     accentColorValue.Trim(),
-		TitleRightColor: titleRightColorValue.Trim(),
-		Content:         contentValue.Trim(),
-		Height:          max(action.Height, 0),
-		Chats:           append([]storage.Session(nil), action.Chats...),
-		Models:          append([]rpcclient.ModelOption(nil), action.Models...),
-		Providers:       append([]rpcclient.ProviderOption(nil), action.Providers...),
-		ModelProvider:   modelProviderValue.Trim(),
-		ModelAuthType:   modelAuthTypeValue.Trim(),
-		PendingModelID:  pendingModelIDValue.Trim(),
+		Visible:          true,
+		Kind:             kindValue.Trim(),
+		TitleIcon:        titleIconValue.Trim(),
+		TitleLeft:        titleLeftValue.Trim(),
+		TitleSubtext:     titleSubtextValue.Trim(),
+		TitleRight:       titleRightValue.Trim(),
+		AccentColor:      accentColorValue.Trim(),
+		TitleRightColor:  titleRightColorValue.Trim(),
+		Content:          contentValue.Trim(),
+		Height:           max(action.Height, 0),
+		Chats:            append([]storage.Session(nil), action.Chats...),
+		Models:           append([]rpcclient.ModelOption(nil), action.Models...),
+		Providers:        append([]rpcclient.ProviderOption(nil), action.Providers...),
+		ModelProvider:    modelProviderValue.Trim(),
+		ModelAuthType:    modelAuthTypeValue.Trim(),
+		PendingModelID:   pendingModelIDValue.Trim(),
+		PendingModelAPI:  pendingModelAPIValue.Trim(),
+		EffortSessionID:  str.String(action.EffortSessionID).Trim(),
+		EffortModel:      action.EffortModel,
+		Efforts:          append([]agentsession.ReasoningEffort(nil), action.Efforts...),
+		EffortReasoning:  action.EffortReasoning,
+		EffortAdjustable: action.EffortAdjustable,
 	}
 	state.commandViewOffset = 0
 	state.commandViewItemSelected = 0

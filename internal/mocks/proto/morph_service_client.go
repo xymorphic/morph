@@ -18,6 +18,8 @@ type MorphServiceClientStub struct {
 	SubmitMessageResp  *morphpb.SubmitSessionMessageResponse
 	StateReq           *morphpb.GetSessionStateRequest
 	StateResp          *morphpb.GetSessionStateResponse
+	SetReasoningReq    *morphpb.SetSessionReasoningEffortRequest
+	SetReasoningResp   *morphpb.SetSessionReasoningEffortResponse
 	ObserveReq         *morphpb.ObserveSessionRequest
 	ObserveEvents      []*morphpb.ObserveSessionResponse
 	EditQueuedReq      *morphpb.EditQueuedSessionMessageRequest
@@ -146,6 +148,15 @@ func (s *MorphServiceClientStub) State(
 ) (*morphpb.GetSessionStateResponse, error) {
 	s.StateReq = req
 	return s.StateResp, s.Err
+}
+
+func (s *MorphServiceClientStub) SetReasoningEffort(
+	_ context.Context,
+	req *morphpb.SetSessionReasoningEffortRequest,
+	_ ...grpc.CallOption,
+) (*morphpb.SetSessionReasoningEffortResponse, error) {
+	s.SetReasoningReq = req
+	return s.SetReasoningResp, s.Err
 }
 
 func (s *MorphServiceClientStub) Observe(

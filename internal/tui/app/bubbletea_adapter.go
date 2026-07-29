@@ -123,18 +123,27 @@ func (m model) handleAsyncMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		next, cmd := m.handleAppEvent(hydrateTimelineEvent{Timeline: msg.Timeline})
 		return next, tea.Batch(
 			cmd,
-			loadSessionExecutionStateCmd(m.chatCtx, m.chatClient, msg.Timeline.SessionID),
+			loadSessionRuntimeStateCmd(
+				m.chatCtx,
+				m.chatClient,
+				m.modelClient,
+				msg.Timeline.SessionID,
+			),
 		), true
 	case sessionExecutionStateLoadedMsg:
 		cmd := m.applySessionExecutionState(msg)
+		return m, cmd, true
+	case reasoningEffortSetMsg:
+		cmd := m.completeReasoningEffortSet(msg)
 		return m, cmd, true
 	case sessionExecutionStateLoadFailedMsg:
 		m.sessionQueueStale = true
 		return m, tea.Batch(
 			m.setStatus("session queue unavailable; retrying"),
-			retrySessionExecutionStateLoadCmd(
+			retrySessionRuntimeStateLoadCmd(
 				m.chatCtx,
 				m.chatClient,
+				m.modelClient,
 				m.getCurrentSessionID(),
 			),
 		), true
@@ -320,7 +329,7 @@ func (m model) handleTerminalMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 			return next, cmd, true
 		}
 		if m.isCommandViewVisible() {
-			if m.isPermissionApprovalCommandView() {
+			if m.isPermissionApprovalCommandView() || m.isEffortCommandView() {
 				next, cmd := m.updateCommandView(msg)
 				return next, cmd, true
 			}

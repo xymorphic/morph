@@ -13,6 +13,7 @@ var slashCommandDefinitions = []slashCommandDefinition{
 	{Name: "clear", Description: "Clear the transcript"},
 	{Name: "compact", Description: "Compact the current session"},
 	{Name: "copy", Description: "Copy the transcript"},
+	{Name: "effort", Description: "Inspect or set reasoning effort"},
 	{Name: "models", Description: "Show supported models"},
 	{Name: "new-chat", Description: "Start a new chat session"},
 	{Name: "permissions", Description: "Choose a permission preset for this TUI session"},
@@ -42,6 +43,8 @@ func (m *model) handleSlashCommand(input composerInput) tea.Cmd {
 		cmd = m.setStatus("transcript cleared")
 	case "compact":
 		cmd = m.startCompactSession()
+	case "effort":
+		cmd = m.handleEffortCommand(input.Args)
 	case "models":
 		cmd = m.startModelsCommand()
 	case "providers":

@@ -3,6 +3,8 @@ package agent
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/wandxy/morph/internal/permissions"
@@ -123,7 +125,123 @@ func (a *Agent) GetSessionExecutionState(
 		return agentsession.ExecutionState{}, err
 	}
 	state.Progress = a.getSessionProgress(session.ID)
+	state.Reasoning = a.resolveSessionReasoning(session, state)
 	return state, nil
+}
+
+func (a *Agent) SetSessionReasoningEffort(
+	ctx context.Context,
+	req agentsession.SetReasoningEffortRequest,
+) (agentsession.ReasoningSettings, error) {
+	effort := strings.TrimSpace(string(req.Effort))
+	if req.Reset == (effort != "") {
+		return agentsession.ReasoningSettings{}, fmt.Errorf(
+			"%w: specify exactly one of reset or effort",
+			agentsession.ErrReasoningInvalid,
+		)
+	}
+	if err := a.checkSessionQueueReady(); err != nil {
+		return agentsession.ReasoningSettings{}, err
+	}
+	session, _, err := a.resolveSessionAuthorization(ctx, req.SessionID)
+	if err != nil {
+		return agentsession.ReasoningSettings{}, err
+	}
+
+	reasoningContext := a.getReasoningStateContext()
+	if !isSameReasoningModelTuple(req.ExpectedModel, reasoningContext.Model) {
+		return agentsession.ReasoningSettings{}, fmt.Errorf(
+			"%w: expected %s/%s/%s, current selection is %s/%s/%s",
+			agentsession.ErrReasoningStaleTuple,
+			req.ExpectedModel.Provider,
+			req.ExpectedModel.API,
+			req.ExpectedModel.Model,
+			reasoningContext.Model.Provider,
+			reasoningContext.Model.API,
+			reasoningContext.Model.Model,
+		)
+	}
+
+	value := ""
+	if !req.Reset {
+		if !reasoningContext.CatalogFound ||
+			!reasoningContext.APISupported ||
+			!reasoningContext.Reasoning ||
+			len(reasoningContext.Capability.Efforts) == 0 {
+			return agentsession.ReasoningSettings{}, agentsession.ErrReasoningUnavailable
+		}
+		canonical, ok := getCanonicalReasoningEffort(
+			agentsession.ReasoningEffort(effort),
+			reasoningContext.Capability.Efforts,
+		)
+		if !ok {
+			return agentsession.ReasoningSettings{}, fmt.Errorf(
+				"%w: %q is not supported by %s",
+				agentsession.ErrReasoningUnsupported,
+				effort,
+				reasoningContext.Model.Model,
+			)
+		}
+		value = string(canonical)
+	}
+
+	updated, err := a.stateMgr.PatchSession(
+		ctx,
+		session.ID,
+		storage.SessionPatch{ReasoningEffortOverride: &value},
+	)
+	if err != nil {
+		return agentsession.ReasoningSettings{}, err
+	}
+	state, err := a.stateMgr.GetExecutionState(ctx, session.ID)
+	if err != nil {
+		return agentsession.ReasoningSettings{}, err
+	}
+	return a.resolveSessionReasoning(updated, state), nil
+}
+
+func (a *Agent) resolveSessionReasoning(
+	session storage.Session,
+	state agentsession.ExecutionState,
+) agentsession.ReasoningSettings {
+	context := a.getReasoningStateContext()
+	var activeRun *agentsession.ReasoningSnapshot
+	if state.ActiveRun != nil {
+		snapshot := state.ActiveRun.Reasoning
+		activeRun = &snapshot
+	}
+	return agentsession.ResolveReasoningSettings(agentsession.ReasoningResolutionInput{
+		Model:           context.Model,
+		Capability:      context.Capability,
+		SessionOverride: agentsession.ReasoningEffort(session.ReasoningEffortOverride),
+		ProfileDefault:  context.ProfileDefault,
+		ActiveRun:       activeRun,
+		Reasoning:       context.Reasoning,
+		CatalogFound:    context.CatalogFound,
+		APISupported:    context.APISupported,
+	})
+}
+
+func isSameReasoningModelTuple(
+	expected agentsession.ReasoningModelTuple,
+	current agentsession.ReasoningModelTuple,
+) bool {
+	return strings.EqualFold(strings.TrimSpace(expected.Provider), current.Provider) &&
+		strings.EqualFold(strings.TrimSpace(expected.API), current.API) &&
+		strings.TrimSpace(expected.Model) == current.Model
+}
+
+func getCanonicalReasoningEffort(
+	requested agentsession.ReasoningEffort,
+	supported []agentsession.ReasoningEffort,
+) (agentsession.ReasoningEffort, bool) {
+	value := strings.TrimSpace(string(requested))
+	for _, effort := range supported {
+		if strings.EqualFold(value, string(effort)) {
+			return effort, true
+		}
+	}
+	return "", false
 }
 
 func (a *Agent) ObserveSessionEvents(
@@ -520,6 +638,7 @@ func (r *sessionRunner) claimAndRun(ctx context.Context) (bool, error) {
 		SessionID:  r.sessionID,
 		RunID:      runID,
 		Generation: r.agent.runnerGeneration,
+		Reasoning:  r.agent.getReasoningClaimContext(),
 	})
 	if err != nil || !claimed {
 		return claimed, err
@@ -541,6 +660,7 @@ func (a *Agent) executeSessionRun(
 
 	var runErr error
 	turn := a.newTurn(a.env, a.invokeToolWithEnvironment)
+	turn.setReasoningSnapshot(run.Reasoning)
 	turn.setAfterToolBatchPersisted(func(ctx context.Context) (bool, error) {
 		steeringRequest := agentsession.SteeringClaimRequest{
 			SessionID:  entry.SessionID,

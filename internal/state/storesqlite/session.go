@@ -48,6 +48,8 @@ type MessageRecord = base.MessageRecord
 // CheckpointPatch aliases base.CheckpointPatch at this package boundary.
 type CheckpointPatch = base.CheckpointPatch
 
+type SessionPatch = base.SessionPatch
+
 // sessionModel describes durable session-level state and compaction progress.
 type sessionModel struct {
 	ID                           string `gorm:"primaryKey"`
@@ -73,6 +75,7 @@ type sessionModel struct {
 	CompactionTargetOffset       int
 	EpisodicCheckpointOffset     int
 	ReflectionCheckpointOffset   int
+	ReasoningEffortOverride      *string `gorm:"type:text"`
 }
 
 // TableName returns the SQLite table used for active sessions.
@@ -208,6 +211,11 @@ func (s *Store) Save(ctx context.Context, session Session) error {
 
 	if err := s.db.WithContext(ctx).First(&existing, "id = ?", session.ID).Error; err == nil {
 		session.CreatedAt = existing.CreatedAt
+		if existing.ReasoningEffortOverride != nil {
+			session.ReasoningEffortOverride = *existing.ReasoningEffortOverride
+		} else {
+			session.ReasoningEffortOverride = ""
+		}
 		if !session.Archived && session.ArchivedAt.IsZero() && session.ExpiresAt.IsZero() {
 			session.Archived = existing.Archived
 			session.ArchivedAt = existing.ArchivedAt
@@ -294,6 +302,7 @@ func (s *Store) Save(ctx context.Context, session Session) error {
 		OriginSource:                 sourceValue.Trim(),
 		OriginThreadID:               threadIDValue.Trim(),
 		ReflectionCheckpointOffset:   session.ReflectionCheckpointOffset,
+		ReasoningEffortOverride:      optionalString(session.ReasoningEffortOverride),
 		Title:                        session.Title,
 		TitleSource:                  session.TitleSource,
 		UpdatedAt:                    session.UpdatedAt,
@@ -302,6 +311,56 @@ func (s *Store) Save(ctx context.Context, session Session) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return tx.Save(&record).Error
 	})
+}
+
+func (s *Store) Patch(ctx context.Context, id string, patch SessionPatch) (Session, error) {
+	if s == nil || s.db == nil {
+		return Session{}, errors.New("store is required")
+	}
+
+	idValue := str.String(id)
+	id = idValue.Trim()
+	if err := base.ValidateSessionID(id); err != nil {
+		return Session{}, err
+	}
+
+	var result Session
+	err := runSQLiteWriteWithRetry(ctx, func(writeCtx context.Context) error {
+		return s.db.WithContext(writeCtx).Transaction(func(tx *gorm.DB) error {
+			var record sessionModel
+			if err := tx.First(&record, "id = ?", id).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return errors.New("session not found")
+				}
+				return err
+			}
+
+			if patch.ReasoningEffortOverride != nil {
+				record.ReasoningEffortOverride = optionalString(*patch.ReasoningEffortOverride)
+				record.UpdatedAt = time.Now().UTC()
+				if err := tx.Model(&sessionModel{}).
+					Where("id = ?", id).
+					Updates(map[string]any{
+						"reasoning_effort_override": record.ReasoningEffortOverride,
+						"updated_at":                record.UpdatedAt,
+					}).Error; err != nil {
+					return err
+				}
+			}
+
+			converted, err := sessionModelToSession(record)
+			if err != nil {
+				return err
+			}
+			result = converted
+			return nil
+		})
+	})
+	if err != nil {
+		return Session{}, err
+	}
+
+	return result, nil
 }
 
 func (s *Store) UpdateCheckpoints(ctx context.Context, id string, patch CheckpointPatch) error {
@@ -1500,6 +1559,7 @@ func sessionModelToSession(record sessionModel) (Session, error) {
 			ThreadID:       record.OriginThreadID,
 		},
 		ReflectionCheckpointOffset: record.ReflectionCheckpointOffset,
+		ReasoningEffortOverride:    stringValue(record.ReasoningEffortOverride),
 		Title:                      title,
 		TitleSource:                titleSource,
 	}
@@ -1519,6 +1579,22 @@ func sessionModelToSession(record sessionModel) (Session, error) {
 	}
 
 	return session, nil
+}
+
+func optionalString(value string) *string {
+	if value == "" {
+		return nil
+	}
+
+	return &value
+}
+
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+
+	return *value
 }
 
 func messagesToMessageModels(sessionID string, messages []morphmsg.Message) []messageModel {

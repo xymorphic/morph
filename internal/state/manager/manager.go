@@ -567,6 +567,24 @@ func (m *Manager) Save(ctx context.Context, session storage.Session) error {
 	return m.sessions().Save(ctx, session)
 }
 
+func (m *Manager) PatchSession(
+	ctx context.Context,
+	id string,
+	patch storage.SessionPatch,
+) (storage.Session, error) {
+	if m == nil {
+		return storage.Session{}, errors.New("state manager is required")
+	}
+
+	idValue := str.String(id)
+	id = idValue.Trim()
+	if err := storage.ValidateSessionID(id); err != nil {
+		return storage.Session{}, err
+	}
+
+	return m.sessions().Patch(ctx, id, patch)
+}
+
 func (m *Manager) Get(ctx context.Context, id string, opts storage.SessionGetOptions) (storage.Session, bool, error) {
 	if m == nil {
 		return storage.Session{}, false, errors.New("state manager is required")

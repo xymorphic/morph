@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -74,6 +75,22 @@ func (s *stateStoreStub) Save(_ context.Context, session storage.Session) error 
 		s.session = session
 	}
 	return nil
+}
+
+func (s *stateStoreStub) Patch(
+	_ context.Context,
+	id string,
+	patch storage.SessionPatch,
+) (storage.Session, error) {
+	session, ok := s.sessions[id]
+	if !ok {
+		return storage.Session{}, errors.New("session not found")
+	}
+	if patch.ReasoningEffortOverride != nil {
+		session.ReasoningEffortOverride = *patch.ReasoningEffortOverride
+		s.sessions[id] = session
+	}
+	return session, nil
 }
 
 func (s *stateStoreStub) Get(_ context.Context, id string, _ storage.SessionGetOptions) (storage.Session, bool, error) {

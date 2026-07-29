@@ -1617,10 +1617,17 @@ func TestAgent_SelectModelWritesProfileConfig(t *testing.T) {
 	t.Cleanup(func() { profile.SetActive(original) })
 	profile.SetActive(profile.WithMetadataPaths(profile.Profile{Name: "test", HomeDir: home, ConfigPath: configPath}))
 
-	selected, err := NewAgent(context.Background(), cfg, nil).SelectModel(context.Background(), "gpt-4o")
+	core := NewAgent(context.Background(), cfg, nil)
+	selected, err := core.SelectModel(
+		context.Background(),
+		"gpt-4o",
+		ModelSelectOptions{API: models.APIOpenAIResponses},
+	)
 	require.NoError(t, err)
 	require.Equal(t, "gpt-4o", selected.ID)
 	require.True(t, selected.Current)
+	require.Equal(t, "gpt-4o", core.getReasoningStateContext().Model.Model)
+	require.Equal(t, constants.DefaultModel, core.getReasoningClaimContext().Model.Model)
 
 	loaded, err := config.Load("", configPath)
 	require.NoError(t, err)
@@ -1628,6 +1635,7 @@ func TestAgent_SelectModelWritesProfileConfig(t *testing.T) {
 	require.Equal(t, "gpt-4o", loaded.Models.Summary.Name)
 	require.Equal(t, constants.ModelProviderOpenAI, loaded.Models.Main.Provider)
 	require.Equal(t, constants.ModelProviderOpenAI, loaded.Models.Summary.Provider)
+	require.Equal(t, models.APIOpenAIResponses, loaded.Models.Main.API)
 }
 
 func TestAgent_SelectModelWritesProviderScopedProfileConfig(t *testing.T) {

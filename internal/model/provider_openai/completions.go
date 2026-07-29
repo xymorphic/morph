@@ -168,6 +168,9 @@ func buildChatCompletionsRequest(req normalizedGenerateRequest) openai.ChatCompl
 		Model:    openai.ChatModel(req.Model),
 		Messages: messages,
 	}
+	if req.Reasoning != nil {
+		params.ReasoningEffort = shared.ReasoningEffort(req.Reasoning.Effort)
+	}
 	if len(req.Tools) > 0 {
 		params.Tools = buildChatCompletionsTools(req.Tools)
 	}

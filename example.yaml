@@ -24,6 +24,7 @@
 #     baseUrl: "https://openrouter.ai/api/v1"
 #     stream: true
 #     contextLength: 128000
+#     reasoningEffort: ""
 #   summary:
 #     name: "claude-3.5-haiku"
 #     provider: "openai"

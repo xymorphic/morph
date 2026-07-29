@@ -21,6 +21,10 @@ var (
 	ErrProgressExpired       = errors.New("session progress expired")
 	ErrStaleRunnerGeneration = errors.New("stale session runner generation")
 	ErrSteeringRequiresRun   = errors.New("steering requires an active run")
+	ErrReasoningStaleTuple   = errors.New("reasoning model selection is stale")
+	ErrReasoningUnsupported  = errors.New("reasoning effort is unsupported")
+	ErrReasoningUnavailable  = errors.New("reasoning effort is not adjustable")
+	ErrReasoningInvalid      = errors.New("reasoning effort request is invalid")
 )
 
 type CompactionStatus string
@@ -36,6 +40,7 @@ type Session struct {
 	Compaction                 Compaction
 	Origin                     Origin
 	ID                         string
+	ReasoningEffortOverride    string
 	EpisodicCheckpointOffset   int
 	LastPromptTokens           int
 	ReflectionCheckpointOffset int
@@ -158,6 +163,7 @@ type ActiveRun struct {
 	UpdatedAt    time.Time
 	Reason       string
 	LastError    string
+	Reasoning    ReasoningSnapshot
 }
 
 type ExecutionState struct {
@@ -169,6 +175,7 @@ type ExecutionState struct {
 	QueueDepth           int
 	OldestPendingCreated time.Time
 	Progress             []ProgressEvent
+	Reasoning            ReasoningSettings
 }
 
 type EventType string
@@ -239,6 +246,14 @@ type ClaimRequest struct {
 	SessionID  string
 	RunID      string
 	Generation string
+	Reasoning  ReasoningClaimContext
+}
+
+type SetReasoningEffortRequest struct {
+	SessionID     string
+	ExpectedModel ReasoningModelTuple
+	Effort        ReasoningEffort
+	Reset         bool
 }
 
 type SteeringClaimRequest struct {

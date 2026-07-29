@@ -11,6 +11,7 @@ func agentSessionFromStorageSession(value storage.Session) agentsession.Session 
 		Compaction:                 agentCompactionFromStorageCompaction(value.Compaction),
 		Origin:                     agentOriginFromStorageOrigin(value.Origin),
 		ID:                         value.ID,
+		ReasoningEffortOverride:    value.ReasoningEffortOverride,
 		EpisodicCheckpointOffset:   value.EpisodicCheckpointOffset,
 		LastPromptTokens:           value.LastPromptTokens,
 		ReflectionCheckpointOffset: value.ReflectionCheckpointOffset,

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	appcredential "github.com/wandxy/morph/internal/credential"
+	modelprovider "github.com/wandxy/morph/internal/model/provider"
 	"github.com/wandxy/morph/pkg/str"
 )
 
@@ -52,22 +53,34 @@ type ProviderModelConfig struct {
 
 // ProviderModelMetadata describes explicit metadata for one provider-local model.
 type ProviderModelMetadata struct {
-	ContextLength   int   `yaml:"contextLength"`
-	MaxOutputTokens int64 `yaml:"maxOutputTokens"`
-	SupportsTools   *bool `yaml:"supportsTools"`
-	SupportsVision  *bool `yaml:"supportsVision"`
-	Reasoning       *bool `yaml:"reasoning"`
+	ContextLength          int                             `yaml:"contextLength"`
+	MaxOutputTokens        int64                           `yaml:"maxOutputTokens"`
+	SupportsTools          *bool                           `yaml:"supportsTools"`
+	SupportsVision         *bool                           `yaml:"supportsVision"`
+	Reasoning              *bool                           `yaml:"reasoning"`
+	ReasoningEfforts       []modelprovider.ReasoningEffort `yaml:"reasoningEfforts"`
+	ReasoningEffortDefault modelprovider.ReasoningEffort   `yaml:"reasoningEffortDefault"`
+	ReasoningSummary       *bool                           `yaml:"reasoningSummary"`
+}
+
+func (metadata ProviderModelMetadata) ReasoningCapability() modelprovider.ReasoningCapability {
+	return modelprovider.ReasoningCapability{
+		Efforts:       append([]modelprovider.ReasoningEffort(nil), metadata.ReasoningEfforts...),
+		DefaultEffort: metadata.ReasoningEffortDefault,
+		Summary:       metadata.ReasoningSummary != nil && *metadata.ReasoningSummary,
+	}
 }
 
 // MainModelConfig selects the model used for normal agent turns.
 type MainModelConfig struct {
-	Name          string `yaml:"name"`
-	Provider      string `yaml:"provider"`
-	API           string `yaml:"api"`
-	APIKey        string `yaml:"apiKey"`
-	BaseURL       string `yaml:"baseUrl"`
-	ContextLength int    `yaml:"contextLength"`
-	Stream        *bool  `yaml:"stream"`
+	Name            string                        `yaml:"name"`
+	Provider        string                        `yaml:"provider"`
+	API             string                        `yaml:"api"`
+	APIKey          string                        `yaml:"apiKey"`
+	BaseURL         string                        `yaml:"baseUrl"`
+	ContextLength   int                           `yaml:"contextLength"`
+	Stream          *bool                         `yaml:"stream"`
+	ReasoningEffort modelprovider.ReasoningEffort `yaml:"reasoningEffort"`
 }
 
 // SummaryModelConfig selects the model used for summaries and compaction.

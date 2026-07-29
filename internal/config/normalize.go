@@ -3,10 +3,12 @@ package config
 import (
 	"path/filepath"
 	"slices"
+	"strings"
 
 	commandplan "github.com/wandxy/morph/internal/command"
 	"github.com/wandxy/morph/internal/constants"
 	"github.com/wandxy/morph/internal/datadir"
+	modelprovider "github.com/wandxy/morph/internal/model/provider"
 	"github.com/wandxy/morph/pkg/str"
 )
 
@@ -48,6 +50,9 @@ func (c *Config) normalizeFields() {
 	c.Models.Embedding.APIKey = aPIKeyValue3.Trim()
 	aPIValue2 := str.String(c.Models.Main.API)
 	c.Models.Main.API = aPIValue2.Normalized()
+	c.Models.Main.ReasoningEffort = modelprovider.ReasoningEffort(
+		strings.TrimSpace(string(c.Models.Main.ReasoningEffort)),
+	)
 	aPIValue3 := str.String(c.Models.Summary.API)
 	c.Models.Summary.API = aPIValue3.Normalized()
 	levelValue := str.String(c.Log.Level)
@@ -451,6 +456,16 @@ func normalizeProviderModelMetadata(values map[string]ProviderModelMetadata) map
 			continue
 		}
 
+		if len(value.ReasoningEfforts) > 0 {
+			efforts := make([]modelprovider.ReasoningEffort, 0, len(value.ReasoningEfforts))
+			for _, effort := range value.ReasoningEfforts {
+				efforts = append(efforts, modelprovider.ReasoningEffort(strings.TrimSpace(string(effort))))
+			}
+			value.ReasoningEfforts = efforts
+		}
+		value.ReasoningEffortDefault = modelprovider.ReasoningEffort(
+			strings.TrimSpace(string(value.ReasoningEffortDefault)),
+		)
 		normalized[model] = value
 	}
 	if len(normalized) == 0 {

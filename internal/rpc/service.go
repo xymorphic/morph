@@ -1251,7 +1251,10 @@ func (s *Service) SelectModel(ctx context.Context, req *morphpb.SelectModelReque
 		return nil, err
 	}
 
-	model, err := s.api.SelectModel(ctx, req.GetId(), morphagent.ModelSelectOptions{Provider: req.GetProvider()})
+	model, err := s.api.SelectModel(ctx, req.GetId(), morphagent.ModelSelectOptions{
+		Provider: req.GetProvider(),
+		API:      req.GetApi(),
+	})
 	if err != nil {
 		return nil, getGRPCError(err)
 	}
@@ -1927,8 +1930,13 @@ func getGRPCError(err error) error {
 	case errors.Is(err, context.DeadlineExceeded):
 		return status.Error(codes.DeadlineExceeded, message)
 	case errors.Is(err, agentsession.ErrCursorBeyondSession),
-		errors.Is(err, agentsession.ErrSteeringRequiresRun):
+		errors.Is(err, agentsession.ErrSteeringRequiresRun),
+		errors.Is(err, agentsession.ErrReasoningStaleTuple),
+		errors.Is(err, agentsession.ErrReasoningUnavailable):
 		return status.Error(codes.FailedPrecondition, message)
+	case errors.Is(err, agentsession.ErrReasoningUnsupported),
+		errors.Is(err, agentsession.ErrReasoningInvalid):
+		return status.Error(codes.InvalidArgument, message)
 	case strings.HasSuffix(message, "is required"),
 		strings.Contains(message, "is required when"),
 		strings.Contains(message, "API key is required"),

@@ -131,7 +131,7 @@ func (f *ClientFactory) Resolve(req ClientRequest) (ResolvedClientRequest, error
 	}
 	modelValue := str.String(req.Model)
 	modelID := modelValue.Trim()
-	model, modelKnown := registry.GetModel(provider.ID, modelID)
+	model, modelKnown := registry.GetModelForAPI(provider.ID, api.ID, modelID)
 	if modelID != "" && !modelKnown {
 		model = modelprovider.ModelDefinition{
 			ID:       modelID,

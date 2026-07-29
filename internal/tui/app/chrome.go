@@ -132,7 +132,6 @@ func getNoticePanel(width int, names ...string) noticePanel {
 // getHeaderInfoRows returns the runtime metadata rows shown in the header.
 func getHeaderInfoRows(m model) []headerInfoRow {
 	info := m.runtimeInfo
-	modelName := getRuntimeValue(m.modelName, getRuntimeModelDisplayName(info.Provider, info.Model))
 
 	return []headerInfoRow{
 		{key: "version", value: getRuntimeValue(info.Version, "dev")},
@@ -141,11 +140,36 @@ func getHeaderInfoRows(m model) []headerInfoRow {
 		{key: "session", value: getRuntimeValue(m.sessionID, "default")},
 		{key: "streaming", value: getRuntimeValue(info.Streaming, "on")},
 		{key: "provider", value: getRuntimeValue(info.Provider, "openrouter")},
-		{key: "model", value: getModelDisplayName(modelName)},
+		{key: "model", value: m.getModelLabel()},
 		{key: "summary", value: getModelDisplayName(info.SummaryModel)},
 		{key: "embedding", value: getModelDisplayName(info.EmbeddingModel)},
 		{key: "storage", value: getRuntimeValue(info.Storage, "sqlite")},
 	}
+}
+
+func (m model) getModelLabel() string {
+	info := m.runtimeInfo
+	modelName := getRuntimeValue(m.modelName, getRuntimeModelDisplayName(info.Provider, info.API, info.Model))
+	displayName := getModelDisplayName(modelName)
+	matches := m.reasoningMatchesCurrentModel()
+	if reasoningName := strings.TrimSpace(m.reasoning.Model.DisplayName); matches && reasoningName != "" {
+		displayName = reasoningName
+	}
+	effort := strings.TrimSpace(string(m.reasoning.EffectiveEffort))
+	if effort == "" || m.modelRestartPending || !matches {
+		return displayName
+	}
+	return displayName + " (" + effort + ")"
+}
+
+func (m model) reasoningMatchesCurrentModel() bool {
+	tuple := m.reasoning.Model
+	if strings.TrimSpace(tuple.Provider) == "" || strings.TrimSpace(tuple.Model) == "" {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(tuple.Provider), strings.TrimSpace(m.runtimeInfo.Provider)) &&
+		strings.EqualFold(strings.TrimSpace(tuple.API), strings.TrimSpace(m.runtimeInfo.API)) &&
+		strings.EqualFold(strings.TrimSpace(tuple.Model), strings.TrimSpace(m.runtimeInfo.Model))
 }
 
 // getHeaderInfoWidth returns the narrowest panel width that keeps values intact.
@@ -192,8 +216,13 @@ func getModelDisplayName(name string) string {
 	return name
 }
 
-func getRuntimeModelDisplayName(provider, modelID string) string {
-	if model, ok := modelprovider.DefaultRegistry().GetModel(provider, modelID); ok {
+func getRuntimeModelDisplayName(provider, api, modelID string) string {
+	registry := modelprovider.DefaultRegistry()
+	model, ok := registry.GetModelForAPI(provider, api, modelID)
+	if strings.TrimSpace(api) == "" {
+		model, ok = registry.GetModel(provider, modelID)
+	}
+	if ok {
 		nameValue := str.String(model.Name)
 		if name := nameValue.Trim(); name != "" {
 			return name

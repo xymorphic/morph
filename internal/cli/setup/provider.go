@@ -1122,7 +1122,10 @@ func (r providerRunner) getSetupAuthChoices(
 }
 
 func (r providerRunner) modelSupportsOAuth(selection setupSelection) bool {
-	model, ok := r.registry.GetModel(selection.provider, selection.model)
+	model, ok := r.registry.GetModelForAPI(selection.provider, selection.api, selection.model)
+	if strings.TrimSpace(selection.api) == "" {
+		model, ok = r.registry.GetModel(selection.provider, selection.model)
+	}
 	return ok && model.SupportsOAuth
 }
 

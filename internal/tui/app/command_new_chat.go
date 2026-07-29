@@ -60,6 +60,7 @@ func (m *model) completeNewChat(msg newChatCompletedMsg) tea.Cmd {
 		ID:    msg.Session.ID,
 		Title: getSessionDisplayName(msg.Session),
 	})
+	m.applyAction(setSessionReasoningAction{})
 	m.applyAction(clearTranscriptAction{})
 	m.transcriptCache.clear()
 	m.resetResponseState()
@@ -69,6 +70,12 @@ func (m *model) completeNewChat(msg newChatCompletedMsg) tea.Cmd {
 	cmds := []tea.Cmd{
 		m.setStatus("new chat created"),
 		loadSessionContextCmd(m.chatCtx, m.contextLoader, m.getCurrentSessionID()),
+		loadSessionRuntimeStateCmd(
+			m.chatCtx,
+			m.chatClient,
+			m.modelClient,
+			m.getCurrentSessionID(),
+		),
 	}
 	if err := saveLastSessionID(m.getCurrentSessionID()); err != nil {
 		cmds = append(cmds, m.setStatus("last session unavailable"))

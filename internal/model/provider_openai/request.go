@@ -2,6 +2,7 @@ package provider_openai
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 
 	models "github.com/wandxy/morph/internal/model"
@@ -19,6 +20,7 @@ type normalizedGenerateRequest struct {
 	MaxOutputTokens  int64
 	Temperature      float64
 	DebugRequests    bool
+	Reasoning        *models.ReasoningOptions
 }
 
 func normalizeGenerateRequest(req Request) (normalizedGenerateRequest, error) {
@@ -45,6 +47,10 @@ func normalizeGenerateRequest(req Request) (normalizedGenerateRequest, error) {
 	if err != nil {
 		return normalizedGenerateRequest{}, err
 	}
+	reasoning, err := normalizeReasoningOptions(req.Reasoning)
+	if err != nil {
+		return normalizedGenerateRequest{}, err
+	}
 	instructionsValue := str.String(req.Instructions)
 	return normalizedGenerateRequest{
 		Model:            model,
@@ -56,7 +62,24 @@ func normalizeGenerateRequest(req Request) (normalizedGenerateRequest, error) {
 		MaxOutputTokens:  req.MaxOutputTokens,
 		Temperature:      req.Temperature,
 		DebugRequests:    req.DebugRequests,
+		Reasoning:        reasoning,
 	}, nil
+}
+
+func normalizeReasoningOptions(value *models.ReasoningOptions) (*models.ReasoningOptions, error) {
+	if value == nil {
+		return nil, nil
+	}
+	effort := str.String(value.Effort).Normalized()
+	if effort == "" && value.Summary {
+		return &models.ReasoningOptions{Summary: true}, nil
+	}
+	switch effort {
+	case "none", "minimal", "low", "medium", "high", "xhigh", "max":
+	default:
+		return nil, fmt.Errorf("OpenAI reasoning effort %q is not supported by the installed SDK", effort)
+	}
+	return &models.ReasoningOptions{Effort: effort, Summary: value.Summary}, nil
 }
 
 func normalizeRequestAPI(api string) (string, error) {

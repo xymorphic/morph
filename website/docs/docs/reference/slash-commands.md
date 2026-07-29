@@ -28,6 +28,7 @@ When input starts with `/`, the TUI shows a filtered command menu. Tab or arrow 
 | `/clear` | Clear the on-screen transcript (does not delete stored history) | Local UI |
 | `/compact` | Force summary compaction on the current session | RPC `SessionService.Compact` |
 | `/copy` | Copy the visible transcript to the system clipboard | Local clipboard |
+| `/effort` | Inspect or change reasoning effort for the current session | RPC `SessionService.State`, `SetReasoningEffort` |
 | `/models` | Browse and select models for the current provider | Local-aware catalog + RPC `ModelService` |
 | `/providers` | Browse model providers, auth types, and local provider types | Local-aware catalog |
 | `/new-chat` | Create a new session and switch to it | RPC `SessionService.Create` |
@@ -58,6 +59,23 @@ The catalog is loaded locally. Selecting a model or entering an API key may call
 
 For Ollama, the catalog includes installed models discovered from the local runtime and suggested models that may need
 to be pulled. Use refresh in setup/model surfaces after changing local models outside Morph.
+
+### `/effort`
+
+Run `/effort` without an argument to inspect the current model's ordered effort choices, inherited default, effective
+next-turn value, and any fallback. When a turn is active, the picker shows its captured effort separately because
+changing the session setting does not change work already in flight.
+
+Use `/effort <value>` to set a session override. Matching is case-insensitive, but Morph stores and displays the
+catalog's canonical spelling. Use `/effort default` or `/effort reset` to clear the override and inherit
+`models.main.reasoningEffort`, then the catalog default.
+
+After a successful change, the header and composer status bar update immediately. If a turn is active, it continues
+with its captured effort and the new value applies to the next turn. Models without catalog-declared adjustable efforts
+show a status explanation and are not mutated.
+
+Effort overrides belong to the session, not the selected model. An unsupported stored value remains dormant when the
+model changes and becomes effective again only if a later exact provider/API/model tuple supports it.
 
 ### `/permissions`
 
@@ -90,6 +108,7 @@ supports base URL editing, installed/suggested model selection, missing-model pu
 | `/chats`, `/archive` | `SessionService.List`, `Use`, `Timeline`, `Archive`, `Unarchive`, `Rename`, `Create` |
 | `/compact` | `SessionService.Compact` |
 | `/new-chat` | `SessionService.Create` |
+| `/effort` | `SessionService.State`, `SetReasoningEffort` |
 | `/models` | `ModelService.SelectModel`, `SetProviderAPIKey` (from models view) |
 
 Full method definitions: [RPC Reference](./rpc).

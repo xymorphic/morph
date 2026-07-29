@@ -469,7 +469,7 @@ func (p *EmbeddingProvider) getEmbeddingProviderModelID(model string) string {
 		if registry == nil {
 			registry = modelprovider.DefaultRegistry()
 		}
-		modelDef, ok := registry.GetModel(p.provider, model)
+		modelDef, ok := registry.GetModelForAPI(p.provider, p.api, model)
 		if !ok {
 			return model
 		}

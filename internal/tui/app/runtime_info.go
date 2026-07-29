@@ -12,6 +12,7 @@ type runtimeInfo struct {
 	Commit            string
 	Profile           string
 	Provider          string
+	API               string
 	Model             string
 	SummaryProvider   string
 	SummaryModel      string
@@ -39,6 +40,7 @@ func runtimeInfoFromConfig(cfg *config.Config) runtimeInfo {
 
 	cfg.Normalize()
 	info.Provider = getRuntimeValue(cfg.Models.Main.Provider, info.Provider)
+	info.API = getRuntimeValue(cfg.MainModelAPIEffective(), info.API)
 	info.Model = getRuntimeValue(cfg.Models.Main.Name, info.Model)
 	info.SummaryProvider = getRuntimeValue(cfg.SummaryProviderEffective(), info.SummaryProvider)
 	info.SummaryModel = getRuntimeValue(cfg.SummaryModelEffective(), info.SummaryModel)

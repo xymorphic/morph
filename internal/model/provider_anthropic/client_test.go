@@ -168,6 +168,7 @@ func TestAnthropicClient_CompleteBuildsMessagesRequest(t *testing.T) {
 			format := body["output_config"].(map[string]any)["format"].(map[string]any)
 			require.Equal(t, "json_schema", format["type"])
 			require.Equal(t, map[string]any{"type": "object"}, format["schema"])
+			require.Equal(t, "high", body["output_config"].(map[string]any)["effort"])
 
 			return testAnthropicTextMessage("msg_123", "claude-sonnet-4-5", "done"), nil
 		},
@@ -205,6 +206,7 @@ func TestAnthropicClient_CompleteBuildsMessagesRequest(t *testing.T) {
 		},
 		MaxOutputTokens: 123,
 		Temperature:     0.2,
+		Reasoning:       &models.ReasoningOptions{Effort: "high"},
 	})
 
 	require.NoError(t, err)
@@ -540,6 +542,17 @@ func TestAnthropicClient_CompleteRejectsInvalidRequests(t *testing.T) {
 				}},
 			},
 			wantErr: "tool call name is required",
+		},
+		{
+			name: "unknown reasoning effort",
+			req: Request{
+				Model:    "claude-sonnet-4-6",
+				Messages: []morphmsg.Message{{Role: morphmsg.RoleUser, Content: "hello"}},
+				Reasoning: &models.ReasoningOptions{
+					Effort: "approximate",
+				},
+			},
+			wantErr: `anthropic reasoning effort "approximate" is not supported by the installed SDK`,
 		},
 	}
 

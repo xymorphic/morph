@@ -28,7 +28,7 @@ func getBottomStatusPanel(width int, m model) bottomStatusPanel {
 		Width:             max(width, 1),
 		HorizontalPadding: getPanelHorizontalPadding(width),
 		ContentWidth:      getPanelContentWidth(width),
-		ModelName:         m.modelName,
+		ModelName:         m.getModelLabel(),
 		Status:            m.bottomStatusText(),
 		Context:           m.context,
 		Thinking:          m.isModelThinking(),

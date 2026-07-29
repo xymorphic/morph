@@ -33,6 +33,7 @@ type StreamDelta struct {
 
 type Request struct {
 	Model            string
+	Provider         string
 	API              string
 	Instructions     string
 	Messages         []message.Message
@@ -42,6 +43,12 @@ type Request struct {
 	MaxOutputTokens  int64
 	Temperature      float64
 	DebugRequests    bool
+	Reasoning        *ReasoningOptions
+}
+
+type ReasoningOptions struct {
+	Effort  string
+	Summary bool
 }
 
 type StructuredOutput struct {

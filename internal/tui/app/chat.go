@@ -444,7 +444,7 @@ func (m *model) completeResponse(msg responseCompletedMsg) tea.Cmd {
 }
 
 func (m *model) cancelActiveResponse() tea.Cmd {
-	if !m.responding {
+	if !m.isTranscriptResponseActive() {
 		return nil
 	}
 
