@@ -604,6 +604,7 @@ func (t *Turn) Run(ctx context.Context, msg string, opts agentcore.RespondOption
 				reasoningStartedAt time.Time
 				reasoningEndedAt   time.Time
 				reasoningSummary   strings.Builder
+				assistantText      strings.Builder
 			)
 
 			if streamingEnabled {
@@ -622,6 +623,9 @@ func (t *Turn) Run(ctx context.Context, msg string, opts agentcore.RespondOption
 					if delta.Channel == models.StreamChannelReasoningSummary {
 						reasoningSummary.WriteString(delta.Text)
 					}
+					if delta.Channel == models.StreamChannelAssistant {
+						assistantText.WriteString(delta.Text)
+					}
 					event := agentcore.Event{Kind: EventKindTextDelta, Channel: string(delta.Channel), Text: delta.Text}
 					if opts.OnEvent != nil {
 						opts.OnEvent(event)
@@ -634,6 +638,9 @@ func (t *Turn) Run(ctx context.Context, msg string, opts agentcore.RespondOption
 
 			// Model request failed or provided no response.
 			if err != nil {
+				if persistErr := t.persistPartialAssistantResponse(ctx, assistantText.String()); persistErr != nil {
+					err = errors.Join(err, fmt.Errorf("persist partial assistant response: %w", persistErr))
+				}
 				agentLog.Warn().
 					Str("provider", request.Provider).
 					Str("api", request.API).
@@ -902,6 +909,28 @@ func (t *Turn) canCompactPersistedHistory() bool {
 // appendSessionMessages persists new emitted messages to the session state.
 func (t *Turn) appendSessionMessages(messages []morphmsg.Message) error {
 	return t.sessionStore.AppendMessages(t.ctx, t.sessionID, messages)
+}
+
+func (t *Turn) persistPartialAssistantResponse(ctx context.Context, text string) error {
+	textValue := str.String(text)
+	if textValue.Trim() == "" {
+		return nil
+	}
+
+	message, err := morphmsg.NewMessage(morphmsg.RoleAssistant, text)
+	if err != nil {
+		return err
+	}
+	if err := t.sessionStore.AppendMessages(
+		context.WithoutCancel(ctx),
+		t.sessionID,
+		[]morphmsg.Message{message},
+	); err != nil {
+		return err
+	}
+	t.emittedMessages = append(t.emittedMessages, message)
+
+	return nil
 }
 
 func isReasoningStreamChannel(channel models.StreamChannel) bool {

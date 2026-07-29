@@ -280,6 +280,136 @@ func TestSessionQueueTUI_EscapeInterruptsObservedQueuedRun(t *testing.T) {
 	require.False(t, runModel.thinkingComposerActive)
 }
 
+func TestSessionQueueTUI_FinalizesInterruptedResponseBeforeNextQueuedUserMessage(t *testing.T) {
+	runModel := newModelWithClient(&sessionQueueTUIClient{})
+	runModel.sessionObserverSessionID = defaultSessionID
+	runModel.sessionObserverID = 2
+	runModel.sessionObserverEvents = make(chan tea.Msg)
+
+	applyEvent := func(event rpcclient.SessionEvent) {
+		_ = runModel.applySessionQueueEvent(sessionQueueEventMsg{
+			SessionID:  defaultSessionID,
+			ObserverID: 2,
+			Event:      event,
+		})
+	}
+
+	applyEvent(rpcclient.SessionEvent{
+		Cursor: 1,
+		Run: &rpcclient.SessionActiveRun{
+			ID:           "run_first",
+			QueueEntryID: "qmsg_first",
+			Status:       agentsession.RunStatusRunning,
+		},
+	})
+	applyEvent(rpcclient.SessionEvent{Progress: &agentsession.ProgressEvent{
+		RunID:        "run_first",
+		QueueEntryID: "qmsg_first",
+		Sequence:     1,
+		TraceEvent: &agentsession.TraceEvent{
+			Type:    trace.EvtUserMessageAccepted,
+			Payload: map[string]any{"message": "first prompt"},
+		},
+	}})
+	applyEvent(rpcclient.SessionEvent{Progress: &agentsession.ProgressEvent{
+		RunID:        "run_first",
+		QueueEntryID: "qmsg_first",
+		Sequence:     2,
+		Channel:      "assistant",
+		Text:         "partial response",
+	}})
+	applyEvent(rpcclient.SessionEvent{
+		Cursor: 2,
+		Run: &rpcclient.SessionActiveRun{
+			ID:           "run_first",
+			QueueEntryID: "qmsg_first",
+			Status:       agentsession.RunStatusInterrupted,
+		},
+	})
+	applyEvent(rpcclient.SessionEvent{
+		Cursor: 3,
+		Run: &rpcclient.SessionActiveRun{
+			ID:           "run_second",
+			QueueEntryID: "qmsg_second",
+			Status:       agentsession.RunStatusRunning,
+		},
+	})
+	applyEvent(rpcclient.SessionEvent{Progress: &agentsession.ProgressEvent{
+		RunID:        "run_second",
+		QueueEntryID: "qmsg_second",
+		Sequence:     1,
+		TraceEvent: &agentsession.TraceEvent{
+			Type:    trace.EvtUserMessageAccepted,
+			Payload: map[string]any{"message": "second prompt"},
+		},
+	}})
+
+	require.Nil(t, runModel.live)
+	require.Equal(t, []string{
+		"You: first prompt",
+		"Morph: partial response",
+		"You: second prompt",
+	}, transcriptCellPlainTexts(runModel.messages))
+}
+
+func TestSessionQueueTUI_StateRefreshFinalizesInterruptedResponseBeforeSuccessor(t *testing.T) {
+	runModel := newModelWithClient(&sessionQueueTUIClient{})
+	runModel.sessionObserverSessionID = defaultSessionID
+	runModel.sessionObserverID = 2
+	runModel.sessionObserverEvents = make(chan tea.Msg)
+	runModel.sessionExecutionState = rpcclient.SessionExecutionState{
+		SessionID: defaultSessionID,
+		Cursor:    1,
+		ActiveRun: &rpcclient.SessionActiveRun{
+			ID:           "run_first",
+			QueueEntryID: "qmsg_first",
+			Status:       agentsession.RunStatusRunning,
+		},
+	}
+	runModel.messages = []transcriptCell{userTranscriptCell{text: "first prompt"}}
+	runModel.appendAssistantDelta("partial response")
+
+	_ = runModel.applySessionExecutionState(sessionExecutionStateLoadedMsg{
+		State: rpcclient.SessionExecutionState{
+			SessionID: defaultSessionID,
+			Cursor:    2,
+		},
+	})
+	observerID := runModel.sessionObserverID
+	_ = runModel.applySessionQueueEvent(sessionQueueEventMsg{
+		SessionID:  defaultSessionID,
+		ObserverID: observerID,
+		Event: rpcclient.SessionEvent{
+			Cursor: 3,
+			Run: &rpcclient.SessionActiveRun{
+				ID:           "run_second",
+				QueueEntryID: "qmsg_second",
+				Status:       agentsession.RunStatusRunning,
+			},
+		},
+	})
+	_ = runModel.applySessionQueueEvent(sessionQueueEventMsg{
+		SessionID:  defaultSessionID,
+		ObserverID: observerID,
+		Event: rpcclient.SessionEvent{Progress: &agentsession.ProgressEvent{
+			RunID:        "run_second",
+			QueueEntryID: "qmsg_second",
+			Sequence:     1,
+			TraceEvent: &agentsession.TraceEvent{
+				Type:    trace.EvtUserMessageAccepted,
+				Payload: map[string]any{"message": "second prompt"},
+			},
+		}},
+	})
+
+	require.Nil(t, runModel.live)
+	require.Equal(t, []string{
+		"You: first prompt",
+		"Morph: partial response",
+		"You: second prompt",
+	}, transcriptCellPlainTexts(runModel.messages))
+}
+
 func TestSessionQueueTUI_HydratedActiveRunStartsThinking(t *testing.T) {
 	runModel := newModelWithClient(&sessionQueueTUIClient{})
 

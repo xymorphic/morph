@@ -486,6 +486,7 @@ var _ storage.TraceStore = (*stateStoreStub)(nil)
 
 type sessionStoreStub struct {
 	messagesByOffset map[int][]morphmsg.Message
+	appendedMessages []morphmsg.Message
 	err              error
 	errAtGet         int
 	getCalls         int
@@ -523,10 +524,13 @@ func (s *sessionStoreStub) GetMessages(
 	return s.messagesByOffset[query.Offset], nil
 }
 
-func (s *sessionStoreStub) AppendMessages(context.Context, string, []morphmsg.Message) error {
+func (s *sessionStoreStub) AppendMessages(_ context.Context, _ string, messages []morphmsg.Message) error {
 	s.appendCalls++
 	if s.appendErrAt > 0 && s.appendCalls != s.appendErrAt {
 		return nil
+	}
+	if s.appendErr == nil {
+		s.appendedMessages = append(s.appendedMessages, messages...)
 	}
 	return s.appendErr
 }
@@ -772,7 +776,7 @@ func (badTurnEnvironment) Tools(string)      {}
 func (badTurnEnvironment) ToolPolicy(string) {}
 
 func newTurnRunTestSubject(
-	client *mocks.ModelClientStub,
+	client models.Client,
 	sessionStore *sessionStoreStub,
 	registry *toolGroupRegistryStub,
 	budget envbudget.IterationBudget,

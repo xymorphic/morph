@@ -32,6 +32,27 @@ import (
 	agenttool "github.com/wandxy/morph/pkg/agent/tool"
 )
 
+type interruptedStreamingModelClient struct{}
+
+func (interruptedStreamingModelClient) Complete(
+	context.Context,
+	models.Request,
+) (*models.Response, error) {
+	return nil, context.Canceled
+}
+
+func (interruptedStreamingModelClient) CompleteStream(
+	_ context.Context,
+	_ models.Request,
+	onDelta func(models.StreamDelta),
+) (*models.Response, error) {
+	onDelta(models.StreamDelta{
+		Channel: models.StreamChannelAssistant,
+		Text:    "partial response",
+	})
+	return nil, context.Canceled
+}
+
 func TestTurn_ReasoningSnapshotOwnsMainRequestIdentityAndOptions(t *testing.T) {
 	turn := &Turn{cfg: &config.Config{
 		Models: config.ModelsConfig{Main: config.MainModelConfig{
@@ -53,6 +74,27 @@ func TestTurn_ReasoningSnapshotOwnsMainRequestIdentityAndOptions(t *testing.T) {
 	require.Equal(t, models.APIOpenAIResponses, api)
 	require.Equal(t, "claimed-model", model)
 	require.Equal(t, &models.ReasoningOptions{Effort: "high", Summary: true}, turn.getReasoningOptions())
+}
+
+func TestTurn_RunPersistsPartialAssistantResponseWhenStreamIsInterrupted(t *testing.T) {
+	stream := true
+	store := &sessionStoreStub{messagesByOffset: map[int][]morphmsg.Message{}}
+	turn := newTurnRunTestSubject(
+		interruptedStreamingModelClient{},
+		store,
+		&toolGroupRegistryStub{},
+		envbudget.New(1),
+	)
+	turn.cfg.Models.Main.Stream = &stream
+
+	_, err := turn.Run(context.Background(), "hello", agentcore.RespondOptions{})
+
+	require.ErrorIs(t, err, context.Canceled)
+	require.Len(t, store.appendedMessages, 2)
+	require.Equal(t, morphmsg.RoleUser, store.appendedMessages[0].Role)
+	require.Equal(t, "hello", store.appendedMessages[0].Content)
+	require.Equal(t, morphmsg.RoleAssistant, store.appendedMessages[1].Role)
+	require.Equal(t, "partial response", store.appendedMessages[1].Content)
 }
 
 func TestTurn_ReasoningOptionsPreserveSummaryWithoutEffort(t *testing.T) {

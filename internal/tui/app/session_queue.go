@@ -206,6 +206,13 @@ func (m *model) applySessionExecutionState(msg sessionExecutionStateLoadedMsg) t
 	if m.sessionObserverCancel != nil {
 		m.sessionObserverCancel()
 	}
+	nextActiveRunID := ""
+	if msg.State.ActiveRun != nil {
+		nextActiveRunID = msg.State.ActiveRun.ID
+	}
+	if previousActiveRunID != "" && previousActiveRunID != nextActiveRunID {
+		m.finalizeObservedRunResponse(previousActiveRunID)
+	}
 	m.sessionExecutionState = msg.State
 	var reasoningStateCmd tea.Cmd
 	switch {
@@ -430,6 +437,7 @@ func (m *model) applySessionQueueEvent(msg sessionQueueEventMsg) tea.Cmd {
 			cmds = append(cmds, m.startThinkingComposer())
 			cmds = append(cmds, m.flushDeferredSessionProgress(run.QueueEntryID)...)
 		} else {
+			m.finalizeObservedRunResponse(event.Run.ID)
 			m.sessionExecutionState.ActiveRun = nil
 			m.setActiveRunReasoning(agentsession.ReasoningSnapshot{})
 			m.dropDeferredSessionProgress(event.Run.QueueEntryID)
@@ -456,6 +464,19 @@ func (m *model) applySessionQueueEvent(msg sessionQueueEventMsg) tea.Cmd {
 		)
 	}
 	return tea.Batch(cmds...)
+}
+
+func (m *model) finalizeObservedRunResponse(runID string) {
+	activeRun := m.sessionExecutionState.ActiveRun
+	if m.responding ||
+		activeRun == nil ||
+		activeRun.ID != runID ||
+		m.live == nil ||
+		m.live.IsEmpty() {
+		return
+	}
+
+	m.completeAssistantResponse("", m.getCompletedResponseDuration())
 }
 
 func (m *model) setActiveRunReasoning(snapshot agentsession.ReasoningSnapshot) {
