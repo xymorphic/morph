@@ -1403,6 +1403,7 @@ func TestService_GetSessionStatusReturnsResult(t *testing.T) {
 		Remaining:        64000,
 		UsedPct:          0.5,
 		RemainingPct:     0.5,
+		UsageSource:      "estimated",
 		CreatedAt:        created,
 		UpdatedAt:        updated,
 		CompactionStatus: "running",
@@ -1422,6 +1423,7 @@ func TestService_GetSessionStatusReturnsResult(t *testing.T) {
 	require.EqualValues(t, 64000, resp.GetContext().GetRemaining())
 	require.Equal(t, 0.5, resp.GetContext().GetUsedPct())
 	require.Equal(t, 0.5, resp.GetContext().GetRemainingPct())
+	require.Equal(t, "estimated", resp.GetContext().GetUsageSource())
 	require.Equal(t, timestamppb.New(created), resp.GetCreatedAt())
 	require.Equal(t, timestamppb.New(updated), resp.GetUpdatedAt())
 	require.Equal(t, "running", resp.GetCompactionStatus())

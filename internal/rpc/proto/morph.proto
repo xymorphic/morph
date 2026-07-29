@@ -234,6 +234,7 @@ message GetSessionStatusResponse {
     int32 remaining = 4;
     double used_pct = 5;
     double remaining_pct = 6;
+    string usage_source = 7;
   }
 }
 

@@ -32,6 +32,7 @@ type ContextStatus struct {
 	Remaining        int
 	UsedPct          float64
 	RemainingPct     float64
+	UsageSource      string
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	CompactionStatus string

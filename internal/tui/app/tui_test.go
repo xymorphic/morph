@@ -2609,6 +2609,17 @@ func TestFormatSessionContextUsageComputesMissingPercent(t *testing.T) {
 	require.Equal(t, "130,000 used · 65%", formatSessionContextUsage(status))
 }
 
+func TestFormatSessionContextUsageLabelsEstimatedUsage(t *testing.T) {
+	status := rpcclient.ContextStatus{
+		Length:      128000,
+		Used:        32000,
+		UsedPct:     0.25,
+		UsageSource: "estimated",
+	}
+
+	require.Equal(t, "~32,000 used · ~25%", formatSessionContextUsage(status))
+}
+
 func TestLoadSessionTitleCmdReturnsLoadedTitle(t *testing.T) {
 	client := &fakeTUIChatClient{
 		currentSession: storage.Session{
@@ -2709,10 +2720,11 @@ func TestModel_ApplyTUIMessageRendersLiveAutoCompactionTrace(t *testing.T) {
 
 func TestModel_ApplyTUIMessageRefreshesContextAfterCompaction(t *testing.T) {
 	client := &fakeTUIChatClient{contextStatus: rpcclient.ContextStatus{
-		SessionID: "default",
-		Used:      77509,
-		Length:    128000,
-		UsedPct:   float64(77509) / 128000,
+		SessionID:   "default",
+		Used:        77509,
+		Length:      128000,
+		UsedPct:     float64(77509) / 128000,
+		UsageSource: "estimated",
 	}}
 	runModel := newModelWithClient(client)
 	runModel.sessionID = "default"
@@ -2727,7 +2739,7 @@ func TestModel_ApplyTUIMessageRefreshesContextAfterCompaction(t *testing.T) {
 	updated, _ := runModel.Update(message)
 	runModel = updated.(model)
 	require.Equal(t, 1, client.contextCalls)
-	require.Equal(t, "77,509 used · 61%", runModel.context)
+	require.Equal(t, "~77,509 used · ~61%", runModel.context)
 }
 
 func TestModel_UpdateReportsTimelineLoadFailure(t *testing.T) {

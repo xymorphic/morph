@@ -10796,6 +10796,7 @@ type GetSessionStatusResponse_Context struct {
 	Remaining     int32                  `protobuf:"varint,4,opt,name=remaining,proto3" json:"remaining,omitempty"`
 	UsedPct       float64                `protobuf:"fixed64,5,opt,name=used_pct,json=usedPct,proto3" json:"used_pct,omitempty"`
 	RemainingPct  float64                `protobuf:"fixed64,6,opt,name=remaining_pct,json=remainingPct,proto3" json:"remaining_pct,omitempty"`
+	UsageSource   string                 `protobuf:"bytes,7,opt,name=usage_source,json=usageSource,proto3" json:"usage_source,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -10870,6 +10871,13 @@ func (x *GetSessionStatusResponse_Context) GetRemainingPct() float64 {
 		return x.RemainingPct
 	}
 	return 0
+}
+
+func (x *GetSessionStatusResponse_Context) GetUsageSource() string {
+	if x != nil {
+		return x.UsageSource
+	}
+	return ""
 }
 
 var File_internal_rpc_proto_morph_proto protoreflect.FileDescriptor
@@ -10961,7 +10969,7 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"\x1eGetSessionStatusRequestContext\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"]\n" +
 	"\x17GetSessionStatusRequest\x12B\n" +
-	"\acontext\x18\x01 \x01(\v2(.morph.v1.GetSessionStatusRequestContextR\acontext\"\xd5\x03\n" +
+	"\acontext\x18\x01 \x01(\v2(.morph.v1.GetSessionStatusRequestContextR\acontext\"\xf8\x03\n" +
 	"\x18GetSessionStatusResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12D\n" +
 	"\acontext\x18\x02 \x01(\v2*.morph.v1.GetSessionStatusResponse.ContextR\acontext\x12\x12\n" +
@@ -10970,14 +10978,15 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12+\n" +
-	"\x11compaction_status\x18\x06 \x01(\tR\x10compactionStatus\x1a\xab\x01\n" +
+	"\x11compaction_status\x18\x06 \x01(\tR\x10compactionStatus\x1a\xce\x01\n" +
 	"\aContext\x12\x16\n" +
 	"\x06offset\x18\x01 \x01(\x05R\x06offset\x12\x16\n" +
 	"\x06length\x18\x02 \x01(\x05R\x06length\x12\x12\n" +
 	"\x04used\x18\x03 \x01(\x05R\x04used\x12\x1c\n" +
 	"\tremaining\x18\x04 \x01(\x05R\tremaining\x12\x19\n" +
 	"\bused_pct\x18\x05 \x01(\x01R\ausedPct\x12#\n" +
-	"\rremaining_pct\x18\x06 \x01(\x01R\fremainingPct\"\xbb\x01\n" +
+	"\rremaining_pct\x18\x06 \x01(\x01R\fremainingPct\x12!\n" +
+	"\fusage_source\x18\a \x01(\tR\vusageSource\"\xbb\x01\n" +
 	"\x19GetSessionTimelineRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0emessage_offset\x18\x02 \x01(\x05R\rmessageOffset\x12#\n" +

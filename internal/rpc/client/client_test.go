@@ -476,6 +476,7 @@ func TestClient_GetSessionStatusReturnsResult(t *testing.T) {
 			Remaining:    64000,
 			UsedPct:      0.5,
 			RemainingPct: 0.5,
+			UsageSource:  "estimated",
 		},
 	}}
 	client := NewSessionService(stub)
@@ -492,6 +493,7 @@ func TestClient_GetSessionStatusReturnsResult(t *testing.T) {
 	require.Equal(t, 64000, result.Remaining)
 	require.Equal(t, 0.5, result.UsedPct)
 	require.Equal(t, 0.5, result.RemainingPct)
+	require.Equal(t, "estimated", result.UsageSource)
 	require.True(t, created.Equal(result.CreatedAt))
 	require.True(t, updated.Equal(result.UpdatedAt))
 	require.Equal(t, "pending", result.CompactionStatus)

@@ -1488,6 +1488,21 @@ func (t *Turn) Context() []morphmsg.Message {
 	})
 }
 
+func (t *Turn) getCurrentContextEstimate() (compaction.Estimate, error) {
+	availableToolDefinitions, err := t.availableToolDefinitions()
+	if err != nil {
+		return compaction.Estimate{}, err
+	}
+
+	request := models.Request{
+		Instructions: t.buildRequestInstructions(availableToolDefinitions),
+		Messages:     t.Context(),
+		Tools:        availableToolDefinitions,
+	}
+
+	return getCompactionEvaluator(t.cfg).Evaluate(request, compaction.Anchor{}), nil
+}
+
 // recordPostflightUsage persists post-model token usage for analytics and session tracking.
 func (t *Turn) recordPostflightUsage(traceSession trace.Session, resp *models.Response, messageCount int) error {
 	if t == nil || resp == nil || resp.PromptTokens <= 0 {

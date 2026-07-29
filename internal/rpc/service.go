@@ -1531,6 +1531,7 @@ func (s *Service) Status(ctx context.Context, req *morphpb.GetSessionStatusReque
 			Remaining:    int32(result.Remaining),
 			UsedPct:      result.UsedPct,
 			RemainingPct: result.RemainingPct,
+			UsageSource:  result.UsageSource,
 		},
 	}, nil
 }

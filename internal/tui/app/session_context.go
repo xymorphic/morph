@@ -58,8 +58,19 @@ func formatSessionContextUsage(status rpcclient.ContextStatus) string {
 		usedPct = float64(used) / float64(total)
 	}
 	percent := int(math.Round(max(usedPct, 0) * 100))
+	prefix := ""
+	usageSourceValue := str.String(status.UsageSource)
+	if usageSourceValue.Normalized() == "estimated" {
+		prefix = "~"
+	}
 
-	return fmt.Sprintf("%s used · %d%%", formatContextTokenCount(used), percent)
+	return fmt.Sprintf(
+		"%s%s used · %s%d%%",
+		prefix,
+		formatContextTokenCount(used),
+		prefix,
+		percent,
+	)
 }
 
 func formatContextTokenCount(value int) string {

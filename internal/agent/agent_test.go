@@ -16,6 +16,7 @@ import (
 	"github.com/wandxy/morph/internal/environment"
 	envbudget "github.com/wandxy/morph/internal/environment/budget"
 	"github.com/wandxy/morph/internal/guardrails"
+	instruct "github.com/wandxy/morph/internal/instructions"
 	"github.com/wandxy/morph/internal/mocks"
 	models "github.com/wandxy/morph/internal/model"
 	"github.com/wandxy/morph/internal/permissions"
@@ -485,6 +486,7 @@ func TestAgent_LifecycleHelpersValidateAndUseStateManager(t *testing.T) {
 		require.Equal(t, 75, status.Remaining)
 		require.Equal(t, 0.25, status.UsedPct)
 		require.Equal(t, 0.75, status.RemainingPct)
+		require.Equal(t, "actual", status.UsageSource)
 
 		status, err = core.GetSessionStatus(context.Background(), storage.DefaultSessionID)
 		require.NoError(t, err)
@@ -494,6 +496,43 @@ func TestAgent_LifecycleHelpersValidateAndUseStateManager(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ok)
 		require.Equal(t, storage.DefaultSessionID, loaded.ID)
+	})
+
+	t.Run("estimates context when no provider measurement remains", func(t *testing.T) {
+		core, store := newCore(t)
+		store.session.LastPromptTokens = 0
+		store.summaries[storage.DefaultSessionID] = storage.SessionSummary{
+			SessionID:          storage.DefaultSessionID,
+			SourceEndOffset:    2,
+			SourceMessageCount: 3,
+			SessionSummary:     "Compacted history",
+		}
+		store.messages = []morphmsg.Message{
+			{Role: morphmsg.RoleUser, Content: "older question"},
+			{Role: morphmsg.RoleAssistant, Content: "older answer"},
+			{Role: morphmsg.RoleUser, Content: "retained question"},
+		}
+		core.modelClient = &mocks.ModelClientStub{}
+		core.summaryClient = core.modelClient
+		core.cfg.Models.Main.ContextLength = 10000
+		core.env = &mocks.EnvironmentStub{
+			InstructionsList: instruct.New("base instructions"),
+			ToolRegistry:     &mocks.ToolRegistryStub{},
+		}
+
+		status, err := core.ContextStatus(context.Background(), storage.DefaultSessionID)
+
+		require.NoError(t, err)
+		require.Positive(t, status.Used)
+		require.Less(t, status.Used, status.Length)
+		require.Equal(t, "estimated", status.UsageSource)
+		require.Equal(t, float64(status.Used)/float64(status.Length), status.UsedPct)
+
+		store.summaries[storage.DefaultSessionID] = storage.SessionSummary{}
+		store.messages = nil
+		baseline, err := core.loadCurrentContextEstimate(context.Background(), storage.DefaultSessionID)
+		require.NoError(t, err)
+		require.Greater(t, status.Used, baseline.PromptTokens)
 	})
 
 	t.Run("creates and filters sessions", func(t *testing.T) {

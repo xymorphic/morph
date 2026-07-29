@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/wandxy/morph/internal/agent/context/compaction"
 	agentsummary "github.com/wandxy/morph/internal/agent/context/summary"
 	"github.com/wandxy/morph/internal/agent/runcontext"
 	"github.com/wandxy/morph/internal/config"
@@ -1381,6 +1382,18 @@ func (a *Agent) ContextStatus(ctx context.Context, id string) (agentcore.Context
 
 	total := max(a.cfg.Models.Main.ContextLength, 0)
 	used := max(session.LastPromptTokens, 0)
+	usageSource := compaction.ActualSource
+	if used == 0 {
+		estimate, estimateErr := a.loadCurrentContextEstimate(ctx, session.ID)
+		if estimateErr != nil {
+			return agentcore.ContextStatus{}, estimateErr
+		}
+		used = max(estimate.PromptTokens, 0)
+		usageSource = estimate.Source
+		if total == 0 {
+			total = max(estimate.ContextLimit, 0)
+		}
+	}
 	remaining := max(total-used, 0)
 
 	status := agentcore.ContextStatus{
@@ -1390,6 +1403,7 @@ func (a *Agent) ContextStatus(ctx context.Context, id string) (agentcore.Context
 		Length:           total,
 		Used:             used,
 		Remaining:        remaining,
+		UsageSource:      usageSource,
 		CreatedAt:        session.CreatedAt,
 		UpdatedAt:        session.UpdatedAt,
 		CompactionStatus: string(session.Compaction.Status),
@@ -1400,6 +1414,23 @@ func (a *Agent) ContextStatus(ctx context.Context, id string) (agentcore.Context
 	}
 
 	return status, nil
+}
+
+func (a *Agent) loadCurrentContextEstimate(
+	ctx context.Context,
+	sessionID string,
+) (compaction.Estimate, error) {
+	turn := a.newTurn(a.env, a.invokeToolWithEnvironment)
+	if err := turn.load(normalizeContext(ctx), agentcore.RespondOptions{SessionID: sessionID}); err != nil {
+		return compaction.Estimate{}, fmt.Errorf("load current context: %w", err)
+	}
+
+	estimate, err := turn.getCurrentContextEstimate()
+	if err != nil {
+		return compaction.Estimate{}, fmt.Errorf("estimate current context: %w", err)
+	}
+
+	return estimate, nil
 }
 
 // GetSessionStatus returns the same context status shape used by session inspection.
