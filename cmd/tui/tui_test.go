@@ -363,9 +363,9 @@ type fakeTUIChatClient struct {
 	closed bool
 }
 
-func (c *fakeTUIChatClient) SubmitMessage(
+func (c *fakeTUIChatClient) EnqueueMessage(
 	context.Context,
-	rpcclient.SubmitMessageOptions,
+	rpcclient.EnqueueMessageOptions,
 ) (rpcclient.SessionQueueEntry, error) {
 	return rpcclient.SessionQueueEntry{}, nil
 }

@@ -45,6 +45,26 @@ Type into the composer at the bottom and press **Enter** to send. While the comp
 Lines beginning with `/` are treated as [slash commands](#slash-commands) rather than messages, and a command menu
 appears as you type.
 
+### Queued messages
+
+Sending while a response is active adds the message to the session's pending queue. The queue panel appears above the
+composer with one preview per pending message and actions for steering, promoting, editing, and removing it. The active
+message is shown in the transcript, not duplicated in this panel.
+
+Run `/queue` or press **Ctrl+Q** to focus the panel, then use **Up/Down** or **J/K** to select a row. Queue actions target
+that selected row; the TUI resolves its internal queue entry ID for you:
+
+| Action | Key |
+| --- | --- |
+| Promote to run next | **Enter** |
+| Convert to steering | **S** |
+| Edit | **E** |
+| Remove | **X**, **Delete**, or **Backspace** |
+| Leave queue focus | **Esc** or **Ctrl+Q** |
+
+Mouse users can select a row and click the corresponding action icon. Queue entry IDs such as `qmsg_...` are an
+internal RPC detail and are not needed for normal TUI use.
+
 ## Watching a Response
 
 When you send a message, Morph streams the turn into the transcript as it happens. Depending on the model and what the
@@ -113,6 +133,9 @@ are:
 | `/models` | Show supported models |
 | `/providers` | Show supported model providers |
 | `/permissions` | Choose a permission preset while preserving configured permission rules |
+| `/queue` | Focus pending messages |
+| `/steer <message>` | Add steering for the active run with follow-up fallback |
+| `/interrupt` | Interrupt the active session run |
 | `/setup` | Open setup |
 | `/changelog` | Show the latest changelog entry |
 
@@ -163,6 +186,7 @@ stopped as you leave; a daemon that was already running keeps running.
 | Ctrl+P / Ctrl+N | Previous / next prompt in history |
 | Up / Down | Prompt history (single-line prompt) or move within the command menu / cursor |
 | Esc | Cancel the in-progress response, or close an open panel |
+| Ctrl+Q | Enter or leave pending-message queue focus |
 | Ctrl+End | Jump to the bottom of the transcript |
 | Ctrl+Y | Copy the transcript (or the open panel's contents) |
 | Ctrl+C | Exit (press again to confirm) |

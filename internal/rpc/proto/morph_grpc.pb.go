@@ -30,7 +30,7 @@ const (
 	SessionService_Repair_FullMethodName               = "/morph.v1.SessionService/Repair"
 	SessionService_Status_FullMethodName               = "/morph.v1.SessionService/Status"
 	SessionService_Timeline_FullMethodName             = "/morph.v1.SessionService/Timeline"
-	SessionService_SubmitMessage_FullMethodName        = "/morph.v1.SessionService/SubmitMessage"
+	SessionService_EnqueueMessage_FullMethodName       = "/morph.v1.SessionService/EnqueueMessage"
 	SessionService_State_FullMethodName                = "/morph.v1.SessionService/State"
 	SessionService_Observe_FullMethodName              = "/morph.v1.SessionService/Observe"
 	SessionService_EditQueuedMessage_FullMethodName    = "/morph.v1.SessionService/EditQueuedMessage"
@@ -56,7 +56,7 @@ type SessionServiceClient interface {
 	Repair(ctx context.Context, in *RepairSessionRequest, opts ...grpc.CallOption) (*RepairSessionResponse, error)
 	Status(ctx context.Context, in *GetSessionStatusRequest, opts ...grpc.CallOption) (*GetSessionStatusResponse, error)
 	Timeline(ctx context.Context, in *GetSessionTimelineRequest, opts ...grpc.CallOption) (*GetSessionTimelineResponse, error)
-	SubmitMessage(ctx context.Context, in *SubmitSessionMessageRequest, opts ...grpc.CallOption) (*SubmitSessionMessageResponse, error)
+	EnqueueMessage(ctx context.Context, in *EnqueueSessionMessageRequest, opts ...grpc.CallOption) (*EnqueueSessionMessageResponse, error)
 	State(ctx context.Context, in *GetSessionStateRequest, opts ...grpc.CallOption) (*GetSessionStateResponse, error)
 	Observe(ctx context.Context, in *ObserveSessionRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ObserveSessionResponse], error)
 	EditQueuedMessage(ctx context.Context, in *EditQueuedSessionMessageRequest, opts ...grpc.CallOption) (*EditQueuedSessionMessageResponse, error)
@@ -185,10 +185,10 @@ func (c *sessionServiceClient) Timeline(ctx context.Context, in *GetSessionTimel
 	return out, nil
 }
 
-func (c *sessionServiceClient) SubmitMessage(ctx context.Context, in *SubmitSessionMessageRequest, opts ...grpc.CallOption) (*SubmitSessionMessageResponse, error) {
+func (c *sessionServiceClient) EnqueueMessage(ctx context.Context, in *EnqueueSessionMessageRequest, opts ...grpc.CallOption) (*EnqueueSessionMessageResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SubmitSessionMessageResponse)
-	err := c.cc.Invoke(ctx, SessionService_SubmitMessage_FullMethodName, in, out, cOpts...)
+	out := new(EnqueueSessionMessageResponse)
+	err := c.cc.Invoke(ctx, SessionService_EnqueueMessage_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +299,7 @@ type SessionServiceServer interface {
 	Repair(context.Context, *RepairSessionRequest) (*RepairSessionResponse, error)
 	Status(context.Context, *GetSessionStatusRequest) (*GetSessionStatusResponse, error)
 	Timeline(context.Context, *GetSessionTimelineRequest) (*GetSessionTimelineResponse, error)
-	SubmitMessage(context.Context, *SubmitSessionMessageRequest) (*SubmitSessionMessageResponse, error)
+	EnqueueMessage(context.Context, *EnqueueSessionMessageRequest) (*EnqueueSessionMessageResponse, error)
 	State(context.Context, *GetSessionStateRequest) (*GetSessionStateResponse, error)
 	Observe(*ObserveSessionRequest, grpc.ServerStreamingServer[ObserveSessionResponse]) error
 	EditQueuedMessage(context.Context, *EditQueuedSessionMessageRequest) (*EditQueuedSessionMessageResponse, error)
@@ -351,8 +351,8 @@ func (UnimplementedSessionServiceServer) Status(context.Context, *GetSessionStat
 func (UnimplementedSessionServiceServer) Timeline(context.Context, *GetSessionTimelineRequest) (*GetSessionTimelineResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Timeline not implemented")
 }
-func (UnimplementedSessionServiceServer) SubmitMessage(context.Context, *SubmitSessionMessageRequest) (*SubmitSessionMessageResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method SubmitMessage not implemented")
+func (UnimplementedSessionServiceServer) EnqueueMessage(context.Context, *EnqueueSessionMessageRequest) (*EnqueueSessionMessageResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method EnqueueMessage not implemented")
 }
 func (UnimplementedSessionServiceServer) State(context.Context, *GetSessionStateRequest) (*GetSessionStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method State not implemented")
@@ -597,20 +597,20 @@ func _SessionService_Timeline_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SessionService_SubmitMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SubmitSessionMessageRequest)
+func _SessionService_EnqueueMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EnqueueSessionMessageRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SessionServiceServer).SubmitMessage(ctx, in)
+		return srv.(SessionServiceServer).EnqueueMessage(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SessionService_SubmitMessage_FullMethodName,
+		FullMethod: SessionService_EnqueueMessage_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SessionServiceServer).SubmitMessage(ctx, req.(*SubmitSessionMessageRequest))
+		return srv.(SessionServiceServer).EnqueueMessage(ctx, req.(*EnqueueSessionMessageRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -804,8 +804,8 @@ var SessionService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _SessionService_Timeline_Handler,
 		},
 		{
-			MethodName: "SubmitMessage",
-			Handler:    _SessionService_SubmitMessage_Handler,
+			MethodName: "EnqueueMessage",
+			Handler:    _SessionService_EnqueueMessage_Handler,
 		},
 		{
 			MethodName: "State",

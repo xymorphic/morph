@@ -15,7 +15,7 @@ import (
 func TestSessionQueueClient_MapsSubmitStateAndObserve(t *testing.T) {
 	streamEnabled := false
 	stub := &protomock.MorphServiceClientStub{
-		SubmitMessageResp: &morphpb.SubmitSessionMessageResponse{
+		EnqueueMessageResp: &morphpb.EnqueueSessionMessageResponse{
 			Entry: &morphpb.SessionQueueEntry{
 				Id: "qmsg_test", SessionId: "default",
 				Instruct:              "be concise",
@@ -99,7 +99,7 @@ func TestSessionQueueClient_MapsSubmitStateAndObserve(t *testing.T) {
 	}
 	client := NewSessionService(stub)
 
-	entry, err := client.SubmitMessage(context.Background(), SubmitMessageOptions{
+	entry, err := client.EnqueueMessage(context.Background(), EnqueueMessageOptions{
 		SessionID: "default", Message: "steer", ClientSubmissionID: "submission-1",
 		DeliveryMode:     agentsession.DeliveryModeSteering,
 		SteeringFallback: agentsession.SteeringFallbackFollowUp,
@@ -111,10 +111,10 @@ func TestSessionQueueClient_MapsSubmitStateAndObserve(t *testing.T) {
 	require.Equal(t, "be concise", entry.Instruct)
 	require.NotNil(t, entry.Stream)
 	require.False(t, *entry.Stream)
-	require.Equal(t, string(agentsession.DeliveryModeSteering), stub.SubmitMessageReq.GetDeliveryMode())
-	require.Equal(t, "be concise", stub.SubmitMessageReq.GetInstruct())
-	require.NotNil(t, stub.SubmitMessageReq.Stream)
-	require.False(t, stub.SubmitMessageReq.GetStream())
+	require.Equal(t, string(agentsession.DeliveryModeSteering), stub.EnqueueMessageReq.GetDeliveryMode())
+	require.Equal(t, "be concise", stub.EnqueueMessageReq.GetInstruct())
+	require.NotNil(t, stub.EnqueueMessageReq.Stream)
+	require.False(t, stub.EnqueueMessageReq.GetStream())
 
 	state, err := client.State(context.Background(), "default")
 	require.NoError(t, err)
@@ -255,7 +255,7 @@ func TestSessionQueueClient_SteerQueuedMessageReturnsTransportError(t *testing.T
 
 func TestSessionQueueClient_PublicClientDelegatesQueueOperations(t *testing.T) {
 	stub := &protomock.MorphServiceClientStub{
-		SubmitMessageResp: &morphpb.SubmitSessionMessageResponse{
+		EnqueueMessageResp: &morphpb.EnqueueSessionMessageResponse{
 			Entry: &morphpb.SessionQueueEntry{Id: "qmsg_test"},
 		},
 		StateResp: &morphpb.GetSessionStateResponse{Id: "default"},
@@ -278,7 +278,7 @@ func TestSessionQueueClient_PublicClientDelegatesQueueOperations(t *testing.T) {
 	}
 	client := &Client{Session: NewSessionService(stub)}
 
-	_, err := client.SubmitMessage(context.Background(), SubmitMessageOptions{SessionID: "default"})
+	_, err := client.EnqueueMessage(context.Background(), EnqueueMessageOptions{SessionID: "default"})
 	require.NoError(t, err)
 	_, err = client.State(context.Background(), "default")
 	require.NoError(t, err)
@@ -303,7 +303,7 @@ func TestSessionQueueClient_PublicClientDelegatesQueueOperations(t *testing.T) {
 	require.NoError(t, err)
 
 	var unavailable *Client
-	_, err = unavailable.SubmitMessage(context.Background(), SubmitMessageOptions{})
+	_, err = unavailable.EnqueueMessage(context.Background(), EnqueueMessageOptions{})
 	require.EqualError(t, err, "RPC client is unavailable")
 	_, err = unavailable.State(context.Background(), "default")
 	require.EqualError(t, err, "RPC client is unavailable")

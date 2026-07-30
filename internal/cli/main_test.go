@@ -63,7 +63,7 @@ func TestNewMainAction_TreatsUnknownArgsAsChat(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, permissions.PresetCustom, preset)
 	require.Empty(t, stub.RespondOptions.Instruct)
-	require.Equal(t, "default", stub.SubmittedMessage.SessionID)
+	require.Equal(t, "default", stub.EnqueuedMessage.SessionID)
 	require.True(t, stub.Closed)
 	require.Equal(t, "hello back\n\n\x1b[90mWorked for 0s\x1b[0m\n", output.String())
 }
@@ -206,7 +206,7 @@ func TestNewMainAction_ForwardsInstruct(t *testing.T) {
 		"hello",
 	})
 	require.NoError(t, err)
-	require.Equal(t, "hello", stub.SubmittedMessage.Message)
+	require.Equal(t, "hello", stub.EnqueuedMessage.Message)
 }
 
 func TestNewMainAction_ForwardsSessionID(t *testing.T) {
@@ -226,7 +226,7 @@ func TestNewMainAction_ForwardsSessionID(t *testing.T) {
 		"hello",
 	})
 	require.NoError(t, err)
-	require.Equal(t, "project-a", stub.SubmittedMessage.SessionID)
+	require.Equal(t, "project-a", stub.EnqueuedMessage.SessionID)
 }
 
 func TestNewMainAction_StreamsOutput(t *testing.T) {
@@ -1583,9 +1583,9 @@ func (w fakeFDWriter) Fd() uintptr {
 	return w.fd
 }
 
-func (c *chatOnlyClient) SubmitMessage(
+func (c *chatOnlyClient) EnqueueMessage(
 	_ context.Context,
-	opts rpcclient.SubmitMessageOptions,
+	opts rpcclient.EnqueueMessageOptions,
 ) (rpcclient.SessionQueueEntry, error) {
 	c.message = opts.Message
 	return rpcclient.SessionQueueEntry{}, nil

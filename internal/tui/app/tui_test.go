@@ -7230,9 +7230,9 @@ type fakeTUIChatClient struct {
 	closed                bool
 }
 
-func (c *fakeTUIChatClient) SubmitMessage(
+func (c *fakeTUIChatClient) EnqueueMessage(
 	ctx context.Context,
-	opts rpcclient.SubmitMessageOptions,
+	opts rpcclient.EnqueueMessageOptions,
 ) (rpcclient.SessionQueueEntry, error) {
 	c.calls++
 	c.respondContext = ctx

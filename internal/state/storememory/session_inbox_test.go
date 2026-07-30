@@ -12,11 +12,11 @@ import (
 	"github.com/wandxy/morph/pkg/nanoid"
 )
 
-func TestMemoryStore_SubmitMessageIsIdempotentAndPublishesEvents(t *testing.T) {
+func TestMemoryStore_EnqueueMessageIsIdempotentAndPublishesEvents(t *testing.T) {
 	store := NewStore()
 	require.NoError(t, store.Save(context.Background(), Session{ID: testSessionA}))
 
-	req := agentsession.SubmitRequest{
+	req := agentsession.EnqueueRequest{
 		ID:                 memoryInboxQueueID("first"),
 		SessionID:          testSessionA,
 		Content:            "first follow-up",
@@ -29,15 +29,15 @@ func TestMemoryStore_SubmitMessageIsIdempotentAndPublishesEvents(t *testing.T) {
 			Profile:   "default",
 		},
 	}
-	first, err := store.SubmitMessage(context.Background(), req)
+	first, err := store.EnqueueMessage(context.Background(), req)
 	require.NoError(t, err)
-	retry, err := store.SubmitMessage(context.Background(), req)
+	retry, err := store.EnqueueMessage(context.Background(), req)
 	require.NoError(t, err)
 	require.Equal(t, first, retry)
 
 	conflict := req
 	conflict.Content = "different"
-	_, err = store.SubmitMessage(context.Background(), conflict)
+	_, err = store.EnqueueMessage(context.Background(), conflict)
 	require.EqualError(
 		t,
 		err,
@@ -68,12 +68,12 @@ func TestMemoryStore_SubmitMessageIsIdempotentAndPublishesEvents(t *testing.T) {
 	require.ErrorIs(t, err, agentsession.ErrCursorBeyondSession)
 }
 
-func TestMemoryStore_SubmitMessageNormalizesDefaultsAndClonesStream(t *testing.T) {
+func TestMemoryStore_EnqueueMessageNormalizesDefaultsAndClonesStream(t *testing.T) {
 	store := NewStore()
 	require.NoError(t, store.Save(context.Background(), Session{ID: testSessionA}))
 	stream := true
 
-	entry, err := store.SubmitMessage(context.Background(), agentsession.SubmitRequest{
+	entry, err := store.EnqueueMessage(context.Background(), agentsession.EnqueueRequest{
 		ID:                 " " + memoryInboxQueueID("defaults") + " ",
 		SessionID:          " " + testSessionA + " ",
 		Content:            " hello ",
@@ -107,7 +107,7 @@ func TestMemoryStore_SubmitMessageNormalizesDefaultsAndClonesStream(t *testing.T
 	require.True(t, *state.Queue[0].Stream)
 
 	retryStream := true
-	retry, err := store.SubmitMessage(context.Background(), agentsession.SubmitRequest{
+	retry, err := store.EnqueueMessage(context.Background(), agentsession.EnqueueRequest{
 		ID:                 memoryInboxQueueID("different-retry-id"),
 		SessionID:          testSessionA,
 		Content:            "hello",
@@ -119,7 +119,7 @@ func TestMemoryStore_SubmitMessageNormalizesDefaultsAndClonesStream(t *testing.T
 	require.Equal(t, entry.ID, retry.ID)
 
 	retryStream = false
-	_, err = store.SubmitMessage(context.Background(), agentsession.SubmitRequest{
+	_, err = store.EnqueueMessage(context.Background(), agentsession.EnqueueRequest{
 		ID:                 memoryInboxQueueID("different-retry-id"),
 		SessionID:          testSessionA,
 		Content:            "hello",
@@ -134,8 +134,8 @@ func TestMemoryStore_SubmitMessageNormalizesDefaultsAndClonesStream(t *testing.T
 	)
 }
 
-func TestMemoryStore_SubmitMessageValidatesRequest(t *testing.T) {
-	valid := agentsession.SubmitRequest{
+func TestMemoryStore_EnqueueMessageValidatesRequest(t *testing.T) {
+	valid := agentsession.EnqueueRequest{
 		ID:                 memoryInboxQueueID("valid"),
 		SessionID:          testSessionA,
 		Content:            "message",
@@ -145,47 +145,47 @@ func TestMemoryStore_SubmitMessageValidatesRequest(t *testing.T) {
 	}
 	tests := []struct {
 		name      string
-		mutate    func(*agentsession.SubmitRequest)
+		mutate    func(*agentsession.EnqueueRequest)
 		wantError string
 	}{
 		{
 			name: "missing queue id",
-			mutate: func(req *agentsession.SubmitRequest) {
+			mutate: func(req *agentsession.EnqueueRequest) {
 				req.ID = " "
 			},
 			wantError: "queue entry id is required",
 		},
 		{
 			name: "invalid session id",
-			mutate: func(req *agentsession.SubmitRequest) {
+			mutate: func(req *agentsession.EnqueueRequest) {
 				req.SessionID = "invalid"
 			},
 			wantError: "session id must be a valid ses_ nanoid",
 		},
 		{
 			name: "missing content",
-			mutate: func(req *agentsession.SubmitRequest) {
+			mutate: func(req *agentsession.EnqueueRequest) {
 				req.Content = " "
 			},
 			wantError: "message is required",
 		},
 		{
 			name: "missing client submission id",
-			mutate: func(req *agentsession.SubmitRequest) {
+			mutate: func(req *agentsession.EnqueueRequest) {
 				req.ClientSubmissionID = " "
 			},
 			wantError: "client submission id is required",
 		},
 		{
 			name: "invalid delivery mode",
-			mutate: func(req *agentsession.SubmitRequest) {
+			mutate: func(req *agentsession.EnqueueRequest) {
 				req.DeliveryMode = "later"
 			},
 			wantError: "delivery mode is invalid",
 		},
 		{
 			name: "invalid steering fallback",
-			mutate: func(req *agentsession.SubmitRequest) {
+			mutate: func(req *agentsession.EnqueueRequest) {
 				req.SteeringFallback = "maybe"
 			},
 			wantError: "steering fallback is invalid",
@@ -198,23 +198,23 @@ func TestMemoryStore_SubmitMessageValidatesRequest(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			req := valid
 			test.mutate(&req)
-			_, err := store.SubmitMessage(context.Background(), req)
+			_, err := store.EnqueueMessage(context.Background(), req)
 			require.EqualError(t, err, test.wantError)
 		})
 	}
 
-	_, err := store.SubmitMessage(context.Background(), valid)
+	_, err := store.EnqueueMessage(context.Background(), valid)
 	require.NoError(t, err)
 	duplicateID := valid
 	duplicateID.ClientSubmissionID = "different-client"
-	_, err = store.SubmitMessage(context.Background(), duplicateID)
+	_, err = store.EnqueueMessage(context.Background(), duplicateID)
 	require.EqualError(t, err, "queue entry id is already used")
 
 	missingSession := valid
 	missingSession.ID = memoryInboxQueueID("missing-session")
 	missingSession.SessionID = testSessionB
 	missingSession.ClientSubmissionID = "missing-session"
-	_, err = store.SubmitMessage(context.Background(), missingSession)
+	_, err = store.EnqueueMessage(context.Background(), missingSession)
 	require.EqualError(t, err, "session not found")
 
 	now := time.Now().UTC()
@@ -224,7 +224,7 @@ func TestMemoryStore_SubmitMessageValidatesRequest(t *testing.T) {
 		ArchivedAt: now,
 		ExpiresAt:  now.Add(time.Hour),
 	}))
-	_, err = store.SubmitMessage(context.Background(), valid)
+	_, err = store.EnqueueMessage(context.Background(), valid)
 	require.EqualError(t, err, "session not found")
 }
 
@@ -751,7 +751,7 @@ func TestMemoryStore_InboxRequiresStore(t *testing.T) {
 	var store *Store
 	ctx := context.Background()
 
-	_, err := store.SubmitMessage(ctx, agentsession.SubmitRequest{})
+	_, err := store.EnqueueMessage(ctx, agentsession.EnqueueRequest{})
 	require.EqualError(t, err, "store is required")
 	_, err = store.GetExecutionState(ctx, testSessionA)
 	require.EqualError(t, err, "store is required")
@@ -792,7 +792,7 @@ func TestMemoryStore_ResolvesSteeringAndReconcilesAbandonedRuns(t *testing.T) {
 	require.Equal(t, agentsession.DeliveryModeSteering, fallback.RequestedDeliveryMode)
 	require.Equal(t, agentsession.DeliveryModeFollowUp, fallback.DeliveryMode)
 
-	_, err := store.SubmitMessage(context.Background(), agentsession.SubmitRequest{
+	_, err := store.EnqueueMessage(context.Background(), agentsession.EnqueueRequest{
 		ID:                 memoryInboxQueueID("reject-without-run"),
 		SessionID:          testSessionA,
 		Content:            "reject",
@@ -970,7 +970,7 @@ func TestMemoryStore_ArchivedSessionsCannotBeClaimed(t *testing.T) {
 		agentsession.DeliveryModeSteering,
 		agentsession.SteeringFallbackFollowUp,
 	)
-	_, err = store.SubmitMessage(context.Background(), agentsession.SubmitRequest{
+	_, err = store.EnqueueMessage(context.Background(), agentsession.EnqueueRequest{
 		ID:                 memoryInboxQueueID("archive-pending"),
 		SessionID:          testSessionB,
 		Content:            "pending",
@@ -1044,7 +1044,7 @@ func TestMemoryStore_RunIDsAreUniqueAcrossSessionsUntilDeletion(t *testing.T) {
 	require.NoError(t, store.Save(context.Background(), Session{ID: testSessionB}))
 	activateMemoryInboxRunner(t, store, "generation-1")
 	for index, sessionID := range []string{testSessionA, testSessionB} {
-		_, err := store.SubmitMessage(context.Background(), agentsession.SubmitRequest{
+		_, err := store.EnqueueMessage(context.Background(), agentsession.EnqueueRequest{
 			ID:                 memoryInboxQueueID(fmt.Sprintf("global-run-%d", index)),
 			SessionID:          sessionID,
 			Content:            "message",
@@ -1237,7 +1237,7 @@ func TestMemoryStore_ReconcileActiveRunsOrdersMultipleSessions(t *testing.T) {
 
 	for index, sessionID := range []string{testSessionB, testSessionA} {
 		seed := fmt.Sprintf("multi-%d", index)
-		_, err := store.SubmitMessage(context.Background(), agentsession.SubmitRequest{
+		_, err := store.EnqueueMessage(context.Background(), agentsession.EnqueueRequest{
 			ID:                 memoryInboxQueueID(seed),
 			SessionID:          sessionID,
 			Content:            seed,
@@ -1403,7 +1403,7 @@ func submitMemoryInboxMessage(
 	fallback agentsession.SteeringFallback,
 ) agentsession.QueueEntry {
 	t.Helper()
-	entry, err := store.SubmitMessage(context.Background(), agentsession.SubmitRequest{
+	entry, err := store.EnqueueMessage(context.Background(), agentsession.EnqueueRequest{
 		ID:                 memoryInboxQueueID(clientSubmissionID),
 		SessionID:          testSessionA,
 		Content:            content,

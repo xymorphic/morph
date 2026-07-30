@@ -15,19 +15,19 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (s *Service) SubmitMessage(
+func (s *Service) EnqueueMessage(
 	ctx context.Context,
-	req *morphpb.SubmitSessionMessageRequest,
-) (*morphpb.SubmitSessionMessageResponse, error) {
+	req *morphpb.EnqueueSessionMessageRequest,
+) (*morphpb.EnqueueSessionMessageResponse, error) {
 	api, err := s.getSessionQueueAPI()
 	if err != nil {
 		return nil, err
 	}
 	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "submit message request is required")
+		return nil, status.Error(codes.InvalidArgument, "enqueue message request is required")
 	}
 	ctx = sessionQueueAuthorizationContext(ctx, req.GetId())
-	entry, err := api.SubmitSessionMessage(ctx, agentsession.SubmitRequest{
+	entry, err := api.EnqueueSessionMessage(ctx, agentsession.EnqueueRequest{
 		SessionID:          req.GetId(),
 		Content:            req.GetMessage(),
 		Instruct:           req.GetInstruct(),
@@ -39,7 +39,7 @@ func (s *Service) SubmitMessage(
 	if err != nil {
 		return nil, getGRPCError(err)
 	}
-	return &morphpb.SubmitSessionMessageResponse{Entry: sessionQueueEntryToProto(entry)}, nil
+	return &morphpb.EnqueueSessionMessageResponse{Entry: sessionQueueEntryToProto(entry)}, nil
 }
 
 func (s *Service) State(

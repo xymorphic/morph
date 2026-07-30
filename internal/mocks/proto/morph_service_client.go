@@ -14,8 +14,8 @@ import (
 type MorphServiceClientStub struct {
 	Err                error
 	RecvErr            error
-	SubmitMessageReq   *morphpb.SubmitSessionMessageRequest
-	SubmitMessageResp  *morphpb.SubmitSessionMessageResponse
+	EnqueueMessageReq  *morphpb.EnqueueSessionMessageRequest
+	EnqueueMessageResp *morphpb.EnqueueSessionMessageResponse
 	StateReq           *morphpb.GetSessionStateRequest
 	StateResp          *morphpb.GetSessionStateResponse
 	SetReasoningReq    *morphpb.SetSessionReasoningEffortRequest
@@ -132,13 +132,13 @@ func (s *MorphServiceClientStub) Timeline(_ context.Context, req *morphpb.GetSes
 	return s.TimelineResp, s.Err
 }
 
-func (s *MorphServiceClientStub) SubmitMessage(
+func (s *MorphServiceClientStub) EnqueueMessage(
 	_ context.Context,
-	req *morphpb.SubmitSessionMessageRequest,
+	req *morphpb.EnqueueSessionMessageRequest,
 	_ ...grpc.CallOption,
-) (*morphpb.SubmitSessionMessageResponse, error) {
-	s.SubmitMessageReq = req
-	return s.SubmitMessageResp, s.Err
+) (*morphpb.EnqueueSessionMessageResponse, error) {
+	s.EnqueueMessageReq = req
+	return s.EnqueueMessageResp, s.Err
 }
 
 func (s *MorphServiceClientStub) State(

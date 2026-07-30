@@ -237,7 +237,7 @@ func runQueuedRootChat(
 	if err != nil {
 		return "", err
 	}
-	entry, err := client.SubmitMessage(ctx, rpcclient.SubmitMessageOptions{
+	entry, err := client.EnqueueMessage(ctx, rpcclient.EnqueueMessageOptions{
 		SessionID:          sessionID,
 		Message:            message,
 		Instruct:           instruct,

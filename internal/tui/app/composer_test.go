@@ -88,12 +88,11 @@ func TestParseComposerInputForSubmit_PreservesSlashCommandArguments(t *testing.T
 		},
 		{
 			name:  "queue",
-			input: "/queue edit que_123 revised message",
+			input: "/queue",
 			want: composerInput{
 				Kind: composerInputCommand,
-				Text: "/queue edit que_123 revised message",
+				Text: "/queue",
 				Name: "queue",
-				Args: "edit que_123 revised message",
 			},
 		},
 		{

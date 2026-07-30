@@ -114,15 +114,15 @@ func (sessionEventModel) TableName() string {
 	return "session_events"
 }
 
-func (s *Store) SubmitMessage(
+func (s *Store) EnqueueMessage(
 	ctx context.Context,
-	req agentsession.SubmitRequest,
+	req agentsession.EnqueueRequest,
 ) (agentsession.QueueEntry, error) {
 	if s == nil || s.db == nil {
 		return agentsession.QueueEntry{}, errors.New("store is required")
 	}
 
-	req, err := normalizeSubmitRequest(req)
+	req, err := normalizeEnqueueRequest(req)
 	if err != nil {
 		return agentsession.QueueEntry{}, err
 	}
@@ -944,7 +944,7 @@ func (s *Store) ListRunnableSessions(ctx context.Context) ([]string, error) {
 	return sessionIDs, err
 }
 
-func normalizeSubmitRequest(req agentsession.SubmitRequest) (agentsession.SubmitRequest, error) {
+func normalizeEnqueueRequest(req agentsession.EnqueueRequest) (agentsession.EnqueueRequest, error) {
 	req.ID = str.String(req.ID).Trim()
 	req.SessionID = str.String(req.SessionID).Trim()
 	req.Content = str.String(req.Content).Trim()
@@ -1208,7 +1208,7 @@ func reasoningOverrideValue(value *string) string {
 	return *value
 }
 
-func isSameSubmission(entry agentsession.QueueEntry, req agentsession.SubmitRequest) bool {
+func isSameSubmission(entry agentsession.QueueEntry, req agentsession.EnqueueRequest) bool {
 	return entry.SessionID == req.SessionID &&
 		entry.Content == req.Content &&
 		entry.Instruct == req.Instruct &&

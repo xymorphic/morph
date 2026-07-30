@@ -2400,7 +2400,7 @@ func (x *SessionProgressEvent) GetTraceEvent() *SessionTimelineTraceEvent {
 	return nil
 }
 
-type SubmitSessionMessageRequest struct {
+type EnqueueSessionMessageRequest struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Message            string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
@@ -2413,20 +2413,20 @@ type SubmitSessionMessageRequest struct {
 	sizeCache          protoimpl.SizeCache
 }
 
-func (x *SubmitSessionMessageRequest) Reset() {
-	*x = SubmitSessionMessageRequest{}
+func (x *EnqueueSessionMessageRequest) Reset() {
+	*x = EnqueueSessionMessageRequest{}
 	mi := &file_internal_rpc_proto_morph_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SubmitSessionMessageRequest) String() string {
+func (x *EnqueueSessionMessageRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SubmitSessionMessageRequest) ProtoMessage() {}
+func (*EnqueueSessionMessageRequest) ProtoMessage() {}
 
-func (x *SubmitSessionMessageRequest) ProtoReflect() protoreflect.Message {
+func (x *EnqueueSessionMessageRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_internal_rpc_proto_morph_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2438,81 +2438,81 @@ func (x *SubmitSessionMessageRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SubmitSessionMessageRequest.ProtoReflect.Descriptor instead.
-func (*SubmitSessionMessageRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use EnqueueSessionMessageRequest.ProtoReflect.Descriptor instead.
+func (*EnqueueSessionMessageRequest) Descriptor() ([]byte, []int) {
 	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{33}
 }
 
-func (x *SubmitSessionMessageRequest) GetId() string {
+func (x *EnqueueSessionMessageRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *SubmitSessionMessageRequest) GetMessage() string {
+func (x *EnqueueSessionMessageRequest) GetMessage() string {
 	if x != nil {
 		return x.Message
 	}
 	return ""
 }
 
-func (x *SubmitSessionMessageRequest) GetClientSubmissionId() string {
+func (x *EnqueueSessionMessageRequest) GetClientSubmissionId() string {
 	if x != nil {
 		return x.ClientSubmissionId
 	}
 	return ""
 }
 
-func (x *SubmitSessionMessageRequest) GetDeliveryMode() string {
+func (x *EnqueueSessionMessageRequest) GetDeliveryMode() string {
 	if x != nil {
 		return x.DeliveryMode
 	}
 	return ""
 }
 
-func (x *SubmitSessionMessageRequest) GetSteeringFallback() string {
+func (x *EnqueueSessionMessageRequest) GetSteeringFallback() string {
 	if x != nil {
 		return x.SteeringFallback
 	}
 	return ""
 }
 
-func (x *SubmitSessionMessageRequest) GetInstruct() string {
+func (x *EnqueueSessionMessageRequest) GetInstruct() string {
 	if x != nil {
 		return x.Instruct
 	}
 	return ""
 }
 
-func (x *SubmitSessionMessageRequest) GetStream() bool {
+func (x *EnqueueSessionMessageRequest) GetStream() bool {
 	if x != nil && x.Stream != nil {
 		return *x.Stream
 	}
 	return false
 }
 
-type SubmitSessionMessageResponse struct {
+type EnqueueSessionMessageResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Entry         *SessionQueueEntry     `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SubmitSessionMessageResponse) Reset() {
-	*x = SubmitSessionMessageResponse{}
+func (x *EnqueueSessionMessageResponse) Reset() {
+	*x = EnqueueSessionMessageResponse{}
 	mi := &file_internal_rpc_proto_morph_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SubmitSessionMessageResponse) String() string {
+func (x *EnqueueSessionMessageResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SubmitSessionMessageResponse) ProtoMessage() {}
+func (*EnqueueSessionMessageResponse) ProtoMessage() {}
 
-func (x *SubmitSessionMessageResponse) ProtoReflect() protoreflect.Message {
+func (x *EnqueueSessionMessageResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_internal_rpc_proto_morph_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2524,12 +2524,12 @@ func (x *SubmitSessionMessageResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SubmitSessionMessageResponse.ProtoReflect.Descriptor instead.
-func (*SubmitSessionMessageResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use EnqueueSessionMessageResponse.ProtoReflect.Descriptor instead.
+func (*EnqueueSessionMessageResponse) Descriptor() ([]byte, []int) {
 	return file_internal_rpc_proto_morph_proto_rawDescGZIP(), []int{34}
 }
 
-func (x *SubmitSessionMessageResponse) GetEntry() *SessionQueueEntry {
+func (x *EnqueueSessionMessageResponse) GetEntry() *SessionQueueEntry {
 	if x != nil {
 		return x.Entry
 	}
@@ -11541,8 +11541,8 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"\x0equeue_entry_id\x18\x05 \x01(\tR\fqueueEntryId\x12\x1a\n" +
 	"\bsequence\x18\x06 \x01(\x03R\bsequence\x12D\n" +
 	"\vtrace_event\x18\a \x01(\v2#.morph.v1.SessionTimelineTraceEventR\n" +
-	"traceEvent\"\x8f\x02\n" +
-	"\x1bSubmitSessionMessageRequest\x12\x0e\n" +
+	"traceEvent\"\x90\x02\n" +
+	"\x1cEnqueueSessionMessageRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x120\n" +
 	"\x14client_submission_id\x18\x03 \x01(\tR\x12clientSubmissionId\x12#\n" +
@@ -11550,8 +11550,8 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"\x11steering_fallback\x18\x05 \x01(\tR\x10steeringFallback\x12\x1a\n" +
 	"\binstruct\x18\x06 \x01(\tR\binstruct\x12\x1b\n" +
 	"\x06stream\x18\a \x01(\bH\x00R\x06stream\x88\x01\x01B\t\n" +
-	"\a_stream\"Q\n" +
-	"\x1cSubmitSessionMessageResponse\x121\n" +
+	"\a_stream\"R\n" +
+	"\x1dEnqueueSessionMessageResponse\x121\n" +
 	"\x05entry\x18\x01 \x01(\v2\x1b.morph.v1.SessionQueueEntryR\x05entry\"(\n" +
 	"\x16GetSessionStateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\xd9\x03\n" +
@@ -12261,7 +12261,7 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"generation\x18\x02 \x01(\x04R\n" +
 	"generation\x125\n" +
 	"\x16authorization_revision\x18\x03 \x01(\x04R\x15authorizationRevision\x12\x16\n" +
-	"\x06status\x18\x04 \x01(\tR\x06status2\xec\r\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status2\xef\r\n" +
 	"\x0eSessionService\x12I\n" +
 	"\x06Create\x12\x1e.morph.v1.CreateSessionRequest\x1a\x1f.morph.v1.CreateSessionResponse\x12E\n" +
 	"\x04List\x12\x1d.morph.v1.ListSessionsRequest\x1a\x1e.morph.v1.ListSessionsResponse\x12@\n" +
@@ -12273,8 +12273,8 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"\aCompact\x12\x1f.morph.v1.CompactSessionRequest\x1a .morph.v1.CompactSessionResponse\x12I\n" +
 	"\x06Repair\x12\x1e.morph.v1.RepairSessionRequest\x1a\x1f.morph.v1.RepairSessionResponse\x12O\n" +
 	"\x06Status\x12!.morph.v1.GetSessionStatusRequest\x1a\".morph.v1.GetSessionStatusResponse\x12U\n" +
-	"\bTimeline\x12#.morph.v1.GetSessionTimelineRequest\x1a$.morph.v1.GetSessionTimelineResponse\x12^\n" +
-	"\rSubmitMessage\x12%.morph.v1.SubmitSessionMessageRequest\x1a&.morph.v1.SubmitSessionMessageResponse\x12L\n" +
+	"\bTimeline\x12#.morph.v1.GetSessionTimelineRequest\x1a$.morph.v1.GetSessionTimelineResponse\x12a\n" +
+	"\x0eEnqueueMessage\x12&.morph.v1.EnqueueSessionMessageRequest\x1a'.morph.v1.EnqueueSessionMessageResponse\x12L\n" +
 	"\x05State\x12 .morph.v1.GetSessionStateRequest\x1a!.morph.v1.GetSessionStateResponse\x12N\n" +
 	"\aObserve\x12\x1f.morph.v1.ObserveSessionRequest\x1a .morph.v1.ObserveSessionResponse0\x01\x12j\n" +
 	"\x11EditQueuedMessage\x12).morph.v1.EditQueuedSessionMessageRequest\x1a*.morph.v1.EditQueuedSessionMessageResponse\x12p\n" +
@@ -12391,8 +12391,8 @@ var file_internal_rpc_proto_morph_proto_goTypes = []any{
 	(*SessionActiveRun)(nil),                    // 31: morph.v1.SessionActiveRun
 	(*SessionEvent)(nil),                        // 32: morph.v1.SessionEvent
 	(*SessionProgressEvent)(nil),                // 33: morph.v1.SessionProgressEvent
-	(*SubmitSessionMessageRequest)(nil),         // 34: morph.v1.SubmitSessionMessageRequest
-	(*SubmitSessionMessageResponse)(nil),        // 35: morph.v1.SubmitSessionMessageResponse
+	(*EnqueueSessionMessageRequest)(nil),        // 34: morph.v1.EnqueueSessionMessageRequest
+	(*EnqueueSessionMessageResponse)(nil),       // 35: morph.v1.EnqueueSessionMessageResponse
 	(*GetSessionStateRequest)(nil),              // 36: morph.v1.GetSessionStateRequest
 	(*GetSessionStateResponse)(nil),             // 37: morph.v1.GetSessionStateResponse
 	(*ReasoningModelTuple)(nil),                 // 38: morph.v1.ReasoningModelTuple
@@ -12567,7 +12567,7 @@ var file_internal_rpc_proto_morph_proto_depIdxs = []int32{
 	31,  // 28: morph.v1.SessionEvent.run:type_name -> morph.v1.SessionActiveRun
 	28,  // 29: morph.v1.SessionEvent.progress_trace_event:type_name -> morph.v1.SessionTimelineTraceEvent
 	28,  // 30: morph.v1.SessionProgressEvent.trace_event:type_name -> morph.v1.SessionTimelineTraceEvent
-	30,  // 31: morph.v1.SubmitSessionMessageResponse.entry:type_name -> morph.v1.SessionQueueEntry
+	30,  // 31: morph.v1.EnqueueSessionMessageResponse.entry:type_name -> morph.v1.SessionQueueEntry
 	31,  // 32: morph.v1.GetSessionStateResponse.active_run:type_name -> morph.v1.SessionActiveRun
 	30,  // 33: morph.v1.GetSessionStateResponse.queue:type_name -> morph.v1.SessionQueueEntry
 	176, // 34: morph.v1.GetSessionStateResponse.oldest_pending_created_at:type_name -> google.protobuf.Timestamp
@@ -12696,7 +12696,7 @@ var file_internal_rpc_proto_morph_proto_depIdxs = []int32{
 	18,  // 157: morph.v1.SessionService.Repair:input_type -> morph.v1.RepairSessionRequest
 	23,  // 158: morph.v1.SessionService.Status:input_type -> morph.v1.GetSessionStatusRequest
 	25,  // 159: morph.v1.SessionService.Timeline:input_type -> morph.v1.GetSessionTimelineRequest
-	34,  // 160: morph.v1.SessionService.SubmitMessage:input_type -> morph.v1.SubmitSessionMessageRequest
+	34,  // 160: morph.v1.SessionService.EnqueueMessage:input_type -> morph.v1.EnqueueSessionMessageRequest
 	36,  // 161: morph.v1.SessionService.State:input_type -> morph.v1.GetSessionStateRequest
 	43,  // 162: morph.v1.SessionService.Observe:input_type -> morph.v1.ObserveSessionRequest
 	45,  // 163: morph.v1.SessionService.EditQueuedMessage:input_type -> morph.v1.EditQueuedSessionMessageRequest
@@ -12764,7 +12764,7 @@ var file_internal_rpc_proto_morph_proto_depIdxs = []int32{
 	19,  // 225: morph.v1.SessionService.Repair:output_type -> morph.v1.RepairSessionResponse
 	24,  // 226: morph.v1.SessionService.Status:output_type -> morph.v1.GetSessionStatusResponse
 	29,  // 227: morph.v1.SessionService.Timeline:output_type -> morph.v1.GetSessionTimelineResponse
-	35,  // 228: morph.v1.SessionService.SubmitMessage:output_type -> morph.v1.SubmitSessionMessageResponse
+	35,  // 228: morph.v1.SessionService.EnqueueMessage:output_type -> morph.v1.EnqueueSessionMessageResponse
 	37,  // 229: morph.v1.SessionService.State:output_type -> morph.v1.GetSessionStateResponse
 	44,  // 230: morph.v1.SessionService.Observe:output_type -> morph.v1.ObserveSessionResponse
 	46,  // 231: morph.v1.SessionService.EditQueuedMessage:output_type -> morph.v1.EditQueuedSessionMessageResponse

@@ -9,16 +9,16 @@ import (
 	agentsession "github.com/wandxy/morph/pkg/agent/session"
 )
 
-func (s *SessionService) SubmitMessage(
+func (s *SessionService) EnqueueMessage(
 	ctx context.Context,
-	opts SubmitMessageOptions,
+	opts EnqueueMessageOptions,
 ) (SessionQueueEntry, error) {
 	client, err := s.getClient()
 	if err != nil {
 		return SessionQueueEntry{}, err
 	}
 	prepareRPCConnection(s.reconnector)
-	response, err := client.SubmitMessage(ctx, &morphpb.SubmitSessionMessageRequest{
+	response, err := client.EnqueueMessage(ctx, &morphpb.EnqueueSessionMessageRequest{
 		Id:                 opts.SessionID,
 		Message:            opts.Message,
 		Instruct:           opts.Instruct,
@@ -293,14 +293,14 @@ func (s *SessionService) InterruptRun(
 	return *run, response.GetTransitioned(), nil
 }
 
-func (c *Client) SubmitMessage(
+func (c *Client) EnqueueMessage(
 	ctx context.Context,
-	opts SubmitMessageOptions,
+	opts EnqueueMessageOptions,
 ) (SessionQueueEntry, error) {
 	if c == nil || c.Session == nil {
 		return SessionQueueEntry{}, errors.New("RPC client is unavailable")
 	}
-	return c.Session.SubmitMessage(ctx, opts)
+	return c.Session.EnqueueMessage(ctx, opts)
 }
 
 func (c *Client) State(ctx context.Context, sessionID string) (SessionExecutionState, error) {

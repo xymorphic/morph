@@ -157,7 +157,7 @@ type GatewayStatus struct {
 
 type AutomationStatus = automation.Status
 
-type SubmitMessageOptions struct {
+type EnqueueMessageOptions struct {
 	SessionID          string
 	Message            string
 	Instruct           string
@@ -183,7 +183,7 @@ type SessionEvent = agentsession.Event
 
 // ChatAPI is the chat surface exposed by local and RPC clients.
 type ChatAPI interface {
-	SubmitMessage(context.Context, SubmitMessageOptions) (SessionQueueEntry, error)
+	EnqueueMessage(context.Context, EnqueueMessageOptions) (SessionQueueEntry, error)
 	State(context.Context, string) (SessionExecutionState, error)
 	Observe(context.Context, string, int64, func(SessionEvent) error) error
 	EditQueuedMessage(context.Context, string, string, string) (SessionQueueEntry, error)

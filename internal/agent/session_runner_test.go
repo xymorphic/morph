@@ -154,7 +154,7 @@ func TestSessionRunner_ProcessesMemoryBackedQueue(t *testing.T) {
 		Surface:   permissions.SurfaceTUI,
 		SessionID: storage.DefaultSessionID,
 	})
-	entry, err := core.SubmitSessionMessage(authorized, agentsession.SubmitRequest{
+	entry, err := core.EnqueueSessionMessage(authorized, agentsession.EnqueueRequest{
 		SessionID:          storage.DefaultSessionID,
 		Content:            "memory-backed",
 		ClientSubmissionID: "memory-submission",
@@ -288,7 +288,7 @@ func TestAgent_SessionReasoningStateSetResetAndActiveSnapshot(t *testing.T) {
 
 	_, err = store.ReconcileActiveRuns(ctx, "generation-reasoning-state")
 	require.NoError(t, err)
-	_, err = store.SubmitMessage(ctx, agentsession.SubmitRequest{
+	_, err = store.EnqueueMessage(ctx, agentsession.EnqueueRequest{
 		ID:                 nanoid.MustFromSeed("qmsg_", "reasoning-state", "QueueSeed"),
 		SessionID:          storage.DefaultSessionID,
 		Content:            "reason",
@@ -423,7 +423,7 @@ func TestSessionRunner_AcceptanceOutlivesObserverAndInterruptPreservesFollowUps(
 		Surface:   permissions.SurfaceTUI,
 		SessionID: storage.DefaultSessionID,
 	})
-	first, err := core.SubmitSessionMessage(authorized, agentsession.SubmitRequest{
+	first, err := core.EnqueueSessionMessage(authorized, agentsession.EnqueueRequest{
 		SessionID:          storage.DefaultSessionID,
 		Content:            "first",
 		ClientSubmissionID: "submission-1",
@@ -457,7 +457,7 @@ func TestSessionRunner_AcceptanceOutlivesObserverAndInterruptPreservesFollowUps(
 	require.NoError(t, err)
 	require.NotNil(t, state.ActiveRun)
 
-	second, err := core.SubmitSessionMessage(authorized, agentsession.SubmitRequest{
+	second, err := core.EnqueueSessionMessage(authorized, agentsession.EnqueueRequest{
 		SessionID:          storage.DefaultSessionID,
 		Content:            "second",
 		ClientSubmissionID: "submission-2",
@@ -465,7 +465,7 @@ func TestSessionRunner_AcceptanceOutlivesObserverAndInterruptPreservesFollowUps(
 		SteeringFallback:   agentsession.SteeringFallbackFollowUp,
 	})
 	require.NoError(t, err)
-	third, err := core.SubmitSessionMessage(authorized, agentsession.SubmitRequest{
+	third, err := core.EnqueueSessionMessage(authorized, agentsession.EnqueueRequest{
 		SessionID:          storage.DefaultSessionID,
 		Content:            "third",
 		ClientSubmissionID: "submission-3",
@@ -603,7 +603,7 @@ func TestSessionRunner_DeliversSteeringThroughRunnerToolBoundary(t *testing.T) {
 		Surface:   permissions.SurfaceTUI,
 		SessionID: storage.DefaultSessionID,
 	})
-	primary, err := core.SubmitSessionMessage(authorized, agentsession.SubmitRequest{
+	primary, err := core.EnqueueSessionMessage(authorized, agentsession.EnqueueRequest{
 		SessionID:          storage.DefaultSessionID,
 		Content:            "what time is it?",
 		ClientSubmissionID: "submission-run",
@@ -617,7 +617,7 @@ func TestSessionRunner_DeliversSteeringThroughRunnerToolBoundary(t *testing.T) {
 		t.Fatal("tool call did not start")
 	}
 
-	steering, err := core.SubmitSessionMessage(authorized, agentsession.SubmitRequest{
+	steering, err := core.EnqueueSessionMessage(authorized, agentsession.EnqueueRequest{
 		SessionID:          storage.DefaultSessionID,
 		Content:            "use UTC instead",
 		ClientSubmissionID: "submission-steering",
@@ -696,7 +696,7 @@ func TestSessionRunner_StartConsumesPendingWorkFromReopenedStore(t *testing.T) {
 		ID:    storage.DefaultSessionID,
 		Title: "Restart recovery test",
 	}))
-	abandoned, err := store.SubmitMessage(context.Background(), agentsession.SubmitRequest{
+	abandoned, err := store.EnqueueMessage(context.Background(), agentsession.EnqueueRequest{
 		ID:                 "qmsg_abandoned",
 		SessionID:          storage.DefaultSessionID,
 		Content:            "abandoned work",
@@ -718,7 +718,7 @@ func TestSessionRunner_StartConsumesPendingWorkFromReopenedStore(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, claimed)
 	require.Equal(t, abandoned.ID, abandonedRun.QueueEntryID)
-	entry, err := store.SubmitMessage(context.Background(), agentsession.SubmitRequest{
+	entry, err := store.EnqueueMessage(context.Background(), agentsession.EnqueueRequest{
 		ID:                 "qmsg_restart",
 		SessionID:          storage.DefaultSessionID,
 		Content:            "resume pending work",
@@ -862,9 +862,9 @@ func TestSessionRunner_SteerQueueEntryDelegatesAndWakesRunner(t *testing.T) {
 		env:         &mocks.EnvironmentStub{},
 		stateMgr:    manager,
 	}
-	entry, err := core.SubmitSessionMessage(
+	entry, err := core.EnqueueSessionMessage(
 		context.Background(),
-		agentsession.SubmitRequest{
+		agentsession.EnqueueRequest{
 			SessionID:          storage.DefaultSessionID,
 			Content:            "change direction",
 			ClientSubmissionID: "submission-steer",
@@ -953,7 +953,7 @@ func TestSessionRunner_TwoObserversReceiveLiveProgressWithoutOwningRun(t *testin
 		Surface:   permissions.SurfaceTUI,
 		SessionID: storage.DefaultSessionID,
 	})
-	_, err = core.SubmitSessionMessage(authorized, agentsession.SubmitRequest{
+	_, err = core.EnqueueSessionMessage(authorized, agentsession.EnqueueRequest{
 		SessionID:          storage.DefaultSessionID,
 		Content:            "stream",
 		ClientSubmissionID: "submission-progress",
@@ -1081,7 +1081,7 @@ func TestSessionRunner_OrdinaryAgentStartDoesNotReconcileOrConsumeInbox(t *testi
 		Surface:   permissions.SurfaceTUI,
 		SessionID: storage.DefaultSessionID,
 	})
-	entry, err := owner.SubmitSessionMessage(authorized, agentsession.SubmitRequest{
+	entry, err := owner.EnqueueSessionMessage(authorized, agentsession.EnqueueRequest{
 		SessionID:          storage.DefaultSessionID,
 		Content:            "first",
 		ClientSubmissionID: "submission-owner",
@@ -1173,7 +1173,7 @@ func TestSessionRunner_SerializesQueuedAndDirectTurns(t *testing.T) {
 		t.Fatal("direct turn did not start")
 	}
 
-	entry, err := core.SubmitSessionMessage(authorized, agentsession.SubmitRequest{
+	entry, err := core.EnqueueSessionMessage(authorized, agentsession.EnqueueRequest{
 		SessionID:          storage.DefaultSessionID,
 		Content:            "queued",
 		ClientSubmissionID: "submission-queued",

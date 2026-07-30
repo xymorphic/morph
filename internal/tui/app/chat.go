@@ -66,7 +66,7 @@ func respondToPromptCmd(
 		if err != nil {
 			return responseCompletedMsg{ResponseID: responseID, Err: err}
 		}
-		entry, err := client.SubmitMessage(ctx, rpcclient.SubmitMessageOptions{
+		entry, err := client.EnqueueMessage(ctx, rpcclient.EnqueueMessageOptions{
 			SessionID:          sessionID,
 			Message:            prompt,
 			ClientSubmissionID: submissionID,

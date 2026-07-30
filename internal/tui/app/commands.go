@@ -17,7 +17,7 @@ var slashCommandDefinitions = []slashCommandDefinition{
 	{Name: "models", Description: "Show supported models"},
 	{Name: "new-chat", Description: "Start a new chat session"},
 	{Name: "permissions", Description: "Choose a permission preset for this TUI session"},
-	{Name: "queue", Description: "Inspect or edit queued session messages"},
+	{Name: "queue", Description: "Focus queued session messages"},
 	{Name: "steer", Description: "Steer the active run after its current tool batch"},
 	{Name: "interrupt", Description: "Explicitly interrupt the active session run"},
 	{Name: "archive", Description: "Show archived chat sessions"},

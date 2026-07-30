@@ -229,9 +229,9 @@ type rpcAdapterClientStub struct {
 	currentErr error
 }
 
-func (s rpcAdapterClientStub) SubmitMessage(
+func (s rpcAdapterClientStub) EnqueueMessage(
 	context.Context,
-	rpcclient.SubmitMessageOptions,
+	rpcclient.EnqueueMessageOptions,
 ) (rpcclient.SessionQueueEntry, error) {
 	return rpcclient.SessionQueueEntry{ID: "que_stub"}, nil
 }

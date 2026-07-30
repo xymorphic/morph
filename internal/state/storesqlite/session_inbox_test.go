@@ -13,13 +13,13 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestSQLiteStore_SubmitMessageIsDurableAndIdempotent(t *testing.T) {
+func TestSQLiteStore_EnqueueMessageIsDurableAndIdempotent(t *testing.T) {
 	path := t.TempDir() + "/session.db"
 	store, err := NewStore(path)
 	require.NoError(t, err)
 	require.NoError(t, store.Save(context.Background(), Session{ID: testSessionA}))
 
-	req := agentsession.SubmitRequest{
+	req := agentsession.EnqueueRequest{
 		ID:                 nanoid.MustFromSeed("qmsg_", "first", "QueueMessageSeed"),
 		SessionID:          testSessionA,
 		Content:            "first follow-up",
@@ -32,15 +32,15 @@ func TestSQLiteStore_SubmitMessageIsDurableAndIdempotent(t *testing.T) {
 			Profile:   "default",
 		},
 	}
-	first, err := store.SubmitMessage(context.Background(), req)
+	first, err := store.EnqueueMessage(context.Background(), req)
 	require.NoError(t, err)
-	retry, err := store.SubmitMessage(context.Background(), req)
+	retry, err := store.EnqueueMessage(context.Background(), req)
 	require.NoError(t, err)
 	require.Equal(t, first, retry)
 
 	conflict := req
 	conflict.Content = "different"
-	_, err = store.SubmitMessage(context.Background(), conflict)
+	_, err = store.EnqueueMessage(context.Background(), conflict)
 	require.EqualError(t, err, "client submission id is already used by a different message")
 
 	reopened, err := NewStore(path)
@@ -336,7 +336,7 @@ func TestSQLiteStore_SteeringFallbackAndRestartReconciliation(t *testing.T) {
 	fallback := submitInboxTestMessage(t, store, "fallback", "client-fallback", agentsession.DeliveryModeSteering)
 	require.Equal(t, agentsession.DeliveryModeSteering, fallback.RequestedDeliveryMode)
 	require.Equal(t, agentsession.DeliveryModeFollowUp, fallback.DeliveryMode)
-	retry, err := store.SubmitMessage(context.Background(), agentsession.SubmitRequest{
+	retry, err := store.EnqueueMessage(context.Background(), agentsession.EnqueueRequest{
 		ID:                 nanoid.MustFromSeed("qmsg_", "client-fallback", "QueueMessageSeed"),
 		SessionID:          testSessionA,
 		Content:            "fallback",
@@ -347,7 +347,7 @@ func TestSQLiteStore_SteeringFallbackAndRestartReconciliation(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, fallback, retry)
 
-	rejectRequest := agentsession.SubmitRequest{
+	rejectRequest := agentsession.EnqueueRequest{
 		ID:                 nanoid.MustFromSeed("qmsg_", "reject", "QueueMessageSeed"),
 		SessionID:          testSessionA,
 		Content:            "reject",
@@ -355,7 +355,7 @@ func TestSQLiteStore_SteeringFallbackAndRestartReconciliation(t *testing.T) {
 		DeliveryMode:       agentsession.DeliveryModeSteering,
 		SteeringFallback:   agentsession.SteeringFallbackReject,
 	}
-	_, err = store.SubmitMessage(context.Background(), rejectRequest)
+	_, err = store.EnqueueMessage(context.Background(), rejectRequest)
 	require.EqualError(t, err, "steering requires an active run")
 
 	activateInboxTestRunner(t, store, "old-generation")
@@ -458,7 +458,7 @@ func TestSQLiteStore_ResolvesPendingSteeringWhenTargetRunEnds(t *testing.T) {
 	require.True(t, claimed)
 
 	fallback := submitInboxTestMessage(t, store, "later", "client-fallback", agentsession.DeliveryModeSteering)
-	rejected, err := store.SubmitMessage(context.Background(), agentsession.SubmitRequest{
+	rejected, err := store.EnqueueMessage(context.Background(), agentsession.EnqueueRequest{
 		ID:                 nanoid.MustFromSeed("qmsg_", "client-reject", "QueueMessageSeed"),
 		SessionID:          testSessionA,
 		Content:            "only now",
@@ -518,7 +518,7 @@ func TestSQLiteStore_ArchivedSessionsCannotBeClaimed(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, claimed)
 	submitInboxTestMessage(t, store, "steer", "client-steer-before-archive", agentsession.DeliveryModeSteering)
-	_, err = store.SubmitMessage(context.Background(), agentsession.SubmitRequest{
+	_, err = store.EnqueueMessage(context.Background(), agentsession.EnqueueRequest{
 		ID:                 nanoid.MustFromSeed("qmsg_", "archive-pending", "QueueMessageSeed"),
 		SessionID:          testSessionB,
 		Content:            "pending",
@@ -773,7 +773,7 @@ func submitInboxTestMessage(
 	mode agentsession.DeliveryMode,
 ) agentsession.QueueEntry {
 	t.Helper()
-	entry, err := store.SubmitMessage(context.Background(), agentsession.SubmitRequest{
+	entry, err := store.EnqueueMessage(context.Background(), agentsession.EnqueueRequest{
 		ID:                 nanoid.MustFromSeed("qmsg_", clientSubmissionID, "QueueMessageSeed"),
 		SessionID:          testSessionA,
 		Content:            content,

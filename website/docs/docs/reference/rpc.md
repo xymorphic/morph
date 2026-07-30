@@ -83,6 +83,14 @@ instead. Event names: [Trace Events](./trace-events).
 | `Repair` | Repair vector/search artifacts (`Vector` repair type; optional `full`) |
 | `Status` | Context usage: offset, tokens, compaction status |
 | `Timeline` | Paginated messages and trace events for inspection |
+| `EnqueueMessage` | Add a follow-up or steering entry to the session queue |
+| `State` | Return authoritative active-run and queue state |
+| `Observe` | Replay and stream ordered session queue/run events |
+| `EditQueuedMessage` | Change a pending entry's message |
+| `RemoveQueuedMessage` | Cancel a pending entry |
+| `PromoteQueuedMessage` | Move a pending entry to the front |
+| `SteerQueuedMessage` | Convert a pending entry into steering |
+| `InterruptRun` | Interrupt the active session run |
 | `SetReasoningEffort` | Set or reset the session's next-turn reasoning-effort override |
 
 Reading session execution state requires session `read` permission. Changing reasoning effort requires session `update`

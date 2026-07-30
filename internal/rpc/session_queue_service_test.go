@@ -116,7 +116,7 @@ func TestSessionQueueService_SubmitStateObserveAndInterrupt(t *testing.T) {
 	service := newAllowedService(api)
 	streamEnabled := false
 
-	submitted, err := service.SubmitMessage(context.Background(), &morphpb.SubmitSessionMessageRequest{
+	submitted, err := service.EnqueueMessage(context.Background(), &morphpb.EnqueueSessionMessageRequest{
 		Id: "default", Message: entry.Content, ClientSubmissionId: entry.ClientSubmissionID,
 		DeliveryMode:     string(agentsession.DeliveryModeSteering),
 		SteeringFallback: string(agentsession.SteeringFallbackFollowUp),
@@ -125,10 +125,10 @@ func TestSessionQueueService_SubmitStateObserveAndInterrupt(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, string(agentsession.DeliveryModeSteering), submitted.GetEntry().GetRequestedDeliveryMode())
-	require.Equal(t, agentsession.DeliveryModeSteering, api.SubmittedMessage.DeliveryMode)
-	require.Equal(t, "be concise", api.SubmittedMessage.Instruct)
-	require.NotNil(t, api.SubmittedMessage.Stream)
-	require.False(t, *api.SubmittedMessage.Stream)
+	require.Equal(t, agentsession.DeliveryModeSteering, api.EnqueuedMessage.DeliveryMode)
+	require.Equal(t, "be concise", api.EnqueuedMessage.Instruct)
+	require.NotNil(t, api.EnqueuedMessage.Stream)
+	require.False(t, *api.EnqueuedMessage.Stream)
 
 	state, err := service.State(context.Background(), &morphpb.GetSessionStateRequest{Id: "default"})
 	require.NoError(t, err)
@@ -358,9 +358,9 @@ func TestSessionQueueService_MapsQueuePreconditions(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			service := newAllowedService(&agentstub.AgentServiceStub{Err: test.err})
-			_, err := service.SubmitMessage(
+			_, err := service.EnqueueMessage(
 				context.Background(),
-				&morphpb.SubmitSessionMessageRequest{Id: "default", Message: "test"},
+				&morphpb.EnqueueSessionMessageRequest{Id: "default", Message: "test"},
 			)
 			require.Equal(t, codes.FailedPrecondition, status.Code(err))
 		})

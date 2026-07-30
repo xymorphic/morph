@@ -18,7 +18,7 @@ service SessionService {
   rpc Repair(RepairSessionRequest) returns (RepairSessionResponse);
   rpc Status(GetSessionStatusRequest) returns (GetSessionStatusResponse);
   rpc Timeline(GetSessionTimelineRequest) returns (GetSessionTimelineResponse);
-  rpc SubmitMessage(SubmitSessionMessageRequest) returns (SubmitSessionMessageResponse);
+  rpc EnqueueMessage(EnqueueSessionMessageRequest) returns (EnqueueSessionMessageResponse);
   rpc State(GetSessionStateRequest) returns (GetSessionStateResponse);
   rpc Observe(ObserveSessionRequest) returns (stream ObserveSessionResponse);
   rpc EditQueuedMessage(EditQueuedSessionMessageRequest) returns (EditQueuedSessionMessageResponse);
@@ -351,7 +351,7 @@ message SessionProgressEvent {
   SessionTimelineTraceEvent trace_event = 7;
 }
 
-message SubmitSessionMessageRequest {
+message EnqueueSessionMessageRequest {
   string id = 1;
   string message = 2;
   string client_submission_id = 3;
@@ -361,7 +361,7 @@ message SubmitSessionMessageRequest {
   optional bool stream = 7;
 }
 
-message SubmitSessionMessageResponse {
+message EnqueueSessionMessageResponse {
   SessionQueueEntry entry = 1;
 }
 

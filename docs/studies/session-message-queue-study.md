@@ -110,11 +110,7 @@ The important ownership boundaries are:
 5. A `Turn` owns the live model context for one follow-up.
 6. Observers consume state; they do not own the runner or its cancellation context.
 
-
-
 ## 5. The domain objects
-
-
 
 ### Queue entry
 
@@ -172,8 +168,6 @@ events:
 - a daemon restart can preserve SQLite queue/run state but cannot preserve process-local progress deltas;
 - the final transcript remains authoritative after the run persists its messages.
 
-
-
 ## 6. Core invariants
 
 The design depends on these invariants:
@@ -205,11 +199,11 @@ sequenceDiagram
     participant S as InboxStore
     participant R as Session runner
 
-    C->>RPC: SubmitMessage(session, content, clientSubmissionID, mode, fallback)
-    RPC->>A: SubmitSessionMessage
+    C->>RPC: EnqueueMessage(session, content, clientSubmissionID, mode, fallback)
+    RPC->>A: EnqueueSessionMessage
     A->>A: Resolve session and authorization
     A->>A: Derive provenance and queue ID
-    A->>S: SubmitMessage
+    A->>S: EnqueueMessage
     S->>S: Validate, deduplicate, bind mode/run, append event
     S-->>A: Accepted queue entry
     A->>R: Non-blocking wakeup
@@ -331,8 +325,6 @@ Both persistence and live-context injection are necessary:
 - persistence makes steering part of durable conversation history;
 - live injection makes the already-running `Turn` see it immediately;
 - a later summary refresh or context rebuild can still recover it from persisted history.
-
-
 
 ### The no-tool-boundary edge case
 
@@ -477,7 +469,7 @@ The session queue is exposed through `SessionService`:
 
 | RPC                    | Role                                                            |
 | ---------------------- | --------------------------------------------------------------- |
-| `SubmitMessage`        | Accept a follow-up or steering entry                            |
+| `EnqueueMessage`       | Accept a follow-up or steering entry                            |
 | `State`                | Return authoritative queue/run state and the observation cursor |
 | `Observe`              | Replay and follow session events after a cursor                 |
 | `EditQueuedMessage`    | Change the content of a pending entry                           |
@@ -547,11 +539,7 @@ Both stores:
 - block archived sessions from being claimed;
 - remove inbox state when the session is deleted.
 
-
-
 ## 17. Queue and run state machines
-
-
 
 ### Follow-up queue entry
 
@@ -565,8 +553,6 @@ stateDiagram-v2
     active --> failed: turn fails
     active --> cancelled: daemon shutdown cancellation
 ```
-
-
 
 
 
@@ -628,18 +614,19 @@ The main interactions are:
 | Enter while busy             | Add a pending follow-up instead of rejecting input  |
 | `/steer <message>`           | Request steering with follow-up fallback            |
 | `/interrupt`                 | Explicitly interrupt the active run                 |
-| `/queue`                     | Refresh state                                       |
-| `/queue edit <id> <message>` | Edit a pending entry                                |
-| `/queue remove <id>`         | Cancel a pending entry                              |
-| `/queue promote <id>`        | Raise a pending entry to run next                   |
+| `/queue`                     | Focus the pending-message panel and refresh state   |
 | `ctrl+q`                     | Enter or leave queue focus                          |
 | `↑`/`↓` or `k`/`j`           | Change selected pending row                         |
 | Enter on a selected row      | Promote it                                          |
+| `s` on a selected row        | Convert it into steering                            |
 | `e` on a selected row        | Edit it in the composer                             |
 | `x`, Delete, or Backspace    | Remove it                                           |
 
 
 Mouse users can select rows and click the same right-side actions.
+
+Focused queue-panel actions resolve the selected row to its server-generated queue entry ID internally. End users
+therefore work with message previews and selection rather than copying opaque `qmsg_...` identifiers.
 
 ### Editing without losing the existing composer draft
 
@@ -661,8 +648,6 @@ If observation closes unexpectedly, the TUI marks queue state stale, disables qu
 status, and reloads `State`. Drafting can continue, but submitting or mutating waits for authoritative rehydration.
 
 ## 19. Failure and race scenarios
-
-
 
 ### Lost submit acknowledgement
 
@@ -757,8 +742,6 @@ steering user message
 next model request
 ```
 
-
-
 ## 22. Design trade-offs and current boundaries
 
 - Follow-ups are serialized per session. The queue does not run unrelated messages in parallel.
@@ -772,8 +755,6 @@ next model request
 - The queue stores terminal entries for bounded state presentation; the current state response limits terminal history
 rather than acting as an indefinite audit archive.
 - Queue state is authoritative. The TUI must not invent transcript messages for pending entries.
-
-
 
 ## 23. Source map
 
@@ -803,8 +784,6 @@ rather than acting as an indefinite audit archive.
 | RPC client tests                                        | `internal/rpc/client/session_queue_test.go`                 |
 
 
-
-
 ## 24. Contributor checklist
 
 When changing session queue behavior, ask:
@@ -829,8 +808,6 @@ When changing session queue behavior, ask:
 18. Does the TUI block mutations while its state is stale?
 19. Does editing preserve the user's pre-existing composer draft?
 20. Are terminal errors and restart reasons visible without leaking message content?
-
-
 
 ## 25. Final mental model
 

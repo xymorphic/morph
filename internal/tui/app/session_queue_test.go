@@ -17,7 +17,7 @@ import (
 )
 
 type sessionQueueTUIClient struct {
-	submitted  []rpcclient.SubmitMessageOptions
+	submitted  []rpcclient.EnqueueMessageOptions
 	state      rpcclient.SessionExecutionState
 	events     []rpcclient.SessionEvent
 	editedID   string
@@ -28,9 +28,9 @@ type sessionQueueTUIClient struct {
 	err        error
 }
 
-func (c *sessionQueueTUIClient) SubmitMessage(
+func (c *sessionQueueTUIClient) EnqueueMessage(
 	_ context.Context,
-	opts rpcclient.SubmitMessageOptions,
+	opts rpcclient.EnqueueMessageOptions,
 ) (rpcclient.SessionQueueEntry, error) {
 	c.submitted = append(c.submitted, opts)
 	return rpcclient.SessionQueueEntry{
@@ -945,16 +945,43 @@ func TestSessionQueueTUI_PreservesDraftWhenMutationFails(t *testing.T) {
 	require.Equal(t, "queue edit failed", runModel.status.Text())
 }
 
-func TestSessionQueueTUI_BlocksQueueMutationWhileObserverStateIsStale(t *testing.T) {
-	client := &sessionQueueTUIClient{}
-	runModel := newModelWithClient(client)
-	runModel.sessionQueueStale = true
+func TestSessionQueueTUI_QueueCommandFocusesPendingMessages(t *testing.T) {
+	runModel := newModelWithClient(&sessionQueueTUIClient{})
+	runModel.sessionQueueStale = false
+	runModel.sessionExecutionState = rpcclient.SessionExecutionState{
+		SessionID: defaultSessionID,
+		Queue: []rpcclient.SessionQueueEntry{{
+			ID: "qmsg_pending", Content: "pending message",
+			Status: agentsession.QueueStatusPending,
+		}},
+	}
 
-	cmd := runModel.handleQueueCommand("remove qmsg_test")
+	cmd := runModel.handleQueueCommand("")
 
 	require.NotNil(t, cmd)
-	require.Empty(t, client.removedID)
-	require.Equal(t, "queue state is stale; refreshing", runModel.status.Text())
+	require.True(t, runModel.sessionQueueFocused)
+	require.Equal(t, "queue focused", runModel.status.Text())
+}
+
+func TestSessionQueueTUI_QueueCommandReportsEmptyQueue(t *testing.T) {
+	runModel := newModelWithClient(&sessionQueueTUIClient{})
+	runModel.sessionQueueStale = false
+
+	cmd := runModel.handleQueueCommand("")
+
+	require.NotNil(t, cmd)
+	require.False(t, runModel.sessionQueueFocused)
+	require.Equal(t, "no queued messages", runModel.status.Text())
+}
+
+func TestSessionQueueTUI_QueueCommandRejectsArguments(t *testing.T) {
+	runModel := newModelWithClient(&sessionQueueTUIClient{})
+
+	cmd := runModel.handleQueueCommand("promote")
+
+	require.NotNil(t, cmd)
+	require.False(t, runModel.sessionQueueFocused)
+	require.Equal(t, "usage: /queue", runModel.status.Text())
 }
 
 func TestSessionQueueTUI_BlocksFocusedKeyboardMutationWhileStateIsStale(t *testing.T) {
@@ -1065,33 +1092,11 @@ func TestSessionQueueTUI_AppliesCurrentObserverEventAndMarksFailedObserverStale(
 	require.Equal(t, "session queue reconnecting", runModel.status.Text())
 }
 
-func TestSessionQueueTUI_QueueCommandsUseRequestedEntry(t *testing.T) {
+func TestSessionQueueTUI_SubmitSteeringMessageRequestsSteering(t *testing.T) {
 	client := &sessionQueueTUIClient{}
 	runModel := newModelWithClient(client)
-	runModel.sessionQueueStale = false
 
-	message := runModel.handleQueueCommand("edit qmsg_edit revised")()
-	edited := message.(sessionQueueMutationCompletedMsg)
-	require.NoError(t, edited.Err)
-	require.Equal(t, "qmsg_edit", client.editedID)
-	require.Equal(t, "revised", edited.Entry.Content)
-
-	message = runModel.handleQueueCommand("remove qmsg_remove")()
-	removed := message.(sessionQueueMutationCompletedMsg)
-	require.NoError(t, removed.Err)
-	require.Equal(t, "qmsg_remove", client.removedID)
-
-	message = runModel.handleQueueCommand("promote qmsg_promote")()
-	promoted := message.(sessionQueueMutationCompletedMsg)
-	require.NoError(t, promoted.Err)
-	require.Equal(t, "qmsg_promote", client.promoted)
-
-	message = runModel.handleQueueCommand("steer qmsg_steer")()
-	queueSteered := message.(sessionQueueMutationCompletedMsg)
-	require.NoError(t, queueSteered.Err)
-	require.Equal(t, "qmsg_steer", client.steered)
-
-	message = runModel.submitSteeringMessage("use UTC")()
+	message := runModel.submitSteeringMessage("use UTC")()
 	steered := message.(sessionQueueMutationCompletedMsg)
 	require.NoError(t, steered.Err)
 	require.Equal(t, agentsession.DeliveryModeSteering, client.submitted[len(client.submitted)-1].DeliveryMode)

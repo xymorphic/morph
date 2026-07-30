@@ -219,7 +219,7 @@ type EventBatch struct {
 	RetainedCursorFloor int64
 }
 
-type SubmitRequest struct {
+type EnqueueRequest struct {
 	ID                 string
 	SessionID          string
 	Content            string
@@ -278,7 +278,7 @@ type ReconcileResult struct {
 }
 
 type InboxStore interface {
-	SubmitMessage(context.Context, SubmitRequest) (QueueEntry, error)
+	EnqueueMessage(context.Context, EnqueueRequest) (QueueEntry, error)
 	GetExecutionState(context.Context, string) (ExecutionState, error)
 	ListEvents(context.Context, string, int64, int) (EventBatch, error)
 	EditQueueEntry(context.Context, QueueEditRequest) (QueueEntry, error)

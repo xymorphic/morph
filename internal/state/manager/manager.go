@@ -87,9 +87,9 @@ func (m *Manager) SupportsSessionInbox() bool {
 	return ok
 }
 
-func (m *Manager) SubmitMessage(
+func (m *Manager) EnqueueMessage(
 	ctx context.Context,
-	req agentsession.SubmitRequest,
+	req agentsession.EnqueueRequest,
 ) (agentsession.QueueEntry, error) {
 	store, err := m.inbox()
 	if err != nil {
@@ -98,7 +98,7 @@ func (m *Manager) SubmitMessage(
 	if _, err := m.Resolve(ctx, req.SessionID); err != nil {
 		return agentsession.QueueEntry{}, err
 	}
-	return store.SubmitMessage(ctx, req)
+	return store.EnqueueMessage(ctx, req)
 }
 
 func (m *Manager) GetExecutionState(

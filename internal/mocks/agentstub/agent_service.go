@@ -84,7 +84,7 @@ type AgentServiceStub struct {
 	AutomationStoreValue storage.AutomationStore
 	AutomationStoreOK    bool
 	AutomationStoreErr   error
-	SubmittedMessage     rpcclient.SubmitMessageOptions
+	EnqueuedMessage      rpcclient.EnqueueMessageOptions
 	QueueEntry           rpcclient.SessionQueueEntry
 	ExecutionState       rpcclient.SessionExecutionState
 	SetReasoningOptions  rpcclient.SetReasoningEffortOptions
@@ -129,14 +129,14 @@ func (s *AgentServiceStub) Respond(ctx context.Context, msg string, opts agent.R
 	return s.Reply, s.Err
 }
 
-func (s *AgentServiceStub) SubmitMessage(
+func (s *AgentServiceStub) EnqueueMessage(
 	ctx context.Context,
-	opts rpcclient.SubmitMessageOptions,
+	opts rpcclient.EnqueueMessageOptions,
 ) (rpcclient.SessionQueueEntry, error) {
 	s.ChatInput = opts.Message
 	s.RespondContext = ctx
 	s.RespondOptions.SessionID = opts.SessionID
-	s.SubmittedMessage = opts
+	s.EnqueuedMessage = opts
 	if s.RespondErr != nil {
 		return rpcclient.SessionQueueEntry{}, s.RespondErr
 	}
@@ -232,11 +232,11 @@ func (s *AgentServiceStub) InterruptRun(
 	return s.InterruptedRun, s.RunTransitioned, s.Err
 }
 
-func (s *AgentServiceStub) SubmitSessionMessage(
+func (s *AgentServiceStub) EnqueueSessionMessage(
 	ctx context.Context,
-	req agentsession.SubmitRequest,
+	req agentsession.EnqueueRequest,
 ) (agentsession.QueueEntry, error) {
-	return s.SubmitMessage(ctx, rpcclient.SubmitMessageOptions{
+	return s.EnqueueMessage(ctx, rpcclient.EnqueueMessageOptions{
 		SessionID:          req.SessionID,
 		Message:            req.Content,
 		Instruct:           req.Instruct,

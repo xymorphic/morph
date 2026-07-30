@@ -31,15 +31,15 @@ type sessionInboxState struct {
 
 var _ agentsession.InboxStore = (*Store)(nil)
 
-func (s *Store) SubmitMessage(
+func (s *Store) EnqueueMessage(
 	_ context.Context,
-	req agentsession.SubmitRequest,
+	req agentsession.EnqueueRequest,
 ) (agentsession.QueueEntry, error) {
 	if s == nil {
 		return agentsession.QueueEntry{}, errors.New("store is required")
 	}
 
-	req, err := normalizeMemorySubmitRequest(req)
+	req, err := normalizeMemoryEnqueueRequest(req)
 	if err != nil {
 		return agentsession.QueueEntry{}, err
 	}
@@ -862,9 +862,9 @@ func hasMatchingMemoryRun(
 		run.Status == agentsession.RunStatusRunning
 }
 
-func normalizeMemorySubmitRequest(
-	req agentsession.SubmitRequest,
-) (agentsession.SubmitRequest, error) {
+func normalizeMemoryEnqueueRequest(
+	req agentsession.EnqueueRequest,
+) (agentsession.EnqueueRequest, error) {
 	req.ID = str.String(req.ID).Trim()
 	req.SessionID = str.String(req.SessionID).Trim()
 	req.Content = str.String(req.Content).Trim()
@@ -982,7 +982,7 @@ func memoryRunStatusToEventType(
 
 func isSameMemorySubmission(
 	entry agentsession.QueueEntry,
-	req agentsession.SubmitRequest,
+	req agentsession.EnqueueRequest,
 ) bool {
 	return entry.SessionID == req.SessionID &&
 		entry.Content == req.Content &&

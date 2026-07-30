@@ -54,7 +54,7 @@ type ServiceAPI interface {
 }
 
 type SessionQueueAPI interface {
-	SubmitSessionMessage(context.Context, agentsession.SubmitRequest) (agentsession.QueueEntry, error)
+	EnqueueSessionMessage(context.Context, agentsession.EnqueueRequest) (agentsession.QueueEntry, error)
 	GetSessionExecutionState(context.Context, string) (agentsession.ExecutionState, error)
 	SetSessionReasoningEffort(
 		context.Context,

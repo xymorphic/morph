@@ -80,9 +80,9 @@ func (a *Agent) StartSessionRunner(ctx context.Context) error {
 	return nil
 }
 
-func (a *Agent) SubmitSessionMessage(
+func (a *Agent) EnqueueSessionMessage(
 	ctx context.Context,
-	req agentsession.SubmitRequest,
+	req agentsession.EnqueueRequest,
 ) (agentsession.QueueEntry, error) {
 	if err := a.checkSessionQueueReady(); err != nil {
 		return agentsession.QueueEntry{}, err
@@ -99,7 +99,7 @@ func (a *Agent) SubmitSessionMessage(
 	}
 	req.SessionID = session.ID
 	req.Provenance = provenanceFromAuthorization(authorization)
-	entry, err := a.stateMgr.SubmitMessage(ctx, req)
+	entry, err := a.stateMgr.EnqueueMessage(ctx, req)
 	if err != nil {
 		return agentsession.QueueEntry{}, err
 	}

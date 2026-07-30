@@ -33,6 +33,9 @@ When input starts with `/`, the TUI shows a filtered command menu. Tab or arrow 
 | `/providers` | Browse model providers, auth types, and local provider types | Local-aware catalog |
 | `/new-chat` | Create a new session and switch to it | RPC `SessionService.Create` |
 | `/permissions` | Choose a permission preset (persists to this profile's config) | Local config write (`permissions.preset`) |
+| `/queue` | Focus and refresh the pending-message queue | RPC `SessionService.State` |
+| `/steer <message>` | Add steering with follow-up fallback | RPC `SessionService.EnqueueMessage` |
+| `/interrupt` | Interrupt the active session run | RPC `SessionService.InterruptRun` |
 | `/setup` | Open profile setup for hosted or local providers | Local onboarding flow |
 
 ### `/chats` and `/archive`
@@ -77,6 +80,14 @@ show a status explanation and are not mutated.
 Effort overrides belong to the session, not the selected model. An unsupported stored value remains dormant when the
 model changes and becomes effective again only if a later exact provider/API/model tuple supports it.
 
+### `/queue`, `/steer`, and `/interrupt`
+
+When a response is active, sending another message adds it to the session's pending queue. Run `/queue` to focus the
+queue panel and select a message with **Up/Down** or **J/K**. Use **E** to edit, **X** to remove, **Enter** to promote,
+or **S** to steer the selected row. Mouse users can invoke the same actions from the row icons. Queue entry IDs remain
+an internal RPC detail. `/steer <message>` creates new steering input for the active run and falls back to a follow-up
+when steering can no longer be delivered safely. `/interrupt` explicitly interrupts the active run.
+
 ### `/permissions`
 
 Opens a picker for the four presets (`ask`, `approve`, `full-access`, `custom`); selecting persists
@@ -109,6 +120,9 @@ supports base URL editing, installed/suggested model selection, missing-model pu
 | `/compact` | `SessionService.Compact` |
 | `/new-chat` | `SessionService.Create` |
 | `/effort` | `SessionService.State`, `SetReasoningEffort` |
+| `/queue` | `SessionService.State`, `Observe` |
+| `/steer <message>` | `SessionService.EnqueueMessage` |
+| `/interrupt` | `SessionService.InterruptRun` |
 | `/models` | `ModelService.SelectModel`, `SetProviderAPIKey` (from models view) |
 
 Full method definitions: [RPC Reference](./rpc).

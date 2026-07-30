@@ -107,7 +107,7 @@ func runRPCSessionTurn(
 	if err != nil {
 		return "", err
 	}
-	options := rpcclient.SubmitMessageOptions{
+	options := rpcclient.EnqueueMessageOptions{
 		SessionID:          sessionID,
 		Message:            content,
 		ClientSubmissionID: submissionID,
@@ -116,7 +116,7 @@ func runRPCSessionTurn(
 		Stream:             stream,
 	}
 	options.Instruct = instruct
-	entry, err := client.SubmitMessage(ctx, options)
+	entry, err := client.EnqueueMessage(ctx, options)
 	if err != nil {
 		return "", err
 	}

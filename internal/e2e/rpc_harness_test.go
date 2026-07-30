@@ -158,7 +158,7 @@ func TestNewRPCHarness_ReconnectPreservesFIFOAndDeduplicatesSubmission(t *testin
 
 	firstClient, err := h.Client(context.Background())
 	require.NoError(t, err)
-	first, err := firstClient.SubmitMessage(context.Background(), rpcclient.SubmitMessageOptions{
+	first, err := firstClient.EnqueueMessage(context.Background(), rpcclient.EnqueueMessageOptions{
 		SessionID:          "default",
 		Message:            "first",
 		ClientSubmissionID: "submission-first",
@@ -171,7 +171,7 @@ func TestNewRPCHarness_ReconnectPreservesFIFOAndDeduplicatesSubmission(t *testin
 	case <-time.After(time.Second):
 		t.Fatal("first queued turn did not start")
 	}
-	retry, err := firstClient.SubmitMessage(context.Background(), rpcclient.SubmitMessageOptions{
+	retry, err := firstClient.EnqueueMessage(context.Background(), rpcclient.EnqueueMessageOptions{
 		SessionID:          "default",
 		Message:            "first",
 		ClientSubmissionID: "submission-first",
@@ -180,7 +180,7 @@ func TestNewRPCHarness_ReconnectPreservesFIFOAndDeduplicatesSubmission(t *testin
 	})
 	require.NoError(t, err)
 	require.Equal(t, first.ID, retry.ID)
-	second, err := firstClient.SubmitMessage(context.Background(), rpcclient.SubmitMessageOptions{
+	second, err := firstClient.EnqueueMessage(context.Background(), rpcclient.EnqueueMessageOptions{
 		SessionID:          "default",
 		Message:            "second",
 		ClientSubmissionID: "submission-second",

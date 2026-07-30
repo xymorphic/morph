@@ -620,7 +620,7 @@ func submitQueuedMessageCmd(
 		if err != nil {
 			return sessionQueueMutationCompletedMsg{Action: "submit", Draft: message, Err: err}
 		}
-		entry, err := client.SubmitMessage(ctx, rpcclient.SubmitMessageOptions{
+		entry, err := client.EnqueueMessage(ctx, rpcclient.EnqueueMessageOptions{
 			SessionID:          sessionID,
 			Message:            message,
 			ClientSubmissionID: submissionID,
@@ -759,11 +759,8 @@ func (m *model) requestSessionInterrupt() tea.Cmd {
 
 func (m *model) handleQueueCommand(args string) tea.Cmd {
 	args = strings.TrimSpace(args)
-	if args == "" {
-		return tea.Batch(
-			m.setStatus("queue refreshed"),
-			loadSessionExecutionStateCmd(m.chatCtx, m.chatClient, m.getCurrentSessionID()),
-		)
+	if args != "" {
+		return m.setStatus("usage: /queue")
 	}
 	if m.sessionQueueStale {
 		return tea.Batch(
@@ -771,33 +768,19 @@ func (m *model) handleQueueCommand(args string) tea.Cmd {
 			loadSessionExecutionStateCmd(m.chatCtx, m.chatClient, m.getCurrentSessionID()),
 		)
 	}
-	parts := strings.SplitN(args, " ", 3)
-	switch parts[0] {
-	case "edit":
-		if len(parts) != 3 || strings.TrimSpace(parts[2]) == "" {
-			return m.setStatus("usage: /queue edit <id> <message>")
-		}
-		return editQueuedMessageCmd(
-			m.chatCtx,
-			m.chatClient,
-			m.getCurrentSessionID(),
-			parts[1],
-			strings.TrimSpace(parts[2]),
+	if len(m.getPendingSessionQueueEntries()) == 0 {
+		return tea.Batch(
+			m.setStatus("no queued messages"),
+			loadSessionExecutionStateCmd(m.chatCtx, m.chatClient, m.getCurrentSessionID()),
 		)
-	case "remove", "promote", "steer":
-		if len(parts) != 2 {
-			return m.setStatus("usage: /queue " + parts[0] + " <id>")
-		}
-		return mutateQueuedMessageCmd(
-			m.chatCtx,
-			m.chatClient,
-			m.getCurrentSessionID(),
-			parts[1],
-			parts[0],
-		)
-	default:
-		return m.setStatus("usage: /queue [edit|remove|promote|steer]")
 	}
+	m.sessionQueueFocused = true
+	m.clampSessionQueueSelection()
+	m.input.Blur()
+	return tea.Batch(
+		m.setStatus("queue focused"),
+		loadSessionExecutionStateCmd(m.chatCtx, m.chatClient, m.getCurrentSessionID()),
+	)
 }
 
 func (m model) handleSessionQueueKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd, bool) {
@@ -1004,6 +987,10 @@ func (m model) getSelectedSessionQueueEntryID() string {
 	if !m.sessionQueueFocused {
 		return ""
 	}
+	return m.getSelectedPendingSessionQueueEntryID()
+}
+
+func (m model) getSelectedPendingSessionQueueEntryID() string {
 	pending := m.getPendingSessionQueueEntries()
 	if m.sessionQueueSelected < 0 || m.sessionQueueSelected >= len(pending) {
 		return ""
