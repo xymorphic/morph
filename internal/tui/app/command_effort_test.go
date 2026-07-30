@@ -23,7 +23,7 @@ func TestSlashCommandDefinitionsIncludeEffort(t *testing.T) {
 	t.Fatal("/effort command is not registered")
 }
 
-func TestHandleEffortCommandOpensOrderedStatusSelector(t *testing.T) {
+func TestHandleEffortCommandOpensSupportedSelectorAtEffectiveEffort(t *testing.T) {
 	runModel := newReasoningEffortTestModel()
 	active := agentsession.ReasoningSnapshot{
 		Provider: "openai", API: "responses", Model: "gpt-5.5", Effort: "low",
@@ -40,32 +40,48 @@ func TestHandleEffortCommandOpensOrderedStatusSelector(t *testing.T) {
 	require.Equal(t, []agentsession.ReasoningEffort{"none", "low", "medium", "high"}, runModel.commandView.Efforts)
 	require.Equal(t, "ses_effort", runModel.commandView.EffortSessionID)
 	require.Equal(t, runModel.reasoning.Model, runModel.commandView.EffortModel)
+	require.Equal(t, 3, runModel.commandViewItemSelected)
+	require.Empty(t, runModel.commandView.TitleSubtext)
+	require.Equal(t, len(runModel.commandView.Efforts)+3, runModel.commandView.Height)
+	require.Equal(t, len(runModel.commandView.Efforts), runModel.getCommandViewContentHeight())
+	require.Equal(
+		t,
+		runModel.getCommandViewHeight()+transcriptComposerGapHeight,
+		lipgloss.Height(runModel.renderCommandView()),
+	)
 
 	content := stripANSI(runModel.renderEffortCommandViewContent(commandViewContent{
 		Width: 160, Height: 8,
 	}))
+	for _, effort := range runModel.commandView.Efforts {
+		require.Contains(t, content, string(effort))
+	}
 	require.Less(t, strings.Index(content, "none"), strings.Index(content, "low"))
 	require.Less(t, strings.Index(content, "low"), strings.Index(content, "medium"))
-	require.Contains(t, content, "override")
-	require.Contains(t, content, "next turn")
-	require.Contains(t, content, "current turn")
-	require.Contains(t, content, "fallback session_override_unsupported")
-	require.Contains(t, content, "dormant override xhigh")
+	require.Less(t, strings.Index(content, "medium"), strings.Index(content, "high"))
+	require.NotContains(t, content, "default")
+	require.NotContains(t, content, "supported")
+	require.NotContains(t, content, "next turn")
+	require.NotContains(t, content, "current turn")
+	require.NotContains(t, content, "override")
+	require.NotContains(t, content, "fallback")
 }
 
-func TestEffortSelectorLabelsDormantProfileDefault(t *testing.T) {
+func TestEffortSelectorSelectsInheritedEffectiveEffort(t *testing.T) {
 	runModel := newReasoningEffortTestModel()
-	runModel.reasoning.ProfileDefault = "xhigh"
-	runModel.reasoning.DormantEffort = "xhigh"
-	runModel.reasoning.Fallback = agentsession.ReasoningFallbackProfileDefaultUnsupported
+	runModel.reasoning.ProfileDefault = "medium"
+	runModel.reasoning.EffectiveEffort = "medium"
+	runModel.reasoning.Source = agentsession.ReasoningResolutionSourceProfileDefault
 
 	require.Nil(t, runModel.handleEffortCommand(""))
 	content := stripANSI(runModel.renderEffortCommandViewContent(commandViewContent{
 		Width: 120, Height: 6,
 	}))
 
-	require.Contains(t, content, "dormant profile default xhigh")
-	require.NotContains(t, content, "dormant override xhigh")
+	require.Equal(t, 2, runModel.commandViewItemSelected)
+	require.Contains(t, content, "medium")
+	require.NotContains(t, content, "default")
+	require.NotContains(t, content, "profile_default")
 }
 
 func TestHandleEffortCommandSetsCanonicalValueAndResetAliases(t *testing.T) {
@@ -146,6 +162,7 @@ func TestHandleEffortCommandAllowsResetForDormantOverride(t *testing.T) {
 
 func TestEffortStatusShowsDormantOverrideForUnavailableModel(t *testing.T) {
 	runModel := newReasoningEffortTestModel()
+	runModel.width = 120
 	runModel.reasoning.Reasoning = false
 	runModel.reasoning.Adjustable = false
 	runModel.reasoning.SessionOverride = "high"
@@ -161,9 +178,11 @@ func TestEffortStatusShowsDormantOverrideForUnavailableModel(t *testing.T) {
 	require.Contains(t, content, "Stored override: high")
 	require.Contains(t, content, "/effort reset")
 	require.Contains(t, content, "session_override_unsupported")
+	require.Equal(t, strings.Count(content, "\n")+1, runModel.getCommandViewContentHeight())
+	require.Equal(t, runModel.getCommandViewContentHeight()+3, runModel.commandView.Height)
 }
 
-func TestEffortSelectorSupportsKeyboardMouseAndEscape(t *testing.T) {
+func TestEffortSelectorSupportsKeyboardAndEscape(t *testing.T) {
 	runModel := newReasoningEffortTestModel()
 	client := &fakeTUIChatClient{}
 	runModel.sessionClient = client
@@ -173,18 +192,86 @@ func TestEffortSelectorSupportsKeyboardMouseAndEscape(t *testing.T) {
 	runModel = updated.(model)
 	require.Equal(t, 1, runModel.commandViewItemSelected)
 
-	mouse := tea.MouseClickMsg(tea.Mouse{
-		X:      runModel.getCommandViewContentLeft(),
-		Y:      runModel.getCommandViewContentTop() + 2,
-		Button: tea.MouseLeft,
-	})
-	updated, cmd := runModel.updateEffortCommandView(mouse)
-	require.NotNil(t, cmd)
-	runModel = updated.(model)
-	require.Equal(t, 2, runModel.commandViewItemSelected)
-
 	updated, _, handled := runModel.handleKeyPressMsg(tea.KeyPressMsg{Code: tea.KeyEscape})
 	require.True(t, handled)
+	require.False(t, updated.(model).isCommandViewVisible())
+}
+
+func TestEffortSelectorAppliesKeyboardAndMouseSelections(t *testing.T) {
+	tests := []struct {
+		name         string
+		selectOption func(model) (tea.Model, tea.Cmd)
+		effort       agentsession.ReasoningEffort
+	}{
+		{
+			name: "keyboard",
+			selectOption: func(runModel model) (tea.Model, tea.Cmd) {
+				updated, _ := runModel.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+				return updated.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+			},
+			effort: "low",
+		},
+		{
+			name: "mouse",
+			selectOption: func(runModel model) (tea.Model, tea.Cmd) {
+				lines := strings.Split(stripANSI(runModel.View().Content), "\n")
+				renderedRow := -1
+				for index, line := range lines {
+					if strings.TrimSpace(strings.Trim(line, "│")) == "medium" {
+						renderedRow = index
+						break
+					}
+				}
+				require.Equal(t, runModel.getCommandViewContentTop()+2, renderedRow)
+				return runModel.Update(tea.MouseClickMsg(tea.Mouse{
+					X:      runModel.getCommandViewContentLeft(),
+					Y:      renderedRow,
+					Button: tea.MouseLeft,
+				}))
+			},
+			effort: "medium",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runModel := newReasoningEffortTestModel()
+			client := &fakeTUIChatClient{}
+			runModel.sessionClient = client
+			client.reasoningSettings = runModel.reasoning
+			client.reasoningSettings.SessionOverride = test.effort
+			client.reasoningSettings.EffectiveEffort = test.effort
+			client.reasoningSettings.Source = agentsession.ReasoningResolutionSourceSessionOverride
+			runModel.startEffortCommand()
+
+			updated, cmd := test.selectOption(runModel)
+			selected := updated.(model)
+			require.False(t, selected.isCommandViewVisible())
+
+			result := effortSetMessageFromCommand(t, cmd)
+			updated, _ = selected.Update(result)
+			completed := updated.(model)
+
+			require.Equal(t, 1, client.reasoningCalls)
+			require.Equal(t, string(test.effort), client.reasoningOptions.Effort)
+			require.Equal(t, test.effort, completed.reasoning.EffectiveEffort)
+			require.False(t, completed.isCommandViewVisible())
+		})
+	}
+}
+
+func TestEffortSelectorDoesNotOverrideInheritedEffectiveEffort(t *testing.T) {
+	runModel := newReasoningEffortTestModel()
+	client := &fakeTUIChatClient{}
+	runModel.sessionClient = client
+	runModel.reasoning.EffectiveEffort = "medium"
+	runModel.reasoning.Source = agentsession.ReasoningResolutionSourceCatalogDefault
+	runModel.startEffortCommand()
+
+	updated, cmd := runModel.updateEffortCommandView(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	require.Nil(t, cmd)
+	require.Zero(t, client.reasoningCalls)
 	require.False(t, updated.(model).isCommandViewVisible())
 }
 
@@ -194,13 +281,13 @@ func TestEffortSelectorSupportsBoundaryKeysAndWheel(t *testing.T) {
 
 	updated, _ := runModel.updateEffortCommandView(tea.KeyPressMsg{Code: tea.KeyEnd})
 	runModel = updated.(model)
-	require.Equal(t, len(runModel.commandView.Efforts), runModel.commandViewItemSelected)
+	require.Equal(t, len(runModel.commandView.Efforts)-1, runModel.commandViewItemSelected)
 
 	updated, _ = runModel.updateEffortCommandView(tea.MouseWheelMsg(tea.Mouse{
 		Button: tea.MouseWheelUp,
 	}))
 	runModel = updated.(model)
-	require.Equal(t, len(runModel.commandView.Efforts)-1, runModel.commandViewItemSelected)
+	require.Equal(t, len(runModel.commandView.Efforts)-2, runModel.commandViewItemSelected)
 
 	updated, _ = runModel.updateEffortCommandView(tea.KeyPressMsg{Code: tea.KeyHome})
 	runModel = updated.(model)
@@ -326,8 +413,10 @@ func TestCompleteReasoningEffortSetRefreshesOpenSelector(t *testing.T) {
 
 	require.NotNil(t, cmd)
 	require.Equal(t, settings.SupportedEfforts, runModel.commandView.Efforts)
-	require.Equal(t, 2, runModel.commandViewItemSelected)
-	require.Contains(t, runModel.commandView.TitleSubtext, "effective high")
+	require.Equal(t, 1, runModel.commandViewItemSelected)
+	require.Empty(t, runModel.commandView.TitleSubtext)
+	require.Equal(t, len(settings.SupportedEfforts)+3, runModel.commandView.Height)
+	require.Equal(t, len(settings.SupportedEfforts), runModel.getCommandViewContentHeight())
 	require.Equal(t, "GPT-5.5 (high)", runModel.getModelLabel())
 }
 
