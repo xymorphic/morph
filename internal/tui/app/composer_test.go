@@ -60,6 +60,74 @@ func TestParseComposerInput_ClassifiesInput(t *testing.T) {
 	}
 }
 
+func TestParseComposerInputForSubmit_PreservesSlashCommandArguments(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  composerInput
+	}{
+		{
+			name:  "effort",
+			input: "/effort High",
+			want: composerInput{
+				Kind: composerInputCommand,
+				Text: "/effort High",
+				Name: "effort",
+				Args: "High",
+			},
+		},
+		{
+			name:  "effort autocomplete",
+			input: "/eff High",
+			want: composerInput{
+				Kind: composerInputCommand,
+				Text: "/effort High",
+				Name: "effort",
+				Args: "High",
+			},
+		},
+		{
+			name:  "queue",
+			input: "/queue edit que_123 revised message",
+			want: composerInput{
+				Kind: composerInputCommand,
+				Text: "/queue edit que_123 revised message",
+				Name: "queue",
+				Args: "edit que_123 revised message",
+			},
+		},
+		{
+			name:  "steer",
+			input: "/steer focus on the API",
+			want: composerInput{
+				Kind: composerInputCommand,
+				Text: "/steer focus on the API",
+				Name: "steer",
+				Args: "focus on the API",
+			},
+		},
+		{
+			name:  "artifact",
+			input: "/artifact save artifact_123 /tmp/report.txt",
+			want: composerInput{
+				Kind: composerInputCommand,
+				Text: "/artifact save artifact_123 /tmp/report.txt",
+				Name: "artifact",
+				Args: "save artifact_123 /tmp/report.txt",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runModel := newModel()
+			runModel.input.SetValue(test.input)
+
+			require.Equal(t, test.want, runModel.parseComposerInputForSubmit())
+		})
+	}
+}
+
 func TestNormalizeComposerPaste_TrimsTrailingLineBreaks(t *testing.T) {
 	require.Equal(t, "first\n\nsecond", normalizeComposerPaste("first\n\nsecond\n\r\n"))
 	require.Equal(t, "first\n\nsecond", normalizeComposerPaste("first\n\nsecond"))

@@ -33,10 +33,16 @@ func (m model) parseComposerInputForSubmit() composerInput {
 		return input
 	}
 
+	text := "/" + command.Name
+	if input.Args != "" {
+		text += " " + input.Args
+	}
+
 	return composerInput{
 		Kind: composerInputCommand,
-		Text: "/" + command.Name,
+		Text: text,
 		Name: command.Name,
+		Args: input.Args,
 	}
 }
 
