@@ -40,6 +40,7 @@ type Result struct {
 	TruncatedLength  int
 	TruncationMarker string
 	SafetyEvents     []guardrails.SafetyTracePayloadOptions
+	UnsafeEvidence   []guardrails.UnsafeEvidence
 }
 
 // DefaultInstructionFiles returns the default instruction files.
@@ -121,6 +122,7 @@ func LoadFromRoot(root string, files ...string) (Result, error) {
 
 	sections := make([]string, 0, len(paths))
 	safetyEvents := make([]guardrails.SafetyTracePayloadOptions, 0)
+	unsafeEvidence := make([]guardrails.UnsafeEvidence, 0)
 	for _, path := range paths {
 		content, err := os.ReadFile(path)
 		if err != nil {
@@ -134,7 +136,9 @@ func LoadFromRoot(root string, files ...string) (Result, error) {
 
 		scanned := guardrails.SafetyScan(string(content), displayPath)
 		if scanned.Blocked {
-			safetyEvents = append(safetyEvents, loadedContentSafetyEvent(displayPath, string(content), scanned.Findings))
+			event, evidence := loadedContentSafetyEvent(displayPath, string(content), scanned.Content, scanned.Findings)
+			safetyEvents = append(safetyEvents, event)
+			unsafeEvidence = append(unsafeEvidence, evidence)
 		}
 		sections = append(sections, fmt.Sprintf("## %s\n%s", displayPath, scanned.Content))
 	}
@@ -151,21 +155,32 @@ func LoadFromRoot(root string, files ...string) (Result, error) {
 		TruncatedLength:  len(content),
 		TruncationMarker: "[... workspace rules truncated ...]",
 		SafetyEvents:     safetyEvents,
+		UnsafeEvidence:   unsafeEvidence,
 	}, nil
 }
 
 func loadedContentSafetyEvent(
 	source string,
 	content string,
+	safe string,
 	findings []guardrails.SafetyFinding,
-) guardrails.SafetyTracePayloadOptions {
-	return guardrails.SafetyTracePayloadOptions{
+) (guardrails.SafetyTracePayloadOptions, guardrails.UnsafeEvidence) {
+	event := guardrails.SafetyTracePayloadOptions{
 		Source:        source,
 		Action:        "blocked",
 		ContentLength: len([]rune(content)),
 		Blocked:       true,
 		Findings:      findings,
 	}
+	evidence := guardrails.UnsafeEvidence{
+		Source:   source,
+		Action:   "blocked",
+		Blocked:  true,
+		Findings: guardrails.SafetyFindingLogFields(findings),
+		Original: content,
+		Safe:     safe,
+	}
+	return event, evidence
 }
 
 func hasTopLevelRules(root string) (bool, error) {

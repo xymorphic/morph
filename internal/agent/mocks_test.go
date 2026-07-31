@@ -14,6 +14,7 @@ import (
 	"github.com/wandxy/morph/internal/config"
 	envbudget "github.com/wandxy/morph/internal/environment/budget"
 	envtypes "github.com/wandxy/morph/internal/environment/types"
+	"github.com/wandxy/morph/internal/guardrails"
 	"github.com/wandxy/morph/internal/memory"
 	"github.com/wandxy/morph/internal/mocks"
 	models "github.com/wandxy/morph/internal/model"
@@ -617,6 +618,8 @@ type retrievalMemoryProviderStub struct {
 	noSupport       bool
 	pinned          []memory.MemoryItem
 	search          memory.SearchResult
+	pinnedRecorder  guardrails.UnsafeEvidenceRecorder
+	searchRecorder  guardrails.UnsafeEvidenceRecorder
 }
 
 func (s *retrievalMemoryProviderStub) Name() string {
@@ -639,9 +642,10 @@ func (s *retrievalMemoryProviderStub) ConfigureObservability(memory.Observabilit
 }
 
 func (s *retrievalMemoryProviderStub) LoadPinned(
-	context.Context,
-	memory.SearchQuery,
+	ctx context.Context,
+	_ memory.SearchQuery,
 ) ([]memory.MemoryItem, error) {
+	s.pinnedRecorder = guardrails.UnsafeEvidenceRecorderFromContext(ctx)
 	if s.pinnedErr != nil {
 		return nil, s.pinnedErr
 	}
@@ -649,7 +653,11 @@ func (s *retrievalMemoryProviderStub) LoadPinned(
 	return s.pinned, nil
 }
 
-func (s *retrievalMemoryProviderStub) Search(context.Context, memory.SearchQuery) (memory.SearchResult, error) {
+func (s *retrievalMemoryProviderStub) Search(
+	ctx context.Context,
+	_ memory.SearchQuery,
+) (memory.SearchResult, error) {
+	s.searchRecorder = guardrails.UnsafeEvidenceRecorderFromContext(ctx)
 	if s.searchErr != nil {
 		return memory.SearchResult{}, s.searchErr
 	}

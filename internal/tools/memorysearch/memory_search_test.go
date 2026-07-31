@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/wandxy/morph/internal/guardrails"
 	"github.com/wandxy/morph/internal/memory"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/tools"
@@ -240,7 +241,9 @@ func TestMemorySearch_OutputAppliesStatusSafetyAndRedaction(t *testing.T) {
 		},
 	}
 
-	result, err := Definition(runtime).Handler.Invoke(context.Background(), tools.Call{
+	store := guardrails.NewFileUnsafeEvidenceStore(t.TempDir())
+	ctx := guardrails.WithUnsafeEvidenceRecorder(context.Background(), store)
+	result, err := Definition(runtime).Handler.Invoke(ctx, tools.Call{
 		Name:  "memory_search",
 		Input: `{"query":"token"}`,
 	})
@@ -252,6 +255,13 @@ func TestMemorySearch_OutputAppliesStatusSafetyAndRedaction(t *testing.T) {
 	require.Equal(t, "mem_safe", payload.Results[0].ID)
 	require.NotContains(t, payload.Results[0].Text, "sk-live-secretsecret")
 	require.NotContains(t, payload.Results[0].Tags[0], "secret-token-value")
+	evidence, err := store.LoadUnsafeEvidence(context.Background())
+	require.NoError(t, err)
+	require.Len(t, evidence, 2)
+	require.ElementsMatch(t, []string{"redacted", "blocked"}, []string{
+		evidence[0].Action,
+		evidence[1].Action,
+	})
 }
 
 func TestMemorySearch_OutputEnforcesMaxCharsWhenRuntimeDoesNot(t *testing.T) {

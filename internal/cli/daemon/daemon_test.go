@@ -577,6 +577,17 @@ func TestRenderStartupPanel_IncludesSafetyMode(t *testing.T) {
 	require.Contains(t, output, "Safety: input=disabled, output=enabled, pii=enabled")
 }
 
+func TestRenderStartupPanel_WarnsWhenUnsafeEvidenceRetentionIsEnabled(t *testing.T) {
+	output := renderStartupPanel(&config.Config{
+		Name:   "daemon",
+		Models: config.ModelsConfig{Main: config.MainModelConfig{Name: "gpt-4o-mini", Provider: "openrouter"}},
+		Log:    config.LogConfig{NoColor: true},
+		Dev:    config.DevConfig{RetainUnsafe: true},
+	})
+
+	require.Contains(t, output, "Unsafe evidence: PLAINTEXT; same-user/full-access readable; cleanup is manual")
+}
+
 func TestRenderStartupPanel_IncludesEmbeddingModelWhenVectorEnabled(t *testing.T) {
 	rerankDisabled := false
 	output := renderStartupPanel(&config.Config{

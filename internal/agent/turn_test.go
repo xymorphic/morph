@@ -440,7 +440,11 @@ func TestTurn_RunBlocksUnsafeInputBeforeModel(t *testing.T) {
 	manager, err := statemanager.NewManager(store, time.Hour, time.Hour)
 	require.NoError(t, err)
 	sessionStore := NewSessionStore(manager)
-	env := &mocks.EnvironmentStub{IterationBudget: envbudget.New(2)}
+	evidenceRecorder := &unsafeEvidenceRecorderStub{}
+	env := &mocks.EnvironmentStub{
+		IterationBudget: envbudget.New(2),
+		UnsafeEvidence:  evidenceRecorder,
+	}
 	client := &mocks.ModelClientStub{}
 	turn := NewTurnWithSessionStore(
 		&config.Config{Models: config.ModelsConfig{Main: config.MainModelConfig{Name: "model", API: models.APIOpenAIResponses, Stream: &stream}}},
@@ -467,6 +471,12 @@ func TestTurn_RunBlocksUnsafeInputBeforeModel(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, unsafeInput, reply)
 	require.Zero(t, client.CallCount)
+	require.Len(t, evidenceRecorder.evidence, 1)
+	require.Equal(t, storage.DefaultSessionID, evidenceRecorder.evidence[0].SessionID)
+	require.Equal(t, "user", evidenceRecorder.evidence[0].Source)
+	require.Equal(t, "blocked", evidenceRecorder.evidence[0].Action)
+	require.Equal(t, unsafeInput, evidenceRecorder.evidence[0].Original)
+	require.Equal(t, reply, evidenceRecorder.evidence[0].Safe)
 }
 
 func TestTurn_RunPropagatesModelAssistantAndToolErrors(t *testing.T) {
@@ -907,6 +917,7 @@ func TestTurn_RecordModelReasoningCompletedBranches(t *testing.T) {
 
 func TestTurn_RecordModelReasoningCompletedPersistsSanitizedSummary(t *testing.T) {
 	var recorded storage.TraceEvent
+	evidenceRecorder := &unsafeEvidenceRecorderStub{}
 	recorder := NewSessionStore(&sessionManagerStub{
 		AppendTraceEventFunc: func(_ context.Context, event storage.TraceEvent) (storage.TraceEvent, error) {
 			recorded = event
@@ -917,6 +928,7 @@ func TestTurn_RecordModelReasoningCompletedPersistsSanitizedSummary(t *testing.T
 		ctx:           context.Background(),
 		sessionID:     "default",
 		traceRecorder: recorder,
+		env:           &mocks.EnvironmentStub{UnsafeEvidence: evidenceRecorder},
 	}
 
 	turn.recordModelReasoningCompleted(
@@ -931,6 +943,38 @@ func TestTurn_RecordModelReasoningCompletedPersistsSanitizedSummary(t *testing.T
 	require.Equal(t, int64(2000), payload.DurationMS)
 	require.Contains(t, payload.Summary, "Checked token")
 	require.NotContains(t, payload.Summary, "sk-abcdefghijklmno")
+	require.Len(t, evidenceRecorder.evidence, 1)
+	require.Equal(t, "reasoning.summary", evidenceRecorder.evidence[0].Source)
+	require.Equal(t, "redacted", evidenceRecorder.evidence[0].Action)
+	require.Equal(t, "default", evidenceRecorder.evidence[0].SessionID)
+	require.Contains(t, evidenceRecorder.evidence[0].Original, "sk-abcdefghijklmno")
+	require.NotContains(t, evidenceRecorder.evidence[0].Safe, "sk-abcdefghijklmno")
+}
+
+func TestTurn_RecordModelReasoningCompletedDoesNotRetainSafeSummary(t *testing.T) {
+	evidenceRecorder := &unsafeEvidenceRecorderStub{}
+	recorder := NewSessionStore(&sessionManagerStub{
+		AppendTraceEventFunc: func(
+			_ context.Context,
+			event storage.TraceEvent,
+		) (storage.TraceEvent, error) {
+			return event, nil
+		},
+	})
+	turn := &Turn{
+		ctx:           context.Background(),
+		sessionID:     "default",
+		traceRecorder: recorder,
+		env:           &mocks.EnvironmentStub{UnsafeEvidence: evidenceRecorder},
+	}
+
+	turn.recordModelReasoningCompleted(
+		time.Unix(1, 0),
+		time.Unix(3, 0),
+		"Compared the available approaches.",
+	)
+
+	require.Empty(t, evidenceRecorder.evidence)
 }
 
 func TestTurn_MaybeRefreshSummaryResetsAnchorAndGuardAfterTrim(t *testing.T) {
@@ -1053,6 +1097,25 @@ func TestTurn_RecordPostflightUsageAndSafety(t *testing.T) {
 	err = turn.recordPostflightUsage(traceSession, &models.Response{PromptTokens: 1}, 1)
 	require.EqualError(t, err, "usage failed")
 	require.Equal(t, compaction.Anchor{PromptTokens: 5, MessageCount: 3}, turn.compactionAnchor)
+}
+
+func TestTurn_ApplyAssistantOutputSafetyRetainsUnsafeEvidence(t *testing.T) {
+	evidenceRecorder := &unsafeEvidenceRecorderStub{}
+	turn := &Turn{
+		cfg:       &config.Config{},
+		ctx:       context.Background(),
+		sessionID: "session",
+		env:       &mocks.EnvironmentStub{UnsafeEvidence: evidenceRecorder},
+	}
+	unsafeOutput := "TOKEN=example-secret-value-123456"
+
+	safe := turn.applyAssistantOutputSafety(trace.NoopSession(), unsafeOutput, false)
+
+	require.Len(t, evidenceRecorder.evidence, 1)
+	require.Equal(t, "assistant", evidenceRecorder.evidence[0].Source)
+	require.Equal(t, "redacted", evidenceRecorder.evidence[0].Action)
+	require.Equal(t, unsafeOutput, evidenceRecorder.evidence[0].Original)
+	require.Equal(t, safe, evidenceRecorder.evidence[0].Safe)
 }
 
 func TestTurn_SafetyPayloadHelpers(t *testing.T) {

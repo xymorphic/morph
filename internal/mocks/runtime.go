@@ -86,6 +86,7 @@ type EnvironmentStub struct {
 	TraceRunContexts []runcontext.Context
 	TraceSessionIDs  []string
 	SafetyEvents     []guardrails.SafetyTracePayloadOptions
+	UnsafeEvidence   guardrails.UnsafeEvidenceRecorder
 	Memory           memory.Provider
 	Automation       envtypes.AutomationService
 	AutomationSets   int
@@ -106,6 +107,10 @@ func (s *EnvironmentStub) Instructions() instruct.Instructions {
 
 func (s *EnvironmentStub) SafetyTraceEvents() []guardrails.SafetyTracePayloadOptions {
 	return s.SafetyEvents
+}
+
+func (s *EnvironmentStub) UnsafeEvidenceRecorder() guardrails.UnsafeEvidenceRecorder {
+	return s.UnsafeEvidence
 }
 
 func (s *EnvironmentStub) Tools() environment.ToolRegistry {

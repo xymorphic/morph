@@ -209,6 +209,9 @@
 # debug:
 #   requests: false
 
+# dev:
+#   retainUnsafe: false
+
 # trace:
 #   enabled: false
 #   disk:

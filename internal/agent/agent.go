@@ -1056,24 +1056,38 @@ func recordToolOutputSafety(
 	output string,
 	result guardrails.UntrustedContentSafetyResult,
 ) {
+	toolNameValue := str.String(toolName)
+	source := "tool." + toolNameValue.Trim()
+	retainUnsafeEvidence(ctx, guardrails.UnsafeEvidenceRecorderFromContext(ctx), guardrails.UnsafeEvidence{
+		Source:   source,
+		Action:   getUnsafeEvidenceAction(result.Blocked),
+		Blocked:  result.Blocked,
+		Redacted: result.Redacted,
+		Findings: guardrails.SafetyFindingLogFields(result.Findings),
+		Original: output,
+		Safe:     result.Content,
+	})
+
 	recorder := tools.TraceRecorderFromContext(ctx)
 	if recorder == nil {
 		return
 	}
 
-	action := "redacted"
-	if result.Blocked {
-		action = "blocked"
-	}
-	toolNameValue2 := str.String(toolName)
 	recorder.Record(trace.EvtToolOutputSafetyApplied, trace.SafetyEventPayload{
-		Source:        "tool." + toolNameValue2.Trim(),
-		Action:        action,
+		Source:        source,
+		Action:        getUnsafeEvidenceAction(result.Blocked),
 		ContentLength: len([]rune(output)),
 		Blocked:       result.Blocked,
 		Redacted:      result.Redacted,
 		Findings:      guardrails.SafetyFindingLogFields(result.Findings),
 	})
+}
+
+func getUnsafeEvidenceAction(blocked bool) string {
+	if blocked {
+		return "blocked"
+	}
+	return "redacted"
 }
 
 // toolResultMessage serializes a tool result map into the assistant conversation format.

@@ -85,6 +85,12 @@ func getStartupDetailRows(cfg *config.Config) []startupDetailRow {
 		startupDetailRow{label: "Traces", value: traceStatus},
 		startupDetailRow{label: "Safety", value: daemonDependencies.safetySummary(cfg)},
 	)
+	if cfg.RetainUnsafeEnabled() {
+		rows = append(rows, startupDetailRow{
+			label: "Unsafe evidence",
+			value: "PLAINTEXT; same-user/full-access readable; cleanup is manual",
+		})
+	}
 	if cfg.Search.Vector.Enabled {
 		rows = append(rows,
 			startupDetailRow{label: "Embedding model", value: cfg.Models.Embedding.Name},

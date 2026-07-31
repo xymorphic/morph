@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/wandxy/morph/internal/agent/runcontext"
+	"github.com/wandxy/morph/internal/guardrails"
 	"github.com/wandxy/morph/internal/instructions"
 	"github.com/wandxy/morph/internal/memory"
 	"github.com/wandxy/morph/internal/permissions"
@@ -347,8 +348,11 @@ func TestMemoryAdd_DefinitionRejectsUnsafeContent(t *testing.T) {
 				},
 			}
 			traceSession := &traceRecorderStub{}
+			store := guardrails.NewFileUnsafeEvidenceStore(t.TempDir())
+			ctx := tools.WithTraceRecorder(context.Background(), traceSession)
+			ctx = guardrails.WithUnsafeEvidenceRecorder(ctx, store)
 
-			result, err := AddDefinition(runtime).Handler.Invoke(tools.WithTraceRecorder(context.Background(), traceSession), tools.Call{
+			result, err := AddDefinition(runtime).Handler.Invoke(ctx, tools.Call{
 				Name:  "memory_add",
 				Input: tt.input,
 			})
@@ -359,6 +363,11 @@ func TestMemoryAdd_DefinitionRejectsUnsafeContent(t *testing.T) {
 			require.False(t, proceduralCalled, "unsafe procedural memory should not reach provider")
 			require.False(t, promoted, "unsafe memory should not enter promotion")
 			requireMemorySafetyBlockedTrace(t, traceSession, tt.expectedAction, tt.expectedRedacted)
+			evidence, loadErr := store.LoadUnsafeEvidence(context.Background())
+			require.NoError(t, loadErr)
+			require.Len(t, evidence, 1)
+			require.Equal(t, tt.expectedAction, evidence[0].Action)
+			require.NotEmpty(t, evidence[0].Original)
 		})
 	}
 }
@@ -674,7 +683,7 @@ func TestMemoryDelete_DefinitionHandlesDecodeAndRuntimeErrors(t *testing.T) {
 
 func TestMemoryItemFromAddInput_NormalizesOptionalFields(t *testing.T) {
 	confidence := 0.75
-	item, err := memoryItemFromAddInput(addInput{
+	item, err := memoryItemFromAddInput(context.Background(), addInput{
 		Kind:       " semantic ",
 		Title:      " Preference ",
 		Text:       " Use ember-lake. ",

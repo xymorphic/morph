@@ -24,6 +24,7 @@ func TestNewDefaultConfig_ReturnsIndependentConfig(t *testing.T) {
 	require.True(t, first.InputSafetyEnabled())
 	require.True(t, first.OutputSafetyEnabled())
 	require.True(t, first.OutputPIIRedactionEnabled())
+	require.False(t, first.RetainUnsafeEnabled())
 	require.NotEmpty(t, first.FS.Roots)
 	require.Equal(t, constants.RerankerDeterministic, first.Reranker.Type)
 	require.Equal(t, constants.RerankerDeterministic, first.RerankerEffective())

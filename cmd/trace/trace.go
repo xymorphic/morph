@@ -25,6 +25,7 @@ func NewCommand() *cli.Command {
 		Usage: "Inspect stored session traces",
 		Commands: []*cli.Command{
 			newViewCommand(),
+			newUnsafeCommand(),
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			return cli.ShowSubcommandHelp(cmd)

@@ -99,17 +99,18 @@ type Environment interface {
 }
 
 type environment struct {
-	ctx          context.Context
-	cfg          *config.Config
-	instructions instructions.Instructions
-	workspace    workspace.Result
-	tools        tools.Registry
-	traces       trace.Factory
-	memory       memory.Provider
-	runtime      *Runtime
-	stateMgr     *statemanager.Manager
-	modelClient  models.Client
-	safetyEvents []guardrails.SafetyTracePayloadOptions
+	ctx            context.Context
+	cfg            *config.Config
+	instructions   instructions.Instructions
+	workspace      workspace.Result
+	tools          tools.Registry
+	traces         trace.Factory
+	memory         memory.Provider
+	runtime        *Runtime
+	stateMgr       *statemanager.Manager
+	modelClient    models.Client
+	safetyEvents   []guardrails.SafetyTracePayloadOptions
+	unsafeEvidence guardrails.UnsafeEvidenceRecorder
 }
 
 // ToolRegistry resolves model-visible tool definitions and invokers.
@@ -182,6 +183,7 @@ func (e *environment) Prepare() error {
 
 	e.cfg.Normalize()
 
+	e.prepareUnsafeEvidence()
 	e.prepareInstructions()
 
 	if e.stateMgr == nil {
@@ -195,6 +197,17 @@ func (e *environment) Prepare() error {
 	}
 
 	return e.prepareTools()
+}
+
+func (e *environment) prepareUnsafeEvidence() {
+	if e == nil {
+		return
+	}
+	e.unsafeEvidence = nil
+	if e.cfg == nil || !e.cfg.RetainUnsafeEnabled() {
+		return
+	}
+	e.unsafeEvidence = guardrails.NewFileUnsafeEvidenceStore(datadir.UnsafeEvidenceDir())
 }
 
 func (e *environment) prepareTraceFactory() {
@@ -281,7 +294,8 @@ func (e *environment) prepareMemory() error {
 		return err
 	}
 	if background, ok := provider.(memory.BackgroundProvider); ok {
-		if err := background.StartBackground(e.ctx); err != nil {
+		backgroundCtx := guardrails.WithUnsafeEvidenceRecorder(e.ctx, e.unsafeEvidence)
+		if err := background.StartBackground(backgroundCtx); err != nil {
 			return err
 		}
 	}
@@ -468,6 +482,7 @@ func (e *environment) prepareInstructions() {
 		e.addInstruction(instructions.Instruction{Value: personalityOverlay.Content})
 	}
 	e.safetyEvents = append(e.safetyEvents, personalityOverlay.SafetyEvents...)
+	e.captureLoadedUnsafeEvidence(personalityOverlay.UnsafeEvidence)
 
 	workspaceRules, err := loadWorkspaceRules(e.cfg.Rules.Files...)
 	if err != nil {
@@ -480,9 +495,19 @@ func (e *environment) prepareInstructions() {
 		e.addInstruction(instructions.Instruction{Value: workspaceRules.Content})
 	}
 	e.safetyEvents = append(e.safetyEvents, workspaceRules.SafetyEvents...)
+	e.captureLoadedUnsafeEvidence(workspaceRules.UnsafeEvidence)
 
 	if e.cfg != nil && e.cfg.Session.Instruct != "" {
 		e.setInstruction(instructions.Instruction{Name: configInstructInstructionName, Value: e.cfg.Session.Instruct})
+	}
+}
+
+func (e *environment) captureLoadedUnsafeEvidence(events []guardrails.UnsafeEvidence) {
+	if e == nil || e.unsafeEvidence == nil {
+		return
+	}
+	for _, event := range events {
+		guardrails.RetainUnsafeEvidence(e.ctx, e.unsafeEvidence, event)
 	}
 }
 
@@ -511,6 +536,13 @@ func (e *environment) SafetyTraceEvents() []guardrails.SafetyTracePayloadOptions
 	events := make([]guardrails.SafetyTracePayloadOptions, len(e.safetyEvents))
 	copy(events, e.safetyEvents)
 	return events
+}
+
+func (e *environment) UnsafeEvidenceRecorder() guardrails.UnsafeEvidenceRecorder {
+	if e == nil {
+		return nil
+	}
+	return e.unsafeEvidence
 }
 
 func (e *environment) Tools() ToolRegistry {

@@ -66,6 +66,10 @@ func DebugTraceDir() string {
 	return filepath.Join(HomeDir(), "traces")
 }
 
+func UnsafeEvidenceDir() string {
+	return filepath.Join(HomeDir(), "unsafe-evidence")
+}
+
 // StateDBPath returns the path to the project state database.
 func StateDBPath() string {
 	return filepath.Join(DataDir(), "state.db")

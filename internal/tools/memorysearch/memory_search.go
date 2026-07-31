@@ -3,6 +3,7 @@ package memorysearch
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/wandxy/morph/internal/constants"
@@ -118,7 +119,9 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 				return common.ToolError("tool_error", err.Error()), nil
 			}
 
-			return common.EncodeOutput(output{Results: searchHitsToOutputResults(result.Hits, query.MaxChars)})
+			return common.EncodeOutput(output{
+				Results: searchHitsToOutputResults(ctx, result.Hits, query.MaxChars),
+			})
 		}),
 	}
 }
@@ -185,10 +188,14 @@ func getBoundedPositive(value int, fallback int, max int, name string) (int, err
 	return value, nil
 }
 
-func searchHitsToOutputResults(hits []memory.SearchHit, maxChars int) []result {
+func searchHitsToOutputResults(
+	ctx context.Context,
+	hits []memory.SearchHit,
+	maxChars int,
+) []result {
 	results := make([]result, 0, len(hits))
 	for _, hit := range hits {
-		item, ok := memoryItemToOutputItem(hit.Item, maxChars)
+		item, ok := memoryItemToOutputItem(ctx, hit.Item, maxChars)
 		if !ok {
 			continue
 		}
@@ -207,17 +214,25 @@ func searchHitsToOutputResults(hits []memory.SearchHit, maxChars int) []result {
 	return results
 }
 
-func memoryItemToOutputItem(item memory.MemoryItem, maxChars int) (memory.MemoryItem, bool) {
+func memoryItemToOutputItem(
+	ctx context.Context,
+	item memory.MemoryItem,
+	maxChars int,
+) (memory.MemoryItem, bool) {
 	if item.Status != memory.StatusActive {
 		return memory.MemoryItem{}, false
 	}
 
+	original := item
 	item.Title = sanitizeString(item.Title)
 	item.Text = sanitizeString(item.Text)
+	item.Tags = sanitizeStrings(item.Tags)
+	redacted := item.Title != original.Title ||
+		item.Text != original.Text ||
+		!slices.Equal(item.Tags, original.Tags)
 	if maxChars > 0 && len([]rune(item.Text)) > maxChars {
 		item.Text = string([]rune(item.Text)[:maxChars])
 	}
-	item.Tags = sanitizeStrings(item.Tags)
 	titleValue := str.String(item.Title)
 	textValue := str.String(item.Text)
 	if titleValue.Trim() == "" && textValue.Trim() == "" {
@@ -229,7 +244,32 @@ func memoryItemToOutputItem(item memory.MemoryItem, maxChars int) (memory.Memory
 		item.GuardrailSource(),
 	)
 	if scanned.Blocked {
+		guardrails.RetainUnsafeEvidence(
+			ctx,
+			guardrails.UnsafeEvidenceRecorderFromContext(ctx),
+			guardrails.UnsafeEvidence{
+				Source:   item.GuardrailSource(),
+				Action:   "blocked",
+				Blocked:  true,
+				Redacted: redacted,
+				Findings: guardrails.SafetyFindingLogFields(scanned.Findings),
+				Original: original,
+			},
+		)
 		return memory.MemoryItem{}, false
+	}
+	if redacted {
+		guardrails.RetainUnsafeEvidence(
+			ctx,
+			guardrails.UnsafeEvidenceRecorderFromContext(ctx),
+			guardrails.UnsafeEvidence{
+				Source:   item.GuardrailSource(),
+				Action:   "redacted",
+				Redacted: true,
+				Original: original,
+				Safe:     item,
+			},
+		)
 	}
 
 	return item, true

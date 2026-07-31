@@ -145,6 +145,10 @@ func (c *Config) OutputPIIRedactionEnabled() bool {
 	return getBoolValueDefault(c.Safety.PII, constants.DefaultSafetyPIIEnabled)
 }
 
+func (c *Config) RetainUnsafeEnabled() bool {
+	return c != nil && c.Dev.RetainUnsafe
+}
+
 func (c *Config) TUIThinkingComposerEnabled() bool {
 	if c == nil {
 		return constants.DefaultTUIThinkingComposerEnabled

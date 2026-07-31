@@ -507,7 +507,7 @@ func (t *Turn) Run(ctx context.Context, msg string, opts agentcore.RespondOption
 
 			return nil
 		},
-		CheckInput: func(_ context.Context, msg string) (agentcore.InputCheck, error) {
+		CheckInput: func(ctx context.Context, msg string) (agentcore.InputCheck, error) {
 			if !t.cfg.InputSafetyEnabled() {
 				return agentcore.InputCheck{}, nil
 			}
@@ -517,6 +517,14 @@ func (t *Turn) Run(ctx context.Context, msg string, opts agentcore.RespondOption
 				return agentcore.InputCheck{}, nil
 			}
 
+			t.retainUnsafeEvidence(ctx, guardrails.UnsafeEvidence{
+				Source:   "user",
+				Action:   "blocked",
+				Blocked:  true,
+				Findings: guardrails.SafetyFindingLogFields(inputSafety.Findings),
+				Original: msg,
+				Safe:     inputSafety.RefusalMessage,
+			})
 			traceSession.Record(trace.EvtInputSafetyBlocked, getInputSafetyTracePayload(t.sessionID, msg, inputSafety))
 			return agentcore.InputCheck{Blocked: true, Reply: inputSafety.RefusalMessage}, nil
 		},
@@ -949,8 +957,19 @@ func (t *Turn) applyAssistantOutputSafety(traceSession trace.Session, output str
 	}
 
 	result := guardrails.CheckOutputSafety(output, "assistant", t.getOutputRedactor())
-	if traceSession != nil && (result.Blocked || result.Redacted) {
-		traceSession.Record(trace.EvtOutputSafetyApplied, getOutputSafetyTracePayload(t.sessionID, output, result))
+	if result.Blocked || result.Redacted {
+		t.retainUnsafeEvidence(t.ctx, guardrails.UnsafeEvidence{
+			Source:   "assistant",
+			Action:   getUnsafeEvidenceAction(result.Blocked),
+			Blocked:  result.Blocked,
+			Redacted: result.Redacted,
+			Findings: guardrails.SafetyFindingLogFields(result.Findings),
+			Original: output,
+			Safe:     result.Content,
+		})
+		if traceSession != nil {
+			traceSession.Record(trace.EvtOutputSafetyApplied, getOutputSafetyTracePayload(t.sessionID, output, result))
+		}
 	}
 
 	return result.Content
@@ -973,6 +992,15 @@ func (t *Turn) recordModelReasoningCompleted(
 	duration := max(endedAt.Sub(startedAt).Round(time.Millisecond), time.Second)
 
 	sanitizedSummary, _ := t.getOutputRedactor().Sanitize(summary).(string)
+	if sanitizedSummary != summary {
+		t.retainUnsafeEvidence(t.ctx, guardrails.UnsafeEvidence{
+			Source:   "reasoning.summary",
+			Action:   "redacted",
+			Redacted: true,
+			Original: summary,
+			Safe:     sanitizedSummary,
+		})
+	}
 	event := agentsession.TraceEvent{
 		SessionID: t.sessionID,
 		Type:      trace.EvtModelReasoningCompleted,
@@ -1215,6 +1243,7 @@ func (t *Turn) executeToolCall(
 	})
 
 	toolCtx := tools.WithTraceRecorder(t.getToolContext(ctx), traceSession)
+	toolCtx = guardrails.WithUnsafeEvidenceRecorder(toolCtx, t.getUnsafeEvidenceRecorder())
 	toolMessage := t.invokeTool(toolCtx, toolCall)
 	semanticProjectionStatus := "skipped"
 	if toolMessage.SemanticContent != "" {

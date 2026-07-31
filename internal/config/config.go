@@ -31,6 +31,7 @@ type Config struct {
 	Cap           CapConfig                    `yaml:"cap"`
 	Log           LogConfig                    `yaml:"log"`
 	Debug         DebugConfig                  `yaml:"debug"`
+	Dev           DevConfig                    `yaml:"dev"`
 	Trace         TraceConfig                  `yaml:"trace"`
 	TUI           TUIConfig                    `yaml:"tui"`
 	Web           WebConfig                    `yaml:"web"`

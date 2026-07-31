@@ -3,6 +3,8 @@ package guardrails
 import (
 	"context"
 	"errors"
+	"maps"
+	"slices"
 	"strings"
 
 	coreguardrails "github.com/wandxy/morph/internal/guardrails"
@@ -48,12 +50,23 @@ func (g Guardrails) ValidateDelete(context.Context, memory.DeleteRequest) error 
 // SafetyScan checks the text that would become durable memory. GuardrailSource
 // includes the memory ID when available, which makes blocked-content reports
 // easier to connect back to storage.
-func (g Guardrails) SafetyScan(_ context.Context, item memory.MemoryItem) error {
+func (g Guardrails) SafetyScan(ctx context.Context, item memory.MemoryItem) error {
 	scanned := coreguardrails.SafetyScan(
 		strings.Join([]string{item.Title, item.Text}, "\n"),
 		item.GuardrailSource(),
 	)
 	if scanned.Blocked {
+		coreguardrails.RetainUnsafeEvidence(
+			ctx,
+			coreguardrails.UnsafeEvidenceRecorderFromContext(ctx),
+			coreguardrails.UnsafeEvidence{
+				Source:   item.GuardrailSource(),
+				Action:   "blocked",
+				Blocked:  true,
+				Findings: coreguardrails.SafetyFindingLogFields(scanned.Findings),
+				Original: item,
+			},
+		)
 		return errors.New("memory item failed safety scan")
 	}
 	return nil
@@ -62,7 +75,8 @@ func (g Guardrails) SafetyScan(_ context.Context, item memory.MemoryItem) error 
 // Redact sanitizes all prompt-facing string fields while preserving the memory
 // shape. It returns a copy so callers do not accidentally mutate canonical
 // stored memory.
-func (g Guardrails) Redact(_ context.Context, item memory.MemoryItem) (memory.MemoryItem, error) {
+func (g Guardrails) Redact(ctx context.Context, item memory.MemoryItem) (memory.MemoryItem, error) {
+	original := item
 	item.Title = sanitizeString(g.redactor, item.Title)
 	item.Text = sanitizeString(g.redactor, item.Text)
 	item.Tags = sanitizeStrings(g.redactor, item.Tags)
@@ -72,6 +86,22 @@ func (g Guardrails) Redact(_ context.Context, item memory.MemoryItem) (memory.Me
 			metadata[key] = sanitizeString(g.redactor, value)
 		}
 		item.Metadata = metadata
+	}
+	if item.Title != original.Title ||
+		item.Text != original.Text ||
+		!slices.Equal(item.Tags, original.Tags) ||
+		!maps.Equal(item.Metadata, original.Metadata) {
+		coreguardrails.RetainUnsafeEvidence(
+			ctx,
+			coreguardrails.UnsafeEvidenceRecorderFromContext(ctx),
+			coreguardrails.UnsafeEvidence{
+				Source:   item.GuardrailSource(),
+				Action:   "redacted",
+				Redacted: true,
+				Original: original,
+				Safe:     item,
+			},
+		)
 	}
 	return item, nil
 }

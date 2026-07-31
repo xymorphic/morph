@@ -110,6 +110,7 @@ func TestProjectPaths_DeriveFromActiveProfileHome(t *testing.T) {
 	require.Equal(t, profileHome, HomeDir())
 	require.Equal(t, filepath.Join(profileHome, "data"), DataDir())
 	require.Equal(t, filepath.Join(profileHome, "traces"), DebugTraceDir())
+	require.Equal(t, filepath.Join(profileHome, "unsafe-evidence"), UnsafeEvidenceDir())
 	require.Equal(t, filepath.Join(profileHome, "data", "state.db"), StateDBPath())
 	require.Equal(t, filepath.Join(profileHome, "data", "auth.db"), AuthDBPath())
 	require.Equal(t, filepath.Join(profileHome, "data", "session.db"), SessionDBPath())

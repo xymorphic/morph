@@ -235,6 +235,10 @@ func applyEnvOverrides(cfg *Config) {
 	if value := envValue38.Normalized(); value != "" {
 		cfg.Debug.Requests = value == "1" || value == "true" || value == "yes"
 	}
+	devRetainUnsafeValue := str.String(os.Getenv("MORPH_DEV_RETAIN_UNSAFE"))
+	if value := devRetainUnsafeValue.Normalized(); value != "" {
+		cfg.Dev.RetainUnsafe = value == "1" || value == "true" || value == "yes"
+	}
 	if value, ok := parseOptionalBoolEnv("MORPH_SAFETY_INPUT"); ok {
 		cfg.Safety.Input = new(value)
 	}

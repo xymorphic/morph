@@ -191,6 +191,16 @@ func TestSanitizeRedactsDatabaseConnectionCredentials(t *testing.T) {
 	require.Equal(t, "postgres://user:***@localhost/db", value)
 }
 
+func TestSanitizeDoesNotMatchURLCredentialsAcrossLines(t *testing.T) {
+	value := strings.Join([]string{
+		"Open · https://example.com:",
+		"Browser result",
+		"@navigation",
+	}, "\n")
+
+	require.Equal(t, value, Sanitize(value))
+}
+
 func TestSanitizeRedactsGenericURLCredentials(t *testing.T) {
 	value := Sanitize("https://alice:supersecret@example.com/path ftp://bob:hunter2@example.com/files")
 	require.Equal(t, "https://alice:***@example.com/path ftp://bob:***@example.com/files", value)

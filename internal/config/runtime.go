@@ -68,6 +68,10 @@ type DebugConfig struct {
 	Requests bool `yaml:"requests"`
 }
 
+type DevConfig struct {
+	RetainUnsafe bool `yaml:"retainUnsafe"`
+}
+
 // TUIConfig contains terminal UI feature settings.
 type TUIConfig struct {
 	ThinkingComposer *bool `yaml:"thinkingComposer"`

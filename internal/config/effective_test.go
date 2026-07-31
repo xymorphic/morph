@@ -18,6 +18,7 @@ func TestConfig_SafetyDefaultsAndValidation(t *testing.T) {
 	require.True(t, cfg.InputSafetyEnabled())
 	require.True(t, cfg.OutputSafetyEnabled())
 	require.True(t, cfg.OutputPIIRedactionEnabled())
+	require.False(t, cfg.RetainUnsafeEnabled())
 
 	cfg.Safety.Input = new(false)
 	cfg.Safety.Output = new(false)
@@ -28,6 +29,8 @@ func TestConfig_SafetyDefaultsAndValidation(t *testing.T) {
 
 	cfg.Safety.PII = new(true)
 	require.True(t, cfg.OutputPIIRedactionEnabled())
+	cfg.Dev.RetainUnsafe = true
+	require.True(t, cfg.RetainUnsafeEnabled())
 }
 
 func TestConfig_StreamEnabledDefaultsToTrue(t *testing.T) {

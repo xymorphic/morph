@@ -47,6 +47,8 @@ func (t *Turn) retrieveMemoryInstruction(
 		return instruct.Instruction{Name: instruct.MemoryContextInstructionName}
 	}
 
+	ctx = guardrails.WithUnsafeEvidenceRecorder(ctx, t.getUnsafeEvidenceRecorder())
+
 	if err := provider.ConfigureObservability(memoryobservability.New(agentLog.Logger(), traceSession)); err != nil {
 		recordMemoryRetrievalFailed(traceSession, provider.Name(), "configure_observability", err)
 		return instruct.Instruction{Name: instruct.MemoryContextInstructionName}
@@ -129,7 +131,12 @@ func (t *Turn) retrieveMemoryInstruction(
 	}
 
 	// All retrieved memory is treated as prompt-visible untrusted content.
-	items = sanitizeMemoryItemsForPrompt(items, traceSession)
+	items = sanitizeMemoryItemsForPromptWithEvidence(
+		ctx,
+		items,
+		traceSession,
+		t.getUnsafeEvidenceRecorder(),
+	)
 
 	recordMemoryRetrievalEvent(traceSession, trace.EvtMemoryRetrieved, trace.MemoryEventPayload{
 		Provider:            provider.Name(),
@@ -258,9 +265,28 @@ func truncateMemoryTraceText(value string) string {
 
 // sanitizeMemoryItemsForPrompt filters blocked memory and returns prompt-safe memory items.
 func sanitizeMemoryItemsForPrompt(input []memory.MemoryItem, traceSession trace.Session) []memory.MemoryItem {
+	return sanitizeMemoryItemsForPromptWithEvidence(
+		context.Background(),
+		input,
+		traceSession,
+		nil,
+	)
+}
+
+func sanitizeMemoryItemsForPromptWithEvidence(
+	ctx context.Context,
+	input []memory.MemoryItem,
+	traceSession trace.Session,
+	recorder guardrails.UnsafeEvidenceRecorder,
+) []memory.MemoryItem {
 	items := make([]memory.MemoryItem, 0, len(input))
 	for _, item := range input {
-		sanitized, ok := sanitizeMemoryItemForPromptWithTrace(item, traceSession)
+		sanitized, ok := sanitizeMemoryItemForPrompt(
+			ctx,
+			item,
+			traceSession,
+			recorder,
+		)
 		if !ok {
 			continue
 		}
@@ -272,12 +298,28 @@ func sanitizeMemoryItemsForPrompt(input []memory.MemoryItem, traceSession trace.
 
 // sanitizeMemoryItemForPromptWithTrace sanitizes and safety-scans one memory item.
 func sanitizeMemoryItemForPromptWithTrace(item memory.MemoryItem, traceSession trace.Session) (memory.MemoryItem, bool) {
+	return sanitizeMemoryItemForPrompt(
+		context.Background(),
+		item,
+		traceSession,
+		nil,
+	)
+}
+
+func sanitizeMemoryItemForPrompt(
+	ctx context.Context,
+	item memory.MemoryItem,
+	traceSession trace.Session,
+	recorder guardrails.UnsafeEvidenceRecorder,
+) (memory.MemoryItem, bool) {
 	if item.Status != memory.StatusActive {
 		return memory.MemoryItem{}, false
 	}
 
+	original := item
 	item.Title = getMemoryPromptText(item.Title)
 	item.Text = getMemoryPromptText(item.Text)
+	redacted := item.Title != original.Title || item.Text != original.Text
 	content := strings.Join([]string{item.Title, item.Text}, "\n")
 	titleValue := str.String(item.Title)
 	textValue2 := str.String(item.Text)
@@ -293,7 +335,24 @@ func sanitizeMemoryItemForPromptWithTrace(item memory.MemoryItem, traceSession t
 	)
 	if scanned.Blocked {
 		recordMemorySafetyBlocked(traceSession, item.GuardrailSource(), content, scanned.Findings)
+		guardrails.RetainUnsafeEvidence(ctx, recorder, guardrails.UnsafeEvidence{
+			Source:   item.GuardrailSource(),
+			Action:   "blocked",
+			Blocked:  true,
+			Redacted: redacted,
+			Findings: guardrails.SafetyFindingLogFields(scanned.Findings),
+			Original: original,
+		})
 		return memory.MemoryItem{}, false
+	}
+	if redacted {
+		guardrails.RetainUnsafeEvidence(ctx, recorder, guardrails.UnsafeEvidence{
+			Source:   item.GuardrailSource(),
+			Action:   "redacted",
+			Redacted: true,
+			Original: original,
+			Safe:     item,
+		})
 	}
 
 	return item, true

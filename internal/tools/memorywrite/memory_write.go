@@ -112,6 +112,7 @@ func AddDefinition(runtime envtypes.Runtime) tools.Definition {
 
 			runCtx, hasRunContext := tools.RunContextFromContext(ctx)
 			item, err := memoryItemFromAddInput(
+				ctx,
 				input,
 				runCtx,
 				hasRunContext,
@@ -192,6 +193,7 @@ func UpdateDefinition(runtime envtypes.Runtime) tools.Definition {
 
 			runCtx, hasRunContext := tools.RunContextFromContext(ctx)
 			replacement, err := memoryItemFromAddInput(
+				ctx,
 				input.Replacement,
 				runCtx,
 				hasRunContext,
@@ -274,6 +276,7 @@ func DeleteDefinition(runtime envtypes.Runtime) tools.Definition {
 }
 
 func memoryItemFromAddInput(
+	ctx context.Context,
 	input addInput,
 	runCtx runcontext.Context,
 	hasRunContext bool,
@@ -315,6 +318,7 @@ func memoryItemFromAddInput(
 	}
 	if result, err := checkMemoryWriteSafety(item); err != nil {
 		recordMemoryWriteSafetyBlocked(recorder, result)
+		retainMemoryWriteSafetyEvidence(ctx, result)
 		return memory.MemoryItem{}, err
 	}
 	if !hasProvenance(item) {
@@ -330,6 +334,8 @@ type memoryWriteSafetyResult struct {
 	Blocked       bool
 	Redacted      bool
 	Findings      []guardrails.SafetyFinding
+	Original      memory.MemoryItem
+	Safe          any
 }
 
 func checkMemoryWriteSafety(item memory.MemoryItem) (memoryWriteSafetyResult, error) {
@@ -338,6 +344,7 @@ func checkMemoryWriteSafety(item memory.MemoryItem) (memoryWriteSafetyResult, er
 	result := memoryWriteSafetyResult{
 		Source:        item.GuardrailSource(),
 		ContentLength: len([]rune(content)),
+		Original:      item,
 	}
 	if content == "" {
 		return result, nil
@@ -347,6 +354,7 @@ func checkMemoryWriteSafety(item memory.MemoryItem) (memoryWriteSafetyResult, er
 	if inputSafety.Blocked {
 		result.Blocked = true
 		result.Findings = inputSafety.Findings
+		result.Safe = inputSafety.RefusalMessage
 		return result, errors.New("memory content failed safety check")
 	}
 
@@ -359,10 +367,31 @@ func checkMemoryWriteSafety(item memory.MemoryItem) (memoryWriteSafetyResult, er
 		result.Blocked = outputSafety.Blocked
 		result.Redacted = outputSafety.Redacted
 		result.Findings = outputSafety.Findings
+		result.Safe = outputSafety.Content
 		return result, errors.New("memory content failed safety check")
 	}
 
 	return result, nil
+}
+
+func retainMemoryWriteSafetyEvidence(ctx context.Context, result memoryWriteSafetyResult) {
+	action := "blocked"
+	if result.Redacted && !result.Blocked {
+		action = "redacted"
+	}
+	guardrails.RetainUnsafeEvidence(
+		ctx,
+		guardrails.UnsafeEvidenceRecorderFromContext(ctx),
+		guardrails.UnsafeEvidence{
+			Source:   result.Source,
+			Action:   action,
+			Blocked:  result.Blocked,
+			Redacted: result.Redacted,
+			Findings: guardrails.SafetyFindingLogFields(result.Findings),
+			Original: result.Original,
+			Safe:     result.Safe,
+		},
+	)
 }
 
 func recordMemoryWriteSafetyBlocked(recorder tools.TraceRecorder, result memoryWriteSafetyResult) {

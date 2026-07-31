@@ -36,7 +36,7 @@ var (
 	bearerPattern          = regexp.MustCompile(`(?i)\b(Bearer\s+)(\S+)`)
 	telegramPattern        = regexp.MustCompile(`(?i)(bot)?(\d{8,}):([-A-Za-z0-9_]{30,})`)
 	privateKeyPattern      = regexp.MustCompile(`(?s)-----BEGIN[A-Z ]*PRIVATE KEY-----.*?-----END[A-Z ]*PRIVATE KEY-----`)
-	dbConnPattern          = regexp.MustCompile(`(?i)((?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp|https?|ftps?|sftp|ssh|mssql|sqlserver|oracle|cassandra|nats|kafka)://[^:]+:)([^@]+)(@)`)
+	dbConnPattern          = regexp.MustCompile(`(?i)((?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp|https?|ftps?|sftp|ssh|mssql|sqlserver|oracle|cassandra|nats|kafka)://[^\s/:@]+:)([^\s/@]+)(@)`)
 	phonePattern           = regexp.MustCompile(`\+[1-9]\d{6,14}`)
 	emailPattern           = regexp.MustCompile(`(?i)\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\b`)
 	ssnPattern             = regexp.MustCompile(`\b\d{3}-\d{2}-\d{4}\b`)

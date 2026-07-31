@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/wandxy/morph/internal/config"
+	"github.com/wandxy/morph/internal/datadir"
 	"github.com/wandxy/morph/pkg/logutils"
 )
 
@@ -24,6 +25,11 @@ func runDaemonOnce(ctx context.Context, cfg *config.Config) error {
 	}
 
 	daemonLog.Info().Msg("Configuration loaded")
+	if runtimeCfg.RetainUnsafeEnabled() {
+		daemonLog.Warn().
+			Str("directory", datadir.UnsafeEvidenceDir()).
+			Msg("Unsafe evidence plaintext retention is enabled; same-user and full-access tools can read it; cleanup is manual")
+	}
 	if runtimeCfg.Search.Vector.Enabled {
 		daemonLog.Info().Msg("Vector retrieval configured")
 	}

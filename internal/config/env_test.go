@@ -458,7 +458,7 @@ func TestLoad_UsesGatewayCredentialEnvVars(t *testing.T) {
 }
 
 func TestLoad_UsesSafetyConfigFromConfigAndEnv(t *testing.T) {
-	clearEnvKeys(t, "MORPH_SAFETY_INPUT", "MORPH_SAFETY_OUTPUT", "MORPH_SAFETY_PII")
+	clearEnvKeys(t, "MORPH_DEV_RETAIN_UNSAFE", "MORPH_SAFETY_INPUT", "MORPH_SAFETY_OUTPUT", "MORPH_SAFETY_PII")
 
 	dir := t.TempDir()
 	envPath := filepath.Join(dir, ".env")
@@ -467,6 +467,7 @@ func TestLoad_UsesSafetyConfigFromConfigAndEnv(t *testing.T) {
 		"MORPH_SAFETY_INPUT=true",
 		"MORPH_SAFETY_OUTPUT=false",
 		"MORPH_SAFETY_PII=true",
+		"MORPH_DEV_RETAIN_UNSAFE=true",
 		"",
 	}, "\n")), 0o600))
 	require.NoError(t, os.WriteFile(configPath, []byte(`
@@ -482,6 +483,21 @@ safety:
 	require.True(t, cfg.InputSafetyEnabled())
 	require.False(t, cfg.OutputSafetyEnabled())
 	require.True(t, cfg.OutputPIIRedactionEnabled())
+	require.True(t, cfg.RetainUnsafeEnabled())
+}
+
+func TestLoad_UsesUnsafeRetentionFromConfig(t *testing.T) {
+	clearEnvKeys(t, "MORPH_DEV_RETAIN_UNSAFE")
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(configPath, []byte(`
+dev:
+  retainUnsafe: true
+`), 0o600))
+
+	cfg, err := Load("", configPath)
+
+	require.NoError(t, err)
+	require.True(t, cfg.RetainUnsafeEnabled())
 }
 
 func TestLoad_UsesTUIConfigFromConfigAndEnv(t *testing.T) {
