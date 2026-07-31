@@ -1025,6 +1025,7 @@ func (m *model) applySelectedModelToRuntime(option rpcclient.ModelOption) {
 		return
 	}
 
+	transcriptPosition := m.getTranscriptWindowPosition()
 	m.modelName = getSelectedModelDisplayName(option)
 	m.modelRestartPending = true
 	m.resetSessionRuntimeStateRetry()
@@ -1041,7 +1042,7 @@ func (m *model) applySelectedModelToRuntime(option rpcclient.ModelOption) {
 			m.runtimeInfo.Provider = provider
 		}
 	}
-	m.setTranscriptContentForActiveTurn()
+	m.refreshTranscriptContentAtPosition(transcriptPosition)
 }
 
 func getSelectedModelDisplayName(option rpcclient.ModelOption) string {

@@ -40,6 +40,99 @@ func TestModel_StartModelsCommandLoadsModels(t *testing.T) {
 	require.True(t, defaultModel.DisplayDefault)
 }
 
+func TestModel_ClosingModelsCommandViewWithEscapeKeepsTranscriptAtBottom(t *testing.T) {
+	runModel := newModelWithClient(&fakeTUIChatClient{})
+	runModel.width = 80
+	runModel.height = 20
+	runModel.resize()
+	runModel.messages = transcriptWindowTestCells(300)
+	runModel.setTranscriptContent()
+	require.True(t, runModel.isTranscriptAtAbsoluteBottom())
+
+	runModel.input.SetValue("/models")
+	runModel.resize()
+	updated, cmd := runModel.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+	require.NotNil(t, cmd)
+	runModel = updated.(model)
+	updated, cmd = runModel.Update(modelsLoadedMessageFromBatch(t, cmd))
+	require.Nil(t, cmd)
+	runModel = updated.(model)
+	require.True(t, runModel.isTranscriptAtAbsoluteBottom())
+
+	updated, cmd = runModel.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEsc}))
+
+	require.Nil(t, cmd)
+	runModel = updated.(model)
+	require.False(t, runModel.commandView.Visible)
+	require.True(t, runModel.isTranscriptAtAbsoluteBottom())
+	require.Empty(t, runModel.renderJumpToBottom())
+}
+
+func TestModel_SelectingModelKeepsTranscriptAtBottom(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "env-key")
+	client := &fakeTUIChatClient{}
+	runModel := newModelWithClient(client)
+	runModel.width = 80
+	runModel.height = 20
+	runModel.resize()
+	runModel.messages = transcriptWindowTestCells(300)
+	runModel.setTranscriptContent()
+	require.True(t, runModel.isTranscriptAtAbsoluteBottom())
+
+	runModel.showCommandView(commandViewPayload{
+		Kind:          commandViewKindModels,
+		ModelProvider: "openai",
+		ModelAuthType: "api-key",
+		Models: []rpcclient.ModelOption{
+			{ID: "gpt-5.5", Provider: "openai", Current: true},
+			{ID: "gpt-4o", Provider: "openai"},
+		},
+	})
+	runModel.commandViewItemSelected = 1
+	require.True(t, runModel.isTranscriptAtAbsoluteBottom())
+
+	updated, cmd := runModel.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+
+	require.NotNil(t, cmd)
+	runModel = updated.(model)
+	require.False(t, runModel.commandView.Visible)
+	require.True(t, runModel.isTranscriptAtAbsoluteBottom())
+	require.Empty(t, runModel.renderJumpToBottom())
+}
+
+func TestModel_SelectingModelPreservesScrolledTranscriptPosition(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "env-key")
+	runModel := newModelWithClient(&fakeTUIChatClient{})
+	runModel.width = 80
+	runModel.height = 20
+	runModel.resize()
+	runModel.messages = transcriptWindowTestCells(300)
+	runModel.setTranscriptContent()
+	for range 3 {
+		runModel.scrollTranscriptWithKey(tea.KeyPressMsg{Code: tea.KeyPgUp})
+	}
+	require.False(t, runModel.isTranscriptAtAbsoluteBottom())
+
+	runModel.showCommandView(commandViewPayload{
+		Kind:          commandViewKindModels,
+		ModelProvider: "openai",
+		ModelAuthType: "api-key",
+		Models: []rpcclient.ModelOption{
+			{ID: "gpt-5.5", Provider: "openai", Current: true},
+			{ID: "gpt-4o", Provider: "openai"},
+		},
+	})
+	runModel.commandViewItemSelected = 1
+	visibleBefore := firstNonemptyTranscriptLine(runModel.transcript.View())
+
+	updated, cmd := runModel.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+
+	require.NotNil(t, cmd)
+	runModel = updated.(model)
+	require.False(t, runModel.isTranscriptAtAbsoluteBottom())
+	require.Contains(t, stripANSI(runModel.transcript.View()), visibleBefore)
+}
+
 func TestLoadModelsCmdUsesBackgroundContextWhenMissing(t *testing.T) {
 	msg := loadModelsCmd("openai", "gpt-5.4")()
 
