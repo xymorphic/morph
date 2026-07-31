@@ -374,6 +374,34 @@ func TestEnsureDaemonRunning_UsesExistingRPC(t *testing.T) {
 	require.Equal(t, 1, checks)
 }
 
+func TestEnsureDaemonRunningWithConfigRestarts_UsesExistingRPC(t *testing.T) {
+	restore := replaceDaemonBootstrapHooks(t)
+	defer restore()
+
+	checks := 0
+	checkDaemonRPC = func(context.Context, *config.Config) error {
+		checks++
+		return nil
+	}
+	startDaemonRuntimeWithConfigRestarts = func(
+		context.Context,
+		*urfavecli.Command,
+	) (func() error, error) {
+		t.Fatal("daemon should not start when RPC is already reachable")
+		return nil, nil
+	}
+
+	cleanup, err := EnsureDaemonRunningWithConfigRestarts(
+		context.Background(),
+		&urfavecli.Command{},
+		&config.Config{},
+	)
+
+	require.NoError(t, err)
+	require.Nil(t, cleanup)
+	require.Equal(t, 1, checks)
+}
+
 func TestEnsureDaemonRunning_StartsRuntimeAndWaitsForRPC(t *testing.T) {
 	restore := replaceDaemonBootstrapHooks(t)
 	defer restore()
@@ -399,6 +427,47 @@ func TestEnsureDaemonRunning_StartsRuntimeAndWaitsForRPC(t *testing.T) {
 
 	cleanup, err := EnsureDaemonRunning(
 		context.Background(),
+		&config.Config{RPC: config.RPCConfig{Address: "127.0.0.1", Port: 50051}},
+	)
+
+	require.NoError(t, err)
+	require.True(t, started)
+	require.Equal(t, 3, checks)
+	require.NoError(t, cleanup())
+	require.True(t, cleaned)
+}
+
+func TestEnsureDaemonRunningWithConfigRestarts_StartsRestartableRuntime(t *testing.T) {
+	restore := replaceDaemonBootstrapHooks(t)
+	defer restore()
+
+	command := &urfavecli.Command{}
+	started := false
+	cleaned := false
+	startDaemonRuntimeWithConfigRestarts = func(
+		_ context.Context,
+		got *urfavecli.Command,
+	) (func() error, error) {
+		require.Same(t, command, got)
+		started = true
+		return func() error {
+			cleaned = true
+			return nil
+		}, nil
+	}
+	checks := 0
+	checkDaemonRPC = func(context.Context, *config.Config) error {
+		checks++
+		if checks < 3 {
+			return errors.New("connection refused")
+		}
+
+		return nil
+	}
+
+	cleanup, err := EnsureDaemonRunningWithConfigRestarts(
+		context.Background(),
+		command,
 		&config.Config{RPC: config.RPCConfig{Address: "127.0.0.1", Port: 50051}},
 	)
 
@@ -554,6 +623,42 @@ func TestStartDaemonRuntimeImpl_CancelsRunAndRestoresOutput(t *testing.T) {
 	SetDaemonOutput(previousOutput)
 }
 
+func TestStartDaemonRuntimeWithConfigRestartsImpl_CancelsRestartSupervisor(t *testing.T) {
+	restore := replaceDaemonBootstrapHooks(t)
+	defer restore()
+
+	command := &urfavecli.Command{}
+	started := make(chan struct{})
+	done := make(chan struct{})
+	runDaemonRuntimeWithConfigRestarts = func(ctx context.Context, got *urfavecli.Command) error {
+		require.Same(t, command, got)
+		close(started)
+		<-ctx.Done()
+		close(done)
+		return nil
+	}
+
+	cleanup, err := startDaemonRuntimeWithConfigRestartsImpl(context.Background(), command)
+	require.NoError(t, err)
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("restart supervisor did not start")
+	}
+
+	require.NoError(t, cleanup())
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("restart supervisor did not stop")
+	}
+	require.NoError(t, cleanup())
+
+	_, err = startDaemonRuntimeWithConfigRestartsImpl(context.Background(), nil)
+	require.EqualError(t, err, "command is required")
+}
+
 func TestStartDaemonRuntimeImpl_DisablesConsoleLoggingAndKeepsFileLogging(t *testing.T) {
 	restore := replaceDaemonBootstrapHooks(t)
 	defer restore()
@@ -614,7 +719,9 @@ func replaceDaemonBootstrapHooks(t *testing.T) func() {
 	originalProbeActiveRuntime := probeActiveRuntime
 	originalDaemonStatusNow := daemonStatusNow
 	originalStartDaemonRuntime := startDaemonRuntime
+	originalStartDaemonRuntimeWithConfigRestarts := startDaemonRuntimeWithConfigRestarts
 	originalRunDaemonRuntimeOnce := runDaemonRuntimeOnce
+	originalRunDaemonRuntimeWithConfigRestarts := runDaemonRuntimeWithConfigRestarts
 	originalRunDaemonOnce := runDaemonOnce
 	originalInitialTimeout := daemonBootstrapInitialTimeout
 	originalReadyTimeout := daemonBootstrapReadyTimeout
@@ -629,7 +736,9 @@ func replaceDaemonBootstrapHooks(t *testing.T) func() {
 		probeActiveRuntime = originalProbeActiveRuntime
 		daemonStatusNow = originalDaemonStatusNow
 		startDaemonRuntime = originalStartDaemonRuntime
+		startDaemonRuntimeWithConfigRestarts = originalStartDaemonRuntimeWithConfigRestarts
 		runDaemonRuntimeOnce = originalRunDaemonRuntimeOnce
+		runDaemonRuntimeWithConfigRestarts = originalRunDaemonRuntimeWithConfigRestarts
 		runDaemonOnce = originalRunDaemonOnce
 		daemonBootstrapInitialTimeout = originalInitialTimeout
 		daemonBootstrapReadyTimeout = originalReadyTimeout

@@ -26,19 +26,21 @@ const (
 )
 
 var (
-	checkDaemonRPC                = checkDaemonRPCImpl
-	checkDaemonHealth             = checkDaemonHealthImpl
-	probeActiveRuntime            = morphruntime.Probe
-	daemonStatusNow               = time.Now
-	startDaemonRuntime            = startDaemonRuntimeImpl
-	runDaemonRuntimeOnce          = RunDaemonOnce
-	setDaemonOutput               = clidaemon.SetOutput
-	runDaemonWithConfigRestarts   = clidaemon.RunWithConfigRestarts
-	runDaemonOnce                 = clidaemon.RunOnce
-	daemonBootstrapInitialTimeout = defaultDaemonBootstrapInitialTimeout
-	daemonBootstrapReadyTimeout   = defaultDaemonBootstrapReadyTimeout
-	daemonBootstrapPollInterval   = defaultDaemonBootstrapPollInterval
-	newDaemonHealthClient         = func(
+	checkDaemonRPC                       = checkDaemonRPCImpl
+	checkDaemonHealth                    = checkDaemonHealthImpl
+	probeActiveRuntime                   = morphruntime.Probe
+	daemonStatusNow                      = time.Now
+	startDaemonRuntime                   = startDaemonRuntimeImpl
+	startDaemonRuntimeWithConfigRestarts = startDaemonRuntimeWithConfigRestartsImpl
+	runDaemonRuntimeOnce                 = RunDaemonOnce
+	runDaemonRuntimeWithConfigRestarts   = RunDaemonWithConfigRestarts
+	setDaemonOutput                      = clidaemon.SetOutput
+	runDaemonWithConfigRestarts          = clidaemon.RunWithConfigRestarts
+	runDaemonOnce                        = clidaemon.RunOnce
+	daemonBootstrapInitialTimeout        = defaultDaemonBootstrapInitialTimeout
+	daemonBootstrapReadyTimeout          = defaultDaemonBootstrapReadyTimeout
+	daemonBootstrapPollInterval          = defaultDaemonBootstrapPollInterval
+	newDaemonHealthClient                = func(
 		ctx context.Context,
 		cfg *config.Config,
 		address string,
@@ -113,6 +115,24 @@ func GetDaemonStatus(ctx context.Context) (DaemonStatus, error) {
 }
 
 func EnsureDaemonRunning(ctx context.Context, cfg *config.Config) (func() error, error) {
+	return ensureDaemonRunning(ctx, cfg, startDaemonRuntime)
+}
+
+func EnsureDaemonRunningWithConfigRestarts(
+	ctx context.Context,
+	cmd *urfavecli.Command,
+	cfg *config.Config,
+) (func() error, error) {
+	return ensureDaemonRunning(ctx, cfg, func(ctx context.Context, _ *config.Config) (func() error, error) {
+		return startDaemonRuntimeWithConfigRestarts(ctx, cmd)
+	})
+}
+
+func ensureDaemonRunning(
+	ctx context.Context,
+	cfg *config.Config,
+	start func(context.Context, *config.Config) (func() error, error),
+) (func() error, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("config is required")
 	}
@@ -124,7 +144,7 @@ func EnsureDaemonRunning(ctx context.Context, cfg *config.Config) (func() error,
 		return nil, nil
 	}
 
-	cleanup, err := startDaemonRuntime(ctx, cfg)
+	cleanup, err := start(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -238,6 +258,28 @@ func daemonStatusFromProbe(probe morphruntime.ProbeResult) DaemonStatus {
 }
 
 func startDaemonRuntimeImpl(ctx context.Context, cfg *config.Config) (func() error, error) {
+	return startManagedDaemonRuntime(ctx, func(runCtx context.Context) error {
+		return runDaemonRuntimeOnce(runCtx, cfg)
+	})
+}
+
+func startDaemonRuntimeWithConfigRestartsImpl(
+	ctx context.Context,
+	cmd *urfavecli.Command,
+) (func() error, error) {
+	if cmd == nil {
+		return nil, fmt.Errorf("command is required")
+	}
+
+	return startManagedDaemonRuntime(ctx, func(runCtx context.Context) error {
+		return runDaemonRuntimeWithConfigRestarts(runCtx, cmd)
+	})
+}
+
+func startManagedDaemonRuntime(
+	ctx context.Context,
+	run func(context.Context) error,
+) (func() error, error) {
 	runCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	previousOutput := SetDaemonOutput(io.Discard)
@@ -246,7 +288,7 @@ func startDaemonRuntimeImpl(ctx context.Context, cfg *config.Config) (func() err
 	var cleanupErr error
 
 	go func() {
-		done <- runDaemonRuntimeOnce(runCtx, cfg)
+		done <- run(runCtx)
 	}()
 
 	cleanup := func() error {

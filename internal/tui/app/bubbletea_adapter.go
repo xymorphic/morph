@@ -4,6 +4,8 @@ import (
 	"errors"
 
 	tea "charm.land/bubbletea/v2"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/rpc/rpcmeta"
@@ -147,8 +149,12 @@ func (m model) handleAsyncMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		return m, cmd, true
 	case sessionExecutionStateLoadFailedMsg:
 		m.sessionQueueStale = true
+		statusText := "session queue unavailable; retrying"
+		if m.modelRestartPending && status.Code(msg.Err) == codes.Unavailable {
+			statusText = "model selected; daemon restarting"
+		}
 		return m, tea.Batch(
-			m.setStatus("session queue unavailable; retrying"),
+			m.setStatus(statusText),
 			retrySessionRuntimeStateLoadCmd(
 				m.chatCtx,
 				m.chatClient,

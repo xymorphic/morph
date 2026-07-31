@@ -2,9 +2,11 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/wandxy/morph/internal/permissions"
 	morphpb "github.com/wandxy/morph/internal/rpc/proto"
 	"github.com/wandxy/morph/internal/rpc/rpcmeta"
+	agentsession "github.com/wandxy/morph/pkg/agent/session"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -51,6 +54,93 @@ func TestNew_RegisteredMethodsMatchAuthenticationCatalog(t *testing.T) {
 	sort.Strings(methods)
 
 	require.Equal(t, morphauth.RPCMethodCatalog(), methods)
+}
+
+func TestCancelStreamOnShutdownInterceptor_CancelsActiveHandler(t *testing.T) {
+	shutdownCtx, cancelShutdown := context.WithCancel(context.Background())
+	t.Cleanup(cancelShutdown)
+	started := make(chan struct{})
+	done := make(chan error, 1)
+	stream := &authTestServerStream{ctx: context.Background()}
+
+	go func() {
+		done <- cancelStreamOnShutdownInterceptor(shutdownCtx)(
+			nil,
+			stream,
+			&grpc.StreamServerInfo{},
+			func(_ any, stream grpc.ServerStream) error {
+				close(started)
+				<-stream.Context().Done()
+				return stream.Context().Err()
+			},
+		)
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("stream handler did not start")
+	}
+	cancelShutdown()
+
+	select {
+	case err := <-done:
+		require.True(t, errors.Is(err, context.Canceled))
+	case <-time.After(time.Second):
+		t.Fatal("stream handler was not cancelled by server shutdown")
+	}
+}
+
+func TestNew_ShutdownContextCancelsActiveStream(t *testing.T) {
+	authService, token := newServerAuthFixtureForSource(t, "tui")
+	shutdownCtx, cancelShutdown := context.WithCancel(context.Background())
+	t.Cleanup(cancelShutdown)
+	agent := &shutdownObserveAgent{
+		started: make(chan struct{}),
+		stopped: make(chan struct{}),
+	}
+	server := New(agent, Options{Auth: authService, ShutdownContext: shutdownCtx})
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		server.Stop()
+		_ = listener.Close()
+	})
+	go func() { _ = server.Serve(listener) }()
+
+	connection, err := grpc.NewClient(
+		listener.Addr().String(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = connection.Close() })
+	ctx := rpcmeta.WithOutgoingPermissionSurface(context.Background(), permissions.SurfaceTUI)
+	ctx = metadata.AppendToOutgoingContext(ctx, authorizationMetadataKey, "Bearer "+token)
+	_, err = morphpb.NewAuthServiceClient(connection).OpenSession(
+		ctx,
+		&morphpb.OpenAuthSessionRequest{Source: "tui"},
+	)
+	require.NoError(t, err)
+	stream, err := morphpb.NewSessionServiceClient(connection).Observe(
+		ctx,
+		&morphpb.ObserveSessionRequest{Id: "default"},
+	)
+	require.NoError(t, err)
+
+	select {
+	case <-agent.started:
+	case <-time.After(time.Second):
+		t.Fatal("session observer did not start")
+	}
+	cancelShutdown()
+
+	select {
+	case <-agent.stopped:
+	case <-time.After(time.Second):
+		t.Fatal("session observer did not stop during server shutdown")
+	}
+	_, err = stream.Recv()
+	require.Error(t, err)
 }
 
 func TestBrowserService_EndToEndRequiresJWT(t *testing.T) {
@@ -111,6 +201,24 @@ func TestBrowserService_EndToEndRequiresJWT(t *testing.T) {
 type browserServerRuntime struct {
 	status   browser.Status
 	artifact browser.ArtifactContent
+}
+
+type shutdownObserveAgent struct {
+	agentstub.AgentRunnerStub
+	started chan struct{}
+	stopped chan struct{}
+}
+
+func (a *shutdownObserveAgent) ObserveSessionEvents(
+	ctx context.Context,
+	_ string,
+	_ int64,
+	_ func(agentsession.Event) error,
+) error {
+	close(a.started)
+	<-ctx.Done()
+	close(a.stopped)
+	return ctx.Err()
 }
 
 func (s *browserServerRuntime) Status() browser.Status {

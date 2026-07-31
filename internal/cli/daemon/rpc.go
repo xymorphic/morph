@@ -415,7 +415,11 @@ var serveRPC = func(
 	defer cancelPrune()
 	go pruneRPCAuthState(pruneCtx, authService.Store())
 
+	sigCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	grpcSrv := server.New(agent, server.Options{
+		ShutdownContext:      sigCtx,
 		RuntimeModel:         morphrpc.ModelRuntimeFromConfig(cfg),
 		Health:               true,
 		GatewayPairingSecret: pairingSecret,
@@ -435,9 +439,6 @@ var serveRPC = func(
 		TransportCredentials: transportCredentials,
 		ProfileName:          activeProfile.Name,
 	})
-
-	sigCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	serverErr := make(chan error, 1)
 	go func() {

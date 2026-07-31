@@ -163,11 +163,14 @@ tui:
 	client := &fakeTUIChatClient{}
 	var gotRPC config.RPCConfig
 	var gotEnsureRPC config.RPCConfig
+	var gotEnsureCommand *cli.Command
 	daemonCleaned := false
 	ensureTUIDaemonRunning = func(
 		_ context.Context,
+		cmd *cli.Command,
 		cfg *config.Config,
 	) (func() error, error) {
+		gotEnsureCommand = cmd
 		gotEnsureRPC = cfg.RPC
 		daemonLog.Info().Msg("daemon bootstrap log should not reach console")
 		return func() error {
@@ -195,6 +198,7 @@ tui:
 	err := cmd.Run(context.Background(), []string{"morph", "--profile", "work"})
 
 	require.NoError(t, err)
+	require.NotNil(t, gotEnsureCommand)
 	require.Equal(t, config.RPCConfig{Address: "127.0.0.2", Port: 45678}, gotEnsureRPC)
 	require.Equal(t, config.RPCConfig{Address: "127.0.0.2", Port: 45678}, gotRPC)
 	require.NotNil(t, cleanup)
@@ -243,7 +247,7 @@ name: tui-agent
 models:
 `), 0o600))
 
-	ensureTUIDaemonRunning = func(context.Context, *config.Config) (func() error, error) {
+	ensureTUIDaemonRunning = func(context.Context, *cli.Command, *config.Config) (func() error, error) {
 		return func() error { return nil }, nil
 	}
 	newTUIChatClient = func(context.Context, *config.Config) (tuiClient, error) {
@@ -286,7 +290,7 @@ models:
 
 	expectedErr := errors.New("client unavailable")
 	daemonCleaned := false
-	ensureTUIDaemonRunning = func(context.Context, *config.Config) (func() error, error) {
+	ensureTUIDaemonRunning = func(context.Context, *cli.Command, *config.Config) (func() error, error) {
 		return func() error {
 			daemonCleaned = true
 			return nil
@@ -329,7 +333,7 @@ models:
 `), 0o600))
 
 	expectedErr := errors.New("daemon unavailable")
-	ensureTUIDaemonRunning = func(context.Context, *config.Config) (func() error, error) {
+	ensureTUIDaemonRunning = func(context.Context, *cli.Command, *config.Config) (func() error, error) {
 		return nil, expectedErr
 	}
 	newTUIChatClient = func(context.Context, *config.Config) (tuiClient, error) {

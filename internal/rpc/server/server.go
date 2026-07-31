@@ -1,6 +1,8 @@
 package server
 
 import (
+	"context"
+
 	morphagent "github.com/wandxy/morph/internal/agent"
 	morphauth "github.com/wandxy/morph/internal/auth"
 	"github.com/wandxy/morph/internal/config"
@@ -15,6 +17,7 @@ import (
 
 // Options configures the RPC server.
 type Options struct {
+	ShutdownContext      context.Context
 	RuntimeModel         rpc.ModelRuntime
 	Health               bool
 	GatewayPairingSecret string
@@ -35,7 +38,10 @@ type Options struct {
 func New(service morphagent.ServiceAPI, opts Options) *grpc.Server {
 	serverOptions := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(authUnaryServerInterceptor(opts.Auth)),
-		grpc.ChainStreamInterceptor(authStreamServerInterceptor(opts.Auth)),
+		grpc.ChainStreamInterceptor(
+			cancelStreamOnShutdownInterceptor(opts.ShutdownContext),
+			authStreamServerInterceptor(opts.Auth),
+		),
 	}
 	if opts.TransportCredentials != nil {
 		serverOptions = append(serverOptions, grpc.Creds(opts.TransportCredentials))
@@ -68,4 +74,35 @@ func New(service morphagent.ServiceAPI, opts Options) *grpc.Server {
 	}
 
 	return server
+}
+
+func cancelStreamOnShutdownInterceptor(shutdownCtx context.Context) grpc.StreamServerInterceptor {
+	return func(
+		srv any,
+		stream grpc.ServerStream,
+		info *grpc.StreamServerInfo,
+		handler grpc.StreamHandler,
+	) error {
+		if shutdownCtx == nil {
+			return handler(srv, stream)
+		}
+
+		ctx, cancel := context.WithCancel(stream.Context())
+		stop := context.AfterFunc(shutdownCtx, cancel)
+		defer func() {
+			stop()
+			cancel()
+		}()
+
+		return handler(srv, &shutdownServerStream{ServerStream: stream, ctx: ctx})
+	}
+}
+
+type shutdownServerStream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (s *shutdownServerStream) Context() context.Context {
+	return s.ctx
 }

@@ -49,7 +49,7 @@ func getTUIClientOptions(cfg *config.Config) rpcclient.Options {
 }
 
 var (
-	ensureTUIDaemonRunning = morphcli.EnsureDaemonRunning
+	ensureTUIDaemonRunning = morphcli.EnsureDaemonRunningWithConfigRestarts
 	loadCommandModel       = loadTUICommandModel
 )
 
@@ -67,7 +67,7 @@ func loadTUICommandModel(ctx context.Context, cmd *cli.Command) (tea.Model, func
 	_ = logutils.ConfigureLogger("morph", cfg.Log.NoColor)
 	logutils.SetLogLevel(cfg.Log.Level)
 
-	daemonCleanup, err := ensureTUIDaemonRunning(ctx, cfg)
+	daemonCleanup, err := ensureTUIDaemonRunning(ctx, cmd, cfg)
 	if err != nil {
 		return nil, nil, err
 	}

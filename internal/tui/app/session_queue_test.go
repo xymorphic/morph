@@ -14,6 +14,8 @@ import (
 	rpcclient "github.com/wandxy/morph/internal/rpc/client"
 	"github.com/wandxy/morph/internal/trace"
 	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type sessionQueueTUIClient struct {
@@ -1090,6 +1092,47 @@ func TestSessionQueueTUI_AppliesCurrentObserverEventAndMarksFailedObserverStale(
 	require.NotNil(t, cmd)
 	require.True(t, runModel.sessionQueueStale)
 	require.Equal(t, "session queue reconnecting", runModel.status.Text())
+}
+
+func TestSessionQueueTUI_ExpectedModelRestartDoesNotReportQueueUnavailable(t *testing.T) {
+	runModel := newModel()
+	runModel.modelRestartPending = true
+
+	updated, cmd := runModel.Update(sessionExecutionStateLoadFailedMsg{
+		Err: status.Error(codes.Unavailable, "rpc unavailable"),
+	})
+
+	require.NotNil(t, cmd)
+	runModel = updated.(model)
+	require.True(t, runModel.sessionQueueStale)
+	require.Equal(t, "model selected; daemon restarting", runModel.status.Text())
+}
+
+func TestSessionQueueTUI_UnexpectedStateFailureReportsQueueUnavailable(t *testing.T) {
+	runModel := newModel()
+
+	updated, cmd := runModel.Update(sessionExecutionStateLoadFailedMsg{
+		Err: errors.New("rpc unavailable"),
+	})
+
+	require.NotNil(t, cmd)
+	runModel = updated.(model)
+	require.True(t, runModel.sessionQueueStale)
+	require.Equal(t, "session queue unavailable; retrying", runModel.status.Text())
+}
+
+func TestSessionQueueTUI_ModelRestartDoesNotHideNonConnectionFailure(t *testing.T) {
+	runModel := newModel()
+	runModel.modelRestartPending = true
+
+	updated, cmd := runModel.Update(sessionExecutionStateLoadFailedMsg{
+		Err: errors.New("authorization failed"),
+	})
+
+	require.NotNil(t, cmd)
+	runModel = updated.(model)
+	require.True(t, runModel.sessionQueueStale)
+	require.Equal(t, "session queue unavailable; retrying", runModel.status.Text())
 }
 
 func TestSessionQueueTUI_SubmitSteeringMessageRequestsSteering(t *testing.T) {
