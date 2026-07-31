@@ -5,8 +5,10 @@ import (
 	"strings"
 	"time"
 
+	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/wandxy/morph/internal/trace"
 	"github.com/wandxy/morph/pkg/str"
+	"github.com/wandxy/morph/pkg/terminalmd"
 )
 
 type transcriptCellKind string
@@ -24,6 +26,8 @@ const (
 )
 
 const userTranscriptPrompt = inputPrompt
+
+var thinkingSummaryMarkdownRenderer = terminalmd.NewRenderer(terminalmd.Options{Width: 1 << 20})
 
 type transcriptRenderContext struct {
 	Width   int
@@ -135,7 +139,7 @@ func (cell thinkingTranscriptCell) PlainText() string {
 		return "Thought: " + formatToolTranscriptDuration(cell.duration)
 	}
 
-	text := "Thinking: " + cell.summary
+	text := "Thinking: " + getThinkingSummaryDisplayText(cell.summary)
 	if cell.completed {
 		text += "\nThought: " + formatToolTranscriptDuration(cell.duration)
 	}
@@ -145,6 +149,35 @@ func (cell thinkingTranscriptCell) PlainText() string {
 func (cell thinkingTranscriptCell) IsEmpty() bool {
 	textValue4 := str.String(cell.summary)
 	return textValue4.Trim() == ""
+}
+
+func getThinkingSummaryDisplayText(summary string) string {
+	summary = strings.ReplaceAll(summary, "\r\n", "\n")
+	summary = strings.ReplaceAll(summary, "\r", "\n")
+	summary = strings.ReplaceAll(summary, `\*\*\*\*`, "**\n**")
+	summary = strings.ReplaceAll(summary, "****", "**\n**")
+	summary = strings.ReplaceAll(summary, "\n", "\n\n")
+	rendered, err := thinkingSummaryMarkdownRenderer.Render(summary)
+	if err == nil {
+		summary = xansi.Strip(rendered)
+	}
+
+	lines := strings.Split(summary, "\n")
+	normalized := lines[:0]
+	for _, line := range lines {
+		line = strings.NewReplacer(
+			"**", "",
+			"__", "",
+			"~~", "",
+		).Replace(line)
+		line = strings.Trim(line, "*_~`")
+		lineValue := str.String(line)
+		if line = lineValue.Trim(); line != "" {
+			normalized = append(normalized, line)
+		}
+	}
+
+	return strings.Join(normalized, "\n")
 }
 
 func (cell thoughtTranscriptCell) Kind() transcriptCellKind {

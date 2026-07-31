@@ -536,7 +536,7 @@ func renderThinkingTranscriptCell(cell thinkingTranscriptCell, width int) string
 	titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(defaultTUITheme.ToolTitle))
 	branchStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(defaultTUITheme.ToolBranch))
 	textStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(defaultTUITheme.ToolDetail))
-	bodyValue2 := str.String(cell.summary)
+	bodyValue2 := str.String(getThinkingSummaryDisplayText(cell.summary))
 	lines := strings.Split(bodyValue2.Trim(), "\n")
 	summaryLines := make([]string, 0, len(lines))
 	for _, line := range lines {

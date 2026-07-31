@@ -870,6 +870,33 @@ func TestRenderTranscriptCell_RendersReasoningDeltas(t *testing.T) {
 	require.NotContains(t, plain, "Reasoning:")
 }
 
+func TestRenderTranscriptCell_RemovesThinkingSummaryMarkdown(t *testing.T) {
+	want := strings.Join([]string{
+		"Designing idempotent execution constraints",
+		"Defining concurrency-safe execution state machine",
+		"Designing execution intent for safe retries",
+	}, "\n")
+	cell := thinkingTranscriptCell{
+		summary: "**Designing idempotent execution constraints****Defining concurrency-safe execution state machine****Designing execution intent for safe retries**",
+	}
+
+	plain := stripANSI(renderTranscriptTestCellWithWidth(cell, 80))
+
+	require.Equal(t, want, getThinkingSummaryDisplayText(cell.summary))
+	require.Equal(t, want, getThinkingSummaryDisplayText(
+		`**Designing idempotent execution constraints\*\*\*\*Defining concurrency-safe execution state machine\*\*\*\*Designing execution intent for safe retries**`,
+	))
+	require.Equal(t, "Designing idempotent execution constraints", getThinkingSummaryDisplayText(
+		"**Designing idempotent execution constraints",
+	))
+	require.Contains(t, plain, "└ Designing idempotent execution constraints")
+	require.Contains(t, plain, "  Defining concurrency-safe execution state machine")
+	require.Contains(t, plain, "  Designing execution intent for safe retries")
+	require.NotContains(t, plain, "*")
+	require.NotContains(t, cell.PlainText(), "*")
+	require.Contains(t, getThinkingSummaryDisplayText("Comparing O(n*m) with `claim_id`."), "O(n*m) with claim_id")
+}
+
 func TestRenderTranscriptCell_RendersCollapsedThought(t *testing.T) {
 	rendered := renderTranscriptTestCellWithWidth(thoughtTranscriptCell{duration: 3 * time.Second}, 40)
 
