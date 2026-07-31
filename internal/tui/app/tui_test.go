@@ -4055,25 +4055,42 @@ func TestCommandViewFrame_UsesDefaultTitleAndMutedSubtitleColors(t *testing.T) {
 	require.Contains(t, frame.Title, mutedSubtitle)
 }
 
-func TestCommandViewFrame_UsesPayloadHeight(t *testing.T) {
+func TestCommandViewFrame_FitsContentAndCapsRenderedHeight(t *testing.T) {
 	runModel := newModel()
+	runModel.width = 80
 	runModel.height = 30
 	runModel.showCommandView(commandViewPayload{
-		TitleLeft: "Chats",
+		TitleLeft: "Output",
 		Content:   "latest update",
-		Height:    10,
 	})
 
-	frame := runModel.getCommandViewFrame()
-
-	require.Equal(t, 10, runModel.getCommandViewHeight())
-	require.Equal(t, 10, frame.Height)
-
-	runModel.height = 4
+	require.Equal(t, 3, lipgloss.Height(runModel.renderCommandView()))
 	require.Equal(t, 3, runModel.getCommandViewHeight())
+	require.Equal(t, 1, runModel.getCommandViewContentHeight())
+
+	runModel.commandView.Content = strings.Join(
+		[]string{
+			"line 01", "line 02", "line 03", "line 04", "line 05",
+			"line 06", "line 07", "line 08", "line 09", "line 10",
+			"line 11", "line 12", "line 13", "line 14", "line 15",
+			"line 16", "line 17", "line 18", "line 19", "line 20",
+		},
+		"\n",
+	)
+
+	require.Equal(t, commandViewMaxHeight, lipgloss.Height(runModel.renderCommandView()))
+	require.Equal(t, commandViewMaxHeight, runModel.getCommandViewHeight())
+	require.Greater(t, runModel.getCommandViewMaxYOffset(), 0)
+
+	runModel.height = 10
+	runModel.resize()
+	rendered := strings.Split(stripANSI(runModel.View().Content), "\n")
+	require.Len(t, rendered, runModel.height)
+	require.Equal(t, runModel.height-transcriptComposerGapHeight-1, runModel.getCommandViewHeight())
+	require.NotContains(t, rendered[len(rendered)-1], "╰")
 }
 
-func TestCommandViewFrame_AddsGapBetweenTitleAndContent(t *testing.T) {
+func TestCommandViewFrame_RendersContentDirectlyBelowTitle(t *testing.T) {
 	runModel := newModel()
 	runModel.width = 80
 	runModel.showCommandView(commandViewPayload{
@@ -4083,14 +4100,12 @@ func TestCommandViewFrame_AddsGapBetweenTitleAndContent(t *testing.T) {
 
 	lines := strings.Split(stripANSI(runModel.renderCommandView()), "\n")
 
-	require.GreaterOrEqual(t, len(lines), 4)
+	require.Len(t, lines, 3)
 	require.Contains(t, lines[1], "Release Notes")
-	require.NotContains(t, lines[2], "Release Notes")
-	require.NotContains(t, lines[2], "latest update")
-	require.Contains(t, lines[3], "latest update")
+	require.Contains(t, lines[2], "latest update")
 }
 
-func TestCommandViewFrame_ModelViewPadsFilterInput(t *testing.T) {
+func TestCommandViewFrame_ModelViewFitsFilterAndOptions(t *testing.T) {
 	runModel := newModel()
 	runModel.width = 80
 	runModel.showCommandView(commandViewPayload{
@@ -4101,11 +4116,111 @@ func TestCommandViewFrame_ModelViewPadsFilterInput(t *testing.T) {
 
 	lines := strings.Split(stripANSI(runModel.renderCommandView()), "\n")
 
-	require.GreaterOrEqual(t, len(lines), 5)
+	require.Len(t, lines, 4)
 	require.Contains(t, lines[1], "Models")
-	require.Empty(t, strings.Trim(lines[2], " │"))
-	require.Contains(t, lines[3], "Filter models")
-	require.Empty(t, strings.Trim(lines[4], " │"))
+	require.Contains(t, lines[2], "Filter models")
+	require.Contains(t, lines[3], "gpt-5.5")
+}
+
+func TestCommandViewFrame_FitsListAndEmptyStates(t *testing.T) {
+	tests := []struct {
+		name       string
+		payload    commandViewPayload
+		wantHeight int
+		wantText   string
+	}{
+		{
+			name: "chats",
+			payload: commandViewPayload{
+				Kind:  commandViewKindChats,
+				Chats: []storage.Session{{ID: "one", Title: "One"}, {ID: "two", Title: "Two"}},
+			},
+			wantHeight: 4,
+			wantText:   "Two",
+		},
+		{
+			name: "providers",
+			payload: commandViewPayload{
+				Kind: commandViewKindProviders,
+				Providers: []rpcclient.ProviderOption{
+					{ID: "openai", Name: "OpenAI"},
+					{ID: "anthropic", Name: "Anthropic"},
+				},
+			},
+			wantHeight: 4,
+			wantText:   "Anthropic",
+		},
+		{
+			name:       "permissions",
+			payload:    commandViewPayload{Kind: commandViewKindPermissions},
+			wantHeight: 6,
+			wantText:   "Custom",
+		},
+		{
+			name:       "missing approval",
+			payload:    commandViewPayload{Kind: commandViewKindApproval},
+			wantHeight: 3,
+			wantText:   "No permission approval pending.",
+		},
+		{
+			name:       "empty models",
+			payload:    commandViewPayload{Kind: commandViewKindModels},
+			wantHeight: 3,
+			wantText:   "No models available.",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runModel := newModel()
+			runModel.width = 100
+			runModel.height = 30
+			runModel.showCommandView(test.payload)
+
+			rendered := stripANSI(runModel.renderCommandView())
+
+			require.Equal(t, test.wantHeight, lipgloss.Height(rendered))
+			require.Contains(t, rendered, test.wantText)
+			require.NotContains(t, strings.Split(rendered, "\n")[test.wantHeight-1], "╰")
+		})
+	}
+}
+
+func TestCommandViewMaxYOffsetAccountsForSpecializedOptionLists(t *testing.T) {
+	runModel := newModel()
+	runModel.width = 80
+	runModel.height = 6
+	runModel.showCommandView(commandViewPayload{Kind: commandViewKindPermissions})
+	require.Equal(
+		t,
+		len(permissionPresetOptions)-runModel.getCommandViewContentHeight(),
+		runModel.getCommandViewMaxYOffset(),
+	)
+
+	runModel.reasoning.Reasoning = true
+	runModel.reasoning.Adjustable = true
+	runModel.showCommandView(commandViewPayload{
+		Kind:    commandViewKindEffort,
+		Efforts: []agentsession.ReasoningEffort{"none", "low", "medium", "high"},
+	})
+	require.Equal(
+		t,
+		len(runModel.commandView.Efforts)-runModel.getCommandViewContentHeight(),
+		runModel.getCommandViewMaxYOffset(),
+	)
+
+	runModel.applyTUIMessage(permissionApprovalMsg{
+		RequestID: "approval",
+		Status:    string(permissions.ApprovalPending),
+		Summary:   "network request",
+		Effects:   []string{string(permissions.EffectNetwork)},
+	})
+	require.Equal(
+		t,
+		len(getPermissionApprovalOptions(runModel.pendingApprovalMessages[runModel.pendingApprovalID]))-
+			runModel.getCommandViewContentHeight(),
+		runModel.getCommandViewMaxYOffset(),
+	)
 }
 
 func TestCommandViewFrame_UsesComposerBorderColor(t *testing.T) {
@@ -4128,7 +4243,7 @@ func TestCommandViewFrame_ScrollsContent(t *testing.T) {
 	runModel.height = 18
 	runModel.showCommandView(commandViewPayload{
 		TitleLeft: "Long Output",
-		Content:   strings.Join([]string{"line 1", "line 2", "line 3", "line 4", "line 5", "line 6"}, "\n"),
+		Content:   strings.Join(transcriptWindowTestLines(20), "\n"),
 	})
 
 	updated, cmd := runModel.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyDown}))
@@ -4136,8 +4251,8 @@ func TestCommandViewFrame_ScrollsContent(t *testing.T) {
 	require.Nil(t, cmd)
 	runModel = updated.(model)
 	require.Equal(t, 1, runModel.commandViewOffset)
-	require.NotContains(t, stripANSI(runModel.renderCommandView()), "line 1")
-	require.Contains(t, stripANSI(runModel.renderCommandView()), "line 2")
+	require.NotContains(t, stripANSI(runModel.renderCommandView()), "line-0000")
+	require.Contains(t, stripANSI(runModel.renderCommandView()), "line-0001")
 }
 
 func TestModel_UpdateCopiesCommandViewContent(t *testing.T) {
@@ -4274,7 +4389,7 @@ func TestModel_CommandViewSelectionUsesRenderedChatRows(t *testing.T) {
 func TestModel_UpdateAutoScrollsCommandViewSelection(t *testing.T) {
 	runModel := newModel()
 	runModel.width = 80
-	runModel.height = 18
+	runModel.height = 6
 	runModel.showCommandView(commandViewPayload{
 		TitleLeft: "Long Output",
 		Content: strings.Join([]string{
@@ -4306,14 +4421,14 @@ func TestModel_UpdateAutoScrollsCommandViewSelection(t *testing.T) {
 	require.NotNil(t, cmd)
 	runModel = updated.(model)
 	require.Equal(t, 1, runModel.commandViewOffset)
-	require.Contains(t, runModel.selectedCommandViewText(), "line 4")
+	require.Contains(t, runModel.selectedCommandViewText(), "line 3")
 
 	updated, cmd = runModel.Update(commandViewSelectionAutoScrollTickMsg{})
 
 	require.NotNil(t, cmd)
 	runModel = updated.(model)
 	require.Equal(t, 2, runModel.commandViewOffset)
-	require.Contains(t, runModel.selectedCommandViewText(), "line 5")
+	require.Contains(t, runModel.selectedCommandViewText(), "line 4")
 }
 
 func TestModel_UpdateSelectsTranscriptTextWithMouseAndCopiesOnRelease(t *testing.T) {

@@ -61,7 +61,6 @@ func (m *model) startEffortCommand() tea.Cmd {
 		TitleRight:       "enter or click to select · esc to close",
 		TitleRightColor:  defaultTUITheme.MutedText,
 		Kind:             commandViewKindEffort,
-		Height:           m.getEffortCommandViewHeight(m.reasoning, efforts),
 		EffortSessionID:  m.getCurrentSessionID(),
 		EffortModel:      m.reasoning.Model,
 		Efforts:          efforts,
@@ -102,9 +101,6 @@ func (m model) renderEffortCommandViewContent(content commandViewContent) string
 			max(content.Width-2, 1),
 			index == m.commandViewItemSelected,
 		))
-	}
-	for len(rows) < height {
-		rows = append(rows, "")
 	}
 	return strings.Join(rows, "\n")
 }
@@ -276,9 +272,9 @@ func (m *model) completeReasoningEffortSet(msg reasoningEffortSetMsg) tea.Cmd {
 		)
 	}
 
+	previousHeight := m.getCommandViewHeight()
 	m.applyAction(setSessionReasoningAction{Settings: msg.Settings})
 	if m.isEffortCommandView() {
-		previousHeight := m.commandView.Height
 		m.commandView.EffortModel = msg.Settings.Model
 		m.commandView.Efforts = append(
 			[]agentsession.ReasoningEffort(nil),
@@ -286,10 +282,6 @@ func (m *model) completeReasoningEffortSet(msg reasoningEffortSetMsg) tea.Cmd {
 		)
 		m.commandView.EffortReasoning = msg.Settings.Reasoning
 		m.commandView.EffortAdjustable = msg.Settings.Adjustable
-		m.commandView.Height = m.getEffortCommandViewHeight(
-			msg.Settings,
-			m.commandView.Efforts,
-		)
 		m.commandViewItemSelected = getEffectiveEffortOptionIndex(
 			msg.Settings,
 			m.commandView.Efforts,
@@ -300,9 +292,7 @@ func (m *model) completeReasoningEffortSet(msg reasoningEffortSetMsg) tea.Cmd {
 			m.getCommandViewContentHeight(),
 			len(m.commandView.Efforts),
 		)
-		if m.commandView.Height != previousHeight {
-			m.resize()
-		}
+		m.resizeCommandViewIfHeightChanged(previousHeight)
 	}
 	m.setTranscriptContentForActiveTurn()
 	return m.setStatus(getEffortChangeStatus(msg.Settings))
@@ -330,23 +320,6 @@ func getEffectiveEffortOptionIndex(
 		}
 	}
 	return 0
-}
-
-func (m model) getEffortCommandViewHeight(
-	settings agentsession.ReasoningSettings,
-	efforts []agentsession.ReasoningEffort,
-) int {
-	contentHeight := len(efforts)
-	if detail := getEffortCommandUnavailableDetail(settings); detail != "" {
-		view := newCommandViewContentViewport(commandViewContent{
-			Text:   detail,
-			Width:  m.getCommandViewContentWidth(),
-			Height: 1,
-		})
-		contentHeight = view.TotalLineCount()
-	}
-
-	return max(contentHeight, 1) + 2 + commandViewTitleGap
 }
 
 func getEffortCommandUnavailableDetail(settings agentsession.ReasoningSettings) string {

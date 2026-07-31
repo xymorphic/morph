@@ -50,7 +50,7 @@ func TestModel_UpdateHandlesChatsCommand(t *testing.T) {
 	require.Equal(t, "Chats", runModel.commandView.TitleLeft)
 	require.Equal(t, "enter to open · r to rename · d to archive · esc to close", runModel.commandView.TitleRight)
 	require.Equal(t, commandViewKindChats, runModel.commandView.Kind)
-	require.Zero(t, runModel.commandView.Height)
+	require.Equal(t, len(runModel.commandView.Chats), runModel.getCommandViewContentHeight())
 	require.Len(t, runModel.commandView.Chats, 3)
 	require.Zero(t, runModel.commandViewItemSelected)
 	require.Equal(t, 1, client.listSessionCalls)
@@ -119,7 +119,7 @@ func TestModel_UpdateHandlesArchiveCommand(t *testing.T) {
 	require.Contains(t, content, "archived")
 }
 
-func TestModel_RenderArchiveCommandViewOverflowsBottomPane(t *testing.T) {
+func TestModel_RenderArchiveCommandViewHidesBottomBorder(t *testing.T) {
 	runModel := newModel()
 	runModel.height = 16
 	runModel.showCommandView(commandViewPayload{
@@ -132,9 +132,9 @@ func TestModel_RenderArchiveCommandViewOverflowsBottomPane(t *testing.T) {
 
 	lines := strings.Split(stripANSI(runModel.renderCommandView()), "\n")
 
-	require.Greater(t, len(lines), runModel.getCommandViewHeight())
-	require.Contains(t, lines[len(lines)-1], "╰")
-	require.Contains(t, lines[len(lines)-1], "╯")
+	require.Len(t, lines, runModel.getCommandViewHeight())
+	require.NotContains(t, lines[len(lines)-1], "╰")
+	require.NotContains(t, lines[len(lines)-1], "╯")
 }
 
 func TestLoadArchiveCmdUsesBackgroundContextWhenNil(t *testing.T) {
@@ -158,7 +158,7 @@ func TestModel_UpdateChatsCommandMovesSelectionWithArrowKeys(t *testing.T) {
 	})
 
 	runModel := newModelWithClient(&fakeTUIChatClient{})
-	runModel.height = 12
+	runModel.height = 7
 	runModel.showCommandView(commandViewPayload{
 		TitleLeft: "Chats",
 		Kind:      commandViewKindChats,
@@ -832,6 +832,49 @@ func TestModel_UpdateChatsCommandRemovesLastArchivedSession(t *testing.T) {
 	require.Zero(t, runModel.commandViewItemSelected)
 	require.Zero(t, runModel.commandViewOffset)
 	_ = cmd
+}
+
+func TestModel_ChatMutationShrinksCommandView(t *testing.T) {
+	tests := []struct {
+		name   string
+		kind   string
+		update tea.Msg
+	}{
+		{
+			name:   "archive",
+			kind:   commandViewKindChats,
+			update: chatArchivedMsg{ID: "ses_two"},
+		},
+		{
+			name:   "restore",
+			kind:   commandViewKindArchive,
+			update: chatUnarchivedMsg{Session: storage.Session{ID: "ses_two"}},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runModel := newModelWithClient(&fakeTUIChatClient{})
+			runModel.width = 80
+			runModel.height = 20
+			runModel.showCommandView(commandViewPayload{
+				Kind: test.kind,
+				Chats: []storage.Session{
+					{ID: "ses_one", Title: "One"},
+					{ID: "ses_two", Title: "Two", Archived: test.kind == commandViewKindArchive},
+				},
+			})
+			commandHeight := runModel.getCommandViewHeight()
+			transcriptHeight := runModel.transcript.Height()
+
+			updated, _ := runModel.Update(test.update)
+			runModel = updated.(model)
+
+			require.Len(t, runModel.commandView.Chats, 1)
+			require.Less(t, runModel.getCommandViewHeight(), commandHeight)
+			require.Greater(t, runModel.transcript.Height(), transcriptHeight)
+		})
+	}
 }
 
 func TestModel_UpdateChatsCommandRejectsMalformedArchiveCompletion(t *testing.T) {

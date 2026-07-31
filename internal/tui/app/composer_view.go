@@ -155,7 +155,7 @@ func (m model) getTranscriptLayoutState() transcriptLayoutState {
 		height:            m.height,
 		inputHeight:       m.getInputHeight(),
 		commandView:       m.isCommandViewVisible(),
-		commandViewHeight: m.commandView.Height,
+		commandViewHeight: m.getCommandViewHeight(),
 		namePrompt:        m.shouldShowNamePrompt(),
 		profileSetup:      m.shouldShowProfileModelSetup(),
 	}

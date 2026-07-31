@@ -64,7 +64,6 @@ type showCommandViewAction struct {
 	AccentColor      string
 	TitleRightColor  string
 	Content          string
-	Height           int
 	Kind             string
 	Chats            []storage.Session
 	Models           []rpcclient.ModelOption
@@ -236,7 +235,6 @@ func (action showCommandViewAction) apply(state *tuiState) {
 		AccentColor:      accentColorValue.Trim(),
 		TitleRightColor:  titleRightColorValue.Trim(),
 		Content:          contentValue.Trim(),
-		Height:           max(action.Height, 0),
 		Chats:            append([]storage.Session(nil), action.Chats...),
 		Models:           append([]rpcclient.ModelOption(nil), action.Models...),
 		Providers:        append([]rpcclient.ProviderOption(nil), action.Providers...),

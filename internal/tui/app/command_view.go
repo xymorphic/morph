@@ -15,9 +15,8 @@ import (
 )
 
 const (
-	commandViewMinHeight = 6
-	commandViewMaxHeight = 16
-	commandViewTitleGap  = 1
+	commandViewMaxHeight    = 16
+	commandViewChromeHeight = 2
 
 	commandViewKindArchive        = "archive"
 	commandViewKindChats          = "chats"
@@ -38,7 +37,6 @@ type commandViewPayload struct {
 	AccentColor      string
 	TitleRightColor  string
 	Content          string
-	Height           int
 	Kind             string
 	Chats            []storage.Session
 	Models           []rpcclient.ModelOption
@@ -72,15 +70,55 @@ func (m model) hideCommandView() model {
 	return m
 }
 
-func (m model) getCommandViewHeight() int {
-	available := max(m.height-1, 1)
-	if m.commandView.Height > 0 {
-		return min(m.commandView.Height, available)
+func (m *model) resizeCommandViewIfHeightChanged(previousHeight int) {
+	if m.getCommandViewHeight() != previousHeight {
+		m.resize()
 	}
+}
 
-	preferred := max(m.height/3, commandViewMinHeight)
+func (m model) getCommandViewHeight() int {
+	contentHeight := m.getCommandViewNaturalContentHeight()
+	available := max(m.height-transcriptComposerGapHeight-1, 1)
 
-	return min(min(preferred, commandViewMaxHeight), available)
+	return min(min(contentHeight+commandViewChromeHeight, commandViewMaxHeight), available)
+}
+
+func (m model) getCommandViewNaturalContentHeight() int {
+	switch {
+	case m.isSessionListCommandView():
+		return max(len(m.commandView.Chats), 1)
+	case m.isModelsCommandView():
+		if len(m.commandView.Models) == 0 {
+			return 1
+		}
+		return lipgloss.Height(m.renderModelFilterBlock(m.getCommandViewContentWidth())) +
+			max(len(m.filteredCommandModels()), 1)
+	case m.isProvidersCommandView():
+		return max(len(m.commandView.Providers), 1)
+	case m.isPermissionApprovalCommandView():
+		message, ok := m.pendingApprovalMessages[m.pendingApprovalID]
+		if !ok {
+			return 1
+		}
+		return max(len(getPermissionApprovalOptions(message)), 1)
+	case m.isPermissionsCommandView():
+		return max(len(permissionPresetOptions), 1)
+	case m.isEffortCommandView():
+		if detail := getEffortCommandUnavailableDetail(m.reasoning); detail != "" {
+			view := newCommandViewContentViewport(commandViewContent{
+				Text: detail, Width: m.getCommandViewContentWidth(), Height: 1,
+			})
+			return max(view.TotalLineCount(), 1)
+		}
+		return max(len(m.commandView.Efforts), 1)
+	case m.isProviderAPIKeyCommandView(), m.isBrowserArtifactSaveCommandView():
+		return 1
+	default:
+		view := m.newCommandViewContentViewport(commandViewContent{
+			Text: m.renderCommandViewContentText(), Width: m.getCommandViewContentWidth(), Height: 1,
+		})
+		return max(view.TotalLineCount(), 1)
+	}
 }
 
 func (m model) renderCommandView() string {
@@ -101,29 +139,18 @@ func (m model) renderCommandView() string {
 		})
 	}
 
-	height := frame.Height
-	if m.isSessionListCommandView() ||
-		m.isModelsCommandView() ||
-		m.isPermissionApprovalCommandView() ||
-		m.isPermissionsCommandView() ||
-		m.isEffortCommandView() ||
-		m.isProvidersCommandView() ||
-		m.isProviderAPIKeyCommandView() ||
-		m.isBrowserArtifactSaveCommandView() {
-		height++
-	}
-
-	body := lipgloss.JoinVertical(lipgloss.Left, frame.Title, "", content)
-	if m.isModelsCommandView() {
-		body = lipgloss.JoinVertical(lipgloss.Left, frame.Title, content)
-	}
+	body := lipgloss.JoinVertical(lipgloss.Left, frame.Title, content)
 
 	return lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
+		BorderTop(true).
+		BorderRight(true).
+		BorderBottom(false).
+		BorderLeft(true).
 		BorderForeground(lipgloss.Color(frame.BorderColor)).
 		Padding(0, 1).
 		Width(frame.Width).
-		Height(height).
+		Height(m.getCommandViewHeight()).
 		Render(body)
 }
 
@@ -131,7 +158,7 @@ func (m model) getCommandViewFrame() commandViewFrame {
 	height := m.getCommandViewHeight()
 	width := getInputBoxWidth(m.getMainPaneWidth())
 	contentWidth := max(width-4, 1)
-	contentHeight := max(height-2-commandViewTitleGap, 1)
+	contentHeight := m.getCommandViewContentHeight()
 	accentColorValue := str.String(m.commandView.AccentColor)
 	accentColor := accentColorValue.Trim()
 	if accentColor == "" {
@@ -662,7 +689,7 @@ func (m model) isMouseInCommandViewContent(mouse tea.Mouse) bool {
 }
 
 func (m model) getCommandViewContentTop() int {
-	return m.getTUILayout(m.input.Height()).Composer.Y + 2 + commandViewTitleGap
+	return m.getTUILayout(m.input.Height()).Composer.Y + 2
 }
 
 func (m model) getCommandViewContentLeft() int {
@@ -674,7 +701,7 @@ func (m model) getCommandViewContentWidth() int {
 }
 
 func (m model) getCommandViewContentHeight() int {
-	return max(m.getCommandViewHeight()-2-commandViewTitleGap, 1)
+	return max(m.getCommandViewHeight()-commandViewChromeHeight, 1)
 }
 
 func (m model) commandViewSelectionScrollDirection(mouse tea.Mouse) int {
@@ -695,10 +722,25 @@ func (m model) getCommandViewMaxYOffset() int {
 		return max(len(m.commandView.Chats)-m.getCommandViewContentHeight(), 0)
 	}
 	if m.isModelsCommandView() {
-		return max(len(m.commandView.Models)-m.getCommandViewContentHeight(), 0)
+		filterHeight := lipgloss.Height(m.renderModelFilterBlock(m.getCommandViewContentWidth()))
+		visibleModels := max(m.getCommandViewContentHeight()-filterHeight, 1)
+		return max(len(m.filteredCommandModels())-visibleModels, 0)
 	}
 	if m.isProvidersCommandView() {
 		return max(len(m.commandView.Providers)-m.getCommandViewContentHeight(), 0)
+	}
+	if m.isPermissionApprovalCommandView() {
+		message, ok := m.pendingApprovalMessages[m.pendingApprovalID]
+		if !ok {
+			return 0
+		}
+		return max(len(getPermissionApprovalOptions(message))-m.getCommandViewContentHeight(), 0)
+	}
+	if m.isPermissionsCommandView() {
+		return max(len(permissionPresetOptions)-m.getCommandViewContentHeight(), 0)
+	}
+	if m.isEffortCommandView() && getEffortCommandUnavailableDetail(m.reasoning) == "" {
+		return max(len(m.commandView.Efforts)-m.getCommandViewContentHeight(), 0)
 	}
 
 	view := m.newCommandViewContentViewport(commandViewContent{

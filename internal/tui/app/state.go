@@ -140,7 +140,6 @@ type commandViewState struct {
 	AccentColor      string
 	TitleRightColor  string
 	Content          string
-	Height           int
 	Chats            []storage.Session
 	Models           []rpcclient.ModelOption
 	Providers        []rpcclient.ProviderOption

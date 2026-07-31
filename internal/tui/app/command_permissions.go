@@ -63,10 +63,6 @@ func (m model) renderPermissionsCommandViewContent(content commandViewContent) s
 			index == m.commandViewItemSelected,
 		))
 	}
-	for len(rows) < height {
-		rows = append(rows, "")
-	}
-
 	return strings.Join(rows, "\n")
 }
 

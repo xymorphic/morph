@@ -240,10 +240,6 @@ func (m model) renderProvidersCommandViewContent(content commandViewContent) str
 		rows = append(rows, row)
 	}
 
-	for len(rows) <= height+1 {
-		rows = append(rows, "")
-	}
-
 	return strings.Join(rows, "\n")
 }
 
@@ -325,10 +321,6 @@ func (m model) renderModelsCommandViewContent(content commandViewContent) string
 		}
 	}
 
-	for len(rows) < height+filterHeight {
-		rows = append(rows, "")
-	}
-
 	return strings.Join(rows, "\n")
 }
 
@@ -342,7 +334,7 @@ func renderNoMatchingModelsRow(width int) string {
 }
 
 func (m model) renderModelFilterBlock(width int) string {
-	return strings.Join([]string{"", m.renderModelFilterRow(width), ""}, "\n")
+	return m.renderModelFilterRow(width)
 }
 
 func (m model) renderModelFilterRow(width int) string {
@@ -583,20 +575,10 @@ func (m *model) updateModelsCommandView(msg tea.Msg) (tea.Model, tea.Cmd) {
 	selection := m.commandViewItemSelected
 	switch msg := msg.(type) {
 	case tea.PasteMsg:
-		var cmd tea.Cmd
-		m.modelFilterInput, cmd = m.modelFilterInput.Update(msg)
-		m.commandViewItemSelected = 0
-		m.commandViewOffset = 0
-		m.clearCommandViewSelection()
-		return *m, inputHandledCmd(cmd)
+		return *m, m.updateModelFilterInput(msg)
 	case tea.KeyPressMsg:
 		if isModelFilterKey(msg) {
-			var cmd tea.Cmd
-			m.modelFilterInput, cmd = m.modelFilterInput.Update(msg)
-			m.commandViewItemSelected = 0
-			m.commandViewOffset = 0
-			m.clearCommandViewSelection()
-			return *m, inputHandledCmd(cmd)
+			return *m, m.updateModelFilterInput(msg)
 		}
 
 		switch msg.Key().Code {
@@ -651,6 +633,18 @@ func (m *model) updateModelsCommandView(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.clearCommandViewSelection()
 
 	return *m, nil
+}
+
+func (m *model) updateModelFilterInput(msg tea.Msg) tea.Cmd {
+	previousHeight := m.getCommandViewHeight()
+	var cmd tea.Cmd
+	m.modelFilterInput, cmd = m.modelFilterInput.Update(msg)
+	m.commandViewItemSelected = 0
+	m.commandViewOffset = 0
+	m.clearCommandViewSelection()
+	m.resizeCommandViewIfHeightChanged(previousHeight)
+
+	return inputHandledCmd(cmd)
 }
 
 func (m *model) updateProviderAPIKeyCommandView(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -934,7 +928,6 @@ func (m *model) showProviderAPIKeyPrompt(option rpcclient.ModelOption) (tea.Mode
 		ModelProvider:   provider,
 		PendingModelID:  iDValue7.Trim(),
 		PendingModelAPI: option.API,
-		Height:          commandViewMinHeight,
 	})
 
 	return *m, m.setStatus("provider API key required")

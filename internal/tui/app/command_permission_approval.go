@@ -17,7 +17,6 @@ func (m *model) showPermissionApprovalCommandView(message permissionApprovalMsg)
 		TitleRight:      getPermissionApprovalCommandHint(options),
 		TitleRightColor: defaultTUITheme.MutedText,
 		Kind:            commandViewKindApproval,
-		Height:          len(options) + 3,
 	})
 	m.commandViewItemSelected = 0
 	m.commandViewOffset = 0
@@ -57,10 +56,6 @@ func (m model) renderPermissionApprovalCommandViewContent(content commandViewCon
 			index == m.commandViewItemSelected,
 		))
 	}
-	for len(rows) < height {
-		rows = append(rows, "")
-	}
-
 	return strings.Join(rows, "\n")
 }
 

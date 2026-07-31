@@ -282,10 +282,6 @@ func (m model) renderSessionListCommandViewContent(content commandViewContent) s
 		rows = append(rows, row)
 	}
 
-	for len(rows) <= height+1 {
-		rows = append(rows, "")
-	}
-
 	return strings.Join(rows, "\n")
 }
 
@@ -654,6 +650,7 @@ func (m *model) completeArchiveChatSession(msg chatArchivedMsg) (tea.Model, tea.
 		return *m, m.setStatus("chat archive unavailable")
 	}
 
+	previousHeight := m.getCommandViewHeight()
 	nextSessions := make([]storage.Session, 0, len(m.commandView.Chats))
 	for _, session := range m.commandView.Chats {
 		iDValue10 := str.String(session.ID)
@@ -662,6 +659,7 @@ func (m *model) completeArchiveChatSession(msg chatArchivedMsg) (tea.Model, tea.
 		}
 	}
 	m.commandView.Chats = nextSessions
+	m.resizeCommandViewIfHeightChanged(previousHeight)
 	if len(nextSessions) == 0 {
 		m.commandViewItemSelected = 0
 		m.commandViewOffset = 0
@@ -787,6 +785,7 @@ func (m *model) completeUnarchiveArchivedChatSession(msg chatUnarchivedMsg) (tea
 		return *m, m.setStatus("chat restore unavailable")
 	}
 
+	previousHeight := m.getCommandViewHeight()
 	nextSessions := make([]storage.Session, 0, len(m.commandView.Chats))
 	for _, session := range m.commandView.Chats {
 		iDValue13 := str.String(session.ID)
@@ -795,6 +794,7 @@ func (m *model) completeUnarchiveArchivedChatSession(msg chatUnarchivedMsg) (tea
 		}
 	}
 	m.commandView.Chats = nextSessions
+	m.resizeCommandViewIfHeightChanged(previousHeight)
 	if len(nextSessions) == 0 {
 		m.commandViewItemSelected = 0
 		m.commandViewOffset = 0

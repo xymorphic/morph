@@ -42,11 +42,10 @@ func TestHandleEffortCommandOpensSupportedSelectorAtEffectiveEffort(t *testing.T
 	require.Equal(t, runModel.reasoning.Model, runModel.commandView.EffortModel)
 	require.Equal(t, 3, runModel.commandViewItemSelected)
 	require.Empty(t, runModel.commandView.TitleSubtext)
-	require.Equal(t, len(runModel.commandView.Efforts)+3, runModel.commandView.Height)
 	require.Equal(t, len(runModel.commandView.Efforts), runModel.getCommandViewContentHeight())
 	require.Equal(
 		t,
-		runModel.getCommandViewHeight()+transcriptComposerGapHeight,
+		runModel.getCommandViewHeight(),
 		lipgloss.Height(runModel.renderCommandView()),
 	)
 
@@ -179,7 +178,11 @@ func TestEffortStatusShowsDormantOverrideForUnavailableModel(t *testing.T) {
 	require.Contains(t, content, "/effort reset")
 	require.Contains(t, content, "session_override_unsupported")
 	require.Equal(t, strings.Count(content, "\n")+1, runModel.getCommandViewContentHeight())
-	require.Equal(t, runModel.getCommandViewContentHeight()+3, runModel.commandView.Height)
+	require.Equal(
+		t,
+		runModel.getCommandViewContentHeight()+commandViewChromeHeight,
+		lipgloss.Height(runModel.renderCommandView()),
+	)
 }
 
 func TestEffortSelectorSupportsKeyboardAndEscape(t *testing.T) {
@@ -415,7 +418,6 @@ func TestCompleteReasoningEffortSetRefreshesOpenSelector(t *testing.T) {
 	require.Equal(t, settings.SupportedEfforts, runModel.commandView.Efforts)
 	require.Equal(t, 1, runModel.commandViewItemSelected)
 	require.Empty(t, runModel.commandView.TitleSubtext)
-	require.Equal(t, len(settings.SupportedEfforts)+3, runModel.commandView.Height)
 	require.Equal(t, len(settings.SupportedEfforts), runModel.getCommandViewContentHeight())
 	require.Equal(t, "GPT-5.5 (high)", runModel.getModelLabel())
 }

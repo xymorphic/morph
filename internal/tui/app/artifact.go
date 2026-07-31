@@ -402,7 +402,7 @@ func (m *model) showBrowserArtifactSavePrompt(artifact browserArtifact) tea.Cmd 
 	m.artifactPathInput = newArtifactPathInput()
 	m.showCommandView(commandViewPayload{
 		Kind: commandViewKindArtifactSave, TitleLeft: "Save browser artifact", TitleSubtext: artifact.Name,
-		TitleRight: "enter to save · esc to close", Height: commandViewMinHeight,
+		TitleRight: "enter to save · esc to close",
 	})
 	return m.setStatus("choose artifact destination")
 }
