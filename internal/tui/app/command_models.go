@@ -467,22 +467,28 @@ func getModelOptionMutedDetail(model rpcclient.ModelOption) string {
 
 func getModelOptionCapabilityDetail(model rpcclient.ModelOption) string {
 	contextLength := getModelOptionContextLength(model)
-	if !model.Reasoning && contextLength == "" {
-		return ""
-	}
-
+	detail := ""
 	if model.Reasoning {
 		reasoning := padCommandCell("reasoning", modelOptionReasoningWidth, false)
 		if contextLength != "" {
 			contextCell := padCommandCell(contextLength, modelOptionContextWidth, true)
-			return reasoning + " · " + contextCell
+			detail = reasoning + " · " + contextCell
+		} else {
+			detail = reasoning
 		}
-
-		return reasoning
+	} else if contextLength != "" {
+		detail = strings.Repeat(" ", modelOptionReasoningWidth+3) +
+			padCommandCell(contextLength, modelOptionContextWidth, true)
 	}
 
-	return strings.Repeat(" ", modelOptionReasoningWidth+3) +
-		padCommandCell(contextLength, modelOptionContextWidth, true)
+	if !model.SupportsOAuth {
+		return detail
+	}
+	if detail == "" {
+		return "OAuth"
+	}
+
+	return "OAuth · " + detail
 }
 
 func normalizeModelOptionDetailCells(detail string) string {
@@ -741,6 +747,11 @@ func (m *model) selectCurrentModelOption() (tea.Model, tea.Cmd) {
 	}
 	if model.Current {
 		return *m, m.setStatus("model already selected")
+	}
+	if model.SupportsOAuth && !m.hasModelAuth(model) {
+		provider := getSetupModelProvider(m.commandView.ModelProvider, model)
+		next := m.hideCommandView()
+		return next.startProviderSubscriptionSetup(provider, modelID)
 	}
 	if m.shouldPromptForProviderAPIKey(model) {
 		return m.showProviderAPIKeyPrompt(model)

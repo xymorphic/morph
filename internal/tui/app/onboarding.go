@@ -469,6 +469,30 @@ func (m *model) startProfileModelSetup() tea.Cmd {
 	return m.setStatus("choose an auth method")
 }
 
+func (m *model) startProviderSubscriptionSetup(provider string, modelID string) (tea.Model, tea.Cmd) {
+	providerValue := str.String(provider)
+	provider = providerValue.Trim()
+	if provider == "" {
+		return *m, m.setStatus("provider selection unavailable")
+	}
+
+	m.clearProfileModelSetup()
+	m.setupDismissible = true
+	m.setupAuthMethod = setupAuthMethodSubscription
+	m.setupProviders = filterSetupProvidersForAuthMethod(
+		modelcatalog.ListProviders(modelcatalog.ProviderQuery{
+			Current: m.loadRawProfileMainProvider(),
+		}),
+		m.setupAuthMethod,
+	)
+	if err := m.loadSetupModels(provider, ""); err != nil || len(m.setupModels) == 0 {
+		return *m, m.setStatus("models unavailable")
+	}
+	m.setProfileModelSetupModelSelection(modelID)
+
+	return m.startSetupOAuthLogin(provider)
+}
+
 func (m *model) startProfileSetup(dismissible bool) tea.Cmd {
 	userNameValue3 := str.String(m.userName)
 	name := userNameValue3.Trim()

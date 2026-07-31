@@ -279,7 +279,12 @@ func TestModel_RenderModelsCommandViewHandlesEmptyAndContextLength(t *testing.T)
 		Reasoning:     true,
 		ContextWindow: 128000,
 	}))
-	require.Empty(t, getModelOptionMutedDetail(rpcclient.ModelOption{SupportsOAuth: true}))
+	require.Equal(t, "OAuth", getModelOptionMutedDetail(rpcclient.ModelOption{SupportsOAuth: true}))
+	require.Equal(t, "OAuth · reasoning · 1000k", getModelOptionMutedDetail(rpcclient.ModelOption{
+		SupportsOAuth: true,
+		Reasoning:     true,
+		ContextWindow: 1000000,
+	}))
 }
 
 func TestModel_UpdateModelsCommandViewFiltersModels(t *testing.T) {
@@ -827,6 +832,36 @@ func TestModel_ModelSelectionReportsOAuthLoginCommand(t *testing.T) {
 	)
 	require.Empty(t, getModelSelectionLoginCommand(nil))
 	require.Empty(t, getModelSelectionLoginCommand(errors.New("other error")))
+}
+
+func TestModel_SelectOAuthModelWithoutAuthStartsProviderSubscriptionSetup(t *testing.T) {
+	runModel := newSetupModelSelectionTestModel(t)
+	runModel.clearProfileModelSetup()
+	runModel.showCommandView(commandViewPayload{
+		Kind:          commandViewKindModels,
+		ModelProvider: constants.ModelProviderAnthropic,
+		Models: []rpcclient.ModelOption{{
+			ID:            "claude-sonnet-4-6",
+			Name:          "Claude Sonnet 4.6",
+			Provider:      constants.ModelProviderAnthropic,
+			SupportsOAuth: true,
+		}},
+	})
+
+	updated, cmd := runModel.selectCurrentModelOption()
+	require.NotNil(t, cmd)
+
+	runModel = updated.(model)
+	defer runModel.cancelSetupOAuthLogin()
+	require.False(t, runModel.commandView.Visible)
+	require.True(t, runModel.setupDismissible)
+	require.Equal(t, setupAuthMethodSubscription, runModel.setupAuthMethod)
+	require.Equal(t, setupModelStepNotice, runModel.setupModelStep)
+	require.True(t, runModel.setupOAuthPending)
+	require.Equal(t, constants.ModelProviderAnthropic, runModel.setupOAuthProvider)
+	require.Equal(t, "claude-sonnet-4-6", runModel.currentSetupModelID())
+	require.Empty(t, transcriptCellPlainTexts(runModel.messages))
+	require.Contains(t, stripANSI(runModel.View().Content), "Opening browser to connect Anthropic.")
 }
 
 func TestModel_ApplySelectedModelToRuntimeUsesCommandProviderFallback(t *testing.T) {
