@@ -257,7 +257,7 @@ func (s *chromiumSession) navigateHistory(ctx context.Context, tabID string, off
 	if err := s.waitForValue(actionCtx, tabID, WaitURL, expectedURL); err != nil {
 		return BackendTab{}, fmt.Errorf("wait for browser history URL: %w", err)
 	}
-	if err := s.runInTab(actionCtx, tabID, chromedp.WaitReady("body", chromedp.ByQuery)); err != nil {
+	if err := s.waitForDocumentReady(actionCtx, tabID); err != nil {
 		return BackendTab{}, fmt.Errorf("wait for browser history document: %w", err)
 	}
 	tab, err := s.getBackendTab(actionCtx, tabID)
@@ -265,6 +265,29 @@ func (s *chromiumSession) navigateHistory(ctx context.Context, tabID string, off
 		return BackendTab{}, fmt.Errorf("read browser history result: %w", err)
 	}
 	return tab, nil
+}
+
+func (s *chromiumSession) waitForDocumentReady(ctx context.Context, tabID string) error {
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		var ready bool
+		err := s.runInTab(ctx, tabID, chromedp.Evaluate(
+			`document.body !== null && document.readyState !== "loading"`,
+			&ready,
+		))
+		if err != nil {
+			return err
+		}
+		if ready {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case <-ticker.C:
+		}
+	}
 }
 
 func (s *chromiumSession) Reload(ctx context.Context, tabID string) (BackendTab, error) {
