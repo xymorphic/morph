@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -162,6 +163,7 @@ func (s *fakeDockerServer) handle(writer http.ResponseWriter, request *http.Requ
 		strings.HasSuffix(request.URL.Path, "/attach"):
 		hijackDockerStream(
 			writer,
+			request,
 			attachOutput,
 			holdAttachOpen,
 			attachDelay,
@@ -220,6 +222,7 @@ func (s *fakeDockerServer) handle(writer http.ResponseWriter, request *http.Requ
 	case strings.HasSuffix(request.URL.Path, "/exec/exec/start"):
 		hijackDockerStream(
 			writer,
+			request,
 			attachOutput,
 			holdAttachOpen,
 			attachDelay,
@@ -294,12 +297,16 @@ func writeDockerStatus(writer http.ResponseWriter, status int) {
 
 func hijackDockerStream(
 	writer http.ResponseWriter,
+	request *http.Request,
 	output string,
 	holdOpen bool,
 	delay time.Duration,
 	closeImmediately bool,
 	raw []byte,
 ) {
+	_, _ = io.Copy(io.Discard, request.Body)
+	_ = request.Body.Close()
+
 	connection, buffer, err := writer.(http.Hijacker).Hijack()
 	if err != nil {
 		return
@@ -1507,8 +1514,7 @@ func TestMountPreparationAndProtection(t *testing.T) {
 	_, err = buildMounts(exposure, "")
 	require.EqualError(t, err, "docker private workspace volume is required")
 
-	root, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
+	root := createDockerTestMountSource(t)
 	input := testDockerExposure()
 	input.WorkspaceMode = execution.WorkspaceReadWrite
 	input.Mounts = []execution.Mount{
@@ -1526,8 +1532,7 @@ func TestMountPreparationAndProtection(t *testing.T) {
 	require.Len(t, mounts, 1)
 	require.True(t, mounts[0].ReadOnly)
 
-	createdParent, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
+	createdParent := createDockerTestMountSource(t)
 	created := filepath.Join(createdParent, "created")
 	source, err := prepareMountSource(execution.Mount{
 		SourceIdentity: created,
@@ -1537,10 +1542,8 @@ func TestMountPreparationAndProtection(t *testing.T) {
 	require.Equal(t, created, source)
 	require.DirExists(t, created)
 
-	symlinkRoot, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
-	target, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
+	symlinkRoot := createDockerTestMountSource(t)
+	target := createDockerTestMountSource(t)
 	symlink := filepath.Join(symlinkRoot, "link")
 	require.NoError(t, os.Symlink(target, symlink))
 	_, err = prepareMountSource(execution.Mount{
@@ -1596,6 +1599,22 @@ func TestMountPreparationAndProtection(t *testing.T) {
 	}
 	_, err = canonicalMountSource(root)
 	require.EqualError(t, err, "stat failed")
+}
+
+func createDockerTestMountSource(t *testing.T) string {
+	t.Helper()
+
+	temporary, err := os.MkdirTemp(".", "morph-mount-source-*")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, os.RemoveAll(temporary))
+	})
+
+	source, err := filepath.Abs(temporary)
+	require.NoError(t, err)
+	canonical, err := filepath.EvalSymlinks(source)
+	require.NoError(t, err)
+	return canonical
 }
 
 func TestOutputBufferAccessorsAndBounds(t *testing.T) {
