@@ -464,6 +464,61 @@ func TestEgressProxy_WaitsForLogicalWebSocketAuthorityBeforeOpeningPhysicalTunne
 	acquired.lease.Release()
 }
 
+func TestEgressProxy_WaitsForLogicalWebSocketAuthorityRegisteredAfterPhysicalTunnel(t *testing.T) {
+	ledger := newTestTransportPermitLedger(t, time.Now)
+	generation, err := ledger.beginGeneration(context.Background())
+	require.NoError(t, err)
+	proxy, err := startEgressProxyWithLedger(NetworkPolicy{}, ledger)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, proxy.Close(context.Background())) })
+	logical := permissions.NetworkTarget{
+		Scheme:       "wss",
+		Host:         "socket.example",
+		Port:         443,
+		Path:         "/events",
+		Method:       http.MethodConnect,
+		RequestClass: permissions.NetworkRequestWebSocket,
+	}
+	physical := permissions.NetworkTarget{
+		Scheme:       "https",
+		Host:         "socket.example",
+		Port:         443,
+		Path:         "/",
+		Method:       http.MethodConnect,
+		RequestClass: permissions.NetworkRequestSubresource,
+	}
+	result := make(chan struct {
+		lease *transportPermitLease
+		err   error
+	}, 1)
+	go func() {
+		lease, acquireErr := proxy.acquirePermit(context.Background(), physical)
+		result <- struct {
+			lease *transportPermitLease
+			err   error
+		}{
+			lease: lease,
+			err:   acquireErr,
+		}
+	}()
+	select {
+	case <-result:
+		t.Fatal("proxy did not wait for WebSocket authority registration")
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	finish := ledger.beginPending(logical)
+	require.NoError(t, ledger.install(generation, []transportPermitInput{{
+		Target:    logical,
+		Addresses: []netip.Addr{netip.MustParseAddr("192.0.2.1")},
+	}}))
+	finish()
+	acquired := <-result
+	require.NoError(t, acquired.err)
+	require.Equal(t, []netip.Addr{netip.MustParseAddr("192.0.2.1")}, acquired.lease.Addresses())
+	acquired.lease.Release()
+}
+
 func TestEgressProxy_DeniedPendingWebSocketDoesNotFallBackToBackgroundAuthority(t *testing.T) {
 	ledger := newTestTransportPermitLedger(t, time.Now)
 	_, err := ledger.beginGeneration(context.Background())

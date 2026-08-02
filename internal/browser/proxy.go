@@ -22,6 +22,7 @@ import (
 )
 
 const defaultProxyReadHeaderTimeout = 10 * time.Second
+const defaultWebSocketPendingGrace = 500 * time.Millisecond
 const proxyDenialLogWindow = 5 * time.Second
 
 type proxyDenial struct {
@@ -30,19 +31,20 @@ type proxyDenial struct {
 }
 
 type egressProxy struct {
-	authorization localAuthorization
-	sessionID     string
-	permits       *transportPermitLedger
-	background    func(context.Context, permissions.NetworkTarget) (*transportPermitLease, error)
-	listener      net.Listener
-	server        *http.Server
-	policyMu      sync.RWMutex
-	policy        NetworkPolicy
-	policyKey     string
-	mu            sync.Mutex
-	closed        bool
-	connections   map[net.Conn]struct{}
-	denials       map[string]proxyDenial
+	authorization         localAuthorization
+	sessionID             string
+	permits               *transportPermitLedger
+	background            func(context.Context, permissions.NetworkTarget) (*transportPermitLease, error)
+	listener              net.Listener
+	server                *http.Server
+	policyMu              sync.RWMutex
+	policy                NetworkPolicy
+	policyKey             string
+	webSocketPendingGrace time.Duration
+	mu                    sync.Mutex
+	closed                bool
+	connections           map[net.Conn]struct{}
+	denials               map[string]proxyDenial
 }
 
 func startEgressProxy(policy NetworkPolicy) (*egressProxy, error) {
@@ -65,8 +67,14 @@ func startEgressProxyWithLedger(
 		ledger = newTransportPermitLedger(time.Now)
 	}
 	proxy := &egressProxy{
-		authorization: authorization, policy: policy, listener: listener, connections: make(map[net.Conn]struct{}),
-		permits: ledger, policyKey: getNetworkPolicyKey(policy), denials: make(map[string]proxyDenial),
+		authorization:         authorization,
+		permits:               ledger,
+		listener:              listener,
+		policy:                policy,
+		policyKey:             getNetworkPolicyKey(policy),
+		webSocketPendingGrace: defaultWebSocketPendingGrace,
+		connections:           make(map[net.Conn]struct{}),
+		denials:               make(map[string]proxyDenial),
 	}
 	proxy.server = &http.Server{
 		Handler:           http.HandlerFunc(proxy.handle),
@@ -467,6 +475,22 @@ func (p *egressProxy) acquirePermit(
 		if waitErr != nil {
 			return nil, waitErr
 		}
+		if !waited && shouldWaitForWebSocketRegistration(target, err) {
+			waited, waitErr = p.permits.waitForPendingRegistration(
+				ctx,
+				target,
+				p.webSocketPendingGrace,
+			)
+			if waitErr != nil {
+				return nil, waitErr
+			}
+			if waited {
+				waited, waitErr = p.permits.waitForPending(ctx, target)
+				if waitErr != nil {
+					return nil, waitErr
+				}
+			}
+		}
 		if !waited {
 			break
 		}
@@ -506,6 +530,13 @@ func (p *egressProxy) acquirePermit(
 			Msg("Browser proxy acquired background transport authority")
 	}
 	return lease, err
+}
+
+func shouldWaitForWebSocketRegistration(target permissions.NetworkTarget, err error) bool {
+	var permitErr *transportPermitError
+	return errors.As(err, &permitErr) && permitErr.Failure == transportPermitMissing &&
+		target.Scheme == "https" && target.Method == http.MethodConnect &&
+		target.RequestClass == permissions.NetworkRequestSubresource
 }
 
 func isBackgroundEligiblePermitFailure(failure transportPermitFailure) bool {

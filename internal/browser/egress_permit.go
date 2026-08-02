@@ -92,6 +92,7 @@ type transportPermitLedger struct {
 	generations    map[uint64]*permitGeneration
 	permits        map[uint64]*transportPermit
 	pending        map[permissions.NetworkTarget][]*pendingTransportIntent
+	pendingUpdates chan struct{}
 	closed         bool
 }
 
@@ -118,9 +119,12 @@ func newTransportPermitLedger(now func() time.Time) *transportPermitLedger {
 		now = time.Now
 	}
 	return &transportPermitLedger{
-		now: now, capacity: defaultTransportPermitCapacity,
-		generations: make(map[uint64]*permitGeneration), permits: make(map[uint64]*transportPermit),
-		pending: make(map[permissions.NetworkTarget][]*pendingTransportIntent),
+		now:            now,
+		capacity:       defaultTransportPermitCapacity,
+		generations:    make(map[uint64]*permitGeneration),
+		permits:        make(map[uint64]*transportPermit),
+		pending:        make(map[permissions.NetworkTarget][]*pendingTransportIntent),
+		pendingUpdates: make(chan struct{}),
 	}
 }
 
@@ -146,6 +150,8 @@ func (l *transportPermitLedger) beginPending(target permissions.NetworkTarget) f
 	}
 	intent := &pendingTransportIntent{generation: generationID, done: make(chan struct{})}
 	l.pending[target] = append(l.pending[target], intent)
+	close(l.pendingUpdates)
+	l.pendingUpdates = make(chan struct{})
 	l.mu.Unlock()
 
 	var once sync.Once
@@ -158,6 +164,43 @@ func (l *transportPermitLedger) beginPending(target permissions.NetworkTarget) f
 			}
 			l.mu.Unlock()
 		})
+	}
+}
+
+func (l *transportPermitLedger) waitForPendingRegistration(
+	ctx context.Context,
+	target permissions.NetworkTarget,
+	grace time.Duration,
+) (bool, error) {
+	if l == nil || grace <= 0 {
+		return false, nil
+	}
+	target, err := getPendingTransportTarget(target)
+	if err != nil {
+		return false, err
+	}
+	timer := time.NewTimer(grace)
+	defer timer.Stop()
+	for {
+		l.mu.Lock()
+		if len(l.pending[target]) > 0 {
+			l.mu.Unlock()
+			return true, nil
+		}
+		if l.closed {
+			l.mu.Unlock()
+			return false, errors.New("transport permit ledger is closed")
+		}
+		updates := l.pendingUpdates
+		l.mu.Unlock()
+
+		select {
+		case <-updates:
+		case <-timer.C:
+			return false, nil
+		case <-ctx.Done():
+			return false, ctx.Err()
+		}
 	}
 }
 
@@ -533,6 +576,7 @@ func (l *transportPermitLedger) close() error {
 		return nil
 	}
 	l.closed = true
+	close(l.pendingUpdates)
 	connections := make([]net.Conn, 0)
 	for generationID := range l.generations {
 		connections = append(connections, l.removeGenerationLocked(generationID)...)
