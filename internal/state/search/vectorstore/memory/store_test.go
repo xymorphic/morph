@@ -701,8 +701,8 @@ func getRecordIDs(records []Record) []string {
 }
 
 func TestVectorScoringHelpers(t *testing.T) {
-	require.Equal(t, float32(0), cosineDistance([]float32{1, 0}, []float32{1, 0}))
-	require.Equal(t, float32(1), cosineDistance([]float32{1, 0}, []float32{0, 1}))
+	require.InDelta(t, float32(0), cosineDistance([]float32{1, 0}, []float32{1, 0}), 1e-6)
+	require.InDelta(t, float32(1), cosineDistance([]float32{1, 0}, []float32{0, 1}), 1e-6)
 	require.Equal(t, float32(1), cosineDistance([]float32{0, 0}, []float32{1, 0}))
 	require.Equal(t, 0.5, scoreFromDistance(0.5))
 	require.Equal(t, -1, compareMatches(SearchMatch{Record: Record{ID: "b"}, Score: 2}, SearchMatch{Record: Record{ID: "a"}, Score: 1}))
