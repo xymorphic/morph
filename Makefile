@@ -1,6 +1,6 @@
 APP := morph
 BUILD_DIR := build
-GO ?= /opt/homebrew/Cellar/go/1.26.1/libexec/bin/go
+GO ?= go
 GO_SQLITE_TAGS ?= sqlite_fts5
 GOLANGCI_LINT_VERSION ?= 2.12.2
 LIVE_CONFIG ?= $(CURDIR)/config.yaml
@@ -9,12 +9,14 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || printf de
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || printf unknown)
 LD_FLAGS := -X github.com/xymorphic/morph/internal/constants.AppVersion=$(VERSION) -X github.com/xymorphic/morph/internal/constants.CommitHash=$(COMMIT)
 
-.PHONY: install-tools install-lint install-hooks build-proto build build-sandbox test test-execution-docker test-agent-baseline test-spec test-live test-live-sqlite test-live-memory test-live-all host-deps lint install
+.PHONY: install-tools install-proto-tools install-lint install-hooks build-proto build build-sandbox test test-execution-docker test-agent-baseline test-spec test-live test-live-sqlite test-live-memory test-live-all host-deps lint install
 
-install-tools:
+install-tools: install-proto-tools
+	@$(MAKE) install-lint
+
+install-proto-tools:
 	@$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
 	@$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.76.0
-	@$(MAKE) install-lint
 
 install-lint:
 	@$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v$(GOLANGCI_LINT_VERSION)
