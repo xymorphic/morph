@@ -8,14 +8,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/mocks"
-	models "github.com/wandxy/morph/internal/model"
-	modelclient "github.com/wandxy/morph/internal/model/client"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/profile"
-	state "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/mocks"
+	models "github.com/xymorphic/morph/internal/model"
+	modelclient "github.com/xymorphic/morph/internal/model/client"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/profile"
+	state "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func TestAgentRunner_RunPromptThroughRuntime(t *testing.T) {

@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	instruct "github.com/wandxy/morph/internal/instructions"
-	"github.com/wandxy/morph/internal/mocks"
-	agentprompt "github.com/wandxy/morph/pkg/agent/prompt"
+	instruct "github.com/xymorphic/morph/internal/instructions"
+	"github.com/xymorphic/morph/internal/mocks"
+	agentprompt "github.com/xymorphic/morph/pkg/agent/prompt"
 )
 
 func TestPromptProvider_LoadBaseInstructionsConvertsEnvironmentInstructions(t *testing.T) {

@@ -11,13 +11,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	e2e "github.com/wandxy/morph/internal/e2e"
-	instruct "github.com/wandxy/morph/internal/instructions"
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/internal/trace"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/logutils"
+	"github.com/xymorphic/morph/internal/config"
+	e2e "github.com/xymorphic/morph/internal/e2e"
+	instruct "github.com/xymorphic/morph/internal/instructions"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/internal/trace"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/logutils"
 )
 
 func init() {

@@ -12,12 +12,12 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	protomock "github.com/wandxy/morph/internal/mocks/proto"
-	"github.com/wandxy/morph/internal/permissions"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
-	"github.com/wandxy/morph/internal/rpc/rpcmeta"
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/trace"
+	protomock "github.com/xymorphic/morph/internal/mocks/proto"
+	"github.com/xymorphic/morph/internal/permissions"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
+	"github.com/xymorphic/morph/internal/rpc/rpcmeta"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/trace"
 )
 
 func TestClient_CreateSessionReturnsSummary(t *testing.T) {

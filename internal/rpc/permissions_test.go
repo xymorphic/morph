@@ -8,11 +8,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/gateway"
-	agentstub "github.com/wandxy/morph/internal/mocks/agentstub"
-	"github.com/wandxy/morph/internal/permissions"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/gateway"
+	agentstub "github.com/xymorphic/morph/internal/mocks/agentstub"
+	"github.com/xymorphic/morph/internal/permissions"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
 )
 
 func TestService_CheckPermissionHonorsDecisionsPresetsAndOwnerRules(t *testing.T) {

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
-	"github.com/wandxy/morph/pkg/nanoid"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
+	"github.com/xymorphic/morph/pkg/nanoid"
 	"gorm.io/gorm"
 )
 

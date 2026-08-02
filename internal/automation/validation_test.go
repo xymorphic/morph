@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/state/storememory"
+	"github.com/xymorphic/morph/internal/state/storememory"
 )
 
 func TestService_AddNormalizesAutomationDefinition(t *testing.T) {

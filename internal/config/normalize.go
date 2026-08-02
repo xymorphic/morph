@@ -5,11 +5,11 @@ import (
 	"slices"
 	"strings"
 
-	commandplan "github.com/wandxy/morph/internal/command"
-	"github.com/wandxy/morph/internal/constants"
-	"github.com/wandxy/morph/internal/datadir"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	"github.com/wandxy/morph/pkg/str"
+	commandplan "github.com/xymorphic/morph/internal/command"
+	"github.com/xymorphic/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/datadir"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // normalizeFields applies trimming and defaults except default model base URL resolution.

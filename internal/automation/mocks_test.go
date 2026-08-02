@@ -8,12 +8,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	morphagent "github.com/wandxy/morph/internal/agent"
-	"github.com/wandxy/morph/internal/model"
-	modelclient "github.com/wandxy/morph/internal/model/client"
-	"github.com/wandxy/morph/internal/state/core"
-	agentcore "github.com/wandxy/morph/pkg/agent"
-	"github.com/wandxy/morph/pkg/nanoid"
+	morphagent "github.com/xymorphic/morph/internal/agent"
+	"github.com/xymorphic/morph/internal/model"
+	modelclient "github.com/xymorphic/morph/internal/model/client"
+	"github.com/xymorphic/morph/internal/state/core"
+	agentcore "github.com/xymorphic/morph/pkg/agent"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 var (

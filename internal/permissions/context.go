@@ -4,7 +4,7 @@ import (
 	"context"
 	"slices"
 
-	"github.com/wandxy/morph/internal/command"
+	"github.com/xymorphic/morph/internal/command"
 )
 
 type authorizationContextKey struct{}

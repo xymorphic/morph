@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	base "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/pkg/str"
+	base "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func (s *Store) AppendTraceEvent(_ context.Context, event base.TraceEvent) (base.TraceEvent, error) {

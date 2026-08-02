@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 func TestDefaultSpec_DefaultPaths(t *testing.T) {

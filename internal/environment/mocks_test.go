@@ -3,8 +3,8 @@ package environment
 import (
 	"context"
 
-	"github.com/wandxy/morph/internal/memory"
-	"github.com/wandxy/morph/internal/tools"
+	"github.com/xymorphic/morph/internal/memory"
+	"github.com/xymorphic/morph/internal/tools"
 )
 
 type memoryProviderWithoutSearch struct{}

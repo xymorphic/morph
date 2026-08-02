@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

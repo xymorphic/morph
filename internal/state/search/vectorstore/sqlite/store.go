@@ -15,9 +15,9 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	morphdb "github.com/wandxy/morph/internal/db"
-	"github.com/wandxy/morph/internal/state/search/vectorstore"
-	"github.com/wandxy/morph/pkg/str"
+	morphdb "github.com/xymorphic/morph/internal/db"
+	"github.com/xymorphic/morph/internal/state/search/vectorstore"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

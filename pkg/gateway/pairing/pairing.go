@@ -10,7 +10,7 @@ import (
 
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

@@ -9,14 +9,14 @@ import (
 	"strings"
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
-	"github.com/wandxy/morph/pkg/logutils"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/str"
 
-	envtypes "github.com/wandxy/morph/internal/environment/types"
-	"github.com/wandxy/morph/internal/execution"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/tools"
-	"github.com/wandxy/morph/internal/tools/common"
+	envtypes "github.com/xymorphic/morph/internal/environment/types"
+	"github.com/xymorphic/morph/internal/execution"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/tools"
+	"github.com/xymorphic/morph/internal/tools/common"
 )
 
 var log = logutils.Module("tool.patch")

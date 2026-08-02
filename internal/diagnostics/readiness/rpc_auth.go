@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	morphauth "github.com/wandxy/morph/internal/auth"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/credential"
-	"github.com/wandxy/morph/internal/profile"
+	morphauth "github.com/xymorphic/morph/internal/auth"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/credential"
+	"github.com/xymorphic/morph/internal/profile"
 )
 
 func buildRPCAuthGroup(cfg *config.Config, active profile.Profile) Group {

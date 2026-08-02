@@ -22,9 +22,9 @@ import (
 	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
 
-	browserdomain "github.com/wandxy/morph/internal/browser"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	"github.com/wandxy/morph/pkg/str"
+	browserdomain "github.com/xymorphic/morph/internal/browser"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const artifactControlOSCPrefix = "\x1b]777;artifact;"

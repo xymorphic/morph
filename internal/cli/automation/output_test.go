@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	coreautomation "github.com/wandxy/morph/internal/automation"
+	coreautomation "github.com/xymorphic/morph/internal/automation"
 )
 
 func TestJobListToText_FormatsRowsAndEmptyState(t *testing.T) {

@@ -1,8 +1,8 @@
 package agent
 
 import (
-	"github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/agent/session"
+	"github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/agent/session"
 )
 
 // SessionTimelineOptions configures a transcript and trace event page load.

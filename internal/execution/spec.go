@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	commandplan "github.com/wandxy/morph/internal/command"
+	commandplan "github.com/xymorphic/morph/internal/command"
 )
 
 type Exposure struct {

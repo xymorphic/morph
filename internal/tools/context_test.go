@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/agent/runcontext"
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/internal/agent/runcontext"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 func TestSessionIDFromContextPrefersEffectiveRunContext(t *testing.T) {

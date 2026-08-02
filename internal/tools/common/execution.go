@@ -5,10 +5,10 @@ import (
 	"errors"
 	"slices"
 
-	envtypes "github.com/wandxy/morph/internal/environment/types"
-	"github.com/wandxy/morph/internal/execution"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/tools"
+	envtypes "github.com/xymorphic/morph/internal/environment/types"
+	"github.com/xymorphic/morph/internal/execution"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/tools"
 )
 
 func PrepareExecutionSpec(

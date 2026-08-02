@@ -4,13 +4,13 @@ import (
 	"context"
 	"strings"
 
-	"github.com/wandxy/morph/internal/constants"
-	"github.com/wandxy/morph/internal/guardrails"
-	instruct "github.com/wandxy/morph/internal/instructions"
-	"github.com/wandxy/morph/internal/memory"
-	memoryobservability "github.com/wandxy/morph/internal/memory/observability"
-	"github.com/wandxy/morph/internal/trace"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/guardrails"
+	instruct "github.com/xymorphic/morph/internal/instructions"
+	"github.com/xymorphic/morph/internal/memory"
+	memoryobservability "github.com/xymorphic/morph/internal/memory/observability"
+	"github.com/xymorphic/morph/internal/trace"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

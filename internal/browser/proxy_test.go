@@ -18,7 +18,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
-	"github.com/wandxy/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 func TestEgressProxy_ForwardsPermittedHTTPAndRejectsRequestsWithoutAuthority(t *testing.T) {

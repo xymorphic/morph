@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/constants"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	provider_ollama "github.com/wandxy/morph/internal/model/provider_ollama"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/constants"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	provider_ollama "github.com/xymorphic/morph/internal/model/provider_ollama"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 var discoverOllamaModels = func(ctx context.Context, baseURL string) ([]modelprovider.ModelDefinition, error) {

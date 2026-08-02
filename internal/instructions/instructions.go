@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // Instruction represents a single named instruction with a value string.

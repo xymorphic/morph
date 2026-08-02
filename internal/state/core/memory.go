@@ -9,7 +9,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // MemoryKind classifies stored memories by use and origin.

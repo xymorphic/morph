@@ -8,17 +8,17 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/agent/runcontext"
-	"github.com/wandxy/morph/internal/environment"
-	envtypes "github.com/wandxy/morph/internal/environment/types"
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/internal/permissions"
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/tools"
-	nativemocks "github.com/wandxy/morph/internal/tools/mocks"
-	plantool "github.com/wandxy/morph/internal/tools/plan"
-	"github.com/wandxy/morph/internal/trace"
-	"github.com/wandxy/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/internal/agent/runcontext"
+	"github.com/xymorphic/morph/internal/environment"
+	envtypes "github.com/xymorphic/morph/internal/environment/types"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/permissions"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/tools"
+	nativemocks "github.com/xymorphic/morph/internal/tools/mocks"
+	plantool "github.com/xymorphic/morph/internal/tools/plan"
+	"github.com/xymorphic/morph/internal/trace"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 func TestPlanTool_ResolvesReadAndUpdatePermissions(t *testing.T) {

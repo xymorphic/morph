@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/profile"
+	"github.com/xymorphic/morph/internal/profile"
 )
 
 func TestHomeDir_UsesActiveProfile(t *testing.T) {

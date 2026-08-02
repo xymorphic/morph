@@ -3,8 +3,8 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/wandxy/morph/internal/trace"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/trace"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const autoCompactionLabel = "Automatic compaction"

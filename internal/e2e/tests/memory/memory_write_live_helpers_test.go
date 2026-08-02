@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	e2e "github.com/wandxy/morph/internal/e2e"
-	storage "github.com/wandxy/morph/internal/state/core"
+	e2e "github.com/xymorphic/morph/internal/e2e"
+	storage "github.com/xymorphic/morph/internal/state/core"
 )
 
 func requireLiveMemoryToolCall(

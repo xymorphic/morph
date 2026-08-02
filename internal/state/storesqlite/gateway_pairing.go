@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/wandxy/morph/pkg/gateway/pairing"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/gateway/pairing"
+	"github.com/xymorphic/morph/pkg/str"
 	"gorm.io/gorm"
 )
 

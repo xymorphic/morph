@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/gofrs/flock"
-	"github.com/wandxy/morph/internal/datadir"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/datadir"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 var (

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	morphauth "github.com/wandxy/morph/internal/auth"
+	morphauth "github.com/xymorphic/morph/internal/auth"
 )
 
 func TestPruneRPCAuthState_StopsAfterShortBatch(t *testing.T) {

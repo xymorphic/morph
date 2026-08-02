@@ -11,8 +11,8 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
-	morphauth "github.com/wandxy/morph/internal/auth"
-	"github.com/wandxy/morph/internal/auth/storememory"
+	morphauth "github.com/xymorphic/morph/internal/auth"
+	"github.com/xymorphic/morph/internal/auth/storememory"
 )
 
 type Store struct {

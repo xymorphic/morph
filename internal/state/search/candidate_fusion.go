@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wandxy/morph/internal/constants"
-	state "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/constants"
+	state "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

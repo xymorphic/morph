@@ -4,8 +4,8 @@ import (
 	"errors"
 
 	urfavecli "github.com/urfave/cli/v3"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/profile"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/profile"
 )
 
 // ConfigInputs are the resolved profile-aware config inputs for a daemon command.

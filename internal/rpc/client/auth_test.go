@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
 	"google.golang.org/grpc"
 )
 

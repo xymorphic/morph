@@ -11,9 +11,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/gateway/dispatch"
-	pkgslack "github.com/wandxy/morph/pkg/gateway/slack"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/gateway/dispatch"
+	pkgslack "github.com/xymorphic/morph/pkg/gateway/slack"
 )
 
 func TestHandleEvents_VerifiesSignatureBeforeDecode(t *testing.T) {

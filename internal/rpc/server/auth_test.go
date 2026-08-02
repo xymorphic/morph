@@ -11,11 +11,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	morphauth "github.com/wandxy/morph/internal/auth"
-	"github.com/wandxy/morph/internal/auth/storememory"
-	"github.com/wandxy/morph/internal/permissions"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
-	"github.com/wandxy/morph/internal/rpc/rpcmeta"
+	morphauth "github.com/xymorphic/morph/internal/auth"
+	"github.com/xymorphic/morph/internal/auth/storememory"
+	"github.com/xymorphic/morph/internal/permissions"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
+	"github.com/xymorphic/morph/internal/rpc/rpcmeta"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"

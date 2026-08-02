@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/wandxy/morph/internal/profile"
-	morphruntime "github.com/wandxy/morph/internal/runtime"
+	"github.com/xymorphic/morph/internal/profile"
+	morphruntime "github.com/xymorphic/morph/internal/runtime"
 )
 
 func buildRuntimeGroup(ctx context.Context, active profile.Profile) Group {

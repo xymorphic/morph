@@ -18,7 +18,7 @@ import (
 	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 	"github.com/chromedp/chromedp/kb"
-	"github.com/wandxy/morph/internal/config"
+	"github.com/xymorphic/morph/internal/config"
 )
 
 func (s *chromiumSession) ListTabs(ctx context.Context) ([]BackendTab, error) {

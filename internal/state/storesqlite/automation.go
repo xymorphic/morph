@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	state "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/pkg/nanoid"
-	"github.com/wandxy/morph/pkg/str"
+	state "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/pkg/str"
 	"gorm.io/gorm"
 )
 

@@ -7,9 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	storage "github.com/wandxy/morph/internal/state/core"
-	tg "github.com/wandxy/morph/pkg/gateway/telegram"
+	"github.com/xymorphic/morph/internal/config"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	tg "github.com/xymorphic/morph/pkg/gateway/telegram"
 )
 
 func TestStartPolling_DispatchesUpdatesAndAdvancesOffset(t *testing.T) {

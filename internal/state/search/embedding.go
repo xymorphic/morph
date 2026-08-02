@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // Embedder creates vector embeddings for model inputs.

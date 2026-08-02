@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/wandxy/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 func (m *model) showPermissionApprovalCommandView(message permissionApprovalMsg) {

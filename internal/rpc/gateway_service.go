@@ -3,7 +3,7 @@ package rpc
 import (
 	"context"
 
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
 )
 
 type GatewayService struct {

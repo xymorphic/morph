@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/wandxy/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 const (

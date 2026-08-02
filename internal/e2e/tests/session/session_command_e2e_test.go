@@ -14,12 +14,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	sessioncmd "github.com/wandxy/morph/cmd/session"
-	"github.com/wandxy/morph/internal/e2e"
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/internal/profile"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/logutils"
+	sessioncmd "github.com/xymorphic/morph/cmd/session"
+	"github.com/xymorphic/morph/internal/e2e"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/internal/profile"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/logutils"
 )
 
 func init() {

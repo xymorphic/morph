@@ -9,9 +9,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	e2e "github.com/wandxy/morph/internal/e2e"
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/pkg/str"
+	e2e "github.com/xymorphic/morph/internal/e2e"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func TestLiveMemoryDeleteToolDeletesActiveSemanticMemory(t *testing.T) {

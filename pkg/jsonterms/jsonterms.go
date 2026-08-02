@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func Terms(raw string, prefix ...string) string {

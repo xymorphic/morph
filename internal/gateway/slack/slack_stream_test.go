@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	pkgslack "github.com/wandxy/morph/pkg/gateway/slack"
+	"github.com/xymorphic/morph/internal/config"
+	pkgslack "github.com/xymorphic/morph/pkg/gateway/slack"
 )
 
 func TestSender_StreamTurnUsesNativeSlackStream(t *testing.T) {

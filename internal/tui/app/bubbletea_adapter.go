@@ -7,8 +7,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/rpc/rpcmeta"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/rpc/rpcmeta"
 )
 
 // Init focuses the input composer when Bubble Tea starts the program.

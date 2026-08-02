@@ -10,12 +10,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	e2e "github.com/wandxy/morph/internal/e2e"
-	models "github.com/wandxy/morph/internal/model"
-	storage "github.com/wandxy/morph/internal/state/core"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/internal/config"
+	e2e "github.com/xymorphic/morph/internal/e2e"
+	models "github.com/xymorphic/morph/internal/model"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 func TestE2E_ToolOutputSafety_BlocksReadFilePromptInjection(t *testing.T) {

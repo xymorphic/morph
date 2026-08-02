@@ -8,17 +8,17 @@ import (
 	"strings"
 	"sync"
 
-	morphagent "github.com/wandxy/morph/internal/agent"
-	morphauth "github.com/wandxy/morph/internal/auth"
-	"github.com/wandxy/morph/internal/auth/storememory"
-	"github.com/wandxy/morph/internal/credential"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/profile"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	"github.com/wandxy/morph/pkg/str"
+	morphagent "github.com/xymorphic/morph/internal/agent"
+	morphauth "github.com/xymorphic/morph/internal/auth"
+	"github.com/xymorphic/morph/internal/auth/storememory"
+	"github.com/xymorphic/morph/internal/credential"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/profile"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	"github.com/xymorphic/morph/pkg/str"
 	"google.golang.org/grpc"
 
-	"github.com/wandxy/morph/internal/rpc/server"
+	"github.com/xymorphic/morph/internal/rpc/server"
 )
 
 var rpcListen = net.Listen

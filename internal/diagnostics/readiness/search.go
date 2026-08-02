@@ -3,7 +3,7 @@ package readiness
 import (
 	"fmt"
 
-	"github.com/wandxy/morph/internal/config"
+	"github.com/xymorphic/morph/internal/config"
 )
 
 func buildSearchGroup(cfg *config.Config) Group {

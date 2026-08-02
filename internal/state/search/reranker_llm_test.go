@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	models "github.com/wandxy/morph/internal/model"
+	models "github.com/xymorphic/morph/internal/model"
 )
 
 type llmRerankerModelStub struct {

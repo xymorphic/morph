@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 var (

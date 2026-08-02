@@ -21,12 +21,12 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
 
-	models "github.com/wandxy/morph/internal/model"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	browsertool "github.com/wandxy/morph/internal/tools/browser"
-	runcommandtool "github.com/wandxy/morph/internal/tools/runcommand"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/logutils"
+	models "github.com/xymorphic/morph/internal/model"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	browsertool "github.com/xymorphic/morph/internal/tools/browser"
+	runcommandtool "github.com/xymorphic/morph/internal/tools/runcommand"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/logutils"
 )
 
 func TestNewOpenAIClient_IncludesAPIKeyOptionWhenProvided(t *testing.T) {

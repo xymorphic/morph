@@ -7,10 +7,10 @@ import (
 	"slices"
 	"strings"
 
-	commandplan "github.com/wandxy/morph/internal/command"
-	envtypes "github.com/wandxy/morph/internal/environment/types"
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/internal/permissions"
+	commandplan "github.com/xymorphic/morph/internal/command"
+	envtypes "github.com/xymorphic/morph/internal/environment/types"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 type EnvironmentVariable struct {

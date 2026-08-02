@@ -7,9 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	commandplan "github.com/wandxy/morph/internal/command"
-	"github.com/wandxy/morph/internal/constants"
-	"github.com/wandxy/morph/internal/permissions"
+	commandplan "github.com/xymorphic/morph/internal/command"
+	"github.com/xymorphic/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 func TestConfig_ValidateRejectsInvalidLogLevel(t *testing.T) {

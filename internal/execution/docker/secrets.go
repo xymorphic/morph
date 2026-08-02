@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/wandxy/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/guardrails"
 )
 
 type SecretReference struct {

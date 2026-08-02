@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/wandxy/morph/internal/instructions"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/instructions"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 /*

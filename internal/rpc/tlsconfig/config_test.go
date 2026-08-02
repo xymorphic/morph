@@ -17,7 +17,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
+	"github.com/xymorphic/morph/internal/config"
 	"google.golang.org/grpc/credentials"
 )
 

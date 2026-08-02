@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	gatewaytypes "github.com/wandxy/morph/pkg/gateway/types"
+	gatewaytypes "github.com/xymorphic/morph/pkg/gateway/types"
 )
 
 func TestWriteSetsJSONStatusAndBody(t *testing.T) {

@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wandxy/morph/internal/config"
-	tg "github.com/wandxy/morph/pkg/gateway/telegram"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	tg "github.com/xymorphic/morph/pkg/gateway/telegram"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const defaultTelegramAPIBase = "https://api.telegram.org"

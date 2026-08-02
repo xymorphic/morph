@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
+	"github.com/xymorphic/morph/internal/config"
 )
 
 func TestBuild_ReturnsPassingReportForValidConfig(t *testing.T) {

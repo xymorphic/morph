@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"strings"
 
-	slack "github.com/wandxy/morph/pkg/gateway/slack"
-	"github.com/wandxy/morph/pkg/str"
+	slack "github.com/xymorphic/morph/pkg/gateway/slack"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const defaultSlackAPIBase = "https://slack.com/api"

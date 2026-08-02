@@ -7,7 +7,7 @@ LIVE_CONFIG ?= $(CURDIR)/config.yaml
 LIVE_ENV_FILE ?= $(CURDIR)/.env
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || printf dev)
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || printf unknown)
-LD_FLAGS := -X github.com/wandxy/morph/internal/constants.AppVersion=$(VERSION) -X github.com/wandxy/morph/internal/constants.CommitHash=$(COMMIT)
+LD_FLAGS := -X github.com/xymorphic/morph/internal/constants.AppVersion=$(VERSION) -X github.com/xymorphic/morph/internal/constants.CommitHash=$(COMMIT)
 
 .PHONY: install-tools install-lint install-hooks build-proto build build-sandbox test test-execution-docker test-agent-baseline test-spec test-live test-live-sqlite test-live-memory test-live-all host-deps lint install
 
@@ -78,7 +78,7 @@ test-live-all: test-live-sqlite test-live-memory
 host-deps:
 	@$(GO) list -f 'direct imports for {{.ImportPath}}:{{range .Imports}}{{printf "\n  %s" .}}{{end}}' ./internal/host
 	@printf '\ninternal/host transitive morph imports:\n'
-	@$(GO) list -deps ./internal/host | grep '^github.com/wandxy/morph/' | sed 's/^/  /'
+	@$(GO) list -deps ./internal/host | grep '^github.com/xymorphic/morph/' | sed 's/^/  /'
 
 lint:
 	@version="$$(golangci-lint version 2>/dev/null)"; \

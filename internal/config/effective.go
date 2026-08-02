@@ -7,10 +7,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/wandxy/morph/internal/constants"
-	appcredential "github.com/wandxy/morph/internal/credential"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/constants"
+	appcredential "github.com/xymorphic/morph/internal/credential"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func getDefaultBaseURLForProvider(provider, apiID string) string {

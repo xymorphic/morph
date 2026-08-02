@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/constants"
 )
 
 func TestNewExa_BuildsFromAPIKeyOnly(t *testing.T) {

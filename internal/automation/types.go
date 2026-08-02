@@ -1,6 +1,6 @@
 package automation
 
-import state "github.com/wandxy/morph/internal/state/core"
+import state "github.com/xymorphic/morph/internal/state/core"
 
 const (
 	JobIDPrefix = state.AutomationJobIDPrefix

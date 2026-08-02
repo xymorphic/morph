@@ -13,11 +13,11 @@ import (
 	"github.com/charmbracelet/x/term"
 	cli "github.com/urfave/cli/v3"
 
-	morphcli "github.com/wandxy/morph/internal/cli"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/diagnostics"
-	"github.com/wandxy/morph/internal/diagnostics/readiness"
-	"github.com/wandxy/morph/pkg/str"
+	morphcli "github.com/xymorphic/morph/internal/cli"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/diagnostics"
+	"github.com/xymorphic/morph/internal/diagnostics/readiness"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 var doctorOutput io.Writer = os.Stdout

@@ -8,10 +8,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/wandxy/morph/internal/constants"
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/pkg/promptio"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/pkg/promptio"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const maxContentLength = constants.WorkspaceMaxContentLength

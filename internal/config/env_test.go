@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/wandxy/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/constants"
 )
 
 func TestLoad_ReturnsPreloadEnvFileError(t *testing.T) {

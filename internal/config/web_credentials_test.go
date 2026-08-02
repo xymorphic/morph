@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/constants"
-	appcredential "github.com/wandxy/morph/internal/credential"
+	"github.com/xymorphic/morph/internal/constants"
+	appcredential "github.com/xymorphic/morph/internal/credential"
 )
 
 func TestConfig_WebAPIKeyEffective_UsesConfigBeforeStoredAndEnvironment(t *testing.T) {

@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	browserdomain "github.com/wandxy/morph/internal/browser"
-	"github.com/wandxy/morph/internal/trace"
+	browserdomain "github.com/xymorphic/morph/internal/browser"
+	"github.com/xymorphic/morph/internal/trace"
 )
 
 func TestTranscriptRenderCache_ReusesStableCellsAndInvalidatesChangedInputs(t *testing.T) {

@@ -1,6 +1,6 @@
 package provider_ollama
 
-import models "github.com/wandxy/morph/internal/model"
+import models "github.com/xymorphic/morph/internal/model"
 
 type Client = models.Client
 type Request = models.Request

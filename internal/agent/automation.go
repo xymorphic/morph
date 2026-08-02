@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	storage "github.com/wandxy/morph/internal/state/core"
+	storage "github.com/xymorphic/morph/internal/state/core"
 )
 
 func (a *Agent) AutomationStore(context.Context) (storage.AutomationStore, bool, error) {

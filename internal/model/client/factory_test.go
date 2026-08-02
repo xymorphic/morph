@@ -9,11 +9,11 @@ import (
 	"github.com/openai/openai-go/v3/option"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/constants"
-	models "github.com/wandxy/morph/internal/model"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	provider_anthropic "github.com/wandxy/morph/internal/model/provider_anthropic"
-	provider_openai "github.com/wandxy/morph/internal/model/provider_openai"
+	"github.com/xymorphic/morph/internal/constants"
+	models "github.com/xymorphic/morph/internal/model"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	provider_anthropic "github.com/xymorphic/morph/internal/model/provider_anthropic"
+	provider_openai "github.com/xymorphic/morph/internal/model/provider_openai"
 )
 
 type stubClient struct{}

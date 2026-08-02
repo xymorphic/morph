@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	envtypes "github.com/wandxy/morph/internal/environment/types"
-	"github.com/wandxy/morph/internal/trace"
+	envtypes "github.com/xymorphic/morph/internal/environment/types"
+	"github.com/xymorphic/morph/internal/trace"
 )
 
 func TestDecodePlanSteps_RejectsMissingID(t *testing.T) {

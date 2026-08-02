@@ -8,15 +8,15 @@ import (
 	"unicode/utf8"
 
 	"github.com/rs/zerolog"
-	commandplan "github.com/wandxy/morph/internal/command"
-	processenv "github.com/wandxy/morph/internal/environment/process"
-	envtypes "github.com/wandxy/morph/internal/environment/types"
-	"github.com/wandxy/morph/internal/execution"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/tools"
-	"github.com/wandxy/morph/internal/tools/common"
-	"github.com/wandxy/morph/pkg/logutils"
-	"github.com/wandxy/morph/pkg/str"
+	commandplan "github.com/xymorphic/morph/internal/command"
+	processenv "github.com/xymorphic/morph/internal/environment/process"
+	envtypes "github.com/xymorphic/morph/internal/environment/types"
+	"github.com/xymorphic/morph/internal/execution"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/tools"
+	"github.com/xymorphic/morph/internal/tools/common"
+	"github.com/xymorphic/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 var processLog = logutils.Module("tool.process")

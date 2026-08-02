@@ -3,7 +3,7 @@ package planstore
 import (
 	"sync"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // Store defines the persistence operations required by this package.

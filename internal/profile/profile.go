@@ -12,8 +12,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/wandxy/morph/internal/datadir/files"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/datadir/files"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

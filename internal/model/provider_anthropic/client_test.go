@@ -15,9 +15,9 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
 	"github.com/stretchr/testify/require"
 
-	models "github.com/wandxy/morph/internal/model"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/logutils"
+	models "github.com/xymorphic/morph/internal/model"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/logutils"
 )
 
 func init() {

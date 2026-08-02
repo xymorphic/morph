@@ -16,7 +16,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	appcredential "github.com/wandxy/morph/internal/credential"
+	appcredential "github.com/xymorphic/morph/internal/credential"
 )
 
 func TestMain(m *testing.M) {

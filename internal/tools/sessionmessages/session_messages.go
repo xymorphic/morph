@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/wandxy/morph/internal/constants"
-	"github.com/wandxy/morph/internal/environment/sessionmessages"
-	envtypes "github.com/wandxy/morph/internal/environment/types"
-	"github.com/wandxy/morph/internal/instructions"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/tools"
-	"github.com/wandxy/morph/internal/tools/common"
+	"github.com/xymorphic/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/environment/sessionmessages"
+	envtypes "github.com/xymorphic/morph/internal/environment/types"
+	"github.com/xymorphic/morph/internal/instructions"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/tools"
+	"github.com/xymorphic/morph/internal/tools/common"
 )
 
 const (

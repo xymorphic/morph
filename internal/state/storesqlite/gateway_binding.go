@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	base "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/pkg/str"
+	base "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/pkg/str"
 	"gorm.io/gorm"
 )
 

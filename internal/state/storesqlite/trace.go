@@ -9,9 +9,9 @@ import (
 
 	"gorm.io/gorm"
 
-	base "github.com/wandxy/morph/internal/state/core"
-	morphtrace "github.com/wandxy/morph/internal/trace"
-	"github.com/wandxy/morph/pkg/str"
+	base "github.com/xymorphic/morph/internal/state/core"
+	morphtrace "github.com/xymorphic/morph/internal/trace"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 type traceEventModel struct {

@@ -9,20 +9,20 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/wandxy/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/logutils"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/gateway/dispatch"
-	gatewaysession "github.com/wandxy/morph/internal/gateway/session"
-	slackprovider "github.com/wandxy/morph/internal/gateway/slack"
-	telegramprovider "github.com/wandxy/morph/internal/gateway/telegram"
-	"github.com/wandxy/morph/internal/permissions"
-	storage "github.com/wandxy/morph/internal/state/core"
-	agentcore "github.com/wandxy/morph/pkg/agent"
-	gatewayauth "github.com/wandxy/morph/pkg/gateway/auth"
-	"github.com/wandxy/morph/pkg/gateway/bindings"
-	"github.com/wandxy/morph/pkg/gateway/httpjson"
-	gatewaytypes "github.com/wandxy/morph/pkg/gateway/types"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/gateway/dispatch"
+	gatewaysession "github.com/xymorphic/morph/internal/gateway/session"
+	slackprovider "github.com/xymorphic/morph/internal/gateway/slack"
+	telegramprovider "github.com/xymorphic/morph/internal/gateway/telegram"
+	"github.com/xymorphic/morph/internal/permissions"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	agentcore "github.com/xymorphic/morph/pkg/agent"
+	gatewayauth "github.com/xymorphic/morph/pkg/gateway/auth"
+	"github.com/xymorphic/morph/pkg/gateway/bindings"
+	"github.com/xymorphic/morph/pkg/gateway/httpjson"
+	gatewaytypes "github.com/xymorphic/morph/pkg/gateway/types"
 )
 
 const maxGenericRespondBodyBytes = 1 << 20 // 1MB

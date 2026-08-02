@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wandxy/morph/internal/profile"
+	"github.com/xymorphic/morph/internal/profile"
 )
 
 const (

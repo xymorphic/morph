@@ -9,9 +9,9 @@ import (
 
 	anthropic "github.com/anthropics/anthropic-sdk-go"
 
-	models "github.com/wandxy/morph/internal/model"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/str"
+	models "github.com/xymorphic/morph/internal/model"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func buildMessagesRequest(req normalizedGenerateRequest) (anthropic.MessageNewParams, error) {

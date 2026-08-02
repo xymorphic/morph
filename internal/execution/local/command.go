@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/wandxy/morph/internal/execution"
+	"github.com/xymorphic/morph/internal/execution"
 )
 
 var waitLocalCommand = func(command *exec.Cmd) error {

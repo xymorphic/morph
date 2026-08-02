@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	morphauth "github.com/wandxy/morph/internal/auth"
-	"github.com/wandxy/morph/internal/auth/storememory"
+	morphauth "github.com/xymorphic/morph/internal/auth"
+	"github.com/xymorphic/morph/internal/auth/storememory"
 )
 
 func TestStore_TracksUseRevocationAuditAndRotation(t *testing.T) {

@@ -7,10 +7,10 @@ import (
 	"slices"
 	"time"
 
-	base "github.com/wandxy/morph/internal/state/core"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
-	"github.com/wandxy/morph/pkg/str"
+	base "github.com/xymorphic/morph/internal/state/core"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

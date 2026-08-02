@@ -3,7 +3,7 @@ package composer
 import (
 	"strings"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // InputKind classifies composer input before submission.

@@ -6,7 +6,7 @@ import (
 
 	cli "github.com/urfave/cli/v3"
 
-	tuiapp "github.com/wandxy/morph/internal/tui/app"
+	tuiapp "github.com/xymorphic/morph/internal/tui/app"
 )
 
 func Run(ctx context.Context, cmd *cli.Command) error {

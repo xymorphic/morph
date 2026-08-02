@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	state "github.com/wandxy/morph/internal/state/core"
+	state "github.com/xymorphic/morph/internal/state/core"
 )
 
 func TestSearchSharedRankingAndFilters(t *testing.T) {

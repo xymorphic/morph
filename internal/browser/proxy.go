@@ -18,7 +18,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/wandxy/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 const defaultProxyReadHeaderTimeout = 10 * time.Second

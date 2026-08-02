@@ -4,10 +4,10 @@ import (
 	"context"
 	"path/filepath"
 
-	"github.com/wandxy/morph/internal/execution"
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/internal/tools"
-	"github.com/wandxy/morph/internal/trace"
+	"github.com/xymorphic/morph/internal/execution"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/tools"
+	"github.com/xymorphic/morph/internal/trace"
 )
 
 func ObserveExecution[T any](

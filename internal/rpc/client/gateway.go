@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
-	"github.com/wandxy/morph/pkg/str"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func (s *GatewayService) ListPairings(ctx context.Context, source string) (GatewayPairingList, error) {

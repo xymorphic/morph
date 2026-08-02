@@ -10,8 +10,8 @@ import (
 	"sort"
 	"time"
 
-	morphauth "github.com/wandxy/morph/internal/auth"
-	"github.com/wandxy/morph/internal/auth/storememory"
+	morphauth "github.com/xymorphic/morph/internal/auth"
+	"github.com/xymorphic/morph/internal/auth/storememory"
 )
 
 const authSchemaVersion = 1

@@ -1,6 +1,6 @@
 package core
 
-import "github.com/wandxy/morph/internal/permissions"
+import "github.com/xymorphic/morph/internal/permissions"
 
 // Store defines the aggregate durable state store.
 type Store interface {

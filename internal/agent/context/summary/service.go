@@ -5,11 +5,11 @@ import (
 	"errors"
 	"time"
 
-	"github.com/wandxy/morph/internal/agent/context/compaction"
-	"github.com/wandxy/morph/internal/config"
-	models "github.com/wandxy/morph/internal/model"
-	storage "github.com/wandxy/morph/internal/state/core"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/internal/agent/context/compaction"
+	"github.com/xymorphic/morph/internal/config"
+	models "github.com/xymorphic/morph/internal/model"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 // SummaryStore describes the persisted session operations needed by summary

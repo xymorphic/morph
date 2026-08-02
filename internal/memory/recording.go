@@ -5,8 +5,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/wandxy/morph/pkg/nanoid"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // RecordSemanticMemory records a candidate that captures a durable fact,

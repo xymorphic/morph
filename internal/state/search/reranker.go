@@ -7,9 +7,9 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"github.com/wandxy/morph/internal/constants"
-	"github.com/wandxy/morph/pkg/logutils"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/constants"
+	"github.com/xymorphic/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 var retrievalLog = logutils.Module("storage.retrieval")

@@ -8,13 +8,13 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/wandxy/morph/internal/permissions"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	"github.com/wandxy/morph/internal/rpc/rpcmeta"
-	"github.com/wandxy/morph/internal/trace"
-	tuirpc "github.com/wandxy/morph/internal/tui/rpc"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
-	"github.com/wandxy/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/internal/permissions"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	"github.com/xymorphic/morph/internal/rpc/rpcmeta"
+	"github.com/xymorphic/morph/internal/trace"
+	tuirpc "github.com/xymorphic/morph/internal/tui/rpc"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 type responseEventMsg = tuirpc.ResponseEvent

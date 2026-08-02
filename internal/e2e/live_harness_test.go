@@ -12,13 +12,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/constants"
-	models "github.com/wandxy/morph/internal/model"
-	modelclient "github.com/wandxy/morph/internal/model/client"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	provider_openai "github.com/wandxy/morph/internal/model/provider_openai"
-	"github.com/wandxy/morph/internal/profile"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/constants"
+	models "github.com/xymorphic/morph/internal/model"
+	modelclient "github.com/xymorphic/morph/internal/model/client"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	provider_openai "github.com/xymorphic/morph/internal/model/provider_openai"
+	"github.com/xymorphic/morph/internal/profile"
 )
 
 type liveModelClientFactoryStub struct {

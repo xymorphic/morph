@@ -6,9 +6,9 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/wandxy/morph/internal/brand"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/brand"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const morphProductName = "Morph"

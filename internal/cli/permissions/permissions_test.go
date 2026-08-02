@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 	cli "github.com/urfave/cli/v3"
 
-	morphcli "github.com/wandxy/morph/internal/cli"
-	"github.com/wandxy/morph/internal/config"
-	permissiondomain "github.com/wandxy/morph/internal/permissions"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
+	morphcli "github.com/xymorphic/morph/internal/cli"
+	"github.com/xymorphic/morph/internal/config"
+	permissiondomain "github.com/xymorphic/morph/internal/permissions"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
 )
 
 func TestWriteRequestsAndGrants_RendersSafeStructuredFields(t *testing.T) {

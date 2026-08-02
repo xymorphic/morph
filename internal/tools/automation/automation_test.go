@@ -9,11 +9,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/permissions"
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/state/storememory"
-	"github.com/wandxy/morph/internal/tools"
-	toolmocks "github.com/wandxy/morph/internal/tools/mocks"
+	"github.com/xymorphic/morph/internal/permissions"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/state/storememory"
+	"github.com/xymorphic/morph/internal/tools"
+	toolmocks "github.com/xymorphic/morph/internal/tools/mocks"
 )
 
 var testAutomationToolJobID = "auto_projectaprojectaproje"

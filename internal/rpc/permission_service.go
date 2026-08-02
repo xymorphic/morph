@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/wandxy/morph/internal/permissions"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
-	"github.com/wandxy/morph/internal/rpc/rpcmeta"
+	"github.com/xymorphic/morph/internal/permissions"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
+	"github.com/xymorphic/morph/internal/rpc/rpcmeta"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"

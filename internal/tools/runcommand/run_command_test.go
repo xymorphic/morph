@@ -14,12 +14,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	commandplan "github.com/wandxy/morph/internal/command"
-	"github.com/wandxy/morph/internal/execution"
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/tools"
-	nativemocks "github.com/wandxy/morph/internal/tools/mocks"
+	commandplan "github.com/xymorphic/morph/internal/command"
+	"github.com/xymorphic/morph/internal/execution"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/tools"
+	nativemocks "github.com/xymorphic/morph/internal/tools/mocks"
 )
 
 func TestDefinition_ExposesConfiguredSecretCatalog(t *testing.T) {

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	pkgcache "github.com/wandxy/morph/pkg/cache"
-	"github.com/wandxy/morph/pkg/logutils"
-	"github.com/wandxy/morph/pkg/str"
+	pkgcache "github.com/xymorphic/morph/pkg/cache"
+	"github.com/xymorphic/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 var webLog = logutils.Module("providers.web")

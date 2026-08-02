@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	storage "github.com/wandxy/morph/internal/state/core"
-	statemanager "github.com/wandxy/morph/internal/state/manager"
-	agentcore "github.com/wandxy/morph/pkg/agent"
-	"github.com/wandxy/morph/pkg/nanoid"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	statemanager "github.com/xymorphic/morph/internal/state/manager"
+	agentcore "github.com/xymorphic/morph/pkg/agent"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 type Service struct {

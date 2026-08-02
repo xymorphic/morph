@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	statememory "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/state/search"
-	"github.com/wandxy/morph/pkg/nanoid"
-	"github.com/wandxy/morph/pkg/str"
+	statememory "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/state/search"
+	"github.com/xymorphic/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/pkg/str"
 	"gorm.io/gorm"
 )
 

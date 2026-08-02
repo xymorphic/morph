@@ -12,13 +12,13 @@ import (
 
 	cli "github.com/urfave/cli/v3"
 
-	morphcli "github.com/wandxy/morph/internal/cli"
-	"github.com/wandxy/morph/internal/config"
-	appcredential "github.com/wandxy/morph/internal/credential"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	_ "github.com/wandxy/morph/internal/model/provider_copilot"
-	"github.com/wandxy/morph/internal/profile"
-	"github.com/wandxy/morph/pkg/str"
+	morphcli "github.com/xymorphic/morph/internal/cli"
+	"github.com/xymorphic/morph/internal/config"
+	appcredential "github.com/xymorphic/morph/internal/credential"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	_ "github.com/xymorphic/morph/internal/model/provider_copilot"
+	"github.com/xymorphic/morph/internal/profile"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 var (

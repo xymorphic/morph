@@ -6,9 +6,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 type State string

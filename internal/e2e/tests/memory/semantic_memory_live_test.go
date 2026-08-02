@@ -9,12 +9,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	e2e "github.com/wandxy/morph/internal/e2e"
-	livememory "github.com/wandxy/morph/internal/memory"
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/internal/profile"
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/pkg/str"
+	e2e "github.com/xymorphic/morph/internal/e2e"
+	livememory "github.com/xymorphic/morph/internal/memory"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/internal/profile"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func TestLiveSemanticMemoryCreatedByReflectionAndPromotion(t *testing.T) {

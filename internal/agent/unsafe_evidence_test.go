@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 type unsafeEvidenceRecorderStub struct {

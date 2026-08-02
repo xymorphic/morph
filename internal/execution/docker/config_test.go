@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	commandplan "github.com/wandxy/morph/internal/command"
-	"github.com/wandxy/morph/internal/execution"
+	commandplan "github.com/xymorphic/morph/internal/command"
+	"github.com/xymorphic/morph/internal/execution"
 )
 
 func TestBuildContainerOptions_EnforcesHardeningAndCleanEnvironment(t *testing.T) {

@@ -9,13 +9,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/environment"
-	"github.com/wandxy/morph/internal/mocks"
-	models "github.com/wandxy/morph/internal/model"
-	morphtools "github.com/wandxy/morph/internal/tools"
-	"github.com/wandxy/morph/internal/trace"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	agenttool "github.com/wandxy/morph/pkg/agent/tool"
+	"github.com/xymorphic/morph/internal/environment"
+	"github.com/xymorphic/morph/internal/mocks"
+	models "github.com/xymorphic/morph/internal/model"
+	morphtools "github.com/xymorphic/morph/internal/tools"
+	"github.com/xymorphic/morph/internal/trace"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	agenttool "github.com/xymorphic/morph/pkg/agent/tool"
 )
 
 func TestToolRegistry_ResolveUsesEnvironmentPolicyAndConvertsDefinitions(t *testing.T) {

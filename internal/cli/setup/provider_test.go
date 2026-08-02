@@ -17,16 +17,16 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/require"
 
-	clibase "github.com/wandxy/morph/internal/cli"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/constants"
-	appcredential "github.com/wandxy/morph/internal/credential"
-	modelcatalog "github.com/wandxy/morph/internal/model"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	provider_ollama "github.com/wandxy/morph/internal/model/provider_ollama"
-	"github.com/wandxy/morph/internal/profile"
-	tuirender "github.com/wandxy/morph/internal/tui/render"
-	"github.com/wandxy/morph/pkg/str"
+	clibase "github.com/xymorphic/morph/internal/cli"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/constants"
+	appcredential "github.com/xymorphic/morph/internal/credential"
+	modelcatalog "github.com/xymorphic/morph/internal/model"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	provider_ollama "github.com/xymorphic/morph/internal/model/provider_ollama"
+	"github.com/xymorphic/morph/internal/profile"
+	tuirender "github.com/xymorphic/morph/internal/tui/render"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 var errSetupTestWrite = errors.New("write failed")

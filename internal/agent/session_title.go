@@ -6,11 +6,11 @@ import (
 	"strings"
 	"unicode"
 
-	instruct "github.com/wandxy/morph/internal/instructions"
-	models "github.com/wandxy/morph/internal/model"
-	storage "github.com/wandxy/morph/internal/state/core"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/str"
+	instruct "github.com/xymorphic/morph/internal/instructions"
+	models "github.com/xymorphic/morph/internal/model"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const maxSessionTitleRunes = 80

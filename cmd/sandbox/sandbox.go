@@ -10,12 +10,12 @@ import (
 
 	cli "github.com/urfave/cli/v3"
 
-	morphcli "github.com/wandxy/morph/internal/cli"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/execution"
-	"github.com/wandxy/morph/internal/permissions"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	storage "github.com/wandxy/morph/internal/state/core"
+	morphcli "github.com/xymorphic/morph/internal/cli"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/execution"
+	"github.com/xymorphic/morph/internal/permissions"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	storage "github.com/xymorphic/morph/internal/state/core"
 )
 
 var (

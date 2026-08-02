@@ -1,9 +1,9 @@
 package config
 
 import (
-	"github.com/wandxy/morph/internal/constants"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/constants"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func ModelSetupEmbeddingUpdates(provider string, baseURL ...string) []ConfigUpdate {

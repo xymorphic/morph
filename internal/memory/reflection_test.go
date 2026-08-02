@@ -9,9 +9,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	models "github.com/wandxy/morph/internal/model"
-	statecore "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/trace"
+	models "github.com/xymorphic/morph/internal/model"
+	statecore "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/trace"
 )
 
 func TestMemoryProvider_ReflectStoresGeneratedCandidates(t *testing.T) {

@@ -12,9 +12,9 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
-	"github.com/wandxy/morph/internal/permissions"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
-	"github.com/wandxy/morph/internal/state/storememory"
+	"github.com/xymorphic/morph/internal/permissions"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
+	"github.com/xymorphic/morph/internal/state/storememory"
 )
 
 func TestPermissionService_ListsInspectsResolvesAndRevokes(t *testing.T) {

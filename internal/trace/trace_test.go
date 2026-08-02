@@ -12,9 +12,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/guardrails"
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/guardrails"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func init() {

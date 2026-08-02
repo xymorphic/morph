@@ -4,8 +4,8 @@ import (
 	"errors"
 	"slices"
 
-	commandplan "github.com/wandxy/morph/internal/command"
-	"github.com/wandxy/morph/pkg/str"
+	commandplan "github.com/xymorphic/morph/internal/command"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 type ActorKind string

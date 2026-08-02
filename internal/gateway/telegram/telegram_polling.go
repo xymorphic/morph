@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/wandxy/morph/internal/config"
+	"github.com/xymorphic/morph/internal/config"
 )
 
 var telegramPollingRetryDelay = time.Second

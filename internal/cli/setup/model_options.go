@@ -4,10 +4,10 @@ import (
 	"context"
 	"strings"
 
-	"github.com/wandxy/morph/internal/config"
-	modelcatalog "github.com/wandxy/morph/internal/model"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	modelcatalog "github.com/xymorphic/morph/internal/model"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 type ModelOptions struct {

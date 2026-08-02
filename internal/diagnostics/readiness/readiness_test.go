@@ -13,14 +13,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/automation"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/constants"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/profile"
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/state/storememory"
+	"github.com/xymorphic/morph/internal/automation"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/constants"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/profile"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/state/storememory"
 )
 
 func TestReport_HasFailuresAndSummary(t *testing.T) {

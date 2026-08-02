@@ -13,12 +13,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/profile"
-	storage "github.com/wandxy/morph/internal/state/core"
-	statemanager "github.com/wandxy/morph/internal/state/manager"
-	statemock "github.com/wandxy/morph/internal/state/mock"
-	morphtrace "github.com/wandxy/morph/internal/trace"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/profile"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	statemanager "github.com/xymorphic/morph/internal/state/manager"
+	statemock "github.com/xymorphic/morph/internal/state/mock"
+	morphtrace "github.com/xymorphic/morph/internal/trace"
 )
 
 func TestConfigureStateProvider_NoopsWhenMissingInputs(t *testing.T) {

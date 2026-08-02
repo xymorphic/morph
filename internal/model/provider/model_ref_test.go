@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/constants"
 )
 
 func TestParseLocalModelRef(t *testing.T) {

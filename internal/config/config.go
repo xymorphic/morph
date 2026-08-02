@@ -7,9 +7,9 @@ import (
 
 	"github.com/joho/godotenv"
 
-	appcredential "github.com/wandxy/morph/internal/credential"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	"github.com/wandxy/morph/internal/permissions"
+	appcredential "github.com/xymorphic/morph/internal/credential"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 // Config is the root runtime configuration for Morph.

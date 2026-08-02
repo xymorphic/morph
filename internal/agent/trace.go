@@ -1,9 +1,9 @@
 package agent
 
 import (
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 
-	storage "github.com/wandxy/morph/internal/state/core"
+	storage "github.com/xymorphic/morph/internal/state/core"
 )
 
 func storageTraceEventFromAgentTraceEvent(value agentsession.TraceEvent) storage.TraceEvent {

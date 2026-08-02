@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wandxy/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/logutils"
 )
 
 func init() {

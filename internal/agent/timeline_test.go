@@ -8,10 +8,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	storage "github.com/wandxy/morph/internal/state/core"
-	statemanager "github.com/wandxy/morph/internal/state/manager"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	statemanager "github.com/xymorphic/morph/internal/state/manager"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 )
 
 func TestTimelineHelpersValidateLimitAndConvertTrace(t *testing.T) {

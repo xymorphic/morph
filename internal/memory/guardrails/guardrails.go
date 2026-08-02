@@ -7,8 +7,8 @@ import (
 	"slices"
 	"strings"
 
-	coreguardrails "github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/internal/memory"
+	coreguardrails "github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/memory"
 )
 
 // Guardrails adapts the core guardrail utilities to the memory provider

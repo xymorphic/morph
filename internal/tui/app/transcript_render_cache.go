@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/trace"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/trace"
 )
 
 const defaultTranscriptRenderCacheCapacity = 1024

@@ -6,10 +6,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	envtypes "github.com/wandxy/morph/internal/environment/types"
-	"github.com/wandxy/morph/internal/trace"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	envtypes "github.com/xymorphic/morph/internal/environment/types"
+	"github.com/xymorphic/morph/internal/trace"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 )
 
 func TestPlanHelpersDecodeRenderAndSummarize(t *testing.T) {

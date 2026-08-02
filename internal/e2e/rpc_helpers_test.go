@@ -15,10 +15,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/internal/permissions"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/internal/permissions"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 func TestNewDefaultRPCHarness_UsesDefaultSpecAndConfig(t *testing.T) {

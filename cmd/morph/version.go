@@ -7,8 +7,8 @@ import (
 
 	cli "github.com/urfave/cli/v3"
 
-	"github.com/wandxy/morph/internal/constants"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/constants"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func newVersionCommand(output io.Writer) *cli.Command {

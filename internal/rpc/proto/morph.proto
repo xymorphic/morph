@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package morph.v1;
 
-option go_package = "github.com/wandxy/morph/internal/rpc/proto;morphpb";
+option go_package = "github.com/xymorphic/morph/internal/rpc/proto;morphpb";
 
 import "google/protobuf/timestamp.proto";
 

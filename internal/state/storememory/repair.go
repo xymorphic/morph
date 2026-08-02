@@ -5,10 +5,10 @@ import (
 	"errors"
 	"sort"
 
-	state "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/state/search"
-	messages "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/str"
+	state "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/state/search"
+	messages "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func (s *Store) RepairVectorStore(

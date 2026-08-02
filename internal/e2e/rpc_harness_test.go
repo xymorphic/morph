@@ -12,11 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	models "github.com/wandxy/morph/internal/model"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
-	"github.com/wandxy/morph/pkg/logutils"
+	models "github.com/xymorphic/morph/internal/model"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
+	"github.com/xymorphic/morph/pkg/logutils"
 	"google.golang.org/grpc"
 )
 

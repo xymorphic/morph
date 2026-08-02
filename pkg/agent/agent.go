@@ -7,12 +7,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/agent/model"
-	"github.com/wandxy/morph/pkg/agent/prompt"
-	"github.com/wandxy/morph/pkg/agent/session"
-	"github.com/wandxy/morph/pkg/agent/tool"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/agent/model"
+	"github.com/xymorphic/morph/pkg/agent/prompt"
+	"github.com/xymorphic/morph/pkg/agent/session"
+	"github.com/xymorphic/morph/pkg/agent/tool"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const defaultMaxIterations = 8

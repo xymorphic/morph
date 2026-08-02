@@ -15,16 +15,16 @@ import (
 	"github.com/stretchr/testify/require"
 	cli "github.com/urfave/cli/v3"
 
-	daemoncmd "github.com/wandxy/morph/cmd/daemon"
-	doctorcmd "github.com/wandxy/morph/cmd/doctor"
-	profilecmd "github.com/wandxy/morph/cmd/profile"
-	tuicmd "github.com/wandxy/morph/cmd/tui"
-	morphcli "github.com/wandxy/morph/internal/cli"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/constants"
-	"github.com/wandxy/morph/internal/datadir"
-	"github.com/wandxy/morph/internal/profile"
-	"github.com/wandxy/morph/pkg/logutils"
+	daemoncmd "github.com/xymorphic/morph/cmd/daemon"
+	doctorcmd "github.com/xymorphic/morph/cmd/doctor"
+	profilecmd "github.com/xymorphic/morph/cmd/profile"
+	tuicmd "github.com/xymorphic/morph/cmd/tui"
+	morphcli "github.com/xymorphic/morph/internal/cli"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/datadir"
+	"github.com/xymorphic/morph/internal/profile"
+	"github.com/xymorphic/morph/pkg/logutils"
 )
 
 func init() {

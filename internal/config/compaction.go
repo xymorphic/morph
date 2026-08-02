@@ -1,6 +1,6 @@
 package config
 
-import "github.com/wandxy/morph/internal/constants"
+import "github.com/xymorphic/morph/internal/constants"
 
 // CompactionConfig controls automatic session-summary compaction thresholds.
 type CompactionConfig struct {

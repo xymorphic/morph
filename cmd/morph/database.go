@@ -8,9 +8,9 @@ import (
 
 	cli "github.com/urfave/cli/v3"
 
-	morphcli "github.com/wandxy/morph/internal/cli"
-	"github.com/wandxy/morph/internal/datadir"
-	"github.com/wandxy/morph/pkg/str"
+	morphcli "github.com/xymorphic/morph/internal/cli"
+	"github.com/xymorphic/morph/internal/datadir"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func newDatabaseCommand() *cli.Command {

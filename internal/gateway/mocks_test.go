@@ -5,11 +5,11 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/wandxy/morph/internal/config"
-	storage "github.com/wandxy/morph/internal/state/core"
-	agentcore "github.com/wandxy/morph/pkg/agent"
-	"github.com/wandxy/morph/pkg/gateway/pairing"
-	"github.com/wandxy/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/internal/config"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	agentcore "github.com/xymorphic/morph/pkg/agent"
+	"github.com/xymorphic/morph/pkg/gateway/pairing"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 var (

@@ -12,8 +12,8 @@ import (
 
 	"github.com/coder/hnsw"
 
-	"github.com/wandxy/morph/internal/state/search/vectorstore"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/state/search/vectorstore"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // Record aliases vectorstore.Record at this package boundary.

@@ -12,8 +12,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/require"
 
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	storage "github.com/wandxy/morph/internal/state/core"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	storage "github.com/xymorphic/morph/internal/state/core"
 )
 
 func TestModel_UpdateHandlesChatsCommand(t *testing.T) {

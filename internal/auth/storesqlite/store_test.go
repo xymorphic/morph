@@ -14,8 +14,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	morphauth "github.com/wandxy/morph/internal/auth"
-	"github.com/wandxy/morph/internal/auth/storesqlite"
+	morphauth "github.com/xymorphic/morph/internal/auth"
+	"github.com/xymorphic/morph/internal/auth/storesqlite"
 )
 
 func TestStore_CreatesNormalizedSchema(t *testing.T) {

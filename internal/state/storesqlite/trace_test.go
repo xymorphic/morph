@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	base "github.com/wandxy/morph/internal/state/core"
+	base "github.com/xymorphic/morph/internal/state/core"
 )
 
 func TestSQLiteStore_TraceAppendListAndPrune(t *testing.T) {

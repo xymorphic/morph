@@ -3,7 +3,7 @@ package core
 import (
 	"time"
 
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 // SearchMessageOptions controls session message search filtering and limits.

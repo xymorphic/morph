@@ -3,7 +3,7 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	tuievents "github.com/wandxy/morph/internal/tui/events"
+	tuievents "github.com/xymorphic/morph/internal/tui/events"
 )
 
 type tuiEvent = tuievents.Event

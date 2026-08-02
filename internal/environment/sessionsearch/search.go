@@ -7,11 +7,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/wandxy/morph/internal/constants"
-	storage "github.com/wandxy/morph/internal/state/core"
-	statemanager "github.com/wandxy/morph/internal/state/manager"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/constants"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	statemanager "github.com/xymorphic/morph/internal/state/manager"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

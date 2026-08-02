@@ -7,10 +7,10 @@ import (
 
 	urfavecli "github.com/urfave/cli/v3"
 
-	morphagent "github.com/wandxy/morph/internal/agent"
-	"github.com/wandxy/morph/internal/config"
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/pkg/logutils"
+	morphagent "github.com/xymorphic/morph/internal/agent"
+	"github.com/xymorphic/morph/internal/config"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/pkg/logutils"
 )
 
 type agentRunner interface {

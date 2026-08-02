@@ -7,9 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	models "github.com/wandxy/morph/internal/model"
-	webprovider "github.com/wandxy/morph/internal/providers/web"
+	"github.com/xymorphic/morph/internal/config"
+	models "github.com/xymorphic/morph/internal/model"
+	webprovider "github.com/xymorphic/morph/internal/providers/web"
 )
 
 type modelClientStub struct {

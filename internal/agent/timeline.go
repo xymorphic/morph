@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	storage "github.com/wandxy/morph/internal/state/core"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 )
 
 const (

@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/wandxy/morph/internal/execution"
-	"github.com/wandxy/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/execution"
+	"github.com/xymorphic/morph/internal/guardrails"
 )
 
 func (b *Backend) ReadFile(ctx context.Context, spec execution.Spec, limit int) ([]byte, error) {

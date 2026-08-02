@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	commandplan "github.com/wandxy/morph/internal/command"
+	commandplan "github.com/xymorphic/morph/internal/command"
 )
 
 func TestOwner_NormalizeAndIncarnation(t *testing.T) {

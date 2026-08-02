@@ -8,8 +8,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 )
 
 type reasoningEffortSetMsg struct {

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/wandxy/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/constants"
 )
 
 const (

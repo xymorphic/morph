@@ -8,13 +8,13 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	agentapi "github.com/wandxy/morph/internal/agent"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/trace"
-	tuirpc "github.com/wandxy/morph/internal/tui/rpc"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/str"
+	agentapi "github.com/xymorphic/morph/internal/agent"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/trace"
+	tuirpc "github.com/xymorphic/morph/internal/tui/rpc"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 type sessionTimelineLoader = tuirpc.SessionTimelineLoader

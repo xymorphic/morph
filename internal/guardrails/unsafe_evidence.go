@@ -14,9 +14,9 @@ import (
 
 	"github.com/gofrs/flock"
 
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/pkg/nanoid"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

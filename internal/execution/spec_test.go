@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	commandplan "github.com/wandxy/morph/internal/command"
+	commandplan "github.com/xymorphic/morph/internal/command"
 )
 
 func TestNewSpec_BindsNormalizedExposureAndOperation(t *testing.T) {

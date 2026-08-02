@@ -7,9 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/state/search"
-	vectormemory "github.com/wandxy/morph/internal/state/search/vectorstore/memory"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/internal/state/search"
+	vectormemory "github.com/xymorphic/morph/internal/state/search/vectorstore/memory"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 func TestStore_RepairVectorStore(t *testing.T) {

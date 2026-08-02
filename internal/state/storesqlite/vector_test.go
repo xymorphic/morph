@@ -15,11 +15,11 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	base "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/state/search"
-	storagevectorsqlite "github.com/wandxy/morph/internal/state/search/vectorstore/sqlite"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/logutils"
+	base "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/state/search"
+	storagevectorsqlite "github.com/xymorphic/morph/internal/state/search/vectorstore/sqlite"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/logutils"
 )
 
 func TestSQLiteStore_SearchMessagesSupportsVectorOnlyResults(t *testing.T) {

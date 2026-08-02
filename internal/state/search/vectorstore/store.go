@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // SourceKind classifies the domain object represented by a vector source ID.

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	coreautomation "github.com/wandxy/morph/internal/automation"
+	coreautomation "github.com/xymorphic/morph/internal/automation"
 )
 
 func writeAutomationStatus(status coreautomation.Status) error {

@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/wandxy/morph/internal/automation"
-	"github.com/wandxy/morph/internal/permissions"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
+	"github.com/xymorphic/morph/internal/automation"
+	"github.com/xymorphic/morph/internal/permissions"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"

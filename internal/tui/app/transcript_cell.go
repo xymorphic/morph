@@ -6,9 +6,9 @@ import (
 	"time"
 
 	xansi "github.com/charmbracelet/x/ansi"
-	"github.com/wandxy/morph/internal/trace"
-	"github.com/wandxy/morph/pkg/str"
-	"github.com/wandxy/morph/pkg/terminalmd"
+	"github.com/xymorphic/morph/internal/trace"
+	"github.com/xymorphic/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/terminalmd"
 )
 
 type transcriptCellKind string

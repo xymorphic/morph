@@ -11,11 +11,11 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 
-	morphauth "github.com/wandxy/morph/internal/auth"
-	"github.com/wandxy/morph/internal/credential"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/profile"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
+	morphauth "github.com/xymorphic/morph/internal/auth"
+	"github.com/xymorphic/morph/internal/credential"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/profile"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
 	"google.golang.org/grpc"
 )
 

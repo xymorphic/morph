@@ -1,8 +1,8 @@
 package memory
 
 import (
-	"github.com/wandxy/morph/internal/agent/runcontext"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/agent/runcontext"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

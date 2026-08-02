@@ -19,8 +19,8 @@ import (
 	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 	"github.com/rs/zerolog/log"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 type ChromiumBackend struct{}

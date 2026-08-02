@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	base "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/pkg/nanoid"
+	base "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 func TestGatewayBinding_SaveAndGet(t *testing.T) {

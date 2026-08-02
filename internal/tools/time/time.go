@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/wandxy/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/logutils"
 
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/tools"
-	"github.com/wandxy/morph/internal/tools/common"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/tools"
+	"github.com/xymorphic/morph/internal/tools/common"
 )
 
 var (

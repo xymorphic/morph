@@ -7,10 +7,10 @@ import (
 
 	"github.com/rs/zerolog"
 
-	base "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/state/search"
-	"github.com/wandxy/morph/pkg/logutils"
-	"github.com/wandxy/morph/pkg/str"
+	base "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/state/search"
+	"github.com/xymorphic/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 var sessionSearchLog = logutils.Module("state.memory")

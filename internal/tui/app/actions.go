@@ -3,12 +3,12 @@ package tui
 import (
 	"time"
 
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	storage "github.com/wandxy/morph/internal/state/core"
-	tuistate "github.com/wandxy/morph/internal/tui/state"
-	tuitranscript "github.com/wandxy/morph/internal/tui/transcript"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
-	"github.com/wandxy/morph/pkg/str"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	tuistate "github.com/xymorphic/morph/internal/tui/state"
+	tuitranscript "github.com/xymorphic/morph/internal/tui/transcript"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 type tuiAction interface {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 func TestNewParent_DefaultsPublicAndEffectiveSession(t *testing.T) {

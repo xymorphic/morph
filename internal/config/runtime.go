@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	commandplan "github.com/wandxy/morph/internal/command"
+	commandplan "github.com/xymorphic/morph/internal/command"
 )
 
 // RPCConfig contains daemon RPC address and port settings.

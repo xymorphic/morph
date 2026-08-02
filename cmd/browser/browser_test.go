@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	browserdomain "github.com/wandxy/morph/internal/browser"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/profile"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
+	browserdomain "github.com/xymorphic/morph/internal/browser"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/profile"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
 )
 
 func TestNewCommand_ExposesBrowserOperatorCommands(t *testing.T) {

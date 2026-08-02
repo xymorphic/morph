@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/wandxy/morph/internal/memory/episodic"
-	statecore "github.com/wandxy/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/memory/episodic"
+	statecore "github.com/xymorphic/morph/internal/state/core"
 )
 
 // Kind classifies memory records by use and origin.

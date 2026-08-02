@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/wandxy/morph/internal/permissions"
-	storage "github.com/wandxy/morph/internal/state/core"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/gateway/pairing"
+	"github.com/xymorphic/morph/internal/permissions"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/gateway/pairing"
 )
 
 // Store records state-store calls for tests.

@@ -5,8 +5,8 @@ import (
 	"slices"
 	"strings"
 
-	state "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/pkg/str"
+	state "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // MemoryRerankOptions controls memory rerank.

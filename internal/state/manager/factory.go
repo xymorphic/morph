@@ -3,16 +3,16 @@ package manager
 import (
 	"errors"
 
-	"github.com/wandxy/morph/internal/config"
-	morphdb "github.com/wandxy/morph/internal/db"
-	models "github.com/wandxy/morph/internal/model"
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/state/search"
-	vectormemory "github.com/wandxy/morph/internal/state/search/vectorstore/memory"
-	vectorsqlite "github.com/wandxy/morph/internal/state/search/vectorstore/sqlite"
-	storagememory "github.com/wandxy/morph/internal/state/storememory"
-	storagesqlite "github.com/wandxy/morph/internal/state/storesqlite"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	morphdb "github.com/xymorphic/morph/internal/db"
+	models "github.com/xymorphic/morph/internal/model"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/state/search"
+	vectormemory "github.com/xymorphic/morph/internal/state/search/vectorstore/memory"
+	vectorsqlite "github.com/xymorphic/morph/internal/state/search/vectorstore/sqlite"
+	storagememory "github.com/xymorphic/morph/internal/state/storememory"
+	storagesqlite "github.com/xymorphic/morph/internal/state/storesqlite"
+	"github.com/xymorphic/morph/pkg/str"
 	"gorm.io/gorm"
 )
 

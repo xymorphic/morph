@@ -3,7 +3,7 @@ package guardrails
 import (
 	"net/netip"
 
-	"github.com/wandxy/morph/pkg/netpolicy"
+	"github.com/xymorphic/morph/pkg/netpolicy"
 )
 
 var DefaultBlockedAddressPrefixes = netpolicy.DefaultBlockedAddressPrefixes

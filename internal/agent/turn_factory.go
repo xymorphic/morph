@@ -3,9 +3,9 @@ package agent
 import (
 	"context"
 
-	"github.com/wandxy/morph/internal/environment"
-	models "github.com/wandxy/morph/internal/model"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/internal/environment"
+	models "github.com/xymorphic/morph/internal/model"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 func (a *Agent) newTurn(

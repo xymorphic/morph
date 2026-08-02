@@ -9,8 +9,8 @@ import (
 
 	cli "github.com/urfave/cli/v3"
 
-	morphcli "github.com/wandxy/morph/internal/cli"
-	"github.com/wandxy/morph/internal/cli/setup"
+	morphcli "github.com/xymorphic/morph/internal/cli"
+	"github.com/xymorphic/morph/internal/cli/setup"
 )
 
 func NewProviderConfigureCommand(input io.Reader, output io.Writer) *cli.Command {

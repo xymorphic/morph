@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/wandxy/morph/internal/execution"
-	"github.com/wandxy/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/execution"
+	"github.com/xymorphic/morph/internal/guardrails"
 )
 
 func TestBackend_SearchFilesPreservesRegexRecursionAndHiddenPolicy(t *testing.T) {

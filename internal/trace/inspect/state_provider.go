@@ -3,9 +3,9 @@ package inspect
 import (
 	"context"
 
-	"github.com/wandxy/morph/internal/config"
-	storage "github.com/wandxy/morph/internal/state/core"
-	statemanager "github.com/wandxy/morph/internal/state/manager"
+	"github.com/xymorphic/morph/internal/config"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	statemanager "github.com/xymorphic/morph/internal/state/manager"
 )
 
 var (

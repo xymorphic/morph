@@ -14,9 +14,9 @@ import (
 	"sync"
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
-	processenv "github.com/wandxy/morph/internal/environment/process"
-	"github.com/wandxy/morph/internal/execution"
-	"github.com/wandxy/morph/internal/guardrails"
+	processenv "github.com/xymorphic/morph/internal/environment/process"
+	"github.com/xymorphic/morph/internal/execution"
+	"github.com/xymorphic/morph/internal/guardrails"
 )
 
 type Backend struct {

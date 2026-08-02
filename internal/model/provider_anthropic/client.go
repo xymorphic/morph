@@ -8,8 +8,8 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
 
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/pkg/str"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // AnthropicClient sends normalized model requests through the Anthropic Messages API.

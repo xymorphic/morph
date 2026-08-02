@@ -6,11 +6,11 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/gateway/dispatch"
-	"github.com/wandxy/morph/pkg/gateway/httpjson"
-	slack "github.com/wandxy/morph/pkg/gateway/slack"
-	gatewaytypes "github.com/wandxy/morph/pkg/gateway/types"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/gateway/dispatch"
+	"github.com/xymorphic/morph/pkg/gateway/httpjson"
+	slack "github.com/xymorphic/morph/pkg/gateway/slack"
+	gatewaytypes "github.com/xymorphic/morph/pkg/gateway/types"
 )
 
 const (

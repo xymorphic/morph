@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
 )
 
 // MorphServiceClientStub is a test stub for morph service client.

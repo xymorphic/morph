@@ -3,9 +3,9 @@ package agent
 import (
 	"time"
 
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/internal/trace"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/trace"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // fanoutTraceSession writes trace records to a primary session and mirrors

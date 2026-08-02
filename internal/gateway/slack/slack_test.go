@@ -7,12 +7,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/permissions"
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/pkg/gateway/bindings"
-	"github.com/wandxy/morph/pkg/gateway/pairing"
-	pkgslack "github.com/wandxy/morph/pkg/gateway/slack"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/permissions"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/pkg/gateway/bindings"
+	"github.com/xymorphic/morph/pkg/gateway/pairing"
+	pkgslack "github.com/xymorphic/morph/pkg/gateway/slack"
 )
 
 func TestAdapter_DispatchesAllowedSenderAndCreatesSessionBinding(t *testing.T) {

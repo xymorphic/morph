@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	storagememory "github.com/wandxy/morph/internal/state/storememory"
-	"github.com/wandxy/morph/internal/trace"
+	storagememory "github.com/xymorphic/morph/internal/state/storememory"
+	"github.com/xymorphic/morph/internal/trace"
 )
 
 func TestMemoryProvider_PromoteCandidateActivatesSafeHighConfidenceMemory(t *testing.T) {

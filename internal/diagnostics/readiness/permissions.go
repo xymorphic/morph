@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/profile"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/profile"
 )
 
 var openPermissionReadinessStore = openProfileReadinessStore

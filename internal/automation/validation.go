@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wandxy/morph/internal/profile"
-	state "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/profile"
+	state "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func (s *Service) prepareAddedJob(job Job, now time.Time) (Job, error) {

@@ -3,9 +3,9 @@ package compaction
 import (
 	"encoding/json"
 
-	"github.com/wandxy/morph/internal/constants"
-	models "github.com/wandxy/morph/internal/model"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/internal/constants"
+	models "github.com/xymorphic/morph/internal/model"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 const (

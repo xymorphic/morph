@@ -3,9 +3,9 @@ package episodic
 import (
 	"context"
 
-	models "github.com/wandxy/morph/internal/model"
-	storage "github.com/wandxy/morph/internal/state/core"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	models "github.com/xymorphic/morph/internal/model"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 // Request configures episodic extraction for a session or bounded message range.

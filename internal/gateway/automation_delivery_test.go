@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/automation"
-	"github.com/wandxy/morph/internal/config"
-	pkgslack "github.com/wandxy/morph/pkg/gateway/slack"
-	pkgtelegram "github.com/wandxy/morph/pkg/gateway/telegram"
+	"github.com/xymorphic/morph/internal/automation"
+	"github.com/xymorphic/morph/internal/config"
+	pkgslack "github.com/xymorphic/morph/pkg/gateway/slack"
+	pkgtelegram "github.com/xymorphic/morph/pkg/gateway/telegram"
 )
 
 func TestAutomationDeliverySink_RoutesTelegram(t *testing.T) {

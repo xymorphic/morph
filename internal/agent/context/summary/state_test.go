@@ -6,10 +6,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	storage "github.com/wandxy/morph/internal/state/core"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/internal/config"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 func TestNewService_LogsWhenSummaryProviderAndAPIDifferFromMain(t *testing.T) {

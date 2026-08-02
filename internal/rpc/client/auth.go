@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

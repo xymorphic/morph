@@ -11,9 +11,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/require"
-	browserdomain "github.com/wandxy/morph/internal/browser"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	browserdomain "github.com/xymorphic/morph/internal/browser"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 func TestBrowserArtifact_ParsesSafeMetadataAndRendersTrustedControls(t *testing.T) {

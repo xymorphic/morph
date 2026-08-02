@@ -5,9 +5,9 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"github.com/wandxy/morph/internal/trace"
-	"github.com/wandxy/morph/pkg/logutils"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/trace"
+	"github.com/xymorphic/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 var extractionLog = logutils.Module("memory.extraction")

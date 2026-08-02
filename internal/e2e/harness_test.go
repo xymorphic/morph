@@ -12,13 +12,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/constants"
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/internal/profile"
-	storage "github.com/wandxy/morph/internal/state/core"
-	agent "github.com/wandxy/morph/pkg/agent"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/constants"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/internal/profile"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	agent "github.com/xymorphic/morph/pkg/agent"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 func TestNewHarness_InMemoryConfigSmoke(t *testing.T) {

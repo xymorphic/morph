@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wandxy/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 const (

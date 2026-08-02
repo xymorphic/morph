@@ -3,12 +3,12 @@ package server
 import (
 	"context"
 
-	morphagent "github.com/wandxy/morph/internal/agent"
-	morphauth "github.com/wandxy/morph/internal/auth"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/rpc"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
+	morphagent "github.com/xymorphic/morph/internal/agent"
+	morphauth "github.com/xymorphic/morph/internal/auth"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/rpc"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"

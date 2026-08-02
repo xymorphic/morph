@@ -1,6 +1,6 @@
 package telegram
 
-import "github.com/wandxy/morph/pkg/str"
+import "github.com/xymorphic/morph/pkg/str"
 
 const (
 	MessageTextLimit = 4096

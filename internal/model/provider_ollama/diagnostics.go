@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func ollamaStatusErrorForModel(resp *http.Response, model string) error {

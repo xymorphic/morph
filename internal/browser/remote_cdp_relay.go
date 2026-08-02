@@ -16,7 +16,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/wandxy/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 const maxCDPDiscoveryResponseBytes = 1 << 20

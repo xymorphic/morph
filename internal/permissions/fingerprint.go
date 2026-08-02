@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"strings"
 
-	"github.com/wandxy/morph/internal/command"
+	"github.com/xymorphic/morph/internal/command"
 )
 
 func Fingerprint(authorization AuthorizationContext, operation Operation) string {

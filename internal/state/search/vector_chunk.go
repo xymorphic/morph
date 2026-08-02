@@ -4,7 +4,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/wandxy/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/constants"
 )
 
 type VectorChunkOptions struct {

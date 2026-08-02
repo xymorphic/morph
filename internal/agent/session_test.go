@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 
-	storage "github.com/wandxy/morph/internal/state/core"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 func TestNewSessionStoreImplementsAgentSessionInterfaces(t *testing.T) {

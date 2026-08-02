@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 	cli "github.com/urfave/cli/v3"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/constants"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/constants"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
 )
 
 func TestApplyConfigOverrides_AppliesRulesFiles(t *testing.T) {

@@ -1,10 +1,10 @@
 package tui
 
 import (
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/constants"
-	"github.com/wandxy/morph/internal/profile"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/profile"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 type runtimeInfo struct {

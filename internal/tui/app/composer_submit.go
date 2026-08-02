@@ -5,8 +5,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	tuicomposer "github.com/wandxy/morph/internal/tui/composer"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	tuicomposer "github.com/xymorphic/morph/internal/tui/composer"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 )
 
 const (

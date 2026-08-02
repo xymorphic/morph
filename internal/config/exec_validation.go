@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	commandplan "github.com/wandxy/morph/internal/command"
+	commandplan "github.com/xymorphic/morph/internal/command"
 )
 
 func (c *Config) validateExecSettings() error {

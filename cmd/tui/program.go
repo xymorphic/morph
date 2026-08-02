@@ -6,12 +6,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 	cli "github.com/urfave/cli/v3"
 
-	morphcli "github.com/wandxy/morph/internal/cli"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/permissions"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	tui "github.com/wandxy/morph/internal/tui/app"
-	"github.com/wandxy/morph/pkg/logutils"
+	morphcli "github.com/xymorphic/morph/internal/cli"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/permissions"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	tui "github.com/xymorphic/morph/internal/tui/app"
+	"github.com/xymorphic/morph/pkg/logutils"
 )
 
 type programRunner interface {

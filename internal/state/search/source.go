@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/wandxy/morph/internal/state/search/vectorstore"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/state/search/vectorstore"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // StableSessionMessageID returns the stable vector source ID for a session message.

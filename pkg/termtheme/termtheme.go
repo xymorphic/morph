@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/x/term"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 	"golang.org/x/sys/unix"
 )
 

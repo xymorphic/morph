@@ -10,8 +10,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/profile"
-	state "github.com/wandxy/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/profile"
+	state "github.com/xymorphic/morph/internal/state/core"
 )
 
 type fakeDirEntry struct {

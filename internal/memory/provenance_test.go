@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/agent/runcontext"
-	"github.com/wandxy/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/internal/agent/runcontext"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 func TestApplyRunProvenance_AddsSessionMetadataAndSourceLinks(t *testing.T) {

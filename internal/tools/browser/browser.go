@@ -7,10 +7,10 @@ import (
 	"net/url"
 	"time"
 
-	browserdomain "github.com/wandxy/morph/internal/browser"
-	envtypes "github.com/wandxy/morph/internal/environment/types"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/tools"
+	browserdomain "github.com/xymorphic/morph/internal/browser"
+	envtypes "github.com/xymorphic/morph/internal/environment/types"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/tools"
 )
 
 const toolName = "browser"

@@ -6,7 +6,7 @@ import (
 
 	cli "github.com/urfave/cli/v3"
 
-	automationcli "github.com/wandxy/morph/internal/cli/automation"
+	automationcli "github.com/xymorphic/morph/internal/cli/automation"
 )
 
 func SetOutput(w io.Writer) io.Writer {

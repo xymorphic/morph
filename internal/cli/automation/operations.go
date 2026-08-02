@@ -7,7 +7,7 @@ import (
 
 	cli "github.com/urfave/cli/v3"
 
-	coreautomation "github.com/wandxy/morph/internal/automation"
+	coreautomation "github.com/xymorphic/morph/internal/automation"
 )
 
 func NewDiagnoseCommand() *cli.Command {

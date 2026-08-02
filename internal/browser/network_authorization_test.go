@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/wandxy/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 func TestNetworkAuthorizationCoordinator_BatchesCompatibleSafeSubresources(t *testing.T) {

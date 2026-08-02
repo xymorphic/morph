@@ -3,9 +3,9 @@ package provider_anthropic
 import (
 	"time"
 
-	"github.com/wandxy/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/logutils"
 
-	models "github.com/wandxy/morph/internal/model"
+	models "github.com/xymorphic/morph/internal/model"
 )
 
 var modelLog = logutils.Module("model.anthropic")

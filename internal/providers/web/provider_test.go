@@ -8,10 +8,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/constants"
-	appcredential "github.com/wandxy/morph/internal/credential"
-	"github.com/wandxy/morph/internal/profile"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/constants"
+	appcredential "github.com/xymorphic/morph/internal/credential"
+	"github.com/xymorphic/morph/internal/profile"
 )
 
 func TestResolveOptions_UsesExplicitConfig(t *testing.T) {

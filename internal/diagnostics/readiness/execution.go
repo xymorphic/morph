@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/moby/moby/client"
-	"github.com/wandxy/morph/internal/config"
-	executiondocker "github.com/wandxy/morph/internal/execution/docker"
+	"github.com/xymorphic/morph/internal/config"
+	executiondocker "github.com/xymorphic/morph/internal/execution/docker"
 )
 
 func buildExecutionGroup(ctx context.Context, cfg *config.Config) Group {

@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	morphauth "github.com/wandxy/morph/internal/auth"
+	morphauth "github.com/xymorphic/morph/internal/auth"
 	"gopkg.in/yaml.v3"
 
-	"github.com/wandxy/morph/internal/datadir"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/datadir"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // PreloadEnvFile loads environment variables from an optional env file before config resolution.

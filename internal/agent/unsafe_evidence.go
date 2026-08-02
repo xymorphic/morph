@@ -3,7 +3,7 @@ package agent
 import (
 	"context"
 
-	"github.com/wandxy/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/guardrails"
 )
 
 type unsafeEvidenceRecorderSource interface {

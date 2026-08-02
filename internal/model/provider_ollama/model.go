@@ -3,7 +3,7 @@ package provider_ollama
 import (
 	"strings"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func NormalizeModelID(value string) string {

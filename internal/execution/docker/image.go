@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/wandxy/morph/internal/execution"
+	"github.com/xymorphic/morph/internal/execution"
 )
 
 const (

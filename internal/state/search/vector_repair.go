@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/wandxy/morph/internal/constants"
-	state "github.com/wandxy/morph/internal/state/core"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/constants"
+	state "github.com/xymorphic/morph/internal/state/core"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // DefaultVectorRepairBatchSize is the package-level default vector repair batch size constant.

@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/nanoid"
-	"github.com/wandxy/morph/pkg/str"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // ValidateSessionID checks that id can be used as a persisted session ID.

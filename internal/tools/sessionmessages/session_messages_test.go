@@ -11,11 +11,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/environment/sessionmessages"
-	"github.com/wandxy/morph/internal/instructions"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/tools"
-	toolmocks "github.com/wandxy/morph/internal/tools/mocks"
+	"github.com/xymorphic/morph/internal/environment/sessionmessages"
+	"github.com/xymorphic/morph/internal/instructions"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/tools"
+	toolmocks "github.com/xymorphic/morph/internal/tools/mocks"
 )
 
 func TestSessionMessages_DefinitionIncludesUsageInstruction(t *testing.T) {

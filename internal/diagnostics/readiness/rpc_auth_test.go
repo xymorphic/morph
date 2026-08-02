@@ -7,9 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/credential"
-	"github.com/wandxy/morph/internal/profile"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/credential"
+	"github.com/xymorphic/morph/internal/profile"
 )
 
 func TestBuildRPCAuthGroup_ReportsSafeSourcesWithoutSecrets(t *testing.T) {

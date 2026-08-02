@@ -10,8 +10,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/constants"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
+	"github.com/xymorphic/morph/internal/constants"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
 )
 
 func TestModel_StartModelsCommandLoadsModels(t *testing.T) {

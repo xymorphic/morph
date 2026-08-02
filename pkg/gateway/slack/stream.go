@@ -3,7 +3,7 @@ package slack
 import (
 	"strings"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const MarkdownTextLimit = 12000

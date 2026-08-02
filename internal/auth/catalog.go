@@ -3,7 +3,7 @@ package auth
 import (
 	"sort"
 
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )

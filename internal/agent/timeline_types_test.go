@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 )
 
 func TestTimelineTypes_CarryMessagesAndTraceEvents(t *testing.T) {

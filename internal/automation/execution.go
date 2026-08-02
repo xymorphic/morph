@@ -7,15 +7,15 @@ import (
 	"strings"
 	"time"
 
-	morphagent "github.com/wandxy/morph/internal/agent"
-	"github.com/wandxy/morph/internal/config"
-	models "github.com/wandxy/morph/internal/model"
-	modelclient "github.com/wandxy/morph/internal/model/client"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/profile"
-	state "github.com/wandxy/morph/internal/state/core"
-	agentcore "github.com/wandxy/morph/pkg/agent"
-	"github.com/wandxy/morph/pkg/str"
+	morphagent "github.com/xymorphic/morph/internal/agent"
+	"github.com/xymorphic/morph/internal/config"
+	models "github.com/xymorphic/morph/internal/model"
+	modelclient "github.com/xymorphic/morph/internal/model/client"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/profile"
+	state "github.com/xymorphic/morph/internal/state/core"
+	agentcore "github.com/xymorphic/morph/pkg/agent"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

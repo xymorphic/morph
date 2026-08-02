@@ -6,7 +6,7 @@ import (
 
 	cli "github.com/urfave/cli/v3"
 
-	authcmd "github.com/wandxy/morph/cmd/auth"
+	authcmd "github.com/xymorphic/morph/cmd/auth"
 )
 
 func NewCommand(input io.Reader, output io.Writer) *cli.Command {

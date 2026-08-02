@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	morphagent "github.com/wandxy/morph/internal/agent"
-	models "github.com/wandxy/morph/internal/model"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	morphagent "github.com/xymorphic/morph/internal/agent"
+	models "github.com/xymorphic/morph/internal/model"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 type adapterHarness struct {

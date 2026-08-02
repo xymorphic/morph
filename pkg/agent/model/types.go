@@ -3,7 +3,7 @@ package model
 import (
 	"context"
 
-	"github.com/wandxy/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/agent/message"
 )
 
 const (

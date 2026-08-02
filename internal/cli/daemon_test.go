@@ -14,11 +14,11 @@ import (
 	"github.com/stretchr/testify/require"
 	urfavecli "github.com/urfave/cli/v3"
 
-	clidaemon "github.com/wandxy/morph/internal/cli/daemon"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/profile"
-	morphruntime "github.com/wandxy/morph/internal/runtime"
-	"github.com/wandxy/morph/pkg/logutils"
+	clidaemon "github.com/xymorphic/morph/internal/cli/daemon"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/profile"
+	morphruntime "github.com/xymorphic/morph/internal/runtime"
+	"github.com/xymorphic/morph/pkg/logutils"
 )
 
 func TestEnsureDaemonRunning_ReturnsConfigError(t *testing.T) {

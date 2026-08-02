@@ -9,10 +9,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	commandplan "github.com/wandxy/morph/internal/command"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/state/storememory"
-	"github.com/wandxy/morph/internal/trace"
+	commandplan "github.com/xymorphic/morph/internal/command"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/state/storememory"
+	"github.com/xymorphic/morph/internal/trace"
 )
 
 type testDefaultRegistry struct {

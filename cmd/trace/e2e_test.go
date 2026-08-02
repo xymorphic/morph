@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/e2e"
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/pkg/logutils"
+	"github.com/xymorphic/morph/internal/e2e"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/pkg/logutils"
 )
 
 func init() {

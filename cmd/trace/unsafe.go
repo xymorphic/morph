@@ -13,9 +13,9 @@ import (
 	"github.com/pmezard/go-difflib/difflib"
 	cli "github.com/urfave/cli/v3"
 
-	morphcli "github.com/wandxy/morph/internal/cli"
-	"github.com/wandxy/morph/internal/datadir"
-	"github.com/wandxy/morph/internal/guardrails"
+	morphcli "github.com/xymorphic/morph/internal/cli"
+	"github.com/xymorphic/morph/internal/datadir"
+	"github.com/xymorphic/morph/internal/guardrails"
 )
 
 type unsafeEvidenceSummary struct {

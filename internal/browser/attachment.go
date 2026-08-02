@@ -10,8 +10,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 const existingSessionWarning = "Personal browser attachment exposes signed-in sessions, cookies, and page data."

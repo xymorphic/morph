@@ -11,9 +11,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
-	"github.com/wandxy/morph/pkg/nanoid"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 const sessionQueueDisplayLimit = 5

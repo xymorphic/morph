@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	e2e "github.com/wandxy/morph/internal/e2e"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	e2e "github.com/xymorphic/morph/internal/e2e"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 func TestE2E_InputSafety_BlocksPromptExfiltrationBeforeModelDispatch(t *testing.T) {

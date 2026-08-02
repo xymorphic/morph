@@ -6,11 +6,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/permissions"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	storage "github.com/wandxy/morph/internal/state/core"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/permissions"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 )
 
 type tuiState struct {

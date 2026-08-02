@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const tavilyDefaultBaseURL = "https://api.tavily.com"

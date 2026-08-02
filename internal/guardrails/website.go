@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // WebsitePolicy defines website policy settings.

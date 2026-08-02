@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/datadir/files"
-	"github.com/wandxy/morph/internal/profile"
+	"github.com/xymorphic/morph/internal/datadir/files"
+	"github.com/xymorphic/morph/internal/profile"
 )
 
 func TestLoadLastSessionIDReturnsEmptyWhenUnset(t *testing.T) {

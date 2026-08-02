@@ -14,12 +14,12 @@ import (
 	"github.com/stretchr/testify/require"
 	urfavecli "github.com/urfave/cli/v3"
 
-	daemoncmd "github.com/wandxy/morph/cmd/daemon"
-	morphcli "github.com/wandxy/morph/internal/cli"
-	"github.com/wandxy/morph/internal/datadir"
-	"github.com/wandxy/morph/internal/e2e"
-	"github.com/wandxy/morph/internal/profile"
-	"github.com/wandxy/morph/pkg/logutils"
+	daemoncmd "github.com/xymorphic/morph/cmd/daemon"
+	morphcli "github.com/xymorphic/morph/internal/cli"
+	"github.com/xymorphic/morph/internal/datadir"
+	"github.com/xymorphic/morph/internal/e2e"
+	"github.com/xymorphic/morph/internal/profile"
+	"github.com/xymorphic/morph/pkg/logutils"
 )
 
 func init() {

@@ -12,7 +12,7 @@ import (
 	"github.com/gofrs/flock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/profile"
+	"github.com/xymorphic/morph/internal/profile"
 )
 
 func TestDefaultPathUsesActiveProfile(t *testing.T) {

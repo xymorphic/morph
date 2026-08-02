@@ -6,15 +6,15 @@ import (
 	"net"
 	"time"
 
-	morphagent "github.com/wandxy/morph/internal/agent"
-	"github.com/wandxy/morph/internal/execution"
-	"github.com/wandxy/morph/internal/permissions"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	storage "github.com/wandxy/morph/internal/state/core"
-	agent "github.com/wandxy/morph/pkg/agent"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
-	"github.com/wandxy/morph/pkg/gateway/pairing"
+	morphagent "github.com/xymorphic/morph/internal/agent"
+	"github.com/xymorphic/morph/internal/execution"
+	"github.com/xymorphic/morph/internal/permissions"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	agent "github.com/xymorphic/morph/pkg/agent"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
+	"github.com/xymorphic/morph/pkg/gateway/pairing"
 )
 
 type harnessAgentStub struct {

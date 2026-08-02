@@ -3,7 +3,7 @@ package terminalmd
 import (
 	"strings"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func normalizeCommonMarkdownArtifacts(markdown string) string {

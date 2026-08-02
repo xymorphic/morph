@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	models "github.com/wandxy/morph/internal/model"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/str"
+	models "github.com/xymorphic/morph/internal/model"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const defaultMaxOutputTokens int64 = 4096

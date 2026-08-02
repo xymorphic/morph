@@ -11,8 +11,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/wandxy/morph/pkg/netpolicy"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/netpolicy"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const defaultDialTimeout = 10 * time.Second

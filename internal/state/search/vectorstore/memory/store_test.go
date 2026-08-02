@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/state/search/vectorstore"
+	"github.com/xymorphic/morph/internal/state/search/vectorstore"
 )
 
 func TestStore_NilStoreErrors(t *testing.T) {

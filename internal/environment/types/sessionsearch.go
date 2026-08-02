@@ -1,6 +1,6 @@
 package types
 
-import envsessionsearch "github.com/wandxy/morph/internal/environment/sessionsearch"
+import envsessionsearch "github.com/xymorphic/morph/internal/environment/sessionsearch"
 
 // SessionSearchRequest aliases envsessionsearch.SessionSearchRequest at this package boundary.
 type SessionSearchRequest = envsessionsearch.SessionSearchRequest

@@ -6,10 +6,10 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/wandxy/morph/internal/instructions"
-	models "github.com/wandxy/morph/internal/model"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/instructions"
+	models "github.com/xymorphic/morph/internal/model"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const defaultLLMExtractorMaxOutputTokens int64 = 1600

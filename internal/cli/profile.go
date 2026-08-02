@@ -6,9 +6,9 @@ import (
 
 	cli "github.com/urfave/cli/v3"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/profile"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/profile"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // ConfigInputs are the resolved profile-aware config inputs for a command.

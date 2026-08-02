@@ -859,7 +859,7 @@ The logical decision and its physical transport permit are jointly bound to:
 - authorization generation;
 - lifetime and cancellation.
 
-When the permit ends, its connection closes. Morph consumes `wandxy/chromedp v0.16.0-morph.5`, based on upstream
+When the permit ends, its connection closes. Morph consumes `xymorphic/chromedp v0.16.0-morph.5`, based on upstream
 `chromedp v0.16.0`. The fork lets Morph atomically adopt or reuse a flattened target session that Morph already
 attached and paused. It contains no Morph policy, permission, ownership, or proxy logic.
 

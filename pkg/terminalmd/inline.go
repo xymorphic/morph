@@ -3,7 +3,7 @@ package terminalmd
 import (
 	"strings"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 	emojiast "github.com/yuin/goldmark-emoji/ast"
 	goldast "github.com/yuin/goldmark/ast"
 	extast "github.com/yuin/goldmark/extension/ast"

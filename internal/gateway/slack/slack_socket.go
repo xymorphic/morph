@@ -11,10 +11,10 @@ import (
 
 	"golang.org/x/net/websocket"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/gateway/dispatch"
-	slack "github.com/wandxy/morph/pkg/gateway/slack"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/gateway/dispatch"
+	slack "github.com/xymorphic/morph/pkg/gateway/slack"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

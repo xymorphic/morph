@@ -7,15 +7,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/constants"
-	appcredential "github.com/wandxy/morph/internal/credential"
-	"github.com/wandxy/morph/internal/mocks"
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/internal/profile"
-	storage "github.com/wandxy/morph/internal/state/core"
-	statemanager "github.com/wandxy/morph/internal/state/manager"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/constants"
+	appcredential "github.com/xymorphic/morph/internal/credential"
+	"github.com/xymorphic/morph/internal/mocks"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/internal/profile"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	statemanager "github.com/xymorphic/morph/internal/state/manager"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 func TestSessionTitleHelpersNormalizeAndFallback(t *testing.T) {

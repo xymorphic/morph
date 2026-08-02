@@ -5,10 +5,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	commandplan "github.com/wandxy/morph/internal/command"
-	"github.com/wandxy/morph/internal/constants"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	"github.com/wandxy/morph/internal/permissions"
+	commandplan "github.com/xymorphic/morph/internal/command"
+	"github.com/xymorphic/morph/internal/constants"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 func TestNewDefaultConfig_ReturnsIndependentConfig(t *testing.T) {

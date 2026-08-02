@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // Entrypoint identifies the execution boundary a scenario uses.

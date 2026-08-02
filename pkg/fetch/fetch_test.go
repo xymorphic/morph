@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/wandxy/morph/pkg/netpolicy"
+	"github.com/xymorphic/morph/pkg/netpolicy"
 )
 
 type stubPolicy struct {

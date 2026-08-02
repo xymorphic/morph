@@ -9,14 +9,14 @@ import (
 
 	urfavecli "github.com/urfave/cli/v3"
 
-	clidaemon "github.com/wandxy/morph/internal/cli/daemon"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/profile"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	morphruntime "github.com/wandxy/morph/internal/runtime"
-	"github.com/wandxy/morph/pkg/logutils"
-	"github.com/wandxy/morph/pkg/str"
+	clidaemon "github.com/xymorphic/morph/internal/cli/daemon"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/profile"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	morphruntime "github.com/xymorphic/morph/internal/runtime"
+	"github.com/xymorphic/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

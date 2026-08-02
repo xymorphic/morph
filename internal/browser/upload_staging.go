@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/wandxy/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 const uploadStagingPrefix = "upload_"

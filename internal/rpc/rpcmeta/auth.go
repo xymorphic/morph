@@ -3,7 +3,7 @@ package rpcmeta
 import (
 	"context"
 
-	morphauth "github.com/wandxy/morph/internal/auth"
+	morphauth "github.com/xymorphic/morph/internal/auth"
 )
 
 type authenticatedPrincipalKey struct{}

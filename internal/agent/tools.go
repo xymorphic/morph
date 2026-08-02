@@ -3,11 +3,11 @@ package agent
 import (
 	"context"
 
-	"github.com/wandxy/morph/internal/environment"
-	models "github.com/wandxy/morph/internal/model"
-	morphtools "github.com/wandxy/morph/internal/tools"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	agenttool "github.com/wandxy/morph/pkg/agent/tool"
+	"github.com/xymorphic/morph/internal/environment"
+	models "github.com/xymorphic/morph/internal/model"
+	morphtools "github.com/xymorphic/morph/internal/tools"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	agenttool "github.com/xymorphic/morph/pkg/agent/tool"
 )
 
 // ToolInvoker executes a model tool call against the prepared environment.

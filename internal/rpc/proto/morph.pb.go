@@ -12912,7 +12912,7 @@ const file_internal_rpc_proto_morph_proto_rawDesc = "" +
 	"\tListAudit\x12\x1e.morph.v1.ListAuthAuditRequest\x1a\x1f.morph.v1.ListAuthAuditResponse\x12@\n" +
 	"\x05Prune\x12\x1a.morph.v1.PruneAuthRequest\x1a\x1b.morph.v1.PruneAuthResponse\x12[\n" +
 	"\x0eRotateIdentity\x12#.morph.v1.RotateAuthIdentityRequest\x1a$.morph.v1.RotateAuthIdentityResponse\x12a\n" +
-	"\x0eIdentityStatus\x12&.morph.v1.GetAuthIdentityStatusRequest\x1a'.morph.v1.GetAuthIdentityStatusResponseB4Z2github.com/wandxy/morph/internal/rpc/proto;morphpbb\x06proto3"
+	"\x0eIdentityStatus\x12&.morph.v1.GetAuthIdentityStatusRequest\x1a'.morph.v1.GetAuthIdentityStatusResponseB7Z5github.com/xymorphic/morph/internal/rpc/proto;morphpbb\x06proto3"
 
 var (
 	file_internal_rpc_proto_morph_proto_rawDescOnce sync.Once

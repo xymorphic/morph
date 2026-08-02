@@ -1,6 +1,6 @@
 package tui
 
-import "github.com/wandxy/morph/internal/permissions"
+import "github.com/xymorphic/morph/internal/permissions"
 
 // renderBottomStatusPanel renders the compact bottom status panel below the composer.
 func (m model) renderBottomStatusPanel() string {

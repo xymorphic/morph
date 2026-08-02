@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 func TestVectorRepairResult_Add(t *testing.T) {

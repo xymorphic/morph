@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wandxy/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 const networkAuthorizationBatchWindow = 25 * time.Millisecond

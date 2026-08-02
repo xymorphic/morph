@@ -9,8 +9,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/require"
 
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 )
 
 func TestSlashCommandDefinitionsIncludeEffort(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"io"
 
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 )
 
 func (s *SessionService) EnqueueMessage(

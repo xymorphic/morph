@@ -3,8 +3,8 @@ package memory
 import (
 	"context"
 
-	"github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/agent/prompt"
+	"github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/agent/prompt"
 )
 
 type Provider interface {

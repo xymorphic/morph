@@ -10,12 +10,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/constants"
-	modelcatalog "github.com/wandxy/morph/internal/model"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/constants"
+	modelcatalog "github.com/xymorphic/morph/internal/model"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 type modelSelector interface {

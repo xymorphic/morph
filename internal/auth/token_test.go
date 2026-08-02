@@ -8,7 +8,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 
-	morphauth "github.com/wandxy/morph/internal/auth"
+	morphauth "github.com/xymorphic/morph/internal/auth"
 )
 
 func TestAccessToken_SignsAndVerifiesStrictClaims(t *testing.T) {

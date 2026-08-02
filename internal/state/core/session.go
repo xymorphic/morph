@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
-	"github.com/wandxy/morph/pkg/gateway/pairing"
-	"github.com/wandxy/morph/pkg/nanoid"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
+	"github.com/xymorphic/morph/pkg/gateway/pairing"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 // DefaultSessionID is the package-level default session id constant.

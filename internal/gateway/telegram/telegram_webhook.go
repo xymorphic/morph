@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/gateway/dispatch"
-	"github.com/wandxy/morph/pkg/gateway/httpjson"
-	tg "github.com/wandxy/morph/pkg/gateway/telegram"
-	gatewaytypes "github.com/wandxy/morph/pkg/gateway/types"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/gateway/dispatch"
+	"github.com/xymorphic/morph/pkg/gateway/httpjson"
+	tg "github.com/xymorphic/morph/pkg/gateway/telegram"
+	gatewaytypes "github.com/xymorphic/morph/pkg/gateway/types"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

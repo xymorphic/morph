@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/wandxy/morph/internal/trace"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/trace"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func (p *MemoryProvider) recordPromotionStarted(ctx context.Context, memoryID string, operation string) {

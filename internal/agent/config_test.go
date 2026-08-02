@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	storage "github.com/wandxy/morph/internal/state/core"
-	statemanager "github.com/wandxy/morph/internal/state/manager"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	statemanager "github.com/xymorphic/morph/internal/state/manager"
 )
 
 func TestConfig_StateHooksUseProductionDefaults(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	models "github.com/wandxy/morph/internal/model"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	models "github.com/xymorphic/morph/internal/model"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 func TestEstimateTextRough_ReturnsZeroWhenEmpty(t *testing.T) {

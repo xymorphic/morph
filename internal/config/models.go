@@ -3,9 +3,9 @@ package config
 import (
 	"strings"
 
-	appcredential "github.com/wandxy/morph/internal/credential"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	"github.com/wandxy/morph/pkg/str"
+	appcredential "github.com/xymorphic/morph/internal/credential"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 type ModelCredentialSourceKind string

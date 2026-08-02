@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	morphauth "github.com/wandxy/morph/internal/auth"
+	morphauth "github.com/xymorphic/morph/internal/auth"
 )
 
 const maximumAuditEvents = 10000

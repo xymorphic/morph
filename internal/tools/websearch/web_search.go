@@ -5,15 +5,15 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/wandxy/morph/pkg/logutils"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/str"
 
-	"github.com/wandxy/morph/internal/constants"
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/internal/permissions"
-	webintegration "github.com/wandxy/morph/internal/providers/web"
-	"github.com/wandxy/morph/internal/tools"
-	"github.com/wandxy/morph/internal/tools/common"
+	"github.com/xymorphic/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/permissions"
+	webintegration "github.com/xymorphic/morph/internal/providers/web"
+	"github.com/xymorphic/morph/internal/tools"
+	"github.com/xymorphic/morph/internal/tools/common"
 )
 
 const (

@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // Candidate is a ranked search candidate before final fusion.

@@ -3,8 +3,8 @@ package tool
 import (
 	"context"
 
-	"github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/agent/model"
+	"github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/agent/model"
 )
 
 type Registry interface {

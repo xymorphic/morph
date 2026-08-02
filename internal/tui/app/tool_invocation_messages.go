@@ -3,10 +3,10 @@ package tui
 import (
 	"time"
 
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/internal/trace"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/str"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/internal/trace"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func newToolInvocationStartedMsg(

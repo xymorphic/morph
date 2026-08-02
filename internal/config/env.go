@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wandxy/morph/internal/constants"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/constants"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func applyEnvOverrides(cfg *Config) {

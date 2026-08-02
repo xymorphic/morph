@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	morphauth "github.com/wandxy/morph/internal/auth"
+	morphauth "github.com/xymorphic/morph/internal/auth"
 )
 
 type MorphAuthRecord struct {

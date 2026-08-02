@@ -9,14 +9,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	instruct "github.com/wandxy/morph/internal/instructions"
-	"github.com/wandxy/morph/internal/mocks"
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/internal/permissions"
-	storage "github.com/wandxy/morph/internal/state/core"
-	morphtools "github.com/wandxy/morph/internal/tools"
-	agenttool "github.com/wandxy/morph/pkg/agent/tool"
+	"github.com/xymorphic/morph/internal/config"
+	instruct "github.com/xymorphic/morph/internal/instructions"
+	"github.com/xymorphic/morph/internal/mocks"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/internal/permissions"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	morphtools "github.com/xymorphic/morph/internal/tools"
+	agenttool "github.com/xymorphic/morph/pkg/agent/tool"
 )
 
 func TestEnvironmentContextHelpersNormalizeStableValues(t *testing.T) {

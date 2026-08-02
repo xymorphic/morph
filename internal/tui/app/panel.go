@@ -1,6 +1,6 @@
 package tui
 
-import tuilayout "github.com/wandxy/morph/internal/tui/layout"
+import tuilayout "github.com/xymorphic/morph/internal/tui/layout"
 
 const panelHorizontalPadding = tuilayout.PanelHorizontalPadding
 

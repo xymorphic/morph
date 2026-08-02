@@ -16,10 +16,10 @@ import (
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	"github.com/stretchr/testify/require"
 
-	commandplan "github.com/wandxy/morph/internal/command"
-	processenv "github.com/wandxy/morph/internal/environment/process"
-	"github.com/wandxy/morph/internal/execution"
-	"github.com/wandxy/morph/internal/guardrails"
+	commandplan "github.com/xymorphic/morph/internal/command"
+	processenv "github.com/xymorphic/morph/internal/environment/process"
+	"github.com/xymorphic/morph/internal/execution"
+	"github.com/xymorphic/morph/internal/guardrails"
 )
 
 type processManagerStub struct {

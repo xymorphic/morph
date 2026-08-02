@@ -8,10 +8,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/internal/permissions"
-	webintegration "github.com/wandxy/morph/internal/providers/web"
-	"github.com/wandxy/morph/internal/tools"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/permissions"
+	webintegration "github.com/xymorphic/morph/internal/providers/web"
+	"github.com/xymorphic/morph/internal/tools"
 )
 
 type stubProvider struct {

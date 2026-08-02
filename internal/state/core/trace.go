@@ -8,7 +8,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // ErrTraceStoreUnsupported is returned when a store does not persist trace events.

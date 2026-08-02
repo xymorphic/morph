@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/wandxy/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/logutils"
 )
 
 var log = logutils.Module("guardrails")

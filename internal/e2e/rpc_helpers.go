@@ -10,11 +10,11 @@ import (
 	"slices"
 	"time"
 
-	"github.com/wandxy/morph/internal/config"
-	models "github.com/wandxy/morph/internal/model"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	models "github.com/xymorphic/morph/internal/model"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 var rpcHelperListen = net.Listen

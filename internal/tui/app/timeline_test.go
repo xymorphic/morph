@@ -13,14 +13,14 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/require"
 
-	agentapi "github.com/wandxy/morph/internal/agent"
-	browserdomain "github.com/wandxy/morph/internal/browser"
-	"github.com/wandxy/morph/internal/rpc/client"
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/trace"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
-	"github.com/wandxy/morph/pkg/str"
+	agentapi "github.com/xymorphic/morph/internal/agent"
+	browserdomain "github.com/xymorphic/morph/internal/browser"
+	"github.com/xymorphic/morph/internal/rpc/client"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/trace"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func TestBrowserTranscriptActionTitles_CoverEverySupportedAction(t *testing.T) {

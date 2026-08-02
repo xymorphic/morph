@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wandxy/morph/internal/browser"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/browser"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 var discoverBrowserExecutable = browser.DiscoverChromiumExecutable

@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	statememory "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/state/search"
+	statememory "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/state/search"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )

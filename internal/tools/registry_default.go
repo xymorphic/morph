@@ -9,10 +9,10 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/wandxy/morph/internal/command"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/trace"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/command"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/trace"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 type RegistryOptions struct {

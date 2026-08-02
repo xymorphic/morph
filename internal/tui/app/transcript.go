@@ -8,9 +8,9 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/pkg/str"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // newTranscript creates the scrollable conversation viewport.

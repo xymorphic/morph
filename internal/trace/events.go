@@ -3,7 +3,7 @@ package trace
 import (
 	"slices"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

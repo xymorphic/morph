@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/wandxy/morph/internal/automation"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
+	"github.com/xymorphic/morph/internal/automation"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

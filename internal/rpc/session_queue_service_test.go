@@ -10,10 +10,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	agentstub "github.com/wandxy/morph/internal/mocks/agentstub"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
-	"github.com/wandxy/morph/internal/trace"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	agentstub "github.com/xymorphic/morph/internal/mocks/agentstub"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
+	"github.com/xymorphic/morph/internal/trace"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 )
 
 type sessionObserveServerStub struct {

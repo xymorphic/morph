@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	agentapi "github.com/wandxy/morph/internal/agent"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
-	"github.com/wandxy/morph/pkg/str"
+	agentapi "github.com/xymorphic/morph/internal/agent"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func (s *ModelService) ListProviders(ctx context.Context) (ProviderList, error) {

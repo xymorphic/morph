@@ -11,9 +11,9 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/require"
 
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	"github.com/wandxy/morph/internal/trace"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	"github.com/xymorphic/morph/internal/trace"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

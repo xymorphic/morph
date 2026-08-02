@@ -3,11 +3,11 @@ package agent
 import (
 	"context"
 
-	models "github.com/wandxy/morph/internal/model"
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/state/search"
-	agentcore "github.com/wandxy/morph/pkg/agent"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	models "github.com/xymorphic/morph/internal/model"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/state/search"
+	agentcore "github.com/xymorphic/morph/pkg/agent"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 )
 
 type ModelList struct {

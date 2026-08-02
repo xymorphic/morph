@@ -6,11 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
-	morphdb "github.com/wandxy/morph/internal/db"
-	"github.com/wandxy/morph/internal/permissions"
-	base "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/state/search"
-	"github.com/wandxy/morph/pkg/str"
+	morphdb "github.com/xymorphic/morph/internal/db"
+	"github.com/xymorphic/morph/internal/permissions"
+	base "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/state/search"
+	"github.com/xymorphic/morph/pkg/str"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

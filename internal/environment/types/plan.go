@@ -1,6 +1,6 @@
 package types
 
-import envplanstore "github.com/wandxy/morph/internal/environment/planstore"
+import envplanstore "github.com/xymorphic/morph/internal/environment/planstore"
 
 const (
 	PlanStatusPending    = envplanstore.PlanStatusPending

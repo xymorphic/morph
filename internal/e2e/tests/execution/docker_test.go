@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	commandplan "github.com/wandxy/morph/internal/command"
-	"github.com/wandxy/morph/internal/execution"
-	executiondocker "github.com/wandxy/morph/internal/execution/docker"
+	commandplan "github.com/xymorphic/morph/internal/command"
+	"github.com/xymorphic/morph/internal/execution"
+	executiondocker "github.com/xymorphic/morph/internal/execution/docker"
 )
 
 func TestDockerExecution_PrivateWorkspacePersistsAndIsolatesSessions(t *testing.T) {

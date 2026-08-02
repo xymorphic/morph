@@ -4,11 +4,11 @@ import (
 	"strings"
 	"time"
 
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/internal/trace"
-	agent "github.com/wandxy/morph/pkg/agent"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/str"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/internal/trace"
+	agent "github.com/xymorphic/morph/pkg/agent"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 type userMessageAcceptedMsg struct {

@@ -10,11 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wandxy/morph/pkg/logutils"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/str"
 
-	"github.com/wandxy/morph/internal/guardrails"
-	storage "github.com/wandxy/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/guardrails"
+	storage "github.com/xymorphic/morph/internal/state/core"
 )
 
 var log = logutils.Module("trace")

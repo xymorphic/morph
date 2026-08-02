@@ -3,9 +3,9 @@ package readiness
 import (
 	"fmt"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/constants"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/constants"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 var resolveWebAPIKeySource = func(cfg *config.Config) (config.WebCredentialSource, error) {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	statememory "github.com/wandxy/morph/internal/state/core"
+	statememory "github.com/xymorphic/morph/internal/state/core"
 )
 
 func TestMemoryVectorTags(t *testing.T) {

@@ -6,14 +6,14 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/wandxy/morph/internal/config"
-	instruct "github.com/wandxy/morph/internal/instructions"
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/internal/tools"
-	"github.com/wandxy/morph/internal/trace"
-	agentcore "github.com/wandxy/morph/pkg/agent"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	instruct "github.com/xymorphic/morph/internal/instructions"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/internal/tools"
+	"github.com/xymorphic/morph/internal/trace"
+	agentcore "github.com/xymorphic/morph/pkg/agent"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const memoryFlushTriggerCompression = "compression"

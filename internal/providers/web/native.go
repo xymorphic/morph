@@ -15,10 +15,10 @@ import (
 	"unicode/utf8"
 
 	readability "codeberg.org/readeck/go-readability/v2"
-	"github.com/wandxy/morph/internal/constants"
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/pkg/fetch"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/pkg/fetch"
+	"github.com/xymorphic/morph/pkg/str"
 	"golang.org/x/net/html"
 )
 

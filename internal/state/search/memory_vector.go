@@ -3,8 +3,8 @@ package search
 import (
 	"fmt"
 
-	statememory "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/pkg/str"
+	statememory "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // MemoryVectorTags builds vector tags for a memory item.

@@ -14,8 +14,8 @@ import (
 	sqliteDriver "gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/wandxy/morph/internal/state/search/vectorstore"
-	storagesqlite "github.com/wandxy/morph/internal/state/storesqlite"
+	"github.com/xymorphic/morph/internal/state/search/vectorstore"
+	storagesqlite "github.com/xymorphic/morph/internal/state/storesqlite"
 )
 
 func TestStore_NewStoreValidationAndSchema(t *testing.T) {

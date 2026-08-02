@@ -4,9 +4,9 @@ import (
 	"os"
 	"slices"
 
-	"github.com/wandxy/morph/internal/constants"
-	appcredential "github.com/wandxy/morph/internal/credential"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/constants"
+	appcredential "github.com/xymorphic/morph/internal/credential"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // WebCredentialSource describes web credential provenance without exposing values.

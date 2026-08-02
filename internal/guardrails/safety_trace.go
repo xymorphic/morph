@@ -1,6 +1,6 @@
 package guardrails
 
-import "github.com/wandxy/morph/pkg/str"
+import "github.com/xymorphic/morph/pkg/str"
 
 // SafetyTracePayloadOptions controls safety trace payload.
 type SafetyTracePayloadOptions struct {

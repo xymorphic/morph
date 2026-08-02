@@ -10,12 +10,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	browserdomain "github.com/wandxy/morph/internal/browser"
-	envtypes "github.com/wandxy/morph/internal/environment/types"
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/tools"
-	toolmocks "github.com/wandxy/morph/internal/tools/mocks"
+	browserdomain "github.com/xymorphic/morph/internal/browser"
+	envtypes "github.com/xymorphic/morph/internal/environment/types"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/tools"
+	toolmocks "github.com/xymorphic/morph/internal/tools/mocks"
 )
 
 type browserServiceStub struct {

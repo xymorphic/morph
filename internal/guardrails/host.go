@@ -1,6 +1,6 @@
 package guardrails
 
-import "github.com/wandxy/morph/pkg/str"
+import "github.com/xymorphic/morph/pkg/str"
 
 // HostPolicy defines host policy settings.
 type HostPolicy struct {

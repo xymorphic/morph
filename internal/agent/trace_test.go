@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	storage "github.com/wandxy/morph/internal/state/core"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 )
 
 func TestTrace_ConvertsAgentAndStorageTraceEvents(t *testing.T) {

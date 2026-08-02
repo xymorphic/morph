@@ -10,9 +10,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/datadir"
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/internal/profile"
+	"github.com/xymorphic/morph/internal/datadir"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/profile"
 )
 
 func TestUnsafeCommands_ListShowAndPurgeEvidence(t *testing.T) {

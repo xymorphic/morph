@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/wandxy/morph/internal/datadir/files"
-	"github.com/wandxy/morph/internal/profile"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/datadir/files"
+	"github.com/xymorphic/morph/internal/profile"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 type appTUIState struct {

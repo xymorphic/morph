@@ -8,10 +8,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/tools"
-	nativemocks "github.com/wandxy/morph/internal/tools/mocks"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/tools"
+	nativemocks "github.com/xymorphic/morph/internal/tools/mocks"
 )
 
 func TestPatch_ToolAppliesThroughExecutionService(t *testing.T) {

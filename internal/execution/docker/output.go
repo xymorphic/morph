@@ -3,7 +3,7 @@ package docker
 import (
 	"sync"
 
-	"github.com/wandxy/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/guardrails"
 )
 
 type boundedWriter struct {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	commandplan "github.com/wandxy/morph/internal/command"
+	commandplan "github.com/xymorphic/morph/internal/command"
 )
 
 func TestPolicy_NormalizeAppliesConservativeDefaults(t *testing.T) {

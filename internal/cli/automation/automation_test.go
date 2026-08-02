@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	cli "github.com/urfave/cli/v3"
 
-	coreautomation "github.com/wandxy/morph/internal/automation"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/profile"
+	coreautomation "github.com/xymorphic/morph/internal/automation"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/profile"
 )
 
 var (

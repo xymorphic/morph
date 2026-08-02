@@ -3,7 +3,7 @@ package rpcmeta
 import (
 	"context"
 
-	"github.com/wandxy/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/permissions"
 	"google.golang.org/grpc/metadata"
 )
 

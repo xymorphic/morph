@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/diagnostics"
-	"github.com/wandxy/morph/internal/profile"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/diagnostics"
+	"github.com/xymorphic/morph/internal/profile"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 type Status = diagnostics.Status

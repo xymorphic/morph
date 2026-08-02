@@ -1,8 +1,8 @@
 package episodic
 
 import (
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/pkg/str"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // admitCandidateItems applies deterministic admission after model extraction

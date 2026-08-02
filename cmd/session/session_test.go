@@ -14,13 +14,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	agentstub "github.com/wandxy/morph/internal/mocks/agentstub"
-	"github.com/wandxy/morph/internal/profile"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	"github.com/wandxy/morph/internal/runtime"
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/state/search"
+	"github.com/xymorphic/morph/internal/config"
+	agentstub "github.com/xymorphic/morph/internal/mocks/agentstub"
+	"github.com/xymorphic/morph/internal/profile"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	"github.com/xymorphic/morph/internal/runtime"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/state/search"
 )
 
 func TestNewCommandSessionNewCallsRPC(t *testing.T) {

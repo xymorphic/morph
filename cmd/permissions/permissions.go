@@ -6,7 +6,7 @@ import (
 
 	cli "github.com/urfave/cli/v3"
 
-	permissionscli "github.com/wandxy/morph/internal/cli/permissions"
+	permissionscli "github.com/xymorphic/morph/internal/cli/permissions"
 )
 
 func SetOutput(writer io.Writer) io.Writer {

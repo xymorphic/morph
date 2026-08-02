@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
-	storage "github.com/wandxy/morph/internal/state/core"
-	agentcore "github.com/wandxy/morph/pkg/agent"
-	"github.com/wandxy/morph/pkg/gateway/bindings"
-	"github.com/wandxy/morph/pkg/str"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	agentcore "github.com/xymorphic/morph/pkg/agent"
+	"github.com/xymorphic/morph/pkg/gateway/bindings"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 type Service interface {

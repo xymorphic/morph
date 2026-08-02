@@ -18,9 +18,9 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 
-	commandplan "github.com/wandxy/morph/internal/command"
-	processenv "github.com/wandxy/morph/internal/environment/process"
-	"github.com/wandxy/morph/internal/execution"
+	commandplan "github.com/xymorphic/morph/internal/command"
+	processenv "github.com/xymorphic/morph/internal/environment/process"
+	"github.com/xymorphic/morph/internal/execution"
 )
 
 type fakeDockerServer struct {
@@ -304,7 +304,9 @@ func hijackDockerStream(
 	if err != nil {
 		return
 	}
-	defer connection.Close()
+	defer func() {
+		_ = connection.Close()
+	}()
 	_, _ = buffer.WriteString(
 		"HTTP/1.1 101 UPGRADED\r\n" +
 			"Content-Type: application/vnd.docker.raw-stream\r\n" +

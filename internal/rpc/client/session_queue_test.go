@@ -7,9 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	protomock "github.com/wandxy/morph/internal/mocks/proto"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
-	agentsession "github.com/wandxy/morph/pkg/agent/session"
+	protomock "github.com/xymorphic/morph/internal/mocks/proto"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
+	agentsession "github.com/xymorphic/morph/pkg/agent/session"
 )
 
 func TestSessionQueueClient_MapsSubmitStateAndObserve(t *testing.T) {

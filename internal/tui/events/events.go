@@ -1,6 +1,6 @@
 package events
 
-import rpcclient "github.com/wandxy/morph/internal/rpc/client"
+import rpcclient "github.com/xymorphic/morph/internal/rpc/client"
 
 // Event is implemented by messages that flow through the TUI update loop.
 type Event interface {

@@ -8,14 +8,14 @@ import (
 	"net/http/httptest"
 	"sync"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/gateway/dispatch"
-	storage "github.com/wandxy/morph/internal/state/core"
-	agentcore "github.com/wandxy/morph/pkg/agent"
-	"github.com/wandxy/morph/pkg/gateway/pairing"
-	gatewaytelegram "github.com/wandxy/morph/pkg/gateway/telegram"
-	gatewaytypes "github.com/wandxy/morph/pkg/gateway/types"
-	"github.com/wandxy/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/gateway/dispatch"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	agentcore "github.com/xymorphic/morph/pkg/agent"
+	"github.com/xymorphic/morph/pkg/gateway/pairing"
+	gatewaytelegram "github.com/xymorphic/morph/pkg/gateway/telegram"
+	gatewaytypes "github.com/xymorphic/morph/pkg/gateway/types"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 var genericCreatedSessionID = nanoid.MustFromSeed(

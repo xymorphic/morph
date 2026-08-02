@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 
-	"github.com/wandxy/morph/pkg/logutils"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/str"
 
-	"github.com/wandxy/morph/internal/config"
-	gatewaysession "github.com/wandxy/morph/internal/gateway/session"
-	"github.com/wandxy/morph/internal/permissions"
-	agentcore "github.com/wandxy/morph/pkg/agent"
-	"github.com/wandxy/morph/pkg/gateway/bindings"
-	"github.com/wandxy/morph/pkg/gateway/pairing"
-	slack "github.com/wandxy/morph/pkg/gateway/slack"
+	"github.com/xymorphic/morph/internal/config"
+	gatewaysession "github.com/xymorphic/morph/internal/gateway/session"
+	"github.com/xymorphic/morph/internal/permissions"
+	agentcore "github.com/xymorphic/morph/pkg/agent"
+	"github.com/xymorphic/morph/pkg/gateway/bindings"
+	"github.com/xymorphic/morph/pkg/gateway/pairing"
+	slack "github.com/xymorphic/morph/pkg/gateway/slack"
 )
 
 var log = logutils.Module("gateway.slack")

@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	morphcli "github.com/wandxy/morph/internal/cli"
+	morphcli "github.com/xymorphic/morph/internal/cli"
 )
 
 var errDaemonTestWrite = errors.New("write failed")

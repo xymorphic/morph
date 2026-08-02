@@ -3,10 +3,10 @@ package config
 import (
 	"path/filepath"
 
-	"github.com/wandxy/morph/internal/constants"
-	"github.com/wandxy/morph/internal/datadir"
-	"github.com/wandxy/morph/pkg/logutils"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/datadir"
+	"github.com/xymorphic/morph/pkg/logutils"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func init() {

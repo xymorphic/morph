@@ -4,7 +4,7 @@ import (
 	"crypto/subtle"
 	"errors"
 
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const WebhookSecretHeader = "X-Telegram-Bot-Api-Secret-Token"

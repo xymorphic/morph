@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/wandxy/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 type Action string

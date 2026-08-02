@@ -7,9 +7,9 @@ import (
 	"errors"
 	"time"
 
-	morphauth "github.com/wandxy/morph/internal/auth"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
-	"github.com/wandxy/morph/internal/rpc/rpcmeta"
+	morphauth "github.com/xymorphic/morph/internal/auth"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
+	"github.com/xymorphic/morph/internal/rpc/rpcmeta"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"

@@ -8,8 +8,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/agent"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
+	"github.com/xymorphic/morph/internal/agent"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
 )
 
 func TestModel_HandleResponseEventBatchAppliesInOrderWithOneRenderAndResize(t *testing.T) {

@@ -3,8 +3,8 @@ package memory
 import (
 	"context"
 
-	statecore "github.com/wandxy/morph/internal/state/core"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	statecore "github.com/xymorphic/morph/internal/state/core"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 type fakeLogger struct {

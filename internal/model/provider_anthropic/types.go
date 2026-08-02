@@ -1,6 +1,6 @@
 package provider_anthropic
 
-import models "github.com/wandxy/morph/internal/model"
+import models "github.com/xymorphic/morph/internal/model"
 
 // Client is the provider-neutral model client contract implemented by AnthropicClient.
 type Client = models.Client

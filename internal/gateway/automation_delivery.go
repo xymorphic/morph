@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/wandxy/morph/internal/automation"
-	"github.com/wandxy/morph/internal/config"
-	slackprovider "github.com/wandxy/morph/internal/gateway/slack"
-	telegramprovider "github.com/wandxy/morph/internal/gateway/telegram"
-	pkgslack "github.com/wandxy/morph/pkg/gateway/slack"
-	pkgtelegram "github.com/wandxy/morph/pkg/gateway/telegram"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/automation"
+	"github.com/xymorphic/morph/internal/config"
+	slackprovider "github.com/xymorphic/morph/internal/gateway/slack"
+	telegramprovider "github.com/xymorphic/morph/internal/gateway/telegram"
+	pkgslack "github.com/xymorphic/morph/pkg/gateway/slack"
+	pkgtelegram "github.com/xymorphic/morph/pkg/gateway/telegram"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 type automationDeliverySenders struct {

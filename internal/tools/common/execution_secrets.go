@@ -4,8 +4,8 @@ import (
 	"slices"
 	"strings"
 
-	envtypes "github.com/wandxy/morph/internal/environment/types"
-	"github.com/wandxy/morph/internal/execution"
+	envtypes "github.com/xymorphic/morph/internal/environment/types"
+	"github.com/xymorphic/morph/internal/execution"
 )
 
 func AddExecutionSecretsSchema(

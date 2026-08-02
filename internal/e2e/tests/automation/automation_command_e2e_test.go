@@ -13,13 +13,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	automationcmd "github.com/wandxy/morph/cmd/automation"
-	daemoncmd "github.com/wandxy/morph/cmd/daemon"
-	coreautomation "github.com/wandxy/morph/internal/automation"
-	"github.com/wandxy/morph/internal/e2e"
-	"github.com/wandxy/morph/internal/profile"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	"github.com/wandxy/morph/pkg/logutils"
+	automationcmd "github.com/xymorphic/morph/cmd/automation"
+	daemoncmd "github.com/xymorphic/morph/cmd/daemon"
+	coreautomation "github.com/xymorphic/morph/internal/automation"
+	"github.com/xymorphic/morph/internal/e2e"
+	"github.com/xymorphic/morph/internal/profile"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	"github.com/xymorphic/morph/pkg/logutils"
 )
 
 func init() {

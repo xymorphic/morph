@@ -8,10 +8,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	commandplan "github.com/wandxy/morph/internal/command"
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/internal/permissions"
-	toolmocks "github.com/wandxy/morph/internal/tools/mocks"
+	commandplan "github.com/xymorphic/morph/internal/command"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/internal/permissions"
+	toolmocks "github.com/xymorphic/morph/internal/tools/mocks"
 )
 
 func TestCommandErrorCode_ClassifiesContextAndInputFailures(t *testing.T) {

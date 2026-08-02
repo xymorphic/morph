@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	"github.com/wandxy/morph/pkg/str"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func isValidModelID(value string) bool {

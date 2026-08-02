@@ -7,11 +7,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/mocks"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	storage "github.com/wandxy/morph/internal/state/core"
-	statemanager "github.com/wandxy/morph/internal/state/manager"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/mocks"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	statemanager "github.com/xymorphic/morph/internal/state/manager"
 )
 
 func TestEnvironment_NewEnvironmentFactoryCreatesUsableRuntime(t *testing.T) {

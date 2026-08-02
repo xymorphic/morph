@@ -4,8 +4,8 @@ import (
 	"strings"
 
 	xansi "github.com/charmbracelet/x/ansi"
-	"github.com/wandxy/morph/pkg/str"
-	"github.com/wandxy/morph/pkg/terminalmd"
+	"github.com/xymorphic/morph/pkg/str"
+	"github.com/xymorphic/morph/pkg/terminalmd"
 )
 
 func renderMarkdownForTranscript(markdown string, width int) string {

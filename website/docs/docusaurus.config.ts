@@ -84,7 +84,7 @@ const config: Config = {
     },
   ],
 
-  organizationName: 'wandxy',
+  organizationName: 'xymorphic',
   projectName: 'morph',
 
   onBrokenLinks: 'throw',
@@ -162,7 +162,7 @@ const config: Config = {
           items: [
             {
               label: 'Forum',
-              href: 'https://github.com/wandxy/morph/discussions',
+              href: 'https://github.com/xymorphic/morph/discussions',
             },
             {
               label: 'Twitter',
@@ -196,7 +196,7 @@ const config: Config = {
         },
         {
           type: 'custom-socialIcon',
-          href: 'https://github.com/wandxy/morph',
+          href: 'https://github.com/xymorphic/morph',
           icon: 'github',
           label: 'GitHub',
           position: 'right',

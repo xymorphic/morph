@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	coreautomation "github.com/wandxy/morph/internal/automation"
-	"github.com/wandxy/morph/internal/config"
+	coreautomation "github.com/xymorphic/morph/internal/automation"
+	"github.com/xymorphic/morph/internal/config"
 )
 
 func TestNewCommand_DiagnoseInspectAndRecoverCallRPC(t *testing.T) {

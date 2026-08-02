@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	instruct "github.com/wandxy/morph/internal/instructions"
+	instruct "github.com/xymorphic/morph/internal/instructions"
 )
 
 type nonStringRedactor struct{}

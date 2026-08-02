@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/wandxy/morph/internal/automation"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/profile"
-	storage "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/state/storememory"
-	"github.com/wandxy/morph/internal/state/storesqlite"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/automation"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/profile"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/state/storememory"
+	"github.com/xymorphic/morph/internal/state/storesqlite"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 var openAutomationReadinessStore = openProfileReadinessStore

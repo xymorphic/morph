@@ -7,12 +7,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/guardrails"
-	models "github.com/wandxy/morph/internal/model"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
-	"github.com/wandxy/morph/internal/trace"
-	agent "github.com/wandxy/morph/pkg/agent"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/internal/guardrails"
+	models "github.com/xymorphic/morph/internal/model"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
+	"github.com/xymorphic/morph/internal/trace"
+	agent "github.com/xymorphic/morph/pkg/agent"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
 )
 
 func TestAgentEventToTUIMessage_ConvertsAssistantDelta(t *testing.T) {
@@ -317,14 +317,14 @@ func TestToolCallPayloadToTUIMessage_ShortensLongListFilesPath(t *testing.T) {
 	msg, ok := toolCallPayloadToTUIMessage(models.ToolCall{
 		ID:    "call_1",
 		Name:  "list_files",
-		Input: `{"path":"/Users/nedy/projects/wandxy/morph/internal/tools/listfiles","recursive":true}`,
+		Input: `{"path":"/Users/nedy/projects/xymorphic/morph/internal/tools/listfiles","recursive":true}`,
 	})
 
 	require.True(t, ok)
 	require.Equal(t, toolInvocationStartedMsg{
 		ID:     "call_1",
 		Name:   "list_files",
-		Detail: "list_files(path=/Users/nedy/projects/wandxy/m/.../listfiles recursive=true)",
+		Detail: "list_files(path=/Users/nedy/projects/xymorphi/.../listfiles recursive=true)",
 	}, msg)
 }
 

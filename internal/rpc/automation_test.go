@@ -11,8 +11,8 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/wandxy/morph/internal/automation"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
+	"github.com/xymorphic/morph/internal/automation"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
 )
 
 var (

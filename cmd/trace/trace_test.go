@@ -14,10 +14,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/profile"
-	morphtrace "github.com/wandxy/morph/internal/trace"
-	"github.com/wandxy/morph/internal/trace/inspect"
-	"github.com/wandxy/morph/pkg/logutils"
+	"github.com/xymorphic/morph/internal/profile"
+	morphtrace "github.com/xymorphic/morph/internal/trace"
+	"github.com/xymorphic/morph/internal/trace/inspect"
+	"github.com/xymorphic/morph/pkg/logutils"
 )
 
 func TestNewCommand_ShowsHelpWithoutSubcommand(t *testing.T) {

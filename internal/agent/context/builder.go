@@ -1,8 +1,8 @@
 package context
 
 import (
-	messages "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/str"
+	messages "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // Input contains the sources used to assemble model-visible context for a turn.

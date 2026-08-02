@@ -1,6 +1,6 @@
 package search
 
-import "github.com/wandxy/morph/internal/state/search/vectorstore"
+import "github.com/xymorphic/morph/internal/state/search/vectorstore"
 
 // SourceKind classifies the domain object represented by a vector source ID.
 type SourceKind = vectorstore.SourceKind

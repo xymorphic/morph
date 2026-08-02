@@ -9,14 +9,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wandxy/morph/internal/permissions"
-	storage "github.com/wandxy/morph/internal/state/core"
-	storagemock "github.com/wandxy/morph/internal/state/mock"
-	"github.com/wandxy/morph/internal/state/search"
-	storagememory "github.com/wandxy/morph/internal/state/storememory"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/gateway/pairing"
-	"github.com/wandxy/morph/pkg/nanoid"
+	"github.com/xymorphic/morph/internal/permissions"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	storagemock "github.com/xymorphic/morph/internal/state/mock"
+	"github.com/xymorphic/morph/internal/state/search"
+	storagememory "github.com/xymorphic/morph/internal/state/storememory"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/gateway/pairing"
+	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
 var (

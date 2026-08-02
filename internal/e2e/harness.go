@@ -9,16 +9,16 @@ import (
 	"os"
 	"path/filepath"
 
-	morphagent "github.com/wandxy/morph/internal/agent"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/datadir"
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/internal/profile"
-	storage "github.com/wandxy/morph/internal/state/core"
-	statemanager "github.com/wandxy/morph/internal/state/manager"
-	agentcore "github.com/wandxy/morph/pkg/agent"
-	morphmsg "github.com/wandxy/morph/pkg/agent/message"
-	"github.com/wandxy/morph/pkg/str"
+	morphagent "github.com/xymorphic/morph/internal/agent"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/datadir"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/internal/profile"
+	storage "github.com/xymorphic/morph/internal/state/core"
+	statemanager "github.com/xymorphic/morph/internal/state/manager"
+	agentcore "github.com/xymorphic/morph/pkg/agent"
+	morphmsg "github.com/xymorphic/morph/pkg/agent/message"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 var setHarnessEnv = os.Setenv

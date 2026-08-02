@@ -14,8 +14,8 @@ import (
 
 	readability "codeberg.org/readeck/go-readability/v2"
 	"github.com/stretchr/testify/require"
-	"github.com/wandxy/morph/internal/guardrails"
-	"github.com/wandxy/morph/pkg/logutils"
+	"github.com/xymorphic/morph/internal/guardrails"
+	"github.com/xymorphic/morph/pkg/logutils"
 	"golang.org/x/net/html"
 )
 

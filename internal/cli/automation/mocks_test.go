@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	coreautomation "github.com/wandxy/morph/internal/automation"
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
+	coreautomation "github.com/xymorphic/morph/internal/automation"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
 )
 
 type automationCommandClientStub struct {

@@ -3,7 +3,7 @@ package rpc
 import (
 	"context"
 
-	rpcclient "github.com/wandxy/morph/internal/rpc/client"
+	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
 )
 
 // ChatAPI is the RPC chat surface consumed by the TUI.

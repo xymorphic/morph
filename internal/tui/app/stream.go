@@ -1,5 +1,5 @@
 package tui
 
-import tuitranscript "github.com/wandxy/morph/internal/tui/transcript"
+import tuitranscript "github.com/xymorphic/morph/internal/tui/transcript"
 
 type markdownStreamCollector = tuitranscript.MarkdownStreamCollector

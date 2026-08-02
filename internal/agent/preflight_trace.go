@@ -1,10 +1,10 @@
 package agent
 
 import (
-	"github.com/wandxy/morph/internal/agent/context/compaction"
-	"github.com/wandxy/morph/internal/config"
-	models "github.com/wandxy/morph/internal/model"
-	"github.com/wandxy/morph/internal/trace"
+	"github.com/xymorphic/morph/internal/agent/context/compaction"
+	"github.com/xymorphic/morph/internal/config"
+	models "github.com/xymorphic/morph/internal/model"
+	"github.com/xymorphic/morph/internal/trace"
 )
 
 // isCompactionEnabled reports whether context budget traces should consider compaction.

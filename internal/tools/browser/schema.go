@@ -3,7 +3,7 @@ package browser
 import (
 	"strings"
 
-	browserdomain "github.com/wandxy/morph/internal/browser"
+	browserdomain "github.com/xymorphic/morph/internal/browser"
 )
 
 func inputSchema() map[string]any {

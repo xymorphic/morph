@@ -5,9 +5,9 @@ import (
 	"slices"
 	"time"
 
-	commandplan "github.com/wandxy/morph/internal/command"
-	"github.com/wandxy/morph/internal/constants"
-	"github.com/wandxy/morph/internal/permissions"
+	commandplan "github.com/xymorphic/morph/internal/command"
+	"github.com/xymorphic/morph/internal/constants"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 var DefaultConfig = Config{

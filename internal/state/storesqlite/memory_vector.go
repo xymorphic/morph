@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	statememory "github.com/wandxy/morph/internal/state/core"
-	"github.com/wandxy/morph/internal/state/search"
-	"github.com/wandxy/morph/pkg/str"
+	statememory "github.com/xymorphic/morph/internal/state/core"
+	"github.com/xymorphic/morph/internal/state/search"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 func (s *Store) memoryVectorSearchEnabled(query statememory.MemorySearchQuery) bool {

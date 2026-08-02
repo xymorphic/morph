@@ -3,15 +3,15 @@ package rpc
 import (
 	"context"
 
-	agentapi "github.com/wandxy/morph/internal/agent"
-	morphauth "github.com/wandxy/morph/internal/auth"
-	"github.com/wandxy/morph/internal/automation"
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/gateway"
-	agentstub "github.com/wandxy/morph/internal/mocks/agentstub"
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/internal/rpc/rpcmeta"
-	"github.com/wandxy/morph/pkg/gateway/pairing"
+	agentapi "github.com/xymorphic/morph/internal/agent"
+	morphauth "github.com/xymorphic/morph/internal/auth"
+	"github.com/xymorphic/morph/internal/automation"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/gateway"
+	agentstub "github.com/xymorphic/morph/internal/mocks/agentstub"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/rpc/rpcmeta"
+	"github.com/xymorphic/morph/pkg/gateway/pairing"
 )
 
 func allowedRPCPolicy() permissions.Policy {

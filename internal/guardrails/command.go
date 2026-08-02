@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	commandplan "github.com/wandxy/morph/internal/command"
+	commandplan "github.com/xymorphic/morph/internal/command"
 )
 
 // CommandPolicy defines command policy settings.

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wandxy/morph/internal/permissions"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/permissions"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 const (

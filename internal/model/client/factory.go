@@ -10,14 +10,14 @@ import (
 	anthropicoption "github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/openai/openai-go/v3/option"
 
-	"github.com/wandxy/morph/internal/constants"
-	models "github.com/wandxy/morph/internal/model"
-	modelprovider "github.com/wandxy/morph/internal/model/provider"
-	provider_anthropic "github.com/wandxy/morph/internal/model/provider_anthropic"
-	_ "github.com/wandxy/morph/internal/model/provider_copilot"
-	provider_ollama "github.com/wandxy/morph/internal/model/provider_ollama"
-	provider_openai "github.com/wandxy/morph/internal/model/provider_openai"
-	"github.com/wandxy/morph/pkg/str"
+	"github.com/xymorphic/morph/internal/constants"
+	models "github.com/xymorphic/morph/internal/model"
+	modelprovider "github.com/xymorphic/morph/internal/model/provider"
+	provider_anthropic "github.com/xymorphic/morph/internal/model/provider_anthropic"
+	_ "github.com/xymorphic/morph/internal/model/provider_copilot"
+	provider_ollama "github.com/xymorphic/morph/internal/model/provider_ollama"
+	provider_openai "github.com/xymorphic/morph/internal/model/provider_openai"
+	"github.com/xymorphic/morph/pkg/str"
 )
 
 // ModelRole identifies a model-consuming runtime role.

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/wandxy/morph/internal/permissions"
+	"github.com/xymorphic/morph/internal/permissions"
 )
 
 func (s *Store) CreateApprovalRequest(

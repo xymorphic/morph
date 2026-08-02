@@ -8,11 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 
-	"github.com/wandxy/morph/internal/config"
-	"github.com/wandxy/morph/internal/gateway"
-	agentstub "github.com/wandxy/morph/internal/mocks/agentstub"
-	morphpb "github.com/wandxy/morph/internal/rpc/proto"
-	"github.com/wandxy/morph/pkg/gateway/pairing"
+	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/gateway"
+	agentstub "github.com/xymorphic/morph/internal/mocks/agentstub"
+	morphpb "github.com/xymorphic/morph/internal/rpc/proto"
+	"github.com/xymorphic/morph/pkg/gateway/pairing"
 )
 
 func TestGatewayService_PairingListApproveRevokeAndClear(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	gatewaytypes "github.com/wandxy/morph/pkg/gateway/types"
+	gatewaytypes "github.com/xymorphic/morph/pkg/gateway/types"
 )
 
 func Write(w http.ResponseWriter, status int, value any) {
