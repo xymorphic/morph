@@ -16,7 +16,7 @@ install-tools: install-proto-tools
 
 install-proto-tools:
 	@$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
-	@$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.76.0
+	@$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.0
 
 install-lint:
 	@$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v$(GOLANGCI_LINT_VERSION)
