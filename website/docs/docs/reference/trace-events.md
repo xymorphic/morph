@@ -188,6 +188,9 @@ Each event is emitted to both the structured daemon log and the tracer, if confi
 | `plan.cleared` | Plan cleared |
 | `plan.hydrated` | Plan restored from session history |
 | `workspace.rules.truncated` | Workspace rules truncated at load |
+| `execution.started` | Authorized execution entered the selected backend |
+| `execution.completed` | Execution reached a terminal successful backend result |
+| `execution.failed` | Provisioning or execution failed without host fallback or replay |
 
 ## Payload decoding
 
@@ -202,6 +205,7 @@ Trace payloads are JSON objects. Common payload families:
 | `MemoryEventPayload` | Memory operations (fallback for unknown `memory.*` types) |
 | `PlanEventPayload` | Plan steps and hydration |
 | `SessionFailedPayload` | Errors |
+| `ExecutionEventPayload` | Safe backend, scope, image, limits, mount targets, network, secret names, outcome, and cleanup metadata |
 
 CLI inspection: `morph trace view`. Config: `trace.enabled`, `trace.disk`, `trace.database`; see
 [Config Reference](./config#trace).

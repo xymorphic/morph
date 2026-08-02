@@ -7,6 +7,7 @@ import (
 	"time"
 
 	morphagent "github.com/wandxy/morph/internal/agent"
+	"github.com/wandxy/morph/internal/execution"
 	"github.com/wandxy/morph/internal/permissions"
 	rpcclient "github.com/wandxy/morph/internal/rpc/client"
 	storage "github.com/wandxy/morph/internal/state/core"
@@ -306,6 +307,14 @@ func (s rpcAdapterClientStub) InterruptRun(
 
 func (s rpcAdapterClientStub) SessionAPI() rpcclient.SessionAPI {
 	return s
+}
+
+func (s rpcAdapterClientStub) ListExecutionEnvironments(context.Context, string) ([]execution.EnvironmentDetails, error) {
+	return nil, nil
+}
+
+func (s rpcAdapterClientStub) ExplainExecutionEnvironment(context.Context, string, string) (execution.EnvironmentDetails, error) {
+	return execution.EnvironmentDetails{}, nil
 }
 
 func (s rpcAdapterClientStub) Current(context.Context) (storage.Session, error) {

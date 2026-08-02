@@ -74,11 +74,12 @@ func Analyze(ctx context.Context, request Request) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
-	environment, environmentDigest, environmentReasons, err := getEnvironment(
+	environment, environmentDigest, environmentReasons, err := getEnvironmentForRequest(
 		request.Environment,
 		mode,
 		goos,
 		identityKey,
+		request.CleanEnvironment,
 	)
 	if err != nil {
 		return Plan{}, err
@@ -94,6 +95,10 @@ func Analyze(ctx context.Context, request Request) (Plan, error) {
 		source:            request.Command,
 		environment:       environment,
 		pathOverridden:    hasEnvironmentKey(request.Environment, "PATH", goos),
+		lookPath:          request.LookPath,
+	}
+	if plan.lookPath == nil {
+		plan.lookPath = lookPath
 	}
 
 	switch mode {
@@ -145,7 +150,13 @@ func hasEnvironmentKey(environment map[string]string, expected string, goos stri
 	return false
 }
 
-func analyzeDirect(ctx context.Context, plan *Plan, command string, arguments []string, goos string) error {
+func analyzeDirect(
+	ctx context.Context,
+	plan *Plan,
+	command string,
+	arguments []string,
+	goos string,
+) error {
 	command = strings.TrimSpace(command)
 	if command == "" {
 		return errors.New("command is required")
@@ -154,7 +165,7 @@ func analyzeDirect(ctx context.Context, plan *Plan, command string, arguments []
 	if hasPathSeparator(command) && !isAbsoluteCommandPath(command) {
 		lookup = filepath.Join(plan.CWD, command)
 	}
-	resolved, err := lookPath(lookup)
+	resolved, err := plan.lookPath(lookup)
 	if err != nil {
 		return errors.New("command executable was not found")
 	}
@@ -248,7 +259,8 @@ func getCWDIdentity(cwd string, workspaceRoot string, identityKey []byte) (strin
 	workspaceRoot = filepath.Clean(workspaceRoot)
 
 	relative, err := filepath.Rel(workspaceRoot, cwd)
-	if err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+	if err == nil && relative != ".." &&
+		!strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
 		return cwd, "workspace:" + getPathIdentity(workspaceRoot, identityKey), nil
 	}
 	return cwd, "external:" + getPathIdentity(cwd, identityKey), nil
@@ -267,6 +279,16 @@ func getEnvironment(
 	goos string,
 	identityKey []byte,
 ) ([]string, string, []DynamicReason, error) {
+	return getEnvironmentForRequest(overrides, mode, goos, identityKey, false)
+}
+
+func getEnvironmentForRequest(
+	overrides map[string]string,
+	mode Mode,
+	goos string,
+	identityKey []byte,
+	clean bool,
+) ([]string, string, []DynamicReason, error) {
 	values := make(map[string]string)
 	names := make(map[string]string)
 	reasons := make([]DynamicReason, 0)
@@ -276,14 +298,16 @@ func getEnvironment(
 		}
 		return key
 	}
-	for _, entry := range loadEnvironment() {
-		key, value, ok := strings.Cut(entry, "=")
-		if !ok {
-			continue
+	if !clean {
+		for _, entry := range loadEnvironment() {
+			key, value, ok := strings.Cut(entry, "=")
+			if !ok {
+				continue
+			}
+			normalized := normalizeKey(key)
+			values[normalized] = value
+			names[normalized] = key
 		}
-		normalized := normalizeKey(key)
-		values[normalized] = value
-		names[normalized] = key
 	}
 
 	for key, value := range overrides {

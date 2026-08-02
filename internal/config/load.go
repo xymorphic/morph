@@ -226,6 +226,11 @@ func (c *Config) resolvePaths(baseDir string) {
 	c.Web.NativeBlockedHostFiles = getPathsFromBase(c.Web.NativeBlockedHostFiles, baseDir)
 	c.Browser.Executable = getExecutableFromBase(c.Browser.Executable, baseDir)
 	c.Exec.Shell = getExecutableFromBase(c.Exec.Shell, baseDir)
+	c.Execution.Docker.Contract = getPathFromBase(c.Execution.Docker.Contract, baseDir)
+	c.Execution.Docker.Workspace.Source = getPathFromBase(c.Execution.Docker.Workspace.Source, baseDir)
+	for index := range c.Execution.Docker.Mounts {
+		c.Execution.Docker.Mounts[index].Source = getPathFromBase(c.Execution.Docker.Mounts[index].Source, baseDir)
+	}
 	c.Browser.ProfileRoot = getPathFromBase(c.Browser.ProfileRoot, baseDir)
 	c.Browser.TemporaryRoot = getPathFromBase(c.Browser.TemporaryRoot, baseDir)
 	c.Browser.Artifacts.Root = getPathFromBase(c.Browser.Artifacts.Root, baseDir)

@@ -13,7 +13,6 @@ import (
 	"github.com/wandxy/morph/internal/guardrails"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/tools"
-	"github.com/wandxy/morph/internal/tools/common"
 	nativemocks "github.com/wandxy/morph/internal/tools/mocks"
 )
 
@@ -21,7 +20,13 @@ func TestWriteFile_ToolCreatesFile(t *testing.T) {
 	root := t.TempDir()
 	registry := nativemocks.RegisterRuntime(t, root, guardrails.CommandPolicy{}, Definition)
 
-	result, err := registry.Invoke(context.Background(), tools.Call{Name: "write_file", Input: `{"path":"nested/file.txt","content":"hello"}`})
+	result, err := registry.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "write_file",
+			Input: `{"path":"nested/file.txt","content":"hello"}`,
+		},
+	)
 
 	require.NoError(t, err)
 	var payload struct {
@@ -44,7 +49,13 @@ func TestWriteFile_ToolOverwritesExistingFile(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte("before"), 0o644))
 	registry := nativemocks.RegisterRuntime(t, root, guardrails.CommandPolicy{}, Definition)
 
-	result, err := registry.Invoke(context.Background(), tools.Call{Name: "write_file", Input: `{"path":"file.txt","content":"after"}`})
+	result, err := registry.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "write_file",
+			Input: `{"path":"file.txt","content":"after"}`,
+		},
+	)
 
 	require.NoError(t, err)
 	var payload struct {
@@ -73,7 +84,10 @@ func TestWriteFile_EnforcementDeniesBeforeFilesystemMutation(t *testing.T) {
 		Definition,
 	)
 	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
-		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceCLI,
+		Actor: permissions.Actor{
+			Kind: permissions.ActorLocalOwner,
+		},
+		Surface: permissions.SurfaceCLI,
 	})
 
 	result, err := registry.Invoke(ctx, tools.Call{
@@ -89,10 +103,15 @@ func TestWriteFile_EnforcementDeniesBeforeFilesystemMutation(t *testing.T) {
 }
 
 func TestWriteFile_ResolvePermissionValidatesAndNormalizesTarget(t *testing.T) {
-	resolver := Definition(nil).ResolvePermission
+	resolver := Definition(
+		nativemocks.NewRuntime(t.TempDir(), guardrails.CommandPolicy{}),
+	).ResolvePermission
 
 	path := filepath.Join("nested", "file.txt")
-	inputs, err := resolver(context.Background(), tools.Call{Input: `{"path":` + nativemocks.QuoteJSON(path) + `}`})
+	inputs, err := resolver(
+		context.Background(),
+		tools.Call{Input: `{"path":` + nativemocks.QuoteJSON(path) + `}`},
+	)
 	require.NoError(t, err)
 	require.Equal(t, "nested/file.txt", inputs[0].Operation.Target)
 
@@ -118,7 +137,10 @@ func TestWriteFile_ExplicitGrantDoesNotOverrideFilesystemRoots(t *testing.T) {
 		Definition,
 	)
 	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
-		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceCLI,
+		Actor: permissions.Actor{
+			Kind: permissions.ActorLocalOwner,
+		},
+		Surface: permissions.SurfaceCLI,
 	})
 
 	result, err := registry.Invoke(ctx, tools.Call{
@@ -163,9 +185,15 @@ func TestWriteFile_AskPresetApprovesExternalWriteBeforeBypassingRoots(t *testing
 		PermissionPolicy: permissions.Policy{Preset: permissions.PresetAskForApproval},
 		ApprovalService:  approver,
 	})
-	require.NoError(t, registry.Register(Definition(nativemocks.NewRuntime(root, guardrails.CommandPolicy{}))))
+	require.NoError(
+		t,
+		registry.Register(Definition(nativemocks.NewRuntime(root, guardrails.CommandPolicy{}))),
+	)
 	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
-		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceCLI,
+		Actor: permissions.Actor{
+			Kind: permissions.ActorLocalOwner,
+		},
+		Surface: permissions.SurfaceCLI,
 	})
 
 	result, err := registry.Invoke(ctx, tools.Call{
@@ -187,9 +215,15 @@ func TestWriteFile_AskPresetBlocksExternalWriteWithoutApprovalService(t *testing
 	registry := tools.NewDefaultRegistry(tools.RegistryOptions{
 		PermissionPolicy: permissions.Policy{Preset: permissions.PresetAskForApproval},
 	})
-	require.NoError(t, registry.Register(Definition(nativemocks.NewRuntime(root, guardrails.CommandPolicy{}))))
+	require.NoError(
+		t,
+		registry.Register(Definition(nativemocks.NewRuntime(root, guardrails.CommandPolicy{}))),
+	)
 	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
-		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceCLI,
+		Actor: permissions.Actor{
+			Kind: permissions.ActorLocalOwner,
+		},
+		Surface: permissions.SurfaceCLI,
 	})
 
 	result, err := registry.Invoke(ctx, tools.Call{
@@ -212,9 +246,15 @@ func TestWriteFile_ApprovePresetApprovesExternalWriteBeforeBypassingRoots(t *tes
 		PermissionPolicy: permissions.Policy{Preset: permissions.PresetApproveForMe},
 		ApprovalService:  approver,
 	})
-	require.NoError(t, registry.Register(Definition(nativemocks.NewRuntime(root, guardrails.CommandPolicy{}))))
+	require.NoError(
+		t,
+		registry.Register(Definition(nativemocks.NewRuntime(root, guardrails.CommandPolicy{}))),
+	)
 	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
-		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceCLI,
+		Actor: permissions.Actor{
+			Kind: permissions.ActorLocalOwner,
+		},
+		Surface: permissions.SurfaceCLI,
 	})
 
 	result, err := registry.Invoke(ctx, tools.Call{
@@ -237,13 +277,24 @@ func TestWriteFile_EnforcementNormalizesTargetBeforeRuleMatching(t *testing.T) {
 		root,
 		guardrails.CommandPolicy{},
 		permissions.Policy{Rules: []permissions.Rule{
-			{Name: "allow writes", Tools: []string{"write_file"}, Decision: permissions.DecisionAllow},
-			{Name: "deny blocked file", TargetPrefixes: []string{"blocked.txt"}, Decision: permissions.DecisionDeny},
+			{
+				Name:     "allow writes",
+				Tools:    []string{"write_file"},
+				Decision: permissions.DecisionAllow,
+			},
+			{
+				Name:           "deny blocked file",
+				TargetPrefixes: []string{"blocked.txt"},
+				Decision:       permissions.DecisionDeny,
+			},
 		}},
 		Definition,
 	)
 	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
-		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceCLI,
+		Actor: permissions.Actor{
+			Kind: permissions.ActorLocalOwner,
+		},
+		Surface: permissions.SurfaceCLI,
 	})
 
 	result, err := registry.Invoke(ctx, tools.Call{
@@ -267,7 +318,11 @@ func TestWriteFile_HandlerValidatesInputBeforeWriting(t *testing.T) {
 	}{
 		{name: "invalid JSON", input: `{"path":`, code: "invalid_input"},
 		{name: "missing path", input: `{"content":"hello"}`, code: "invalid_input"},
-		{name: "binary content", input: "{\"path\":\"file.txt\",\"content\":\"\\u0000\"}", code: "not_text"},
+		{
+			name:  "binary content",
+			input: "{\"path\":\"file.txt\",\"content\":\"\\u0000\"}",
+			code:  "not_text",
+		},
 	}
 
 	for _, test := range tests {
@@ -291,27 +346,6 @@ func TestWriteFile_HandlerReturnsFilesystemErrors(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, result.Error, `"code":"path_outside_roots"`)
 
-	originalMkdirAll := common.MkdirAll
-	originalWriteFile := common.WriteFile
-	t.Cleanup(func() {
-		common.MkdirAll = originalMkdirAll
-		common.WriteFile = originalWriteFile
-	})
-
-	common.MkdirAll = func(string, os.FileMode) error { return os.ErrPermission }
-	result, err = handler.Invoke(context.Background(), tools.Call{
-		Input: `{"path":"nested/file.txt","content":"blocked"}`,
-	})
-	require.NoError(t, err)
-	require.Contains(t, result.Error, `"code":"access_denied"`)
-
-	common.MkdirAll = originalMkdirAll
-	common.WriteFile = func(string, []byte, os.FileMode) error { return errors.New("write failed") }
-	result, err = handler.Invoke(context.Background(), tools.Call{
-		Input: `{"path":"file.txt","content":"blocked","create_dirs":false}`,
-	})
-	require.NoError(t, err)
-	require.Contains(t, result.Error, "write failed")
 }
 
 type approverStub struct {

@@ -10,6 +10,7 @@ import (
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/profile"
 	storage "github.com/wandxy/morph/internal/state/core"
+	statemanager "github.com/wandxy/morph/internal/state/manager"
 	"github.com/wandxy/morph/internal/trace"
 	agentcore "github.com/wandxy/morph/pkg/agent"
 	morphmsg "github.com/wandxy/morph/pkg/agent/message"
@@ -470,7 +471,7 @@ func (a *Agent) checkSessionQueueReady() error {
 		return errors.New("environment has not been initialized")
 	}
 	if !a.stateMgr.SupportsSessionInbox() {
-		return errors.New("session inbox is not supported")
+		return statemanager.ErrSessionInboxUnsupported
 	}
 	return nil
 }

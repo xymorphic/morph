@@ -14,6 +14,7 @@ import (
 
 	morphcli "github.com/wandxy/morph/internal/cli"
 	"github.com/wandxy/morph/internal/config"
+	"github.com/wandxy/morph/internal/execution"
 	rpcclient "github.com/wandxy/morph/internal/rpc/client"
 	storage "github.com/wandxy/morph/internal/state/core"
 	tui "github.com/wandxy/morph/internal/tui/app"
@@ -439,6 +440,14 @@ func (c *fakeTUIChatClient) InterruptRun(
 
 func (c *fakeTUIChatClient) SessionAPI() rpcclient.SessionAPI {
 	return c
+}
+
+func (c *fakeTUIChatClient) ListExecutionEnvironments(context.Context, string) ([]execution.EnvironmentDetails, error) {
+	return nil, nil
+}
+
+func (c *fakeTUIChatClient) ExplainExecutionEnvironment(context.Context, string, string) (execution.EnvironmentDetails, error) {
+	return execution.EnvironmentDetails{}, nil
 }
 
 func (c *fakeTUIChatClient) ModelAPI() rpcclient.ModelAPI {

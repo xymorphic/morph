@@ -24,6 +24,27 @@ type SessionQueueEventPayload struct {
 	Reason       string `json:"reason,omitempty"`
 }
 
+type ExecutionEventPayload struct {
+	ExecutionID        string   `json:"execution_id,omitempty"`
+	Backend            string   `json:"backend,omitempty"`
+	Scope              string   `json:"scope,omitempty"`
+	Operation          string   `json:"operation,omitempty"`
+	State              string   `json:"state,omitempty"`
+	ImageDigest        string   `json:"image_digest,omitempty"`
+	PolicyHash         string   `json:"policy_hash,omitempty"`
+	Mounts             []string `json:"mounts,omitempty"`
+	Network            string   `json:"network,omitempty"`
+	SecretReferences   []string `json:"secret_references,omitempty"`
+	SecurityGeneration string   `json:"security_generation,omitempty"`
+	ExitCode           int      `json:"exit_code,omitempty"`
+	DurationMS         int64    `json:"duration_ms,omitempty"`
+	StdoutBytes        int      `json:"stdout_bytes,omitempty"`
+	StderrBytes        int      `json:"stderr_bytes,omitempty"`
+	TimedOut           bool     `json:"timed_out,omitempty"`
+	Interrupted        bool     `json:"interrupted,omitempty"`
+	Error              string   `json:"error,omitempty"`
+}
+
 // SafetyEventPayload is the trace payload for safety event.
 type SafetyEventPayload struct {
 	SessionID     string              `json:"session_id,omitempty"`
@@ -386,6 +407,10 @@ func DecodePayload(eventType string, payload any) (any, bool) {
 		EvtSessionQueueFailed,
 		EvtSessionQueueCancelled:
 		return decodePayloadAs[SessionQueueEventPayload](payload)
+	case EvtExecutionStarted, EvtExecutionCompleted, EvtExecutionFailed,
+		EvtExecutionEnvironmentAcquiring, EvtExecutionEnvironmentReady,
+		EvtExecutionEnvironmentRecreating, EvtExecutionEnvironmentRecreated:
+		return decodePayloadAs[ExecutionEventPayload](payload)
 	case EvtInputSafetyBlocked,
 		EvtOutputSafetyApplied,
 		EvtToolOutputSafetyApplied,
@@ -925,7 +950,11 @@ func processToolErrorState(value any) *ProcessToolState {
 		if message == "" && code == "" {
 			return nil
 		}
-		return &ProcessToolState{Status: "failed", ErrorCode: code, Error: message}
+		return &ProcessToolState{
+			Status:    "failed",
+			ErrorCode: code,
+			Error:     message,
+		}
 	}
 }
 

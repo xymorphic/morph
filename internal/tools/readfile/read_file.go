@@ -8,7 +8,7 @@ import (
 	"github.com/wandxy/morph/pkg/str"
 
 	envtypes "github.com/wandxy/morph/internal/environment/types"
-	"github.com/wandxy/morph/internal/guardrails"
+	"github.com/wandxy/morph/internal/execution"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/tools"
 	"github.com/wandxy/morph/internal/tools/common"
@@ -23,95 +23,111 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 	}
 
 	return tools.Definition{
-		Name:          "read_file",
-		Description:   "Read a text file at an absolute or workspace-relative path, subject to the current permission policy.",
-		ParallelSafe:  true,
-		Groups:        []string{"core"},
-		Requires:      tools.Capabilities{Filesystem: true},
-		SemanticIndex: tools.ProjectSemanticIndex(tools.ProjectJSONFieldsForSemanticIndex("path", "content")),
+		Name:         "read_file",
+		Description:  "Read a text file at an absolute or workspace-relative path, subject to the current permission policy.",
+		ParallelSafe: true,
+		Groups:       []string{"core"},
+		Requires:     tools.Capabilities{Filesystem: true},
+		SemanticIndex: tools.ProjectSemanticIndex(
+			tools.ProjectJSONFieldsForSemanticIndex("path", "content"),
+		),
 		Permission: permissions.Operation{
 			Resource: permissions.ResourceFile,
 			Action:   permissions.ActionRead,
 			Effects:  []permissions.Effect{permissions.EffectRead},
 		},
-		ResolvePermission: func(_ context.Context, call tools.Call) ([]permissions.EvaluationInput, error) {
+		PreparePermission: func(
+			ctx context.Context,
+			call tools.Call,
+		) (tools.PermissionPreparation, error) {
 			var req input
 			if err := json.Unmarshal([]byte(call.Input), &req); err != nil {
-				return nil, tools.NewPermissionResolutionError("invalid_input", "invalid tool input")
+				return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(
+					"invalid_input",
+					"invalid tool input",
+				)
 			}
 			path := str.String(req.Path).Trim()
 			if path == "" {
-				return nil, tools.NewPermissionResolutionError("invalid_input", "path is required")
+				return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(
+					"invalid_input",
+					"path is required",
+				)
 			}
 			target, targetScope := common.ResolveFilesystemPermissionTarget(
 				common.FilesystemPolicyFromRuntime(runtime),
 				path,
 			)
-			return []permissions.EvaluationInput{{Operation: permissions.Operation{
+			operation := permissions.Operation{
 				Resource:    permissions.ResourceFile,
 				Action:      permissions.ActionRead,
 				Effects:     []permissions.Effect{permissions.EffectRead},
 				Target:      target,
 				TargetScope: targetScope,
-			}}}, nil
-		},
-		InputSchema: common.ObjectSchema(map[string]any{
-			"path": common.StringSchema("Absolute path to the text file or path relative to the configured workspace root."),
-		}, "path"),
-		Handler: tools.HandlerFunc(func(ctx context.Context, call tools.Call) (tools.Result, error) {
-			var req input
-			if result := common.DecodeInput(call, &req); result.Error != "" {
-				return result, nil
 			}
-
-			log.Info().
-				Str("tool", "read_file").
-				Str("phase", "start").
-				Str("path", common.NormalizedDisplayPath(req.Path)).
-				Msg("read file tool started")
-
-			resolved, err := common.ResolveFilesystemPathForOperation(
+			preparation, err := common.PrepareFilesystemExecution(
 				ctx,
-				common.FilesystemPolicyFromRuntime(runtime),
-				req.Path,
-				permissions.ActionRead,
+				runtime,
+				operation,
+				path,
+				execution.FilesystemOperation{
+					Action: execution.FilesystemRead,
+				},
 			)
 			if err != nil {
-				log.Warn().
-					Err(err).
-					Str("tool", "read_file").
-					Str("phase", "error").
-					Msg("read file failed")
-				return common.FileError(err), nil
+				return tools.PermissionPreparation{}, common.NewFilePermissionResolutionError(err)
 			}
+			return preparation, nil
+		},
+		ResolvePermission: func(
+			ctx context.Context,
+			call tools.Call,
+		) ([]permissions.EvaluationInput, error) {
+			preparation, err := Definition(runtime).PreparePermission(ctx, call)
+			return preparation.Inputs, err
+		},
+		InputSchema: common.ObjectSchema(map[string]any{
+			"path": common.StringSchema(
+				"Absolute path to the text file or path relative to the configured workspace root.",
+			),
+		}, "path"),
+		Handler: tools.HandlerFunc(
+			func(ctx context.Context, call tools.Call) (tools.Result, error) {
+				var req input
+				if result := common.DecodeInput(call, &req); result.Error != "" {
+					return result, nil
+				}
 
-			log.Debug().
-				Str("tool", "read_file").
-				Str("phase", "execute").
-				Str("path", common.NormalizedDisplayPath(resolved.Relative)).
-				Msg("read file execution started")
-
-			content, err := guardrails.ReadTextFile(resolved.Absolute, common.MaxReadBytes)
-			if err != nil {
-				log.Warn().
-					Err(err).
+				log.Info().
 					Str("tool", "read_file").
-					Str("phase", "error").
-					Msg("read file failed")
-				return common.FileError(err), nil
-			}
+					Str("phase", "start").
+					Str("path", common.NormalizedDisplayPath(req.Path)).
+					Msg("read file tool started")
 
-			log.Info().
-				Str("tool", "read_file").
-				Str("phase", "complete").
-				Int("bytes", len(content)).
-				Msg("read file tool completed")
-
-			return common.EncodeOutput(map[string]any{
-				"path":    common.NormalizedDisplayPath(resolved.Relative),
-				"content": string(content),
-				"bytes":   len(content),
-			})
-		}),
+				spec, specErr := common.RequireExecutionSpec(
+					ctx,
+					call,
+					Definition(runtime).PreparePermission,
+				)
+				if specErr != nil {
+					return common.FileError(specErr), nil
+				}
+				service, serviceErr := common.ExecutionService(runtime)
+				if serviceErr != nil {
+					return common.ToolError("tool_error", serviceErr.Error()), nil
+				}
+				content, readErr := common.ObserveExecution(ctx, spec, func() ([]byte, error) {
+					return service.ReadFile(ctx, spec, int(common.MaxReadBytes))
+				})
+				if readErr != nil {
+					return common.FileError(readErr), nil
+				}
+				return common.EncodeOutput(map[string]any{
+					"path": common.NormalizedDisplayPath(
+						req.Path,
+					), "content": string(content), "bytes": len(content),
+				})
+			},
+		),
 	}
 }

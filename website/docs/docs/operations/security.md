@@ -124,6 +124,22 @@ morph config set gateway.pairingSecret "$(openssl rand -hex 32)"
 Rotating the secret invalidates active codes; approved senders remain approved. See
 [Pairing and Allowlists](../guides/gateway/pairing-and-allowlists#pairing-secret).
 
+## Command containment
+
+Docker execution is an opt-in containment layer, not an authorization shortcut. Morph still checks tool availability,
+command intent, ownership, host mounts, network, secret references, and shared-state exposure before provisioning.
+Containers run as a numeric non-root user with a read-only root filesystem, dropped capabilities, no-new-privileges,
+bounded resources, no published ports, and no Docker socket. Network defaults to `none`.
+
+`workspace: rw` can poison source files, hooks, CI configuration, and scripts that later run on the host. Shared scope
+also exposes files, installed state, and ambient processes across profile sessions. Bridge mode is unrestricted outbound
+access and may reach host, private, link-local, or metadata services depending on the Docker host. Only configure these
+capabilities when their permission prompts reflect your intent.
+
+Configured execution secrets are delivered to dedicated disposable containers, but the authorized command can still
+write, transform, or exfiltrate them. Redaction protects Morph-controlled output; it cannot erase deliberate workspace
+residue or reverse transformed values.
+
 ## Network Exposure
 
 Morph opens two TCP listeners when fully enabled: **RPC** (gRPC, default `127.0.0.1:50051`) and **gateway HTTP**

@@ -164,6 +164,24 @@ morph doctor
 `morph doctor` exits cleanly when the profile is ready and otherwise prints the exact command to fix what is missing. See
 [Doctor](../operations/doctor).
 
+### Opt in to Docker execution
+
+```yaml
+execution:
+  backend: docker
+  docker:
+    scope: session
+    image: ghcr.io/xymorphic/morph-sandbox@sha256:<release-digest>
+    contract: /path/to/containers/sandbox/contract.json
+    workspace:
+      mode: none
+    network: none
+```
+
+Use `ro` or `rw` plus an absolute `workspace.source` only when the container must see a host workspace. `rw`, shared
+scope, bridge network, additional mounts, and selected secret references all require separate authorization. Restart the
+daemon after changing execution security settings.
+
 ## Where To Go Next
 
 - [Profiles and Config](../getting-started/profiles-and-config): config sources, precedence, and the daemon's role.

@@ -60,6 +60,7 @@ var DefaultConfig = Config{
 	FS: FSConfig{
 		NoProfileAccess: true,
 	},
+	Execution: defaultExecutionConfig(),
 	Log: LogConfig{
 		Level:      constants.DefaultProfileLogLevel,
 		MaxSizeMB:  constants.DefaultLogMaxSizeMB,
@@ -271,6 +272,8 @@ func cloneConfig(cfg Config) Config {
 	cfg.Exec.AllowCommands = cloneCommandSelectors(cfg.Exec.AllowCommands)
 	cfg.Exec.AskCommands = cloneCommandSelectors(cfg.Exec.AskCommands)
 	cfg.Exec.DenyCommands = cloneCommandSelectors(cfg.Exec.DenyCommands)
+	cfg.Execution.Docker.Mounts = slices.Clone(cfg.Execution.Docker.Mounts)
+	cfg.Execution.Docker.Secrets = slices.Clone(cfg.Execution.Docker.Secrets)
 	cfg.Permissions.SurfaceKindDefaults = maps.Clone(cfg.Permissions.SurfaceKindDefaults)
 	cfg.Permissions.SurfaceDefaults = maps.Clone(cfg.Permissions.SurfaceDefaults)
 	cfg.Permissions.Rules = slices.Clone(cfg.Permissions.Rules)

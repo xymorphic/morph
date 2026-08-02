@@ -66,6 +66,7 @@ func Build(ctx context.Context, opts Options) Report {
 		buildGatewayGroup(cfg),
 		buildAutomationGroup(ctx, cfg, opts.Profile),
 		buildBrowserGroup(ctx, cfg),
+		buildExecutionGroup(ctx, cfg),
 		buildCapabilityGroup(cfg),
 	}}
 }

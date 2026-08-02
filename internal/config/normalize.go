@@ -110,6 +110,7 @@ func (c *Config) normalizeFields() {
 	c.Exec.AskCommands = normalizeCommandSelectors(c.Exec.AskCommands)
 	c.Exec.DenyCommands = normalizeDenyCommandSelectors(c.Exec.DenyCommands)
 	c.Exec.Shell = cleanOptionalPath(c.Exec.Shell)
+	c.normalizeExecution()
 	c.Permissions.Normalize()
 	backendValue := str.String(c.Storage.Backend)
 	c.Storage.Backend = backendValue.Normalized()

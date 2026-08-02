@@ -17,6 +17,7 @@ import (
 	"github.com/wandxy/morph/internal/constants"
 	"github.com/wandxy/morph/internal/environment"
 	envtypes "github.com/wandxy/morph/internal/environment/types"
+	"github.com/wandxy/morph/internal/execution"
 	"github.com/wandxy/morph/internal/guardrails"
 	models "github.com/wandxy/morph/internal/model"
 	modelprovider "github.com/wandxy/morph/internal/model/provider"
@@ -196,6 +197,19 @@ func (a *Agent) Start(ctx context.Context) error {
 	a.env.SetApprovalService(a.approvalService)
 	a.env.SetModelClient(a.summaryClient)
 	if err := a.env.Prepare(); err != nil {
+		_ = a.closeExecution()
+		return err
+	}
+	if err := a.stateMgr.SetSessionCleanup(func(cleanupCtx context.Context, sessionID string, removeWorkspace bool) error {
+		closer, ok := a.env.(interface {
+			CloseSession(context.Context, string, bool) error
+		})
+		if !ok {
+			return nil
+		}
+		return closer.CloseSession(cleanupCtx, sessionID, removeWorkspace)
+	}); err != nil {
+		_ = a.closeExecution()
 		return err
 	}
 
@@ -680,8 +694,11 @@ func (a *Agent) buildCoreAgent() (*agentcore.Agent, error) {
 
 // Close flushes memory candidates when configured and then closes state resources.
 func (a *Agent) Close() error {
-	if a == nil || a.stateMgr == nil {
+	if a == nil {
 		return nil
+	}
+	if a.stateMgr == nil {
+		return a.closeExecution()
 	}
 	a.runnerMu.Lock()
 	a.runnerStopping = true
@@ -692,7 +709,7 @@ func (a *Agent) Close() error {
 	a.runnerWG.Wait()
 
 	if !a.shouldFlushMemoryBeforeContextLoss() {
-		return a.stateMgr.Close()
+		return errors.Join(a.closeExecution(), a.stateMgr.Close())
 	}
 
 	ctx := normalizeContext(a.ctx)
@@ -716,7 +733,18 @@ func (a *Agent) Close() error {
 		traceSession.Close()
 	}
 
-	return a.stateMgr.Close()
+	return errors.Join(a.closeExecution(), a.stateMgr.Close())
+}
+
+func (a *Agent) closeExecution() error {
+	if a == nil || a.env == nil {
+		return nil
+	}
+	closer, ok := a.env.(interface{ Close() error })
+	if !ok {
+		return nil
+	}
+	return closer.Close()
 }
 
 // Respond executes one user turn in the active or requested session.
@@ -783,6 +811,13 @@ func (a *Agent) Respond(ctx context.Context, msg string, opts agentcore.RespondO
 		authorization.SessionID = session.ID
 	}
 	ctx = permissions.WithContext(ctx, authorization)
+	if authorization.Actor.Kind == permissions.ActorAutomation {
+		defer func() {
+			if closer, ok := a.env.(interface{ CloseExecutionOwner(context.Context) error }); ok {
+				_ = closer.CloseExecutionOwner(context.WithoutCancel(ctx))
+			}
+		}()
+	}
 	a.setSessionAuthorization(session.ID, authorization)
 
 	agentLog.Info().Str("session_id", opts.SessionID).
@@ -1327,7 +1362,31 @@ func (a *Agent) ArchiveSession(ctx context.Context, id string) error {
 		return errors.New("environment has not been initialized")
 	}
 
-	return a.stateMgr.ArchiveSession(normalizeContext(ctx), id)
+	ctx = normalizeContext(ctx)
+	coordinator := a.turnCoordinator
+	if coordinator == nil {
+		coordinator = defaultTurnCoordinator
+	}
+	release, err := coordinator.Acquire(ctx, a.turnScope, id)
+	if err != nil {
+		return err
+	}
+	defer release()
+	state, err := a.stateMgr.GetExecutionState(ctx, id)
+	if err == nil && state.ActiveRun != nil && state.ActiveRun.Status == agentsession.RunStatusRunning {
+		return errors.New("session with an active execution cannot be archived")
+	}
+	if err != nil && !errors.Is(err, statemanager.ErrSessionInboxUnsupported) {
+		return err
+	}
+	if closer, ok := a.env.(interface {
+		CloseSession(context.Context, string, bool) error
+	}); ok {
+		if err := closer.CloseSession(ctx, id, false); err != nil {
+			return err
+		}
+	}
+	return a.stateMgr.ArchiveSession(ctx, id)
 }
 
 func (a *Agent) UnarchiveSession(ctx context.Context, id string) (storage.Session, error) {
@@ -1340,6 +1399,32 @@ func (a *Agent) UnarchiveSession(ctx context.Context, id string) (storage.Sessio
 	}
 
 	return a.stateMgr.UnarchiveSession(normalizeContext(ctx), id)
+}
+
+func (a *Agent) ListExecutionEnvironments(ctx context.Context, sessionID string) ([]execution.EnvironmentDetails, error) {
+	if a == nil || a.env == nil || a.stateMgr == nil {
+		return nil, errors.New("environment has not been initialized")
+	}
+	if _, err := a.stateMgr.Resolve(ctx, sessionID); err != nil {
+		return nil, err
+	}
+	lister, ok := a.env.(interface {
+		ListExecutionEnvironments(context.Context) ([]execution.EnvironmentDetails, error)
+	})
+	if !ok {
+		return nil, errors.New("execution inspection is unavailable")
+	}
+	authorization, ok := permissions.FromContext(ctx)
+	if !ok {
+		authorization = permissions.AuthorizationContext{
+			Actor:   permissions.Actor{Kind: permissions.ActorLocalOwner},
+			Surface: permissions.SurfaceCLI,
+			Profile: profile.Active().Name,
+		}
+	}
+	authorization.SessionID = sessionID
+	ctx = permissions.WithContext(ctx, authorization)
+	return lister.ListExecutionEnvironments(ctx)
 }
 
 func (a *Agent) RenameSession(ctx context.Context, id string, title string) (storage.Session, error) {

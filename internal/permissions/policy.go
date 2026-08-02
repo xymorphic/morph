@@ -205,7 +205,11 @@ func (p Policy) Evaluate(input EvaluationInput) Evaluation {
 	}
 
 	if policyErr != nil {
-		return Evaluation{Decision: DecisionDeny, ReasonCode: ReasonPolicyDefault, Preset: preset}
+		return Evaluation{
+			Decision:   DecisionDeny,
+			ReasonCode: ReasonPolicyDefault,
+			Preset:     preset,
+		}
 	}
 	authorization, authorizationErr := input.Authorization.Normalize()
 	operation, operationErr := input.Operation.Normalize()
@@ -225,6 +229,14 @@ func (p Policy) Evaluate(input EvaluationInput) Evaluation {
 			Preset:     preset,
 		}
 	}
+	if reason := str.String(input.HardDenyReason).Trim(); reason != "" {
+		return Evaluation{
+			Decision:   DecisionDeny,
+			ReasonCode: ReasonHardDeny,
+			Reason:     reason,
+			Preset:     preset,
+		}
+	}
 	if preset == PresetFullAccess && operation.Network != nil &&
 		operation.Network.RequestClass == NetworkRequestBackground {
 		if rule, ok := getMatchingRule(p.Rules, authorization, operation); ok {
@@ -239,10 +251,11 @@ func (p Policy) Evaluate(input EvaluationInput) Evaluation {
 		}
 	}
 	if preset == PresetFullAccess {
-		return Evaluation{Decision: DecisionAllow, ReasonCode: ReasonFullAccess, Preset: preset}
-	}
-	if reason := str.String(input.HardDenyReason).Trim(); reason != "" {
-		return Evaluation{Decision: DecisionDeny, ReasonCode: ReasonHardDeny, Reason: reason, Preset: preset}
+		return Evaluation{
+			Decision:   DecisionAllow,
+			ReasonCode: ReasonFullAccess,
+			Preset:     preset,
+		}
 	}
 
 	var evaluation Evaluation
@@ -267,11 +280,23 @@ func (p Policy) Evaluate(input EvaluationInput) Evaluation {
 			Preset:     preset,
 		}
 	} else if decision, ok := p.SurfaceDefaults[authorization.Surface]; ok && isValidDecision(decision) {
-		evaluation = Evaluation{Decision: decision, ReasonCode: ReasonSurfaceDefault, Preset: preset}
+		evaluation = Evaluation{
+			Decision:   decision,
+			ReasonCode: ReasonSurfaceDefault,
+			Preset:     preset,
+		}
 	} else if decision, ok := p.SurfaceKindDefaults[authorization.SurfaceKind]; ok && isValidDecision(decision) {
-		evaluation = Evaluation{Decision: decision, ReasonCode: ReasonSurfaceKindDefault, Preset: preset}
+		evaluation = Evaluation{
+			Decision:   decision,
+			ReasonCode: ReasonSurfaceKindDefault,
+			Preset:     preset,
+		}
 	} else {
-		evaluation = Evaluation{Decision: p.Default, ReasonCode: ReasonPolicyDefault, Preset: preset}
+		evaluation = Evaluation{
+			Decision:   p.Default,
+			ReasonCode: ReasonPolicyDefault,
+			Preset:     preset,
+		}
 	}
 	if operation.OwnerRequired && authorization.Actor.Kind != ActorLocalOwner &&
 		(operation.OwnerID == "" || authorization.Actor.ID != operation.OwnerID) &&

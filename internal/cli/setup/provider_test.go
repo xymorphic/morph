@@ -416,7 +416,11 @@ func TestRunProviderPullsSelectedOllamaModel(t *testing.T) {
 		require.Nil(t, headers)
 		pulledBaseURL = baseURL
 		pulledModel = model
-		onProgress(provider_ollama.PullProgress{Status: "downloading", Completed: 50, Total: 100})
+		onProgress(provider_ollama.PullProgress{
+			Status:    "downloading",
+			Completed: 50,
+			Total:     100,
+		})
 		return nil
 	}
 
@@ -568,13 +572,18 @@ func TestProviderRunnerReturnsUnavailableAuthMethod(t *testing.T) {
 	_, err := providerRunner{registry: registry}.ensureSetupAuth(
 		context.Background(),
 		config.NewProfileConfig(),
-		setupSelection{provider: "custom", api: modelprovider.APIOpenAIResponses, model: "model"},
+		setupSelection{
+			provider: "custom",
+			api:      modelprovider.APIOpenAIResponses,
+			model:    "model",
+		},
 	)
 
 	require.ErrorContains(t, err, `model API key is required for provider "custom"`)
 }
 
 func TestProviderRunnerReturnsInvalidAuthMethod(t *testing.T) {
+	setupProviderTestProfile(t, "invalid-auth-method")
 	cfg := config.NewProfileConfig()
 	models, err := modelcatalog.ListOptions(modelcatalog.OptionQuery{
 		Provider:  constants.ModelProviderAnthropic,
@@ -598,10 +607,11 @@ func TestProviderRunnerReturnsInvalidAuthMethod(t *testing.T) {
 		},
 	}
 	_, err = runner.ensureSetupAuth(context.Background(), cfg, setupSelection{
-		provider: constants.ModelProviderAnthropic,
-		api:      modelprovider.APIAnthropicMessages,
-		baseURL:  constants.DefaultAnthropicBaseURL,
-		model:    models[0].ID,
+		provider:   constants.ModelProviderAnthropic,
+		api:        modelprovider.APIAnthropicMessages,
+		baseURL:    constants.DefaultAnthropicBaseURL,
+		model:      models[0].ID,
+		authMethod: "bogus",
 	})
 
 	require.EqualError(t, err, "authentication method unavailable")
@@ -647,6 +657,7 @@ func TestProviderRunnerReturnsUnavailableAPIKeyFromAuthStep(t *testing.T) {
 }
 
 func TestProviderRunnerReturnsPostLoginAuthError(t *testing.T) {
+	setupProviderTestProfile(t, "post-login-auth-error")
 	cfg := config.NewProfileConfig()
 	models, err := modelcatalog.ListOptions(modelcatalog.OptionQuery{
 		Provider:  constants.ModelProviderAnthropic,
@@ -678,16 +689,18 @@ func TestProviderRunnerReturnsPostLoginAuthError(t *testing.T) {
 		},
 	}
 	_, err = runner.ensureSetupAuth(context.Background(), cfg, setupSelection{
-		provider: constants.ModelProviderAnthropic,
-		api:      modelprovider.APIAnthropicMessages,
-		baseURL:  constants.DefaultAnthropicBaseURL,
-		model:    models[0].ID,
+		provider:   constants.ModelProviderAnthropic,
+		api:        modelprovider.APIAnthropicMessages,
+		baseURL:    constants.DefaultAnthropicBaseURL,
+		model:      models[0].ID,
+		authMethod: "oauth",
 	})
 
 	require.EqualError(t, err, `model API key is required for provider "anthropic"; set a provider API key, provider env var, role apiKey, or provider login`)
 }
 
 func TestProviderRunnerReturnsOAuthLoginErrorFromAuthStep(t *testing.T) {
+	setupProviderTestProfile(t, "oauth-login-error")
 	cfg := config.NewProfileConfig()
 	models, err := modelcatalog.ListOptions(modelcatalog.OptionQuery{
 		Provider:  constants.ModelProviderAnthropic,
@@ -712,10 +725,11 @@ func TestProviderRunnerReturnsOAuthLoginErrorFromAuthStep(t *testing.T) {
 		},
 	}
 	_, err = runner.ensureSetupAuth(context.Background(), cfg, setupSelection{
-		provider: constants.ModelProviderAnthropic,
-		api:      modelprovider.APIAnthropicMessages,
-		baseURL:  constants.DefaultAnthropicBaseURL,
-		model:    models[0].ID,
+		provider:   constants.ModelProviderAnthropic,
+		api:        modelprovider.APIAnthropicMessages,
+		baseURL:    constants.DefaultAnthropicBaseURL,
+		model:      models[0].ID,
+		authMethod: "oauth",
 	})
 
 	require.ErrorIs(t, err, errSetupTestRead)
@@ -1038,7 +1052,11 @@ func TestRunPagedSetupHandlesProgramResults(t *testing.T) {
 		runSetupWizardProgram = originalWizard
 	})
 
-	runner := providerRunner{input: strings.NewReader(""), output: io.Discard, registry: modelprovider.DefaultRegistry()}
+	runner := providerRunner{
+		input:    strings.NewReader(""),
+		output:   io.Discard,
+		registry: modelprovider.DefaultRegistry(),
+	}
 	opts := ProviderOptions{Provider: constants.ModelProviderOpenAI, Registry: modelprovider.DefaultRegistry()}
 	cfg := config.NewProfileConfig()
 
@@ -1506,11 +1524,31 @@ func TestProviderRunnerUsesSharedPullProgressPrinter(t *testing.T) {
 	) error {
 		for _, progress := range []provider_ollama.PullProgress{
 			{Status: "pulling manifest"},
-			{Status: "pulling a", Completed: 10, Total: 100},
-			{Status: "pulling b", Completed: 20, Total: 100},
-			{Status: "pulling c", Completed: 30, Total: 100},
-			{Status: "pulling c", Completed: 30, Total: 100},
-			{Status: "pulling d", Completed: 40, Total: 100},
+			{
+				Status:    "pulling a",
+				Completed: 10,
+				Total:     100,
+			},
+			{
+				Status:    "pulling b",
+				Completed: 20,
+				Total:     100,
+			},
+			{
+				Status:    "pulling c",
+				Completed: 30,
+				Total:     100,
+			},
+			{
+				Status:    "pulling c",
+				Completed: 30,
+				Total:     100,
+			},
+			{
+				Status:    "pulling d",
+				Completed: 40,
+				Total:     100,
+			},
 			{Status: "verifying sha256 digest"},
 			{Status: "success"},
 			{Status: "success"},
@@ -2427,7 +2465,13 @@ func TestSelectorModelSupportsBoundaryKeysAndDefaults(t *testing.T) {
 }
 
 func TestSelectorModelCancelsAndRenders(t *testing.T) {
-	model := newSelectorModel("Pick", []selectChoice{{ID: "first", Label: "First", Description: "id"}})
+	model := newSelectorModel("Pick", []selectChoice{
+		{
+			ID:          "first",
+			Label:       "First",
+			Description: "id",
+		},
+	})
 
 	require.Contains(t, model.render(), "1. First (id)")
 	requireSetupAccentCursor(t, model.render(), "1. First")

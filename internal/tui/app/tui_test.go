@@ -25,6 +25,7 @@ import (
 	"github.com/wandxy/morph/internal/config"
 	"github.com/wandxy/morph/internal/constants"
 	appcredential "github.com/wandxy/morph/internal/credential"
+	"github.com/wandxy/morph/internal/execution"
 	modelcatalog "github.com/wandxy/morph/internal/model"
 	modelprovider "github.com/wandxy/morph/internal/model/provider"
 	provider_ollama "github.com/wandxy/morph/internal/model/provider_ollama"
@@ -767,7 +768,13 @@ search:
 `)
 	runModel.setupModelStep = setupModelStepProvider
 	runModel.setupAuthMethod = ""
-	runModel.setupProviders = []rpcclient.ProviderOption{{ID: constants.ModelProviderOllama, Local: true, Type: "local"}}
+	runModel.setupProviders = []rpcclient.ProviderOption{
+		{
+			ID:    constants.ModelProviderOllama,
+			Local: true,
+			Type:  "local",
+		},
+	}
 	runModel.setupItemSelected = 0
 
 	updated, _ := runModel.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -925,7 +932,13 @@ func TestModel_SetupOllamaModelClickPersistsWithoutAuthPrompt(t *testing.T) {
 	home := t.TempDir()
 	runModel := newSetupModelSelectionTestModelWithHome(t, home)
 	runModel.setupModelStep = setupModelStepProvider
-	runModel.setupProviders = []rpcclient.ProviderOption{{ID: constants.ModelProviderOllama, Local: true, Type: "local"}}
+	runModel.setupProviders = []rpcclient.ProviderOption{
+		{
+			ID:    constants.ModelProviderOllama,
+			Local: true,
+			Type:  "local",
+		},
+	}
 
 	updated, _ := runModel.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	runModel = updated.(model)
@@ -1418,7 +1431,11 @@ func TestProfileModelSetupLocalModelDetails(t *testing.T) {
 func TestProfileModelSetupLocalProviderHelpers(t *testing.T) {
 	providers := []modelcatalog.ProviderOption{
 		{ID: constants.ModelProviderOpenAI, SupportsAPIKey: true},
-		{ID: constants.ModelProviderOpenAICodex, SupportsAPIKey: true, SupportsOAuth: true},
+		{
+			ID:             constants.ModelProviderOpenAICodex,
+			SupportsAPIKey: true,
+			SupportsOAuth:  true,
+		},
 		{ID: constants.ModelProviderOllama},
 	}
 
@@ -1672,7 +1689,13 @@ search:
 `)
 	runModel.setupModelStep = setupModelStepProvider
 	runModel.setupAuthMethod = ""
-	runModel.setupProviders = []rpcclient.ProviderOption{{ID: constants.ModelProviderOllama, Local: true, Type: "local"}}
+	runModel.setupProviders = []rpcclient.ProviderOption{
+		{
+			ID:    constants.ModelProviderOllama,
+			Local: true,
+			Type:  "local",
+		},
+	}
 
 	updated, _ := runModel.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	runModel = updated.(model)
@@ -5877,8 +5900,16 @@ func TestModel_TerminalizesOnlyToolsFromActiveResponse(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			runModel := newModel()
 			runModel.messages = []transcriptCell{
-				toolTranscriptCell{id: "old", action: "Automation", detail: "add:Old"},
-				toolTranscriptCell{id: "current", action: "Automation", detail: "add:Current"},
+				toolTranscriptCell{
+					id:     "old",
+					action: "Automation",
+					detail: "add:Old",
+				},
+				toolTranscriptCell{
+					id:     "current",
+					action: "Automation",
+					detail: "add:Current",
+				},
 			}
 			runModel.responseStartMessageIndex = 1
 
@@ -7439,6 +7470,14 @@ func (c *fakeTUIChatClient) InterruptRun(
 
 func (c *fakeTUIChatClient) SessionAPI() rpcclient.SessionAPI {
 	return c
+}
+
+func (c *fakeTUIChatClient) ListExecutionEnvironments(context.Context, string) ([]execution.EnvironmentDetails, error) {
+	return nil, c.err
+}
+
+func (c *fakeTUIChatClient) ExplainExecutionEnvironment(context.Context, string, string) (execution.EnvironmentDetails, error) {
+	return execution.EnvironmentDetails{}, c.err
 }
 
 func (c *fakeTUIChatClient) ModelAPI() rpcclient.ModelAPI {

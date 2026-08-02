@@ -7,6 +7,7 @@ import (
 	"time"
 
 	agentapi "github.com/wandxy/morph/internal/agent"
+	"github.com/wandxy/morph/internal/execution"
 	morphpb "github.com/wandxy/morph/internal/rpc/proto"
 	storage "github.com/wandxy/morph/internal/state/core"
 	morphmsg "github.com/wandxy/morph/pkg/agent/message"
@@ -106,6 +107,92 @@ func (s *SessionService) Archive(ctx context.Context, id string) error {
 	idValue := str.String(id)
 	_, err = client.Archive(ctx, &morphpb.ArchiveSessionRequest{Id: idValue.Trim()})
 	return err
+}
+
+func (s *SessionService) ListExecutionEnvironments(ctx context.Context, sessionID string) ([]execution.EnvironmentDetails, error) {
+	client, err := s.getClient()
+	if err != nil {
+		return nil, err
+	}
+	prepareRPCConnection(s.reconnector)
+	response, err := client.ListExecutionEnvironments(ctx, &morphpb.ListExecutionEnvironmentsRequest{SessionId: sessionID})
+	if err != nil {
+		return nil, err
+	}
+	result := make([]execution.EnvironmentDetails, 0, len(response.GetEnvironments()))
+	for _, environment := range response.GetEnvironments() {
+		result = append(result, executionEnvironmentFromProto(environment))
+	}
+	return result, nil
+}
+
+func (s *SessionService) ExplainExecutionEnvironment(
+	ctx context.Context,
+	sessionID string,
+	environmentID string,
+) (execution.EnvironmentDetails, error) {
+	client, err := s.getClient()
+	if err != nil {
+		return execution.EnvironmentDetails{}, err
+	}
+	prepareRPCConnection(s.reconnector)
+	response, err := client.ExplainExecutionEnvironment(ctx, &morphpb.ExplainExecutionEnvironmentRequest{
+		SessionId:     sessionID,
+		EnvironmentId: environmentID,
+	})
+	if err != nil {
+		return execution.EnvironmentDetails{}, err
+	}
+	return executionEnvironmentFromProto(response.GetEnvironment()), nil
+}
+
+func executionEnvironmentFromProto(value *morphpb.ExecutionEnvironment) execution.EnvironmentDetails {
+	if value == nil {
+		return execution.EnvironmentDetails{}
+	}
+	mounts := make([]execution.Mount, 0, len(value.GetMounts()))
+	for _, mount := range value.GetMounts() {
+		mounts = append(mounts, execution.Mount{
+			Name:    mount.GetName(),
+			Target:  mount.GetTarget(),
+			Mode:    execution.MountMode(mount.GetMode()),
+			Purpose: mount.GetPurpose(),
+		})
+	}
+	limits := value.GetLimits()
+	details := execution.EnvironmentDetails{
+		Status: execution.EnvironmentStatus{
+			ID:                   value.GetId(),
+			Backend:              execution.Backend(value.GetBackend()),
+			Scope:                execution.Scope(value.GetScope()),
+			State:                execution.EnvironmentState(value.GetState()),
+			WorkspaceMode:        execution.WorkspaceMode(value.GetWorkspaceMode()),
+			Network:              execution.NetworkMode(value.GetNetwork()),
+			ImageDigest:          value.GetImageDigest(),
+			SecurityGeneration:   value.GetSecurityGeneration(),
+			DaemonIncarnation:    value.GetDaemonIncarnation(),
+			ContainerIncarnation: value.GetContainerIncarnation(),
+			ParticipantCount:     int(value.GetParticipantCount()),
+			ProcessCount:         int(value.GetProcessCount()),
+			FailureCode:          value.GetFailureCode(),
+		},
+		Mounts:           mounts,
+		SecretReferences: value.GetSecretReferences(),
+		PolicyHash:       value.GetPolicyHash(),
+		ImageContract:    value.GetImageContractDigest(),
+	}
+	if limits != nil {
+		details.Limits = execution.Limits{
+			MemoryBytes:    limits.GetMemoryBytes(),
+			CPUMilli:       limits.GetCpuMilli(),
+			PIDs:           limits.GetPids(),
+			OpenFiles:      limits.GetOpenFiles(),
+			TemporaryBytes: limits.GetTemporaryBytes(),
+			OutputBytes:    limits.GetOutputBytes(),
+			Runtime:        time.Duration(limits.GetRuntimeMillis()) * time.Millisecond,
+		}
+	}
+	return details
 }
 
 func (s *SessionService) Unarchive(ctx context.Context, id string) (storage.Session, error) {

@@ -3,21 +3,16 @@ package writefile
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"os"
-	"path/filepath"
 
-	"github.com/wandxy/morph/pkg/logutils"
 	"github.com/wandxy/morph/pkg/str"
 
 	envtypes "github.com/wandxy/morph/internal/environment/types"
+	"github.com/wandxy/morph/internal/execution"
 	"github.com/wandxy/morph/internal/guardrails"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/tools"
 	"github.com/wandxy/morph/internal/tools/common"
 )
-
-var log = logutils.Module("tool.writefile")
 
 type input struct {
 	Path       string `json:"path"`
@@ -38,114 +33,113 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 			Action:   permissions.ActionUpdate,
 			Effects:  []permissions.Effect{permissions.EffectWrite},
 		},
-		ResolvePermission: func(_ context.Context, call tools.Call) ([]permissions.EvaluationInput, error) {
+		PreparePermission: func(
+			ctx context.Context,
+			call tools.Call,
+		) (tools.PermissionPreparation, error) {
 			var req input
 			if err := json.Unmarshal([]byte(call.Input), &req); err != nil {
-				return nil, tools.NewPermissionResolutionError("invalid_input", "invalid tool input")
+				return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(
+					"invalid_input",
+					"invalid tool input",
+				)
 			}
 			path := str.String(req.Path).Trim()
 			if path == "" {
-				return nil, tools.NewPermissionResolutionError("invalid_input", "path is required")
+				return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(
+					"invalid_input",
+					"path is required",
+				)
 			}
 			target, targetScope := common.ResolveFilesystemPermissionTarget(
 				common.FilesystemPolicyFromRuntime(runtime),
 				path,
 			)
 
-			return []permissions.EvaluationInput{
-				{
-					Operation: permissions.Operation{
-						Resource:    permissions.ResourceFile,
-						Action:      permissions.ActionUpdate,
-						Effects:     []permissions.Effect{permissions.EffectWrite},
-						Target:      target,
-						TargetScope: targetScope,
-					},
-				}}, nil
-		},
-		InputSchema: common.ObjectSchema(map[string]any{
-			"path":        common.StringSchema("Absolute path to the file or path relative to the configured workspace root."),
-			"content":     common.StringSchema("Text content to write to the target file."),
-			"create_dirs": common.BooleanSchema("When true, create missing parent directories before writing. Defaults to true."),
-		}, "path", "content"),
-		Handler: tools.HandlerFunc(func(ctx context.Context, call tools.Call) (tools.Result, error) {
-			var req input
-			if result := common.DecodeInput(call, &req); result.Error != "" {
-				return result, nil
+			operation := permissions.Operation{
+				Resource:    permissions.ResourceFile,
+				Action:      permissions.ActionUpdate,
+				Effects:     []permissions.Effect{permissions.EffectWrite},
+				Target:      target,
+				TargetScope: targetScope,
 			}
-			pathValue := str.String(req.Path)
-			if pathValue.Trim() == "" {
-				return common.ToolError("invalid_input", "path is required"), nil
-			}
-
-			if guardrails.IsBinary([]byte(req.Content)) {
-				return common.ToolError("not_text", "content must be text"), nil
-			}
-
-			resolved, err := common.ResolveFilesystemPathForOperation(
+			preparation, err := common.PrepareFilesystemExecution(
 				ctx,
-				common.FilesystemPolicyFromRuntime(runtime),
-				req.Path,
-				permissions.ActionUpdate,
+				runtime,
+				operation,
+				path,
+				execution.FilesystemOperation{
+					Action: execution.FilesystemWrite,
+					Data:   []byte(req.Content),
+				},
 			)
 			if err != nil {
-				return common.FileError(err), nil
+				return tools.PermissionPreparation{}, common.NewFilePermissionResolutionError(err)
 			}
-
-			createDirs := true
-			if req.CreateDirs != nil {
-				createDirs = *req.CreateDirs
-			}
-
-			log.Info().
-				Str("tool", "write_file").
-				Str("phase", "start").
-				Str("path", common.NormalizedDisplayPath(req.Path)).
-				Int("content_bytes", len(req.Content)).
-				Bool("create_dirs", createDirs).
-				Msg("write file tool started")
-
-			if createDirs {
-				if err := common.MkdirAll(filepath.Dir(resolved.Absolute), 0o755); err != nil {
-					log.Warn().
-						Err(err).
-						Str("tool", "write_file").
-						Str("phase", "error").
-						Msg("write file failed")
-					return common.FileError(err), nil
+			return preparation, nil
+		},
+		ResolvePermission: func(
+			ctx context.Context,
+			call tools.Call,
+		) ([]permissions.EvaluationInput, error) {
+			preparation, err := Definition(runtime).PreparePermission(ctx, call)
+			return preparation.Inputs, err
+		},
+		InputSchema: common.ObjectSchema(map[string]any{
+			"path": common.StringSchema(
+				"Absolute path to the file or path relative to the configured workspace root.",
+			),
+			"content": common.StringSchema("Text content to write to the target file."),
+			"create_dirs": common.BooleanSchema(
+				"When true, create missing parent directories before writing. Defaults to true.",
+			),
+		}, "path", "content"),
+		Handler: tools.HandlerFunc(
+			func(ctx context.Context, call tools.Call) (tools.Result, error) {
+				var req input
+				if result := common.DecodeInput(call, &req); result.Error != "" {
+					return result, nil
 				}
-			}
+				pathValue := str.String(req.Path)
+				if pathValue.Trim() == "" {
+					return common.ToolError("invalid_input", "path is required"), nil
+				}
 
-			_, statErr := common.StatFile(resolved.Absolute)
-			created := errors.Is(statErr, os.ErrNotExist)
-
-			log.Debug().
-				Str("tool", "write_file").
-				Str("phase", "execute").
-				Bool("created", created).
-				Msg("write file execution started")
-
-			if err := common.WriteFile(resolved.Absolute, []byte(req.Content), 0o644); err != nil {
-				log.Warn().
-					Err(err).
-					Str("tool", "write_file").
-					Str("phase", "error").
-					Msg("write file failed")
-				return common.FileError(err), nil
-			}
-
-			log.Info().
-				Str("tool", "write_file").
-				Str("phase", "complete").
-				Int("bytes_written", len(req.Content)).
-				Bool("created", created).
-				Msg("write file tool completed")
-
-			return common.EncodeOutput(map[string]any{
-				"path":          common.NormalizedDisplayPath(resolved.Relative),
-				"bytes_written": len(req.Content),
-				"created":       created,
-			})
-		}),
+				if guardrails.IsBinary([]byte(req.Content)) {
+					return common.ToolError("not_text", "content must be text"), nil
+				}
+				createDirs := true
+				if req.CreateDirs != nil {
+					createDirs = *req.CreateDirs
+				}
+				spec, specErr := common.RequireExecutionSpec(
+					ctx,
+					call,
+					Definition(runtime).PreparePermission,
+				)
+				if specErr != nil {
+					return common.FileError(specErr), nil
+				}
+				service, serviceErr := common.ExecutionService(runtime)
+				if serviceErr != nil {
+					return common.ToolError("tool_error", serviceErr.Error()), nil
+				}
+				info, writeErr := common.ObserveExecution(
+					ctx,
+					spec,
+					func() (execution.FileInfo, error) {
+						return service.WriteFile(ctx, spec, createDirs)
+					},
+				)
+				if writeErr != nil {
+					return common.FileError(writeErr), nil
+				}
+				return common.EncodeOutput(map[string]any{
+					"path": common.NormalizedDisplayPath(
+						req.Path,
+					), "bytes_written": info.Size, "created": info.Created,
+				})
+			},
+		),
 	}
 }

@@ -72,6 +72,7 @@ func (s *chromiumSession) OpenTab(ctx context.Context, rawURL string) (BackendTa
 	s.mu.Lock()
 	delete(s.quarantinedTargets, string(id))
 	s.openingTabIDs[string(id)] = struct{}{}
+	s.setTabNetworkAuthorizationFromOpeningLocked(string(id))
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
@@ -284,7 +285,11 @@ func (s *chromiumSession) Snapshot(ctx context.Context, tabID string) (BackendSn
 	if err != nil {
 		return BackendSnapshot{}, err
 	}
-	result := BackendSnapshot{URL: tab.URL, Title: tab.Title, Nodes: make([]BackendSnapshotNode, 0, len(tree.Nodes))}
+	result := BackendSnapshot{
+		URL:   tab.URL,
+		Title: tab.Title,
+		Nodes: make([]BackendSnapshotNode, 0, len(tree.Nodes)),
+	}
 	for _, node := range tree.Nodes {
 		if node.Ignored {
 			continue
@@ -687,7 +692,11 @@ func getDialogConsoleMessage(event *page.EventJavascriptDialogOpening, armed, ac
 	if event.DefaultPrompt != "" {
 		message += " (default: " + event.DefaultPrompt + ")"
 	}
-	return ConsoleMessage{Level: ConsoleWarn, Text: sanitizeConsoleText(message), Timestamp: time.Now().UTC()}
+	return ConsoleMessage{
+		Level:     ConsoleWarn,
+		Text:      sanitizeConsoleText(message),
+		Timestamp: time.Now().UTC(),
+	}
 }
 
 func (s *chromiumSession) getBackendTab(ctx context.Context, tabID string) (BackendTab, error) {

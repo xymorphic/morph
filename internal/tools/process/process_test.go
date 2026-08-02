@@ -13,6 +13,7 @@ import (
 	"github.com/wandxy/morph/internal/agent/runcontext"
 	commandplan "github.com/wandxy/morph/internal/command"
 	processenv "github.com/wandxy/morph/internal/environment/process"
+	"github.com/wandxy/morph/internal/execution"
 	"github.com/wandxy/morph/internal/guardrails"
 	"github.com/wandxy/morph/internal/permissions"
 	storage "github.com/wandxy/morph/internal/state/core"
@@ -31,23 +32,62 @@ func TestProcess_ToolRejectsInvalidJSON(t *testing.T) {
 	requireToolError(t, result.Error, "invalid_input", "invalid tool input")
 }
 
-func TestProjectSemanticContent_IndexesOnlyProcessReads(t *testing.T) {
-	result := tools.Result{Output: `{"process_id":"proc_1","stdout":"build passed","stderr":"warning","status":"running"}`}
+func TestDefinition_ExposesConfiguredSecretCatalog(t *testing.T) {
+	runtime := &toolmocks.Runtime{ExecutionSecretCatalogValue: []execution.SecretCatalogEntry{
+		{
+			Name:        "deployment_token",
+			Description: "Deploy the staging service",
+		},
+	}}
 
-	content := projectSemanticContent(tools.Call{Input: `{"action":"read","process_id":"proc_1"}`}, result)
+	properties := Definition(runtime).InputSchema["properties"].(map[string]any)
+	secrets := properties["secrets"].(map[string]any)
+	items := secrets["items"].(map[string]any)
+
+	require.Equal(t, []string{"deployment_token"}, items["enum"])
+	require.Contains(t, secrets["description"], "deployment_token — Deploy the staging service")
+}
+
+func TestProjectSemanticContent_IndexesOnlyProcessReads(t *testing.T) {
+	result := tools.Result{
+		Output: `{"process_id":"proc_1","stdout":"build passed","stderr":"warning","status":"running"}`,
+	}
+
+	content := projectSemanticContent(
+		tools.Call{Input: `{"action":"read","process_id":"proc_1"}`},
+		result,
+	)
 
 	require.Equal(t, "stderr: warning\nstdout: build passed", content)
-	require.Empty(t, projectSemanticContent(tools.Call{Input: `{"action":"status","process_id":"proc_1"}`}, result))
+	require.Empty(
+		t,
+		projectSemanticContent(
+			tools.Call{Input: `{"action":"status","process_id":"proc_1"}`},
+			result,
+		),
+	)
 }
 
 func TestProcess_ToolValidatesAction(t *testing.T) {
 	definition := Definition(&toolmocks.Runtime{})
 
-	result, err := definition.Handler.Invoke(context.Background(), tools.Call{Name: "process", Input: `{}`})
+	result, err := definition.Handler.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "process",
+			Input: `{}`,
+		},
+	)
 	require.NoError(t, err)
 	requireToolError(t, result.Error, "invalid_input", "action is required")
 
-	result, err = definition.Handler.Invoke(context.Background(), tools.Call{Name: "process", Input: `{"action":"unknown"}`})
+	result, err = definition.Handler.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "process",
+			Input: `{"action":"unknown"}`,
+		},
+	)
 	require.NoError(t, err)
 	requireToolError(t, result.Error, "invalid_input", `unsupported action "unknown"`)
 }
@@ -63,13 +103,20 @@ func TestProcess_EnforcementDeniesStartBeforeRuntimeMutation(t *testing.T) {
 		return processenv.Info{}, nil
 	}}
 	registry := tools.NewDefaultRegistry(tools.RegistryOptions{PermissionPolicy: permissions.Policy{
-		Rules: []permissions.Rule{{
-			Name: "deny process start", Actions: []permissions.Action{permissions.ActionStart}, Decision: permissions.DecisionDeny,
-		}},
+		Rules: []permissions.Rule{
+			{
+				Name:     "deny process start",
+				Actions:  []permissions.Action{permissions.ActionStart},
+				Decision: permissions.DecisionDeny,
+			},
+		},
 	}})
 	require.NoError(t, registry.Register(Definition(runtime)))
 	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
-		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceCLI,
+		Actor: permissions.Actor{
+			Kind: permissions.ActorLocalOwner,
+		},
+		Surface: permissions.SurfaceCLI,
 	})
 
 	result, err := registry.Invoke(ctx, tools.Call{
@@ -90,16 +137,51 @@ func TestProcess_ResolvePermissionClassifiesActions(t *testing.T) {
 		effects []permissions.Effect
 		target  string
 	}{
-		{name: "start", input: `{"action":"start","command":"git","args":["status"]}`, action: permissions.ActionStart, effects: []permissions.Effect{permissions.EffectExecution, permissions.EffectWrite}},
-		{name: "status", input: `{"action":"status","process_id":"proc-1"}`, action: permissions.ActionRead, effects: []permissions.Effect{permissions.EffectRead}, target: "proc-1"},
-		{name: "read", input: `{"action":"read","process_id":"proc-1"}`, action: permissions.ActionRead, effects: []permissions.Effect{permissions.EffectRead}, target: "proc-1"},
-		{name: "stop", input: `{"action":"stop","process_id":"proc-1"}`, action: permissions.ActionStop, effects: []permissions.Effect{permissions.EffectDestructive, permissions.EffectExecution, permissions.EffectWrite}, target: "proc-1"},
-		{name: "list", input: `{"action":"list"}`, action: permissions.ActionList, effects: []permissions.Effect{permissions.EffectRead}},
+		{
+			name:    "start",
+			input:   `{"action":"start","command":"git","args":["status"]}`,
+			action:  permissions.ActionStart,
+			effects: []permissions.Effect{permissions.EffectExecution, permissions.EffectWrite},
+		},
+		{
+			name:    "status",
+			input:   `{"action":"status","process_id":"proc-1"}`,
+			action:  permissions.ActionRead,
+			effects: []permissions.Effect{permissions.EffectRead},
+			target:  "proc-1",
+		},
+		{
+			name:    "read",
+			input:   `{"action":"read","process_id":"proc-1"}`,
+			action:  permissions.ActionRead,
+			effects: []permissions.Effect{permissions.EffectRead},
+			target:  "proc-1",
+		},
+		{
+			name:   "stop",
+			input:  `{"action":"stop","process_id":"proc-1"}`,
+			action: permissions.ActionStop,
+			effects: []permissions.Effect{
+				permissions.EffectDestructive,
+				permissions.EffectExecution,
+				permissions.EffectWrite,
+			},
+			target: "proc-1",
+		},
+		{
+			name:    "list",
+			input:   `{"action":"list"}`,
+			action:  permissions.ActionList,
+			effects: []permissions.Effect{permissions.EffectRead},
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			inputs, err := definition.ResolvePermission(context.Background(), tools.Call{Input: test.input})
+			inputs, err := definition.ResolvePermission(
+				context.Background(),
+				tools.Call{Input: test.input},
+			)
 
 			require.NoError(t, err)
 			input := inputs[0]
@@ -156,14 +238,25 @@ func TestProcess_ResolvePermissionRejectsInvalidCalls(t *testing.T) {
 	}{
 		{name: "malformed", input: `{"action":`, message: "invalid tool input"},
 		{name: "missing action", input: `{}`, message: "action is required"},
-		{name: "unknown action", input: `{"action":"unknown"}`, message: `unsupported action "unknown"`},
+		{
+			name:    "unknown action",
+			input:   `{"action":"unknown"}`,
+			message: `unsupported action "unknown"`,
+		},
 		{name: "missing command", input: `{"action":"start"}`, message: "command is required"},
-		{name: "invalid fields", input: `{"action":"list","stdout_bytes":1}`, message: "invalid process list request: stdout_bytes is only valid for action=read"},
+		{
+			name:    "invalid fields",
+			input:   `{"action":"list","stdout_bytes":1}`,
+			message: "invalid process list request: stdout_bytes is only valid for action=read",
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			inputs, err := definition.ResolvePermission(context.Background(), tools.Call{Input: test.input})
+			inputs, err := definition.ResolvePermission(
+				context.Background(),
+				tools.Call{Input: test.input},
+			)
 
 			require.EqualError(t, err, test.message)
 			require.Nil(t, inputs)
@@ -222,7 +315,11 @@ func TestProcess_ToolRejectsReadOnlyFieldsForNonReadActions(t *testing.T) {
 func TestProcess_ToolIgnoresZeroReadOnlyFieldsForNonReadActions(t *testing.T) {
 	definition := Definition(&toolmocks.Runtime{
 		FilePolicyValue: guardrails.FilesystemPolicy{Roots: []string{t.TempDir()}},
-		StartProcessFunc: func(context.Context, string, processenv.StartRequest) (processenv.Info, error) {
+		StartProcessFunc: func(
+			context.Context,
+			string,
+			processenv.StartRequest,
+		) (processenv.Info, error) {
 			return processenv.Info{ID: "proc_1", Status: processenv.StatusRunning}, nil
 		},
 		GetProcessFunc: func(string, string) (processenv.Info, error) {
@@ -261,7 +358,11 @@ func TestProcess_ToolStartDelegatesToRuntime(t *testing.T) {
 	root := t.TempDir()
 	runtime := &toolmocks.Runtime{
 		FilePolicyValue: guardrails.FilesystemPolicy{Roots: []string{root}},
-		StartProcessFunc: func(_ context.Context, sessionID string, req processenv.StartRequest) (processenv.Info, error) {
+		StartProcessFunc: func(
+			_ context.Context,
+			sessionID string,
+			req processenv.StartRequest,
+		) (processenv.Info, error) {
 			require.Equal(t, "session-1", sessionID)
 			require.Equal(t, "printf", req.Plan.Invocations[0].Executable)
 			require.Equal(t, []string{"hello"}, req.Plan.Invocations[0].Arguments)
@@ -280,10 +381,15 @@ func TestProcess_ToolStartDelegatesToRuntime(t *testing.T) {
 			}, nil
 		},
 	}
-	result, err := Definition(runtime).Handler.Invoke(tools.WithSessionID(context.Background(), "session-1"), tools.Call{
-		Name:  "process",
-		Input: `{"action":"start","command":" printf ","args":["hello"],"cwd":".","env":[{"name":"KEY","value":"value"}],"label":" printer ","output_buffer_bytes":32}`,
-	})
+	result, err := Definition(
+		runtime,
+	).Handler.Invoke(
+		tools.WithSessionID(context.Background(), "session-1"),
+		tools.Call{
+			Name:  "process",
+			Input: `{"action":"start","command":" printf ","args":["hello"],"cwd":".","env":[{"name":"KEY","value":"value"}],"label":" printer ","output_buffer_bytes":32}`,
+		},
+	)
 
 	require.NoError(t, err)
 	var payload struct {
@@ -300,7 +406,11 @@ func TestProcess_ToolStatusAcceptsLabel(t *testing.T) {
 		GetProcessFunc: func(sessionID string, processID string) (processenv.Info, error) {
 			require.Equal(t, "default", sessionID)
 			require.Equal(t, "sleep_5min", processID)
-			return processenv.Info{ID: "proc_1", Label: "sleep_5min", Status: processenv.StatusRunning}, nil
+			return processenv.Info{
+				ID:     "proc_1",
+				Label:  "sleep_5min",
+				Status: processenv.StatusRunning,
+			}, nil
 		},
 	}).Handler.Invoke(context.Background(), tools.Call{
 		Name:  "process",
@@ -329,10 +439,18 @@ func TestProcess_ToolUsesChildSessionIDForChildState(t *testing.T) {
 
 	result, err := Definition(&toolmocks.Runtime{
 		FilePolicyValue: guardrails.FilesystemPolicy{Roots: []string{t.TempDir()}},
-		StartProcessFunc: func(_ context.Context, sessionID string, req processenv.StartRequest) (processenv.Info, error) {
+		StartProcessFunc: func(
+			_ context.Context,
+			sessionID string,
+			req processenv.StartRequest,
+		) (processenv.Info, error) {
 			require.Equal(t, childID, sessionID)
 			require.Equal(t, "printf", req.Plan.Invocations[0].Executable)
-			return processenv.Info{ID: "proc_1", Status: processenv.StatusRunning, StartedAt: time.Now().UTC()}, nil
+			return processenv.Info{
+				ID:        "proc_1",
+				Status:    processenv.StatusRunning,
+				StartedAt: time.Now().UTC(),
+			}, nil
 		},
 	}).Handler.Invoke(tools.WithRunContext(context.Background(), child), tools.Call{
 		Name:  "process",
@@ -346,10 +464,18 @@ func TestProcess_ToolUsesChildSessionIDForChildState(t *testing.T) {
 func TestProcess_ToolStartPassesNilEnvWhenEmpty(t *testing.T) {
 	result, err := Definition(&toolmocks.Runtime{
 		FilePolicyValue: guardrails.FilesystemPolicy{Roots: []string{t.TempDir()}},
-		StartProcessFunc: func(_ context.Context, sessionID string, req processenv.StartRequest) (processenv.Info, error) {
+		StartProcessFunc: func(
+			_ context.Context,
+			sessionID string,
+			req processenv.StartRequest,
+		) (processenv.Info, error) {
 			require.Equal(t, "default", sessionID)
 			require.NotEmpty(t, req.Plan.EnvironmentDigest)
-			return processenv.Info{ID: "proc_1", Status: processenv.StatusRunning, StartedAt: time.Now().UTC()}, nil
+			return processenv.Info{
+				ID:        "proc_1",
+				Status:    processenv.StatusRunning,
+				StartedAt: time.Now().UTC(),
+			}, nil
 		},
 	}).Handler.Invoke(context.Background(), tools.Call{
 		Name:  "process",
@@ -373,7 +499,11 @@ func TestProcess_ToolRequiresCommandForStart(t *testing.T) {
 func TestProcess_ToolAllowsZeroOutputBufferBytesForStart(t *testing.T) {
 	result, err := Definition(&toolmocks.Runtime{
 		FilePolicyValue: guardrails.FilesystemPolicy{Roots: []string{t.TempDir()}},
-		StartProcessFunc: func(_ context.Context, _ string, req processenv.StartRequest) (processenv.Info, error) {
+		StartProcessFunc: func(
+			_ context.Context,
+			_ string,
+			req processenv.StartRequest,
+		) (processenv.Info, error) {
 			require.Zero(t, req.OutputBufferBytes)
 			return processenv.Info{ID: "proc_1", Status: processenv.StatusRunning}, nil
 		},
@@ -395,7 +525,12 @@ func TestProcess_ToolValidatesOutputBufferBytesForStart(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	requireToolError(t, result.Error, "invalid_input", "output_buffer_bytes must be greater than or equal to zero")
+	requireToolError(
+		t,
+		result.Error,
+		"invalid_input",
+		"output_buffer_bytes must be greater than or equal to zero",
+	)
 }
 
 func TestProcess_ToolStatusReturnsProcess(t *testing.T) {
@@ -422,15 +557,33 @@ func TestProcess_ToolStatusReturnsProcess(t *testing.T) {
 func TestProcess_ToolStatusReadAndStopRequireProcessID(t *testing.T) {
 	definition := Definition(&toolmocks.Runtime{})
 
-	result, err := definition.Handler.Invoke(context.Background(), tools.Call{Name: "process", Input: `{"action":"status"}`})
+	result, err := definition.Handler.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "process",
+			Input: `{"action":"status"}`,
+		},
+	)
 	require.NoError(t, err)
 	requireToolError(t, result.Error, "invalid_input", "process_id is required for status")
 
-	result, err = definition.Handler.Invoke(context.Background(), tools.Call{Name: "process", Input: `{"action":"read"}`})
+	result, err = definition.Handler.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "process",
+			Input: `{"action":"read"}`,
+		},
+	)
 	require.NoError(t, err)
 	requireToolError(t, result.Error, "invalid_input", "process_id is required for read")
 
-	result, err = definition.Handler.Invoke(context.Background(), tools.Call{Name: "process", Input: `{"action":"stop"}`})
+	result, err = definition.Handler.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "process",
+			Input: `{"action":"stop"}`,
+		},
+	)
 	require.NoError(t, err)
 	requireToolError(t, result.Error, "invalid_input", "process_id is required for stop")
 }
@@ -449,7 +602,12 @@ func TestProcess_ToolReadReturnsTrimmedOutput(t *testing.T) {
 			require.Equal(t, 0, *req.StdoutCursor)
 			require.NotNil(t, req.StderrCursor)
 			require.Equal(t, 0, *req.StderrCursor)
-			return processenv.Output{Stdout: "abcdef", Stderr: "uvwxyz", StdoutBytes: 6, StderrBytes: 6}, nil
+			return processenv.Output{
+				Stdout:      "abcdef",
+				Stderr:      "uvwxyz",
+				StdoutBytes: 6,
+				StderrBytes: 6,
+			}, nil
 		},
 	}
 	registry := tools.NewDefaultRegistry()
@@ -636,7 +794,12 @@ func TestProcess_ToolReadRejectsInvalidCursors(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	requireToolError(t, result.Error, "invalid_input", "stdout_cursor must be greater than or equal to zero")
+	requireToolError(
+		t,
+		result.Error,
+		"invalid_input",
+		"stdout_cursor must be greater than or equal to zero",
+	)
 
 	result, err = Definition(&toolmocks.Runtime{}).Handler.Invoke(context.Background(), tools.Call{
 		Name:  "process",
@@ -644,7 +807,12 @@ func TestProcess_ToolReadRejectsInvalidCursors(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	requireToolError(t, result.Error, "invalid_input", "stderr_cursor must be greater than or equal to zero")
+	requireToolError(
+		t,
+		result.Error,
+		"invalid_input",
+		"stderr_cursor must be greater than or equal to zero",
+	)
 }
 
 func TestProcess_ToolReadSupportsStderrCursorSemantics(t *testing.T) {
@@ -710,7 +878,11 @@ func TestProcess_ToolListReturnsProcesses(t *testing.T) {
 func TestProcess_ToolReturnsRuntimeErrors(t *testing.T) {
 	result, err := Definition(&toolmocks.Runtime{
 		FilePolicyValue: guardrails.FilesystemPolicy{Roots: []string{t.TempDir()}},
-		StartProcessFunc: func(context.Context, string, processenv.StartRequest) (processenv.Info, error) {
+		StartProcessFunc: func(
+			context.Context,
+			string,
+			processenv.StartRequest,
+		) (processenv.Info, error) {
 			return processenv.Info{}, errors.New("start failed")
 		},
 	}).Handler.Invoke(context.Background(), tools.Call{
@@ -762,7 +934,11 @@ func getProcessPermissionInput(
 
 func TestProcess_ToolStopReturnsProcess(t *testing.T) {
 	result, err := Definition(&toolmocks.Runtime{
-		StopProcessFunc: func(_ context.Context, sessionID string, processID string) (processenv.Info, error) {
+		StopProcessFunc: func(
+			_ context.Context,
+			sessionID string,
+			processID string,
+		) (processenv.Info, error) {
 			require.Equal(t, "default", sessionID)
 			require.Equal(t, "proc_1", processID)
 			return processenv.Info{ID: processID, Status: processenv.StatusStopped}, nil
@@ -823,7 +999,11 @@ func TestProcess_ToolPropagatesExplicitSessionIDForNonStartActions(t *testing.T)
 
 	t.Run("stop", func(t *testing.T) {
 		result, err := Definition(&toolmocks.Runtime{
-			StopProcessFunc: func(_ context.Context, sessionID string, processID string) (processenv.Info, error) {
+			StopProcessFunc: func(
+				_ context.Context,
+				sessionID string,
+				processID string,
+			) (processenv.Info, error) {
 				require.Equal(t, "session-42", sessionID)
 				require.Equal(t, "proc_1", processID)
 				return processenv.Info{ID: processID, Status: processenv.StatusStopped}, nil

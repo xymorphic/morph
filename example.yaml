@@ -93,6 +93,37 @@
 #     - resolvedPath: "/usr/bin/rm"
 #       argumentPrefix: ["-rf", "/"]
 #       modes: ["direct", "posix_shell"]
+# execution:
+#   backend: "local"
+#   docker:
+#     scope: "session"
+#     endpoint: "/var/run/docker.sock"
+#     image: "ghcr.io/xymorphic/morph-sandbox@sha256:<digest>"
+#     contract: "containers/sandbox/contract.json"
+#     workspace:
+#       mode: "none"
+#       source: ""
+#     mounts: []
+#     network: "none"
+#     secrets:
+#       - name: "github_release"
+#         env: "SANDBOX_GITHUB_TOKEN"
+#         description: "Publish release artifacts to GitHub"
+#     limits:
+#       memoryBytes: 1073741824
+#       cpuMilli: 1000
+#       pids: 256
+#       openFiles: 1024
+#       temporaryBytes: 67108864
+#       outputBytes: 1048576
+#       controlInputBytes: 1048576
+#       runtime: "2m"
+#       stopGrace: "3s"
+#     environmentIdleExpiry: "30m"
+#     sharedDisabledRetention: "168h"
+#     maximumEnvironments: 32
+#     maximumVolumes: 128
+#     reservedFreeBytes: 2147483648
 # storage:
 #   backend: "sqlite"
 # session:

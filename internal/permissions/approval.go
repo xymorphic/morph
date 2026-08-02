@@ -1010,7 +1010,7 @@ func isAlwaysApprovalAvailable(effects []Effect) bool {
 func isAlwaysApprovalEffectAllowed(effect Effect) bool {
 	switch effect {
 	case EffectDestructive, EffectCredentialBearing, EffectPrivilegeChanging,
-		EffectExecution, EffectNetwork, EffectExternalSystem:
+		EffectExecution, EffectNetwork, EffectExternalSystem, EffectSharedState:
 		return false
 	default:
 		return true

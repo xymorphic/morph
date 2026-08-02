@@ -250,6 +250,11 @@ config, rely on config reload or restart the daemon after `.env` changes.
 
 ## Troubleshooting
 
+Execution-security changes create a new generation. The daemon drains old containers and stops background processes;
+same-scope private workspaces remain generation-independent and reattach on later approved work. On restart, Morph
+reconciles only resources labeled for the active profile and never performs a broad Docker prune or replays an ambiguous
+command.
+
 | Symptom | What to check |
 | --- | --- |
 | `morph session` / `morph gateway` cannot connect | Daemon running? `morph doctor` **daemon** group; `morph daemon` |

@@ -535,7 +535,11 @@ func TestDefaultRegistry_InvokeNormalizesResultErrors(t *testing.T) {
 
 func TestDefaultRegistry_InvokePreservesStructuredResultErrors(t *testing.T) {
 	registry := newTestDefaultRegistry()
-	expected := Error{Code: "rate_limited", Message: "retry later", Retryable: true}
+	expected := Error{
+		Code:      "rate_limited",
+		Message:   "retry later",
+		Retryable: true,
+	}
 	raw, err := json.Marshal(expected)
 	require.NoError(t, err)
 
@@ -790,15 +794,29 @@ func TestDefaultRegistry_InvokeEnforcesDenyAndAskBeforeHandler(t *testing.T) {
 		decision permissions.Decision
 		code     string
 	}{
-		{name: "deny", decision: permissions.DecisionDeny, code: permissions.ErrorCodeDenied},
-		{name: "ask", decision: permissions.DecisionAsk, code: permissions.ErrorCodeApprovalRequired},
+		{
+			name:     "deny",
+			decision: permissions.DecisionDeny,
+			code:     permissions.ErrorCodeDenied,
+		},
+		{
+			name:     "ask",
+			decision: permissions.DecisionAsk,
+			code:     permissions.ErrorCodeApprovalRequired,
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			called := false
 			registry := newTestDefaultRegistry(RegistryOptions{PermissionPolicy: permissions.Policy{
-				Rules: []permissions.Rule{{Name: test.name, Decision: test.decision, Reason: test.name + " reason"}},
+				Rules: []permissions.Rule{
+					{
+						Name:     test.name,
+						Decision: test.decision,
+						Reason:   test.name + " reason",
+					},
+				},
 			}})
 			require.NoError(t, registry.Register(Definition{
 				Name:       "write",
@@ -900,7 +918,7 @@ func TestDefaultRegistry_InvokeFullAccessBypassesPolicyAndApproval(t *testing.T)
 	require.Equal(t, string(permissions.PresetFullAccess), recorder.events[0].payload.Preset)
 }
 
-func TestDefaultRegistry_InvokeFullAccessBypassesHardDenial(t *testing.T) {
+func TestDefaultRegistry_InvokeFullAccessPreservesHardDenial(t *testing.T) {
 	called := false
 	registry := newTestDefaultRegistry(RegistryOptions{
 		PermissionPolicy: permissions.Policy{Preset: permissions.PresetFullAccess},
@@ -923,8 +941,8 @@ func TestDefaultRegistry_InvokeFullAccessBypassesHardDenial(t *testing.T) {
 	result, err := registry.Invoke(context.Background(), Call{Name: "write"})
 
 	require.NoError(t, err)
-	require.True(t, called)
-	require.Empty(t, result.Error)
+	require.False(t, called)
+	require.Contains(t, result.Error, "permission_denied")
 }
 
 func TestDefaultRegistry_InvokeDenyOverridesAskAcrossResolvedOperations(t *testing.T) {
@@ -1092,7 +1110,11 @@ func TestDefaultRegistry_InvokePropagatesApprovalReason(t *testing.T) {
 		want           string
 	}{
 		{name: "policy reason", want: "policy requires confirmation"},
-		{name: "resolver reason", approvalReason: "command requires confirmation", want: "command requires confirmation"},
+		{
+			name:           "resolver reason",
+			approvalReason: "command requires confirmation",
+			want:           "command requires confirmation",
+		},
 	}
 
 	for _, test := range tests {

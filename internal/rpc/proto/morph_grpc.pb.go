@@ -19,26 +19,28 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SessionService_Create_FullMethodName               = "/morph.v1.SessionService/Create"
-	SessionService_List_FullMethodName                 = "/morph.v1.SessionService/List"
-	SessionService_Use_FullMethodName                  = "/morph.v1.SessionService/Use"
-	SessionService_Archive_FullMethodName              = "/morph.v1.SessionService/Archive"
-	SessionService_Unarchive_FullMethodName            = "/morph.v1.SessionService/Unarchive"
-	SessionService_Rename_FullMethodName               = "/morph.v1.SessionService/Rename"
-	SessionService_Current_FullMethodName              = "/morph.v1.SessionService/Current"
-	SessionService_Compact_FullMethodName              = "/morph.v1.SessionService/Compact"
-	SessionService_Repair_FullMethodName               = "/morph.v1.SessionService/Repair"
-	SessionService_Status_FullMethodName               = "/morph.v1.SessionService/Status"
-	SessionService_Timeline_FullMethodName             = "/morph.v1.SessionService/Timeline"
-	SessionService_EnqueueMessage_FullMethodName       = "/morph.v1.SessionService/EnqueueMessage"
-	SessionService_State_FullMethodName                = "/morph.v1.SessionService/State"
-	SessionService_Observe_FullMethodName              = "/morph.v1.SessionService/Observe"
-	SessionService_EditQueuedMessage_FullMethodName    = "/morph.v1.SessionService/EditQueuedMessage"
-	SessionService_RemoveQueuedMessage_FullMethodName  = "/morph.v1.SessionService/RemoveQueuedMessage"
-	SessionService_PromoteQueuedMessage_FullMethodName = "/morph.v1.SessionService/PromoteQueuedMessage"
-	SessionService_SteerQueuedMessage_FullMethodName   = "/morph.v1.SessionService/SteerQueuedMessage"
-	SessionService_InterruptRun_FullMethodName         = "/morph.v1.SessionService/InterruptRun"
-	SessionService_SetReasoningEffort_FullMethodName   = "/morph.v1.SessionService/SetReasoningEffort"
+	SessionService_Create_FullMethodName                      = "/morph.v1.SessionService/Create"
+	SessionService_List_FullMethodName                        = "/morph.v1.SessionService/List"
+	SessionService_Use_FullMethodName                         = "/morph.v1.SessionService/Use"
+	SessionService_Archive_FullMethodName                     = "/morph.v1.SessionService/Archive"
+	SessionService_Unarchive_FullMethodName                   = "/morph.v1.SessionService/Unarchive"
+	SessionService_Rename_FullMethodName                      = "/morph.v1.SessionService/Rename"
+	SessionService_Current_FullMethodName                     = "/morph.v1.SessionService/Current"
+	SessionService_Compact_FullMethodName                     = "/morph.v1.SessionService/Compact"
+	SessionService_Repair_FullMethodName                      = "/morph.v1.SessionService/Repair"
+	SessionService_Status_FullMethodName                      = "/morph.v1.SessionService/Status"
+	SessionService_Timeline_FullMethodName                    = "/morph.v1.SessionService/Timeline"
+	SessionService_EnqueueMessage_FullMethodName              = "/morph.v1.SessionService/EnqueueMessage"
+	SessionService_State_FullMethodName                       = "/morph.v1.SessionService/State"
+	SessionService_Observe_FullMethodName                     = "/morph.v1.SessionService/Observe"
+	SessionService_EditQueuedMessage_FullMethodName           = "/morph.v1.SessionService/EditQueuedMessage"
+	SessionService_RemoveQueuedMessage_FullMethodName         = "/morph.v1.SessionService/RemoveQueuedMessage"
+	SessionService_PromoteQueuedMessage_FullMethodName        = "/morph.v1.SessionService/PromoteQueuedMessage"
+	SessionService_SteerQueuedMessage_FullMethodName          = "/morph.v1.SessionService/SteerQueuedMessage"
+	SessionService_InterruptRun_FullMethodName                = "/morph.v1.SessionService/InterruptRun"
+	SessionService_SetReasoningEffort_FullMethodName          = "/morph.v1.SessionService/SetReasoningEffort"
+	SessionService_ListExecutionEnvironments_FullMethodName   = "/morph.v1.SessionService/ListExecutionEnvironments"
+	SessionService_ExplainExecutionEnvironment_FullMethodName = "/morph.v1.SessionService/ExplainExecutionEnvironment"
 )
 
 // SessionServiceClient is the client API for SessionService service.
@@ -65,6 +67,8 @@ type SessionServiceClient interface {
 	SteerQueuedMessage(ctx context.Context, in *SteerQueuedSessionMessageRequest, opts ...grpc.CallOption) (*SteerQueuedSessionMessageResponse, error)
 	InterruptRun(ctx context.Context, in *InterruptSessionRunRequest, opts ...grpc.CallOption) (*InterruptSessionRunResponse, error)
 	SetReasoningEffort(ctx context.Context, in *SetSessionReasoningEffortRequest, opts ...grpc.CallOption) (*SetSessionReasoningEffortResponse, error)
+	ListExecutionEnvironments(ctx context.Context, in *ListExecutionEnvironmentsRequest, opts ...grpc.CallOption) (*ListExecutionEnvironmentsResponse, error)
+	ExplainExecutionEnvironment(ctx context.Context, in *ExplainExecutionEnvironmentRequest, opts ...grpc.CallOption) (*ExplainExecutionEnvironmentResponse, error)
 }
 
 type sessionServiceClient struct {
@@ -284,6 +288,26 @@ func (c *sessionServiceClient) SetReasoningEffort(ctx context.Context, in *SetSe
 	return out, nil
 }
 
+func (c *sessionServiceClient) ListExecutionEnvironments(ctx context.Context, in *ListExecutionEnvironmentsRequest, opts ...grpc.CallOption) (*ListExecutionEnvironmentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListExecutionEnvironmentsResponse)
+	err := c.cc.Invoke(ctx, SessionService_ListExecutionEnvironments_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sessionServiceClient) ExplainExecutionEnvironment(ctx context.Context, in *ExplainExecutionEnvironmentRequest, opts ...grpc.CallOption) (*ExplainExecutionEnvironmentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExplainExecutionEnvironmentResponse)
+	err := c.cc.Invoke(ctx, SessionService_ExplainExecutionEnvironment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SessionServiceServer is the server API for SessionService service.
 // All implementations must embed UnimplementedSessionServiceServer
 // for forward compatibility.
@@ -308,6 +332,8 @@ type SessionServiceServer interface {
 	SteerQueuedMessage(context.Context, *SteerQueuedSessionMessageRequest) (*SteerQueuedSessionMessageResponse, error)
 	InterruptRun(context.Context, *InterruptSessionRunRequest) (*InterruptSessionRunResponse, error)
 	SetReasoningEffort(context.Context, *SetSessionReasoningEffortRequest) (*SetSessionReasoningEffortResponse, error)
+	ListExecutionEnvironments(context.Context, *ListExecutionEnvironmentsRequest) (*ListExecutionEnvironmentsResponse, error)
+	ExplainExecutionEnvironment(context.Context, *ExplainExecutionEnvironmentRequest) (*ExplainExecutionEnvironmentResponse, error)
 	mustEmbedUnimplementedSessionServiceServer()
 }
 
@@ -377,6 +403,12 @@ func (UnimplementedSessionServiceServer) InterruptRun(context.Context, *Interrup
 }
 func (UnimplementedSessionServiceServer) SetReasoningEffort(context.Context, *SetSessionReasoningEffortRequest) (*SetSessionReasoningEffortResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetReasoningEffort not implemented")
+}
+func (UnimplementedSessionServiceServer) ListExecutionEnvironments(context.Context, *ListExecutionEnvironmentsRequest) (*ListExecutionEnvironmentsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListExecutionEnvironments not implemented")
+}
+func (UnimplementedSessionServiceServer) ExplainExecutionEnvironment(context.Context, *ExplainExecutionEnvironmentRequest) (*ExplainExecutionEnvironmentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ExplainExecutionEnvironment not implemented")
 }
 func (UnimplementedSessionServiceServer) mustEmbedUnimplementedSessionServiceServer() {}
 func (UnimplementedSessionServiceServer) testEmbeddedByValue()                        {}
@@ -752,6 +784,42 @@ func _SessionService_SetReasoningEffort_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SessionService_ListExecutionEnvironments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListExecutionEnvironmentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServiceServer).ListExecutionEnvironments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SessionService_ListExecutionEnvironments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServiceServer).ListExecutionEnvironments(ctx, req.(*ListExecutionEnvironmentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SessionService_ExplainExecutionEnvironment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExplainExecutionEnvironmentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServiceServer).ExplainExecutionEnvironment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SessionService_ExplainExecutionEnvironment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServiceServer).ExplainExecutionEnvironment(ctx, req.(*ExplainExecutionEnvironmentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SessionService_ServiceDesc is the grpc.ServiceDesc for SessionService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -834,6 +902,14 @@ var SessionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetReasoningEffort",
 			Handler:    _SessionService_SetReasoningEffort_Handler,
+		},
+		{
+			MethodName: "ListExecutionEnvironments",
+			Handler:    _SessionService_ListExecutionEnvironments_Handler,
+		},
+		{
+			MethodName: "ExplainExecutionEnvironment",
+			Handler:    _SessionService_ExplainExecutionEnvironment_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

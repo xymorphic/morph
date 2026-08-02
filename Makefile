@@ -9,7 +9,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || printf de
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || printf unknown)
 LD_FLAGS := -X github.com/wandxy/morph/internal/constants.AppVersion=$(VERSION) -X github.com/wandxy/morph/internal/constants.CommitHash=$(COMMIT)
 
-.PHONY: install-tools install-lint install-hooks build-proto build test test-agent-baseline test-spec test-live test-live-sqlite test-live-memory test-live-all host-deps lint install
+.PHONY: install-tools install-lint install-hooks build-proto build build-sandbox test test-execution-docker test-agent-baseline test-spec test-live test-live-sqlite test-live-memory test-live-all host-deps lint install
 
 install-tools:
 	@$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
@@ -35,6 +35,12 @@ build-proto:
 build: build-proto
 	@mkdir -p $(BUILD_DIR)
 	@CGO_ENABLED=1 $(GO) build -tags $(GO_SQLITE_TAGS) -ldflags "$(LD_FLAGS)" -o $(BUILD_DIR)/$(APP) ./cmd/morph
+
+build-sandbox:
+	@docker build --platform linux/amd64 -f containers/sandbox/Dockerfile -t morph-sandbox:test .
+
+test-execution-docker: build-proto
+	@MORPH_EXECUTION_DOCKER_TEST=1 MORPH_EXECUTION_DOCKER_IMAGE=morph-sandbox:test CGO_ENABLED=1 $(GO) test -tags '$(GO_SQLITE_TAGS) execution_docker' ./internal/execution/docker/... ./internal/e2e/tests/execution/... -count=1
 
 test: build-proto
 	@CGO_ENABLED=1 $(GO) test -tags $(GO_SQLITE_TAGS) ./...

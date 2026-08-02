@@ -1,0 +1,9 @@
+{
+  "repository": "ghcr.io/xymorphic/morph-sandbox",
+  "runtime_compatibility": "1",
+  "architectures": ["linux/amd64", "linux/arm64"],
+  "signature_issuer": "https://token.actions.githubusercontent.com",
+  "signature_workflow": "xymorphic/morph/.github/workflows/sandbox-image.yml",
+  "digest": "",
+  "release": ""
+}

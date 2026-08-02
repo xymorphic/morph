@@ -1,0 +1,24 @@
+{
+  "version": "1",
+  "goos": "linux",
+  "architectures": ["amd64", "arm64"],
+  "user": "65532:65532",
+  "shell": "/bin/sh",
+  "path": ["/usr/local/bin", "/usr/bin", "/bin"],
+  "executables": {
+    "cat": "/bin/cat",
+    "find": "/usr/bin/find",
+    "git": "/usr/bin/git",
+    "mkdir": "/bin/mkdir",
+    "morph-sandbox": "/usr/local/bin/morph-sandbox",
+    "printf": "/usr/bin/printf",
+    "rg": "/usr/bin/rg",
+    "sh": "/bin/sh",
+    "sleep": "/bin/sleep"
+  },
+  "helper": "/usr/local/bin/morph-sandbox",
+  "workspace_path": "/workspace",
+  "home_path": "/home/morph",
+  "temporary_path": "/tmp",
+  "control_path": "/run/morph"
+}

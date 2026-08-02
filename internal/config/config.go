@@ -22,6 +22,7 @@ type Config struct {
 	Gateway       GatewayConfig                `yaml:"gateway"`
 	FS            FSConfig                     `yaml:"fs"`
 	Exec          ExecConfig                   `yaml:"exec"`
+	Execution     ExecutionConfig              `yaml:"execution"`
 	Storage       StorageConfig                `yaml:"storage"`
 	Session       SessionConfig                `yaml:"session"`
 	Search        SearchConfig                 `yaml:"search"`

@@ -119,36 +119,6 @@ func TestNewRuntime_NormalizesConfiguredRoots(t *testing.T) {
 	require.Equal(t, []string{root}, runtime.FilePolicy().Roots)
 }
 
-func TestRuntime_ProcessStateUsesChildSessionID(t *testing.T) {
-	parentID := nanoid.MustFromSeed(storage.SessionIDPrefix, "parent", "RuntimeProcessLineageTestSeed")
-	childID := nanoid.MustFromSeed(storage.SessionIDPrefix, "child", "RuntimeProcessLineageTestSeed")
-	runtime := NewRuntime([]string{t.TempDir()}, guardrails.CommandPolicy{}, nil)
-
-	parentProcess, err := runtime.StartProcess(context.Background(), parentID, process.StartRequest{
-		Plan: testRuntimeCommandPlan(t, "printf", "parent"),
-	})
-	require.NoError(t, err)
-	childProcess, err := runtime.StartProcess(context.Background(), childID, process.StartRequest{
-		Plan: testRuntimeCommandPlan(t, "printf", "child"),
-	})
-	require.NoError(t, err)
-
-	require.Equal(t, "proc_1", parentProcess.ID)
-	require.Equal(t, "proc_1", childProcess.ID)
-	require.Len(t, runtime.ListProcesses(parentID), 1)
-	require.Len(t, runtime.ListProcesses(childID), 1)
-	foundParent, err := runtime.GetProcess(parentID, childProcess.ID)
-	require.NoError(t, err)
-	require.Equal(t, "direct · printf", foundParent.Command)
-	require.Empty(t, foundParent.Args)
-	foundChild, err := runtime.GetProcess(childID, childProcess.ID)
-	require.NoError(t, err)
-	require.Equal(t, "direct · printf", foundChild.Command)
-	require.Empty(t, foundChild.Args)
-	_, err = runtime.GetProcess("default", childProcess.ID)
-	require.EqualError(t, err, "process not found")
-}
-
 func TestRuntime_FilePolicyHandlesNilReceiver(t *testing.T) {
 	var runtime *Runtime
 
@@ -165,7 +135,13 @@ func TestRuntime_PlanMethodsDelegateToStore(t *testing.T) {
 	runtime := NewRuntime([]string{t.TempDir()}, guardrails.CommandPolicy{}, nil)
 
 	replaced, err := runtime.ReplacePlan("session-1", planstore.Plan{
-		Steps: []planstore.PlanStep{{ID: "step-1", Content: "First", Status: planstore.PlanStatusInProgress}},
+		Steps: []planstore.PlanStep{
+			{
+				ID:      "step-1",
+				Content: "First",
+				Status:  planstore.PlanStatusInProgress,
+			},
+		},
 	})
 	require.NoError(t, err)
 
@@ -200,7 +176,13 @@ func TestRuntime_PlanMethodsHandleNilReceiver(t *testing.T) {
 	require.EqualError(t, err, "plan store is required")
 
 	runtime.HydratePlan("session-1", planstore.Plan{
-		Steps: []planstore.PlanStep{{ID: "step-1", Content: "First", Status: planstore.PlanStatusInProgress}},
+		Steps: []planstore.PlanStep{
+			{
+				ID:      "step-1",
+				Content: "First",
+				Status:  planstore.PlanStatusInProgress,
+			},
+		},
 	})
 
 	require.Equal(t, planstore.Plan{}, runtime.GetPlan("session-1"))
@@ -210,71 +192,26 @@ func TestRuntime_HydratePlanDelegatesToStore(t *testing.T) {
 	runtime := NewRuntime([]string{t.TempDir()}, guardrails.CommandPolicy{}, nil)
 
 	runtime.HydratePlan("session-1", planstore.Plan{
-		Steps:       []planstore.PlanStep{{ID: "step-1", Content: "First", Status: planstore.PlanStatusInProgress}},
+		Steps: []planstore.PlanStep{
+			{
+				ID:      "step-1",
+				Content: "First",
+				Status:  planstore.PlanStatusInProgress,
+			},
+		},
 		Explanation: "restored",
 	})
 
 	require.Equal(t, planstore.Plan{
-		Steps:       []planstore.PlanStep{{ID: "step-1", Content: "First", Status: planstore.PlanStatusInProgress}},
+		Steps: []planstore.PlanStep{
+			{
+				ID:      "step-1",
+				Content: "First",
+				Status:  planstore.PlanStatusInProgress,
+			},
+		},
 		Explanation: "restored",
 	}, runtime.GetPlan("session-1"))
-}
-
-func TestRuntime_ProcessMethodsDelegateToStore(t *testing.T) {
-	runtime := NewRuntime([]string{t.TempDir()}, guardrails.CommandPolicy{}, nil)
-
-	info, err := runtime.StartProcess(context.Background(), "session-1", process.StartRequest{
-		Plan:              testRuntimeCommandPlan(t, "printf", "hello"),
-		OutputBufferBytes: 32,
-	})
-	require.NoError(t, err)
-
-	require.Eventually(t, func() bool {
-		current, err := runtime.GetProcess("session-1", info.ID)
-		require.NoError(t, err)
-		return current.Status == process.StatusExited
-	}, 5*time.Second, 20*time.Millisecond)
-
-	output, err := runtime.ReadProcess("session-1", process.ReadRequest{ProcessID: info.ID})
-	require.NoError(t, err)
-	require.Equal(t, "hello", output.Stdout)
-
-	stopped, err := runtime.StopProcess(context.Background(), "session-1", info.ID)
-	require.NoError(t, err)
-	require.Equal(t, info.ID, stopped.ID)
-
-	list := runtime.ListProcesses("session-1")
-	require.Len(t, list, 1)
-	require.Equal(t, info.ID, list[0].ID)
-}
-
-func testRuntimeCommandPlan(t *testing.T, executable string, arguments ...string) commandplan.Plan {
-	t.Helper()
-	plan, err := commandplan.Analyze(context.Background(), commandplan.Request{
-		Mode:    commandplan.ModeDirect,
-		Command: executable,
-		Args:    arguments,
-	})
-	require.NoError(t, err)
-	return plan
-}
-
-func TestRuntime_ProcessMethodsHandleNilReceiver(t *testing.T) {
-	var runtime *Runtime
-
-	_, err := runtime.StartProcess(context.Background(), "session-1", process.StartRequest{})
-	require.EqualError(t, err, "process manager is required")
-
-	_, err = runtime.GetProcess("session-1", "proc_1")
-	require.EqualError(t, err, "process manager is required")
-
-	_, err = runtime.ReadProcess("session-1", process.ReadRequest{ProcessID: "proc_1"})
-	require.EqualError(t, err, "process manager is required")
-
-	_, err = runtime.StopProcess(context.Background(), "session-1", "proc_1")
-	require.EqualError(t, err, "process manager is required")
-
-	require.Nil(t, runtime.ListProcesses("session-1"))
 }
 
 func TestRuntime_SearchSessionDelegatesToStateManager(t *testing.T) {
@@ -283,8 +220,18 @@ func TestRuntime_SearchSessionDelegatesToStateManager(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, manager.Save(context.Background(), memory.Session{ID: runtimeSearchSessionID}))
 	require.NoError(t, manager.AppendMessages(context.Background(), runtimeSearchSessionID, []messages.Message{
-		{Role: messages.RoleUser, Content: "hello world", CreatedAt: time.Now().UTC()},
-		{Role: messages.RoleTool, Name: "process", Content: `{"process":{"id":"proc_1","status":"running"}}`, ToolCallID: "call-1", CreatedAt: time.Now().UTC()},
+		{
+			Role:      messages.RoleUser,
+			Content:   "hello world",
+			CreatedAt: time.Now().UTC(),
+		},
+		{
+			Role:       messages.RoleTool,
+			Name:       "process",
+			Content:    `{"process":{"id":"proc_1","status":"running"}}`,
+			ToolCallID: "call-1",
+			CreatedAt:  time.Now().UTC(),
+		},
 	}))
 
 	runtime := NewRuntime([]string{t.TempDir()}, guardrails.CommandPolicy{}, manager)
@@ -315,10 +262,18 @@ func TestRuntime_SearchSessionSupportsCrossSessionScope(t *testing.T) {
 	require.NoError(t, manager.Save(context.Background(), memory.Session{ID: runtimeSearchSessionID}))
 	require.NoError(t, manager.Save(context.Background(), memory.Session{ID: otherSessionID}))
 	require.NoError(t, manager.AppendMessages(context.Background(), runtimeSearchSessionID, []messages.Message{
-		{Role: messages.RoleUser, Content: "origin needle", CreatedAt: time.Now().UTC()},
+		{
+			Role:      messages.RoleUser,
+			Content:   "origin needle",
+			CreatedAt: time.Now().UTC(),
+		},
 	}))
 	require.NoError(t, manager.AppendMessages(context.Background(), otherSessionID, []messages.Message{
-		{Role: messages.RoleUser, Content: "other needle", CreatedAt: time.Now().UTC()},
+		{
+			Role:      messages.RoleUser,
+			Content:   "other needle",
+			CreatedAt: time.Now().UTC(),
+		},
 	}))
 
 	runtime := NewRuntime([]string{t.TempDir()}, guardrails.CommandPolicy{}, manager)
@@ -351,8 +306,18 @@ func TestRuntime_GetSessionMessagesDelegatesToStateManager(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, manager.Save(context.Background(), memory.Session{ID: runtimeSearchSessionID}))
 	require.NoError(t, manager.AppendMessages(context.Background(), runtimeSearchSessionID, []messages.Message{
-		{Role: messages.RoleUser, Content: "hello world", CreatedAt: time.Now().UTC()},
-		{Role: messages.RoleTool, Name: "process", Content: `{"process":{"id":"proc_1","status":"running"}}`, ToolCallID: "call-1", CreatedAt: time.Now().UTC()},
+		{
+			Role:      messages.RoleUser,
+			Content:   "hello world",
+			CreatedAt: time.Now().UTC(),
+		},
+		{
+			Role:       messages.RoleTool,
+			Name:       "process",
+			Content:    `{"process":{"id":"proc_1","status":"running"}}`,
+			ToolCallID: "call-1",
+			CreatedAt:  time.Now().UTC(),
+		},
 	}))
 
 	runtime := NewRuntime([]string{t.TempDir()}, guardrails.CommandPolicy{}, manager)
@@ -377,8 +342,18 @@ func TestRuntime_GetSessionMessagesSupportsCurrentSessionMessageIDLookup(t *test
 	require.NoError(t, manager.Save(context.Background(), memory.Session{ID: runtimeSearchSessionID}))
 	require.NoError(t, manager.UseSession(context.Background(), runtimeSearchSessionID))
 	require.NoError(t, manager.AppendMessages(context.Background(), runtimeSearchSessionID, []messages.Message{
-		{ID: 2, Role: messages.RoleAssistant, Content: "beta", CreatedAt: time.Now().UTC()},
-		{ID: 4, Role: messages.RoleUser, Content: "delta", CreatedAt: time.Now().UTC().Add(time.Second)},
+		{
+			ID:        2,
+			Role:      messages.RoleAssistant,
+			Content:   "beta",
+			CreatedAt: time.Now().UTC(),
+		},
+		{
+			ID:        4,
+			Role:      messages.RoleUser,
+			Content:   "delta",
+			CreatedAt: time.Now().UTC().Add(time.Second),
+		},
 	}))
 
 	runtime := NewRuntime([]string{t.TempDir()}, guardrails.CommandPolicy{}, manager)
@@ -399,9 +374,26 @@ func TestRuntime_GetSessionMessagesSupportsAnchorWindowAndTruncation(t *testing.
 	require.NoError(t, err)
 	require.NoError(t, manager.Save(context.Background(), memory.Session{ID: runtimeSearchSessionID}))
 	require.NoError(t, manager.AppendMessages(context.Background(), runtimeSearchSessionID, []messages.Message{
-		{ID: 1, Role: messages.RoleUser, Content: "alpha", CreatedAt: time.Now().UTC()},
-		{ID: 2, Role: messages.RoleTool, Name: "process", Content: "process-running", ToolCallID: "call-1", CreatedAt: time.Now().UTC().Add(time.Second)},
-		{ID: 3, Role: messages.RoleAssistant, Content: "delta", CreatedAt: time.Now().UTC().Add(2 * time.Second)},
+		{
+			ID:        1,
+			Role:      messages.RoleUser,
+			Content:   "alpha",
+			CreatedAt: time.Now().UTC(),
+		},
+		{
+			ID:         2,
+			Role:       messages.RoleTool,
+			Name:       "process",
+			Content:    "process-running",
+			ToolCallID: "call-1",
+			CreatedAt:  time.Now().UTC().Add(time.Second),
+		},
+		{
+			ID:        3,
+			Role:      messages.RoleAssistant,
+			Content:   "delta",
+			CreatedAt: time.Now().UTC().Add(2 * time.Second),
+		},
 	}))
 
 	runtime := NewRuntime([]string{t.TempDir()}, guardrails.CommandPolicy{}, manager)
@@ -463,7 +455,11 @@ func TestRuntime_SearchMemorySearchesProvider(t *testing.T) {
 	provider := &memorySearchProviderStub{
 		caps: morphmemory.Capabilities{SupportsSearch: true},
 		searchResult: morphmemory.SearchResult{Hits: []morphmemory.SearchHit{{
-			Item: morphmemory.MemoryItem{ID: "mem_123", Status: morphmemory.StatusActive, Text: "hello"},
+			Item: morphmemory.MemoryItem{
+				ID:     "mem_123",
+				Status: morphmemory.StatusActive,
+				Text:   "hello",
+			},
 		}}},
 	}
 	runtime := &Runtime{memory: provider}
@@ -526,7 +522,11 @@ func TestRuntime_ExtractEpisodesRunsExtractor(t *testing.T) {
 
 	require.NoError(t, manager.Save(ctx, storage.Session{ID: storage.DefaultSessionID}))
 	require.NoError(t, manager.AppendMessages(ctx, storage.DefaultSessionID, []messages.Message{
-		{ID: 1, Role: messages.RoleUser, Content: "Remember the runtime extraction path."},
+		{
+			ID:      1,
+			Role:    messages.RoleUser,
+			Content: "Remember the runtime extraction path.",
+		},
 	}))
 
 	runtime := &Runtime{stateMgr: manager, memory: provider}

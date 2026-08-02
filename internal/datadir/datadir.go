@@ -70,6 +70,10 @@ func UnsafeEvidenceDir() string {
 	return filepath.Join(HomeDir(), "unsafe-evidence")
 }
 
+func ExecutionIdentityKeyPath() string {
+	return filepath.Join(DataDir(), "execution-identity.key")
+}
+
 // StateDBPath returns the path to the project state database.
 func StateDBPath() string {
 	return filepath.Join(DataDir(), "state.db")

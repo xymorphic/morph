@@ -22,7 +22,10 @@ func TestEngine_CheckEnforcesDefaultDenial(t *testing.T) {
 
 func TestEngine_CheckEnforcesDecisions(t *testing.T) {
 	ctx := WithContext(context.Background(), AuthorizationContext{
-		Actor: Actor{Kind: ActorLocalOwner}, Surface: SurfaceCLI,
+		Actor: Actor{
+			Kind: ActorLocalOwner,
+		},
+		Surface: SurfaceCLI,
 	})
 	tests := []struct {
 		name     string
@@ -30,16 +33,33 @@ func TestEngine_CheckEnforcesDecisions(t *testing.T) {
 		code     string
 		message  string
 	}{
-		{name: "deny", decision: DecisionDeny, code: ErrorCodeDenied, message: "blocked by policy"},
-		{name: "ask", decision: DecisionAsk, code: ErrorCodeApprovalRequired, message: "confirm this action"},
+		{
+			name:     "deny",
+			decision: DecisionDeny,
+			code:     ErrorCodeDenied,
+			message:  "blocked by policy",
+		},
+		{
+			name:     "ask",
+			decision: DecisionAsk,
+			code:     ErrorCodeApprovalRequired,
+			message:  "confirm this action",
+		},
 		{name: "allow", decision: DecisionAllow},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			engine := NewEngine(Policy{Rules: []Rule{{
-				Name: "decision", ActorKinds: []ActorKind{ActorLocalOwner}, Decision: test.decision, Reason: test.message,
-			}}})
+			engine := NewEngine(Policy{
+				Rules: []Rule{
+					{
+						Name:       "decision",
+						ActorKinds: []ActorKind{ActorLocalOwner},
+						Decision:   test.decision,
+						Reason:     test.message,
+					},
+				},
+			})
 
 			evaluation, err := engine.Check(ctx, EvaluationInput{
 				Authorization: AuthorizationContext{Actor: Actor{Kind: ActorGatewayUser}, Surface: SurfaceSlack},
@@ -59,7 +79,7 @@ func TestEngine_CheckEnforcesDecisions(t *testing.T) {
 	}
 }
 
-func TestEngine_CheckFullAccessBypassesPolicyAndHardDenials(t *testing.T) {
+func TestEngine_CheckFullAccessBypassesPolicyButNotHardDenials(t *testing.T) {
 	engine := NewEngine(Policy{
 		Preset: PresetFullAccess,
 		Rules:  []Rule{{Name: "deny everything", Decision: DecisionDeny}},
@@ -74,10 +94,11 @@ func TestEngine_CheckFullAccessBypassesPolicyAndHardDenials(t *testing.T) {
 	require.Equal(t, PresetFullAccess, evaluation.Preset)
 
 	input.HardDenyReason = "hard safety policy"
-	evaluation, err = engine.Check(context.Background(), input)
-	require.NoError(t, err)
-	require.Equal(t, DecisionAllow, evaluation.Decision)
-	require.Equal(t, ReasonFullAccess, evaluation.ReasonCode)
+	_, err = engine.Check(context.Background(), input)
+	require.Error(t, err)
+	decisionErr, ok := GetDecisionError(err)
+	require.True(t, ok)
+	require.Equal(t, ErrorCodeDenied, decisionErr.Code)
 }
 
 func TestDecisionError_UsesSafeFallbackMessages(t *testing.T) {

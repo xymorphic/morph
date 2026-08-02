@@ -14,6 +14,7 @@ import (
 	"github.com/wandxy/morph/internal/automation"
 	"github.com/wandxy/morph/internal/browser"
 	"github.com/wandxy/morph/internal/config"
+	"github.com/wandxy/morph/internal/execution"
 	"github.com/wandxy/morph/internal/gateway"
 	"github.com/wandxy/morph/internal/guardrails"
 	models "github.com/wandxy/morph/internal/model"
@@ -1346,6 +1347,99 @@ func (s *Service) Archive(ctx context.Context, req *morphpb.ArchiveSessionReques
 	}
 
 	return &morphpb.ArchiveSessionResponse{Id: req.GetId()}, nil
+}
+
+func (s *Service) ListExecutionEnvironments(
+	ctx context.Context,
+	req *morphpb.ListExecutionEnvironmentsRequest,
+) (*morphpb.ListExecutionEnvironmentsResponse, error) {
+	if s == nil || s.api == nil || req == nil {
+		return nil, status.Error(codes.InvalidArgument, "execution environment request is required")
+	}
+	if err := s.checkPermission(ctx, permissions.Operation{
+		Resource: permissions.ResourceSession,
+		Action:   permissions.ActionRead,
+		Effects:  []permissions.Effect{permissions.EffectRead},
+		Target:   req.GetSessionId(),
+	}); err != nil {
+		return nil, err
+	}
+	lister, ok := s.api.(interface {
+		ListExecutionEnvironments(context.Context, string) ([]execution.EnvironmentDetails, error)
+	})
+	if !ok {
+		return nil, status.Error(codes.Unimplemented, "execution inspection is unavailable")
+	}
+	details, err := lister.ListExecutionEnvironments(s.getPermissionContext(ctx), req.GetSessionId())
+	if err != nil {
+		return nil, getGRPCError(err)
+	}
+	result := make([]*morphpb.ExecutionEnvironment, 0, len(details))
+	for _, detail := range details {
+		result = append(result, executionEnvironmentToProto(detail))
+	}
+	return &morphpb.ListExecutionEnvironmentsResponse{Environments: result}, nil
+}
+
+func (s *Service) ExplainExecutionEnvironment(
+	ctx context.Context,
+	req *morphpb.ExplainExecutionEnvironmentRequest,
+) (*morphpb.ExplainExecutionEnvironmentResponse, error) {
+	if req == nil || strings.TrimSpace(req.GetEnvironmentId()) == "" {
+		return nil, status.Error(codes.InvalidArgument, "execution environment id is required")
+	}
+	listed, err := s.ListExecutionEnvironments(ctx, &morphpb.ListExecutionEnvironmentsRequest{SessionId: req.GetSessionId()})
+	if err != nil {
+		return nil, err
+	}
+	for _, environment := range listed.GetEnvironments() {
+		if environment.GetId() == req.GetEnvironmentId() {
+			return &morphpb.ExplainExecutionEnvironmentResponse{Environment: environment}, nil
+		}
+	}
+	return nil, status.Error(codes.NotFound, "execution environment not found")
+}
+
+func executionEnvironmentToProto(detail execution.EnvironmentDetails) *morphpb.ExecutionEnvironment {
+	statusValue := detail.Status
+	mounts := make([]*morphpb.ExecutionMount, 0, len(detail.Mounts))
+	for _, mount := range detail.Mounts {
+		mounts = append(mounts, &morphpb.ExecutionMount{
+			Name:    mount.Name,
+			Target:  mount.Target,
+			Mode:    string(mount.Mode),
+			Purpose: mount.Purpose,
+		})
+	}
+	limits := detail.Limits
+	return &morphpb.ExecutionEnvironment{
+		Id:                   statusValue.ID,
+		Backend:              string(statusValue.Backend),
+		Scope:                string(statusValue.Scope),
+		State:                string(statusValue.State),
+		WorkspaceMode:        string(statusValue.WorkspaceMode),
+		Network:              string(statusValue.Network),
+		ImageDigest:          statusValue.ImageDigest,
+		SecurityGeneration:   statusValue.SecurityGeneration,
+		DaemonIncarnation:    statusValue.DaemonIncarnation,
+		ContainerIncarnation: statusValue.ContainerIncarnation,
+		ParticipantCount:     int32(statusValue.ParticipantCount),
+		ProcessCount:         int32(statusValue.ProcessCount),
+		FailureCode:          statusValue.FailureCode,
+		Mounts:               mounts,
+		SecretReferences:     detail.SecretReferences,
+		Limits: &morphpb.ExecutionLimits{
+			MemoryBytes:    limits.MemoryBytes,
+			CpuMilli:       limits.CPUMilli,
+			Pids:           limits.PIDs,
+			OpenFiles:      limits.OpenFiles,
+			TemporaryBytes: limits.TemporaryBytes,
+			OutputBytes:    limits.OutputBytes,
+			RuntimeMillis:  limits.Runtime.Milliseconds(),
+		},
+		PolicyHash:          detail.PolicyHash,
+		ImageContractDigest: detail.ImageContract,
+	}
 }
 
 func (s *Service) Unarchive(

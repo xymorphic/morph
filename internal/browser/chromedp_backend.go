@@ -1119,6 +1119,12 @@ func (s *chromiumSession) getNetworkAuthorizationLocked(tabID string) (networkAu
 	return authorization, ok
 }
 
+func (s *chromiumSession) setTabNetworkAuthorizationFromOpeningLocked(tabID string) {
+	if authorization, ok := s.networkAuthorizers[""]; ok {
+		s.networkAuthorizers[tabID] = authorization
+	}
+}
+
 func (s *chromiumSession) continueAuthorizedRequest(
 	ctx context.Context,
 	tabID string,
@@ -1165,13 +1171,14 @@ func (s *chromiumSession) SetNetworkAuthorizer(tabID string, authorize NetworkRe
 		once.Do(func() {
 			authorization.cancel()
 			s.mu.Lock()
-			current, ok := s.networkAuthorizers[tabID]
-			if ok && current.id == authorization.id {
-				if previous.authorize == nil {
-					delete(s.networkAuthorizers, tabID)
-				} else {
-					s.networkAuthorizers[tabID] = previous
+			for currentTabID, current := range s.networkAuthorizers {
+				if current.id != authorization.id {
+					continue
 				}
+				delete(s.networkAuthorizers, currentTabID)
+			}
+			if previous.authorize != nil {
+				s.networkAuthorizers[tabID] = previous
 			}
 			s.mu.Unlock()
 		})

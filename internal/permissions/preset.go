@@ -201,5 +201,13 @@ func approveForMePresetRules() []Rule {
 			Reason:       "This command can discover and run additional instructions at runtime.",
 			toolRequired: true,
 		},
+		{
+			Name:         "preset.safety.shared_state",
+			SurfaceKinds: []SurfaceKind{SurfaceKindLocal},
+			Effects:      []Effect{EffectSharedState},
+			Decision:     DecisionAsk,
+			Reason:       "This action can observe or modify execution state shared with other sessions.",
+			toolRequired: true,
+		},
 	}
 }

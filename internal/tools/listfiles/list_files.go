@@ -3,21 +3,13 @@ package listfiles
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"os"
-	"path/filepath"
-	"sort"
-
-	"github.com/wandxy/morph/pkg/logutils"
 
 	envtypes "github.com/wandxy/morph/internal/environment/types"
+	"github.com/wandxy/morph/internal/execution"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/tools"
 	"github.com/wandxy/morph/internal/tools/common"
 )
-
-var log = logutils.Module("tool.listfiles")
-var getRelativePath = filepath.Rel
 
 // Definition returns the model-visible tool definition.
 func Definition(runtime envtypes.Runtime) tools.Definition {
@@ -46,179 +38,117 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 			Action:   permissions.ActionList,
 			Effects:  []permissions.Effect{permissions.EffectRead},
 		},
-		ResolvePermission: func(_ context.Context, call tools.Call) ([]permissions.EvaluationInput, error) {
+		PreparePermission: func(
+			ctx context.Context,
+			call tools.Call,
+		) (tools.PermissionPreparation, error) {
 			var req input
 			if err := json.Unmarshal([]byte(call.Input), &req); err != nil {
-				return nil, tools.NewPermissionResolutionError("invalid_input", "invalid tool input")
+				return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(
+					"invalid_input",
+					"invalid tool input",
+				)
 			}
 			target, targetScope := common.ResolveFilesystemPermissionTarget(
 				common.FilesystemPolicyFromRuntime(runtime),
 				req.Path,
 			)
-			return []permissions.EvaluationInput{{Operation: permissions.Operation{
+			operation := permissions.Operation{
 				Resource:    permissions.ResourceFile,
 				Action:      permissions.ActionList,
 				Effects:     []permissions.Effect{permissions.EffectRead},
 				Target:      target,
 				TargetScope: targetScope,
-			}}}, nil
-		},
-		InputSchema: common.ObjectSchema(map[string]any{
-			"path":           common.StringSchema("Absolute path or path relative to the configured workspace root. Defaults to the workspace root when omitted."),
-			"recursive":      common.BooleanSchema("When true, list directory contents recursively. Defaults to false."),
-			"include_hidden": common.BooleanSchema("When true, include hidden files and directories in the results."),
-			"max_entries":    common.IntegerSchema("Maximum number of entries to return. Values outside the supported range are clamped."),
-		}, "path", "recursive", "include_hidden", "max_entries"),
-		Handler: tools.HandlerFunc(func(ctx context.Context, call tools.Call) (tools.Result, error) {
-			var req input
-			if result := common.DecodeInput(call, &req); result.Error != "" {
-				return result, nil
 			}
-
-			resolved, err := common.ResolveFilesystemPathForOperation(
+			recursive := req.Recursive != nil && *req.Recursive
+			preparation, err := common.PrepareFilesystemExecution(
 				ctx,
-				common.FilesystemPolicyFromRuntime(runtime),
+				runtime,
+				operation,
 				req.Path,
-				permissions.ActionList,
+				execution.FilesystemOperation{
+					Action:        execution.FilesystemList,
+					Recursive:     recursive,
+					IncludeHidden: req.IncludeHidden,
+				},
 			)
 			if err != nil {
-				return common.FileError(err), nil
+				return tools.PermissionPreparation{}, common.NewFilePermissionResolutionError(err)
 			}
-
-			recursive := false
-			if req.Recursive != nil {
-				recursive = *req.Recursive
-			}
-
-			limit := req.MaxEntries
-			if limit <= 0 || limit > common.MaxListEntries {
-				limit = common.MaxListEntries
-			}
-
-			log.Info().
-				Str("tool", "list_files").
-				Str("phase", "start").
-				Str("path", common.NormalizedDisplayPath(req.Path)).
-				Bool("recursive", recursive).
-				Bool("include_hidden", req.IncludeHidden).
-				Int("max_entries", limit).
-				Msg("list files tool started")
-
-			log.Debug().
-				Str("tool", "list_files").
-				Str("phase", "execute").
-				Str("mode", map[bool]string{true: "recursive", false: "single_level"}[recursive]).
-				Msg("list files execution started")
-
-			entries := make([]entry, 0)
-			displayRoot := resolved.Root
-			if displayRoot == "" {
-				displayRoot = resolved.Absolute
-			}
-			appendEntry := func(path string, isDir bool, size int64) bool {
-				rel, relErr := getRelativePath(displayRoot, path)
-				if relErr != nil {
-					return false
+			return preparation, nil
+		},
+		ResolvePermission: func(
+			ctx context.Context,
+			call tools.Call,
+		) ([]permissions.EvaluationInput, error) {
+			preparation, err := Definition(runtime).PreparePermission(ctx, call)
+			return preparation.Inputs, err
+		},
+		InputSchema: common.ObjectSchema(map[string]any{
+			"path": common.StringSchema(
+				"Absolute path or path relative to the configured workspace root. Defaults to the workspace root when omitted.",
+			),
+			"recursive": common.BooleanSchema(
+				"When true, list directory contents recursively. Defaults to false.",
+			),
+			"include_hidden": common.BooleanSchema(
+				"When true, include hidden files and directories in the results.",
+			),
+			"max_entries": common.IntegerSchema(
+				"Maximum number of entries to return. Values outside the supported range are clamped.",
+			),
+		}, "path", "recursive", "include_hidden", "max_entries"),
+		Handler: tools.HandlerFunc(
+			func(ctx context.Context, call tools.Call) (tools.Result, error) {
+				var req input
+				if result := common.DecodeInput(call, &req); result.Error != "" {
+					return result, nil
 				}
 
-				rel = filepath.ToSlash(rel)
-				if rel == "." || rel == "" {
-					return true
+				limit := req.MaxEntries
+				if limit <= 0 || limit > common.MaxListEntries {
+					limit = common.MaxListEntries
 				}
-
-				if !req.IncludeHidden && common.HiddenPath(rel) {
-					return true
+				spec, specErr := common.RequireExecutionSpec(
+					ctx,
+					call,
+					Definition(runtime).PreparePermission,
+				)
+				if specErr != nil {
+					return common.FileError(specErr), nil
 				}
-
-				item := entry{Path: rel}
-				if isDir {
-					item.Type = "dir"
-				} else {
-					item.Type = "file"
-					item.Size = size
+				service, serviceErr := common.ExecutionService(runtime)
+				if serviceErr != nil {
+					return common.ToolError("tool_error", serviceErr.Error()), nil
 				}
-
-				entries = append(entries, item)
-				return len(entries) < limit
-			}
-
-			if recursive {
-				walkErr := common.WalkDir(resolved.Absolute, func(path string, d os.DirEntry, err error) error {
-					if err != nil {
-						return err
+				listed, listErr := common.ObserveExecution(
+					ctx,
+					spec,
+					func() ([]execution.FileEntry, error) {
+						return service.ListFiles(ctx, spec, limit)
+					},
+				)
+				if listErr != nil {
+					return common.FileError(listErr), nil
+				}
+				entries := make([]entry, 0, len(listed))
+				for _, item := range listed {
+					kind := "file"
+					if item.IsDir {
+						kind = "dir"
 					}
-
-					if path == resolved.Absolute {
-						return nil
-					}
-
-					rel, relErr := filepath.Rel(displayRoot, path)
-					if relErr == nil && !req.IncludeHidden && common.HiddenPath(rel) && d.IsDir() {
-						return filepath.SkipDir
-					}
-
-					info, infoErr := d.Info()
-					if infoErr != nil {
-						return infoErr
-					}
-
-					if !appendEntry(path, d.IsDir(), info.Size()) {
-						return errors.New("entry limit reached")
-					}
-
-					return nil
+					entries = append(entries, entry{
+						Path: item.Path,
+						Type: kind,
+						Size: item.Size,
+					})
+				}
+				return common.EncodeOutput(map[string]any{
+					"root":    spec.Operation().Filesystem.Path.ContainerPath(),
+					"path":    common.NormalizedDisplayPath(req.Path),
+					"entries": entries,
 				})
-
-				if walkErr != nil && walkErr.Error() != "entry limit reached" {
-					log.Warn().
-						Err(walkErr).
-						Str("tool", "list_files").
-						Str("phase", "error").
-						Msg("list files execution failed")
-					return common.FileError(walkErr), nil
-				}
-			} else {
-				items, err := common.ReadDir(resolved.Absolute)
-				if err != nil {
-					log.Warn().
-						Err(err).
-						Str("tool", "list_files").
-						Str("phase", "error").
-						Msg("list files execution failed")
-					return common.FileError(err), nil
-				}
-
-				for _, item := range items {
-					info, infoErr := item.Info()
-					if infoErr != nil {
-						log.Warn().
-							Err(infoErr).
-							Str("tool", "list_files").
-							Str("phase", "error").
-							Msg("list files execution failed")
-						return common.FileError(infoErr), nil
-					}
-
-					if !appendEntry(filepath.Join(resolved.Absolute, item.Name()), item.IsDir(), info.Size()) {
-						break
-					}
-				}
-			}
-
-			sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
-
-			log.Info().
-				Str("tool", "list_files").
-				Str("phase", "complete").
-				Int("entry_count", len(entries)).
-				Bool("limit_hit", len(entries) >= limit).
-				Msg("list files tool completed")
-
-			return common.EncodeOutput(map[string]any{
-				"root":    resolved.Root,
-				"path":    common.NormalizedDisplayPath(resolved.Relative),
-				"entries": entries,
-			})
-		}),
+			},
+		),
 	}
 }

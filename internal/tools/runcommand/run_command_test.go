@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -16,11 +15,48 @@ import (
 	"github.com/stretchr/testify/require"
 
 	commandplan "github.com/wandxy/morph/internal/command"
+	"github.com/wandxy/morph/internal/execution"
 	"github.com/wandxy/morph/internal/guardrails"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/tools"
 	nativemocks "github.com/wandxy/morph/internal/tools/mocks"
 )
+
+func TestDefinition_ExposesConfiguredSecretCatalog(t *testing.T) {
+	runtime := &nativemocks.Runtime{ExecutionSecretCatalogValue: []execution.SecretCatalogEntry{
+		{
+			Name:        "staging_database",
+			Description: "Run migrations against the staging database",
+		},
+		{
+			Name:        "github_release",
+			Description: "Publish release artifacts to GitHub",
+		},
+	}}
+
+	properties := Definition(runtime).InputSchema["properties"].(map[string]any)
+	secrets := properties["secrets"].(map[string]any)
+	items := secrets["items"].(map[string]any)
+
+	require.Equal(t, []string{"github_release", "staging_database"}, items["enum"])
+	require.Contains(
+		t,
+		secrets["description"],
+		"github_release — Publish release artifacts to GitHub",
+	)
+	require.Contains(
+		t,
+		secrets["description"],
+		"staging_database — Run migrations against the staging database",
+	)
+	require.NotContains(t, secrets["description"], "SANDBOX_GITHUB_TOKEN")
+}
+
+func TestDefinition_HidesSecretInputWithoutConfiguredCatalog(t *testing.T) {
+	properties := Definition(&nativemocks.Runtime{}).InputSchema["properties"].(map[string]any)
+
+	require.NotContains(t, properties, "secrets")
+}
 
 var (
 	askGitPushPolicy = guardrails.CommandPolicy{AskCommands: []commandplan.Selector{{
@@ -45,7 +81,13 @@ func TestRunCommand_ToolRunsCommand(t *testing.T) {
 	root := t.TempDir()
 	registry := nativemocks.RegisterRuntime(t, root, guardrails.CommandPolicy{}, Definition)
 
-	result, err := registry.Invoke(context.Background(), tools.Call{Name: "run_command", Input: `{"command":"printf","args":["hello"]}`})
+	result, err := registry.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "run_command",
+			Input: `{"command":"printf","args":["hello"]}`,
+		},
+	)
 
 	require.NoError(t, err)
 	var payload runCommandPayload
@@ -80,7 +122,13 @@ func TestRunCommand_ToolRejectsInvalidJSONInput(t *testing.T) {
 	root := t.TempDir()
 	registry := nativemocks.RegisterRuntime(t, root, guardrails.CommandPolicy{}, Definition)
 
-	result, err := registry.Invoke(context.Background(), tools.Call{Name: "run_command", Input: `{"command":`})
+	result, err := registry.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "run_command",
+			Input: `{"command":`,
+		},
+	)
 
 	require.NoError(t, err)
 	var toolErr tools.Error
@@ -93,7 +141,13 @@ func TestRunCommand_ToolRequiresCommand(t *testing.T) {
 	root := t.TempDir()
 	registry := nativemocks.RegisterRuntime(t, root, guardrails.CommandPolicy{}, Definition)
 
-	result, err := registry.Invoke(context.Background(), tools.Call{Name: "run_command", Input: `{"command":"   "}`})
+	result, err := registry.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "run_command",
+			Input: `{"command":"   "}`,
+		},
+	)
 
 	require.NoError(t, err)
 	var toolErr tools.Error
@@ -103,81 +157,96 @@ func TestRunCommand_ToolRequiresCommand(t *testing.T) {
 }
 
 func TestRunCommand_ToolReturnsApprovalRequiredWithoutExecution(t *testing.T) {
-	called := false
-	replaceCommandBuilder(t, &called, "")
-
 	root := t.TempDir()
 	registry := nativemocks.RegisterRuntime(t, root, askGitPushPolicy, Definition)
 
-	result, err := registry.Invoke(context.Background(), tools.Call{Name: "run_command", Input: `{"command":"git","args":["push","origin","main"]}`})
+	result, err := registry.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "run_command",
+			Input: `{"command":"git","args":["push","origin","main"]}`,
+		},
+	)
 
 	require.NoError(t, err)
 	var toolErr tools.Error
 	require.NoError(t, json.Unmarshal([]byte(result.Error), &toolErr))
 	require.Equal(t, "approval_required", toolErr.Code)
 	require.Contains(t, toolErr.Message, "command-selector:")
-	require.False(t, called)
 }
 
 func TestRunCommand_ToolReturnsBuiltInApprovalMessageWithoutRule(t *testing.T) {
-	called := false
-	replaceCommandBuilder(t, &called, "")
-
 	root := t.TempDir()
 	registry := nativemocks.RegisterRuntime(t, root, guardrails.CommandPolicy{}, Definition)
 
-	result, err := registry.Invoke(context.Background(), tools.Call{Name: "run_command", Input: `{"command":"rm","args":["-rf","/"]}`})
+	result, err := registry.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "run_command",
+			Input: `{"command":"rm","args":["-rf","/"]}`,
+		},
+	)
 
 	require.NoError(t, err)
 	var toolErr tools.Error
 	require.NoError(t, json.Unmarshal([]byte(result.Error), &toolErr))
 	require.Equal(t, "approval_required", toolErr.Code)
 	require.Contains(t, toolErr.Message, "dangerous destructive command")
-	require.False(t, called)
 }
 
 func TestRunCommand_ToolReturnsDeniedWithoutExecution(t *testing.T) {
-	called := false
-	replaceCommandBuilder(t, &called, "")
-
 	root := t.TempDir()
 	registry := nativemocks.RegisterRuntime(t, root, denyGitPushPolicy, Definition)
 
-	result, err := registry.Invoke(context.Background(), tools.Call{Name: "run_command", Input: `{"command":"git","args":["push","origin","main"]}`})
+	result, err := registry.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "run_command",
+			Input: `{"command":"git","args":["push","origin","main"]}`,
+		},
+	)
 
 	require.NoError(t, err)
 	var toolErr tools.Error
 	require.NoError(t, json.Unmarshal([]byte(result.Error), &toolErr))
 	require.Equal(t, permissions.ErrorCodeDenied, toolErr.Code)
 	require.Contains(t, toolErr.Message, "matched typed deny rule")
-	require.False(t, called)
 }
 
 func TestRunCommand_EnforcementBlocksPolicyDenialBeforeExecution(t *testing.T) {
-	called := false
-	replaceCommandBuilder(t, &called, "")
-
 	root := t.TempDir()
 	registry := nativemocks.RegisterRuntimeWithPermissionPolicy(
 		t,
 		root,
 		guardrails.CommandPolicy{},
-		permissions.Policy{Rules: []permissions.Rule{{
-			Name: "deny execution", Effects: []permissions.Effect{permissions.EffectExecution}, Decision: permissions.DecisionDeny,
-		}}},
+		permissions.Policy{Rules: []permissions.Rule{
+			{
+				Name:     "deny execution",
+				Effects:  []permissions.Effect{permissions.EffectExecution},
+				Decision: permissions.DecisionDeny,
+			},
+		}},
 		Definition,
 	)
 	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
-		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceCLI,
+		Actor: permissions.Actor{
+			Kind: permissions.ActorLocalOwner,
+		},
+		Surface: permissions.SurfaceCLI,
 	})
 
-	result, err := registry.Invoke(ctx, tools.Call{Name: "run_command", Input: `{"command":"printf","args":["hello"]}`})
+	result, err := registry.Invoke(
+		ctx,
+		tools.Call{
+			Name:  "run_command",
+			Input: `{"command":"printf","args":["hello"]}`,
+		},
+	)
 
 	require.NoError(t, err)
 	var toolErr tools.Error
 	require.NoError(t, json.Unmarshal([]byte(result.Error), &toolErr))
 	require.Equal(t, permissions.ErrorCodeDenied, toolErr.Code)
-	require.False(t, called)
 }
 
 func TestRunCommand_EnforcementPreservesCommandHardDenyAndApproval(t *testing.T) {
@@ -186,26 +255,38 @@ func TestRunCommand_EnforcementPreservesCommandHardDenyAndApproval(t *testing.T)
 		commandPolicy guardrails.CommandPolicy
 		code          string
 	}{
-		{name: "hard deny", commandPolicy: denyGitPushPolicy, code: permissions.ErrorCodeDenied},
-		{name: "approval", commandPolicy: askGitPushPolicy, code: permissions.ErrorCodeApprovalRequired},
+		{
+			name:          "hard deny",
+			commandPolicy: denyGitPushPolicy,
+			code:          permissions.ErrorCodeDenied,
+		},
+		{
+			name:          "approval",
+			commandPolicy: askGitPushPolicy,
+			code:          permissions.ErrorCodeApprovalRequired,
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			called := false
-			replaceCommandBuilder(t, &called, "")
-
 			registry := nativemocks.RegisterRuntimeWithPermissionPolicy(
 				t,
 				t.TempDir(),
 				test.commandPolicy,
-				permissions.Policy{Rules: []permissions.Rule{{
-					Name: "allow execution", Effects: []permissions.Effect{permissions.EffectExecution}, Decision: permissions.DecisionAllow,
-				}}},
+				permissions.Policy{Rules: []permissions.Rule{
+					{
+						Name:     "allow execution",
+						Effects:  []permissions.Effect{permissions.EffectExecution},
+						Decision: permissions.DecisionAllow,
+					},
+				}},
 				Definition,
 			)
 			ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
-				Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceCLI,
+				Actor: permissions.Actor{
+					Kind: permissions.ActorLocalOwner,
+				},
+				Surface: permissions.SurfaceCLI,
 			})
 
 			result, err := registry.Invoke(ctx, tools.Call{
@@ -216,15 +297,11 @@ func TestRunCommand_EnforcementPreservesCommandHardDenyAndApproval(t *testing.T)
 			var toolErr tools.Error
 			require.NoError(t, json.Unmarshal([]byte(result.Error), &toolErr))
 			require.Equal(t, test.code, toolErr.Code)
-			require.False(t, called)
 		})
 	}
 }
 
 func TestRunCommand_AskPresetRequiresApprovalBeforeOrdinaryExecution(t *testing.T) {
-	called := false
-	replaceCommandBuilder(t, &called, "unexpected")
-
 	root := t.TempDir()
 	registry := nativemocks.RegisterRuntimeWithPermissionPolicy(
 		t,
@@ -234,7 +311,10 @@ func TestRunCommand_AskPresetRequiresApprovalBeforeOrdinaryExecution(t *testing.
 		Definition,
 	)
 	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
-		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceCLI,
+		Actor: permissions.Actor{
+			Kind: permissions.ActorLocalOwner,
+		},
+		Surface: permissions.SurfaceCLI,
 	})
 
 	result, err := registry.Invoke(ctx, tools.Call{
@@ -242,7 +322,6 @@ func TestRunCommand_AskPresetRequiresApprovalBeforeOrdinaryExecution(t *testing.
 	})
 
 	require.NoError(t, err)
-	require.False(t, called)
 	var toolErr tools.Error
 	require.NoError(t, json.Unmarshal([]byte(result.Error), &toolErr))
 	require.Equal(t, permissions.ErrorCodeApprovalRequired, toolErr.Code)
@@ -252,10 +331,9 @@ func TestRunCommand_ApprovePresetRunsOrdinaryCommandsButPreservesUnsafeApproval(
 	tests := []struct {
 		name          string
 		commandPolicy guardrails.CommandPolicy
-		wantExecuted  bool
 		wantCode      string
 	}{
-		{name: "ordinary command", wantExecuted: true},
+		{name: "ordinary command"},
 		{
 			name:          "unsafe command",
 			commandPolicy: askGitPushPolicy,
@@ -265,9 +343,6 @@ func TestRunCommand_ApprovePresetRunsOrdinaryCommandsButPreservesUnsafeApproval(
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			called := false
-			replaceCommandBuilder(t, &called, "allowed")
-
 			root := t.TempDir()
 			registry := nativemocks.RegisterRuntimeWithPermissionPolicy(
 				t,
@@ -277,7 +352,10 @@ func TestRunCommand_ApprovePresetRunsOrdinaryCommandsButPreservesUnsafeApproval(
 				Definition,
 			)
 			ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
-				Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceCLI,
+				Actor: permissions.Actor{
+					Kind: permissions.ActorLocalOwner,
+				},
+				Surface: permissions.SurfaceCLI,
 			})
 			input := `{"command":"printf","args":["hello"]}`
 			if test.wantCode != "" {
@@ -287,12 +365,11 @@ func TestRunCommand_ApprovePresetRunsOrdinaryCommandsButPreservesUnsafeApproval(
 			result, err := registry.Invoke(ctx, tools.Call{Name: "run_command", Input: input})
 
 			require.NoError(t, err)
-			require.Equal(t, test.wantExecuted, called)
 			if test.wantCode == "" {
 				require.Empty(t, result.Error)
 				var payload runCommandPayload
 				require.NoError(t, json.Unmarshal([]byte(result.Output), &payload))
-				require.Equal(t, "allowed", payload.Stdout)
+				require.Equal(t, "hello", payload.Stdout)
 				return
 			}
 
@@ -303,10 +380,7 @@ func TestRunCommand_ApprovePresetRunsOrdinaryCommandsButPreservesUnsafeApproval(
 	}
 }
 
-func TestRunCommand_FullAccessBypassesCommandAndWorkingDirectoryGuardrails(t *testing.T) {
-	called := false
-	replaceCommandBuilder(t, &called, "allowed")
-
+func TestRunCommand_FullAccessDoesNotBypassCommandGuardrails(t *testing.T) {
 	root := t.TempDir()
 	outside := t.TempDir()
 	registry := nativemocks.RegisterRuntimeWithPermissionPolicy(
@@ -324,28 +398,19 @@ func TestRunCommand_FullAccessBypassesCommandAndWorkingDirectoryGuardrails(t *te
 	})
 
 	require.NoError(t, err)
-	require.True(t, called)
-	require.Empty(t, result.Error)
-	var payload runCommandPayload
-	require.NoError(t, json.Unmarshal([]byte(result.Output), &payload))
-	require.Equal(t, "allowed", payload.Stdout)
+	require.NotEmpty(t, result.Error)
 }
 
-func TestRunCommand_ResolvePermissionWithoutRuntimeClassifiesTarget(t *testing.T) {
+func TestRunCommand_ResolvePermissionRequiresExecutionRuntime(t *testing.T) {
 	resolver := resolvePermission(nil)
 
-	inputs, err := resolver(context.Background(), tools.Call{Input: `{"command":"printf","args":["hello"]}`})
+	inputs, err := resolver(
+		context.Background(),
+		tools.Call{Input: `{"command":"printf","args":["hello"]}`},
+	)
 
-	require.NoError(t, err)
-	require.Len(t, inputs, 2)
-	require.Equal(t, permissions.ResourceFile, inputs[0].Operation.Resource)
-	require.Equal(t, permissions.ResourceProcess, inputs[1].Operation.Resource)
-	require.Equal(t, permissions.ActionExecute, inputs[1].Operation.Action)
-	require.Equal(t, []permissions.Effect{permissions.EffectExecution}, inputs[1].Operation.Effects)
-	require.NotNil(t, inputs[1].Operation.Command)
-	require.Equal(t, commandplan.ModeDirect, inputs[1].Operation.Command.Mode)
-	require.Equal(t, "printf", inputs[1].Operation.Command.Executable)
-	require.Equal(t, []string{"hello"}, inputs[1].Operation.Command.Arguments)
+	require.Nil(t, inputs)
+	require.EqualError(t, err, "execution backend is not configured")
 }
 
 func TestRunCommand_ResolvePermissionBuildsCompoundOperationSet(t *testing.T) {
@@ -375,14 +440,16 @@ func TestRunCommand_ResolvePermissionBuildsCompoundOperationSet(t *testing.T) {
 }
 
 func TestRunCommand_CompoundDenialPreventsAnyExecution(t *testing.T) {
-	called := false
-	replaceCommandBuilder(t, &called, "")
 	policy := permissions.Policy{
 		Default: permissions.DecisionDeny,
 		Rules: []permissions.Rule{
 			{
-				Name: "allow cwd", Resources: []permissions.Resource{permissions.ResourceFile},
-				Actions: []permissions.Action{permissions.ActionRead}, Decision: permissions.DecisionAllow,
+				Name:      "allow cwd",
+				Resources: []permissions.Resource{permissions.ResourceFile},
+				Actions: []permissions.Action{
+					permissions.ActionRead,
+				},
+				Decision: permissions.DecisionAllow,
 			},
 			{
 				Name: "allow printf", Resources: []permissions.Resource{permissions.ResourceProcess},
@@ -407,7 +474,10 @@ func TestRunCommand_CompoundDenialPreventsAnyExecution(t *testing.T) {
 		t, t.TempDir(), guardrails.CommandPolicy{}, policy, Definition,
 	)
 	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
-		Actor: permissions.Actor{Kind: permissions.ActorLocalOwner}, Surface: permissions.SurfaceCLI,
+		Actor: permissions.Actor{
+			Kind: permissions.ActorLocalOwner,
+		},
+		Surface: permissions.SurfaceCLI,
 	})
 
 	result, err := registry.Invoke(ctx, tools.Call{
@@ -416,12 +486,9 @@ func TestRunCommand_CompoundDenialPreventsAnyExecution(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Contains(t, result.Error, permissions.ErrorCodeDenied)
-	require.False(t, called)
 }
 
 func TestRunCommand_IncompletePlanIsDeniedOnUnattendedSurface(t *testing.T) {
-	called := false
-	replaceCommandBuilder(t, &called, "")
 	registry := nativemocks.RegisterRuntimeWithPermissionPolicy(
 		t,
 		t.TempDir(),
@@ -438,7 +505,11 @@ func TestRunCommand_IncompletePlanIsDeniedOnUnattendedSurface(t *testing.T) {
 		Definition,
 	)
 	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
-		Actor: permissions.Actor{Kind: permissions.ActorAutomation, ID: "job"}, Surface: permissions.SurfaceAutomation,
+		Actor: permissions.Actor{
+			Kind: permissions.ActorAutomation,
+			ID:   "job",
+		},
+		Surface: permissions.SurfaceAutomation,
 	})
 
 	result, err := registry.Invoke(ctx, tools.Call{
@@ -448,7 +519,6 @@ func TestRunCommand_IncompletePlanIsDeniedOnUnattendedSurface(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, result.Error, permissions.ErrorCodeDenied)
 	require.Contains(t, result.Error, "incomplete command plans require an interactive local owner")
-	require.False(t, called)
 }
 
 func TestRunCommand_ToolRejectsOutsideWorkingDirectory(t *testing.T) {
@@ -456,7 +526,13 @@ func TestRunCommand_ToolRejectsOutsideWorkingDirectory(t *testing.T) {
 	outside := t.TempDir()
 	registry := nativemocks.RegisterRuntime(t, root, guardrails.CommandPolicy{}, Definition)
 
-	result, err := registry.Invoke(context.Background(), tools.Call{
+	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
+		Actor: permissions.Actor{
+			Kind: permissions.ActorLocalOwner,
+		},
+		Surface: permissions.SurfaceCLI,
+	})
+	result, err := registry.Invoke(ctx, tools.Call{
 		Name:  "run_command",
 		Input: `{"command":"printf","args":["hello"],"cwd":` + nativemocks.QuoteJSON(outside) + `}`,
 	})
@@ -471,7 +547,13 @@ func TestRunCommand_ToolTimesOut(t *testing.T) {
 	root := t.TempDir()
 	registry := nativemocks.RegisterRuntime(t, root, guardrails.CommandPolicy{}, Definition)
 
-	result, err := registry.Invoke(context.Background(), tools.Call{Name: "run_command", Input: `{"command":"sleep","args":["2"],"timeout_seconds":1}`})
+	result, err := registry.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "run_command",
+			Input: `{"command":"sleep","args":["2"],"timeout_seconds":1}`,
+		},
+	)
 
 	require.NoError(t, err)
 	var payload runCommandPayload
@@ -493,7 +575,13 @@ func TestRunCommand_ToolPassesEnvironmentVariables(t *testing.T) {
 		Definition,
 	)
 
-	result, err := registry.Invoke(context.Background(), tools.Call{
+	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
+		Actor: permissions.Actor{
+			Kind: permissions.ActorLocalOwner,
+		},
+		Surface: permissions.SurfaceCLI,
+	})
+	result, err := registry.Invoke(ctx, tools.Call{
 		Name:  "run_command",
 		Input: `{"mode":"posix_shell","command":"printf %s \"$MORPH_TEST_VAR\"","env":[{"name":"MORPH_TEST_VAR","value":"visible"}]}`,
 	})
@@ -529,7 +617,13 @@ func TestRunCommand_ToolReturnsNonZeroExitCode(t *testing.T) {
 	root := t.TempDir()
 	registry := nativemocks.RegisterRuntime(t, root, guardrails.CommandPolicy{}, Definition)
 
-	result, err := registry.Invoke(context.Background(), tools.Call{Name: "run_command", Input: `{"command":"false"}`})
+	result, err := registry.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "run_command",
+			Input: `{"command":"false"}`,
+		},
+	)
 
 	require.NoError(t, err)
 	var payload runCommandPayload
@@ -545,7 +639,13 @@ func TestRunCommand_ToolReportsClampedTimeout(t *testing.T) {
 	root := t.TempDir()
 	registry := nativemocks.RegisterRuntime(t, root, guardrails.CommandPolicy{}, Definition)
 
-	result, err := registry.Invoke(context.Background(), tools.Call{Name: "run_command", Input: `{"command":"printf","args":["hello"],"timeout_seconds":999}`})
+	result, err := registry.Invoke(
+		context.Background(),
+		tools.Call{
+			Name:  "run_command",
+			Input: `{"command":"printf","args":["hello"],"timeout_seconds":999}`,
+		},
+	)
 
 	require.NoError(t, err)
 	var payload runCommandPayload
@@ -563,7 +663,13 @@ func TestRunCommand_ToolSupportsContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	result, err := registry.Invoke(ctx, tools.Call{Name: "run_command", Input: `{"command":"printf","args":["hello"]}`})
+	result, err := registry.Invoke(
+		ctx,
+		tools.Call{
+			Name:  "run_command",
+			Input: `{"command":"printf","args":["hello"]}`,
+		},
+	)
 
 	require.NoError(t, err)
 	require.Empty(t, result.Output)
@@ -601,15 +707,23 @@ func TestRunCommand_HandlerAppliesCommandPolicy(t *testing.T) {
 		message string
 	}{
 		{
-			name: "denied", policy: denyGitPushPolicy,
-			command: "git", args: []string{"push"}, message: "command_denied",
+			name:    "denied",
+			policy:  denyGitPushPolicy,
+			command: "git",
+			args:    []string{"push"},
+			message: "command_denied",
 		},
 		{
-			name: "configured approval", policy: askGitPushPolicy,
-			command: "git", args: []string{"push"}, message: "Command matches approval rule: command-selector:",
+			name:    "configured approval",
+			policy:  askGitPushPolicy,
+			command: "git",
+			args:    []string{"push"},
+			message: "Command matches approval rule: command-selector:",
 		},
 		{
-			name: "built-in approval", command: "rm", args: []string{"-rf", "/"},
+			name:    "built-in approval",
+			command: "rm",
+			args:    []string{"-rf", "/"},
 			message: "dangerous destructive command",
 		},
 	}
@@ -620,7 +734,12 @@ func TestRunCommand_HandlerAppliesCommandPolicy(t *testing.T) {
 			input, err := json.Marshal(input{Command: test.command, Args: test.args})
 			require.NoError(t, err)
 
-			result, err := Definition(runtime).Handler.Invoke(context.Background(), tools.Call{Input: string(input)})
+			result, err := Definition(
+				runtime,
+			).Handler.Invoke(
+				context.Background(),
+				tools.Call{Input: string(input)},
+			)
 
 			require.NoError(t, err)
 			require.Contains(t, result.Error, test.message)
@@ -628,7 +747,7 @@ func TestRunCommand_HandlerAppliesCommandPolicy(t *testing.T) {
 	}
 }
 
-func TestRunCommand_HandlerReturnsStartAndWaitErrors(t *testing.T) {
+func TestRunCommand_HandlerReturnsStartError(t *testing.T) {
 	root := t.TempDir()
 	handler := Definition(nativemocks.NewRuntime(root, guardrails.CommandPolicy{})).Handler
 
@@ -637,19 +756,6 @@ func TestRunCommand_HandlerReturnsStartAndWaitErrors(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Contains(t, result.Error, `"code":"invalid_input"`)
-
-	originalWaitCommand := waitCommand
-	t.Cleanup(func() { waitCommand = originalWaitCommand })
-	waitCommand = func(cmd *exec.Cmd) error {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
-		return errors.New("wait failed")
-	}
-	result, err = handler.Invoke(context.Background(), tools.Call{
-		Input: `{"command":"sleep","args":["5"]}`,
-	})
-	require.NoError(t, err)
-	require.Contains(t, result.Error, "wait failed")
 }
 
 func TestRunCommand_HandlerReturnsCancellationAfterStart(t *testing.T) {
@@ -670,13 +776,6 @@ func TestBuildRunCommandOutput_ClampsNegativeRemainingTime(t *testing.T) {
 	output := buildRunCommandOutput(0, "", "", false, 1, 2)
 
 	require.Equal(t, 0.0, output["remaining_seconds"])
-}
-
-func TestTerminateCommandProcess_IgnoresMissingProcess(t *testing.T) {
-	require.NotPanics(t, func() {
-		terminateCommandProcess(nil)
-		terminateCommandProcess(&exec.Cmd{})
-	})
 }
 
 func TestBuildCommand_UsesDirectExecutionWhenArgsAreProvided(t *testing.T) {
@@ -724,7 +823,13 @@ func TestRunCommand_ToolKillsShellChildrenOnTimeout(t *testing.T) {
 		Definition,
 	)
 
-	result, err := registry.Invoke(context.Background(), tools.Call{
+	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
+		Actor: permissions.Actor{
+			Kind: permissions.ActorLocalOwner,
+		},
+		Surface: permissions.SurfaceCLI,
+	})
+	result, err := registry.Invoke(ctx, tools.Call{
 		Name:  "run_command",
 		Input: `{"mode":"posix_shell","command":"sleep 30 & child=$!; echo $child > child.pid; wait","timeout_seconds":1}`,
 	})
@@ -750,25 +855,21 @@ func TestRunCommand_ToolKillsShellChildrenOnTimeout(t *testing.T) {
 	}, 3*time.Second, 50*time.Millisecond)
 }
 
-func replaceCommandBuilder(t *testing.T, called *bool, output string) {
-	t.Helper()
-	original := newCommand
-	t.Cleanup(func() {
-		newCommand = original
-	})
-	newCommand = func(ctx context.Context, _ commandplan.Plan) (*exec.Cmd, error) {
-		*called = true
-		return exec.CommandContext(ctx, "printf", output), nil
-	}
-}
-
 func bytesTrimSpace(value []byte) string {
 	start := 0
-	for start < len(value) && (value[start] == ' ' || value[start] == '\n' || value[start] == '\t' || value[start] == '\r') {
+	for start < len(value) &&
+		(value[start] == ' ' ||
+			value[start] == '\n' ||
+			value[start] == '\t' ||
+			value[start] == '\r') {
 		start++
 	}
 	end := len(value)
-	for end > start && (value[end-1] == ' ' || value[end-1] == '\n' || value[end-1] == '\t' || value[end-1] == '\r') {
+	for end > start &&
+		(value[end-1] == ' ' ||
+			value[end-1] == '\n' ||
+			value[end-1] == '\t' ||
+			value[end-1] == '\r') {
 		end--
 	}
 

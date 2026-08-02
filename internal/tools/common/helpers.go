@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -84,16 +83,6 @@ func FilesystemPolicyFromRuntime(runtime envtypes.Runtime) guardrails.Filesystem
 	return runtime.FilePolicy()
 }
 
-var (
-	LookPath       = exec.LookPath
-	CommandContext = exec.CommandContext
-	ReadDir        = os.ReadDir
-	WriteFile      = os.WriteFile
-	MkdirAll       = os.MkdirAll
-	StatFile       = os.Stat
-	WalkDir        = filepath.WalkDir
-)
-
 const (
 	MaxListEntries   = constants.ToolMaxListEntries
 	MaxSearchResults = constants.ToolMaxSearchResults
@@ -155,6 +144,16 @@ func FileError(err error) tools.Result {
 	default:
 		return ToolError("internal_error", err.Error())
 	}
+}
+
+func NewFilePermissionResolutionError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if strings.Contains(err.Error(), "outside allowed roots") {
+		return tools.NewPermissionResolutionError("path_outside_roots", "path is outside allowed roots")
+	}
+	return tools.NewPermissionResolutionError("invalid_path", err.Error())
 }
 
 // HiddenPath reports whether path should be hidden from filesystem tool listings.

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	agentapi "github.com/wandxy/morph/internal/agent"
+	"github.com/wandxy/morph/internal/execution"
 	models "github.com/wandxy/morph/internal/model"
 	rpcclient "github.com/wandxy/morph/internal/rpc/client"
 	storage "github.com/wandxy/morph/internal/state/core"
@@ -17,86 +18,87 @@ import (
 
 // AgentServiceStub is a test stub for agent service.
 type AgentServiceStub struct {
-	ChatInput            string
-	RespondContext       context.Context
-	RespondOptions       agent.RespondOptions
-	Reply                string
-	Deltas               []string
-	Events               []agent.Event
-	RespondErr           error
-	Err                  error
-	CloseErr             error
-	Closed               bool
-	CreatedSession       storage.Session
-	CreatedSessionID     string
-	CreatedSessionOrigin storage.SessionOrigin
-	SavedGatewayBinding  storage.GatewayBinding
-	GatewayBinding       storage.GatewayBinding
-	GatewayBindingFound  bool
-	PairingRequests      []pairing.PendingRequest
-	PairedSenders        []pairing.ApprovedSender
-	ApprovedPairing      rpcclient.GatewayPairedSender
-	PairingApproved      bool
-	PairingSource        string
-	PairingCode          string
-	RevokedPairingSource string
-	RevokedPairingSender string
-	ClearedPairingSource string
-	GatewayStatusResult  rpcclient.GatewayStatus
-	GatewayStatusErr     error
-	GatewayStarted       bool
-	GatewayStopped       bool
-	GatewayRestarted     bool
-	CreateSessionOptions rpcclient.CreateSessionOptions
-	Sessions             []storage.Session
-	ArchivedSessions     []storage.Session
-	ListOptions          storage.SessionListOptions
-	UsedSessionID        string
-	UseSessionErr        error
-	ArchivedSessionID    string
-	ArchiveSessionErr    error
-	UnarchivedSessionID  string
-	UnarchivedSession    storage.Session
-	UnarchiveSessionErr  error
-	RenamedSessionID     string
-	RenamedSessionTitle  string
-	RenamedSession       storage.Session
-	RenameSessionErr     error
-	CurrentSessionResult storage.Session
-	CompactResult        rpcclient.CompactSessionResult
-	RepairOptions        search.VectorRepairOptions
-	RepairResult         search.VectorRepairResult
-	SummaryResult        storage.SessionSummary
-	StatusResult         rpcclient.ContextStatus
-	TimelineOptions      agentapi.SessionTimelineOptions
-	TimelineResult       agentapi.SessionTimeline
-	ProviderList         agentapi.ProviderList
-	RuntimeModelResult   rpcclient.ModelRuntime
-	ModelList            agentapi.ModelList
-	ModelListOptions     agentapi.ModelListOptions
-	SelectedModel        models.Option
-	SelectedModelID      string
-	SelectedModelOptions agentapi.ModelSelectOptions
-	SelectModelErr       error
-	ProviderAPIKey       string
-	ProviderAPIKeyID     string
-	SetProviderAPIKeyErr error
-	AutomationStoreValue storage.AutomationStore
-	AutomationStoreOK    bool
-	AutomationStoreErr   error
-	EnqueuedMessage      rpcclient.EnqueueMessageOptions
-	QueueEntry           rpcclient.SessionQueueEntry
-	ExecutionState       rpcclient.SessionExecutionState
-	SetReasoningOptions  rpcclient.SetReasoningEffortOptions
-	ReasoningSettings    agentsession.ReasoningSettings
-	SessionEvents        []rpcclient.SessionEvent
-	InterruptedRun       rpcclient.SessionActiveRun
-	RunTransitioned      bool
-	EditedEntryID        string
-	EditedEntryContent   string
-	RemovedEntryID       string
-	PromotedEntryID      string
-	SteeredEntryID       string
+	ChatInput             string
+	RespondContext        context.Context
+	RespondOptions        agent.RespondOptions
+	Reply                 string
+	Deltas                []string
+	Events                []agent.Event
+	RespondErr            error
+	Err                   error
+	CloseErr              error
+	Closed                bool
+	CreatedSession        storage.Session
+	CreatedSessionID      string
+	CreatedSessionOrigin  storage.SessionOrigin
+	SavedGatewayBinding   storage.GatewayBinding
+	GatewayBinding        storage.GatewayBinding
+	GatewayBindingFound   bool
+	PairingRequests       []pairing.PendingRequest
+	PairedSenders         []pairing.ApprovedSender
+	ApprovedPairing       rpcclient.GatewayPairedSender
+	PairingApproved       bool
+	PairingSource         string
+	PairingCode           string
+	RevokedPairingSource  string
+	RevokedPairingSender  string
+	ClearedPairingSource  string
+	GatewayStatusResult   rpcclient.GatewayStatus
+	GatewayStatusErr      error
+	GatewayStarted        bool
+	GatewayStopped        bool
+	GatewayRestarted      bool
+	CreateSessionOptions  rpcclient.CreateSessionOptions
+	Sessions              []storage.Session
+	ArchivedSessions      []storage.Session
+	ListOptions           storage.SessionListOptions
+	UsedSessionID         string
+	UseSessionErr         error
+	ArchivedSessionID     string
+	ArchiveSessionErr     error
+	UnarchivedSessionID   string
+	UnarchivedSession     storage.Session
+	UnarchiveSessionErr   error
+	RenamedSessionID      string
+	RenamedSessionTitle   string
+	RenamedSession        storage.Session
+	RenameSessionErr      error
+	CurrentSessionResult  storage.Session
+	CompactResult         rpcclient.CompactSessionResult
+	RepairOptions         search.VectorRepairOptions
+	RepairResult          search.VectorRepairResult
+	SummaryResult         storage.SessionSummary
+	StatusResult          rpcclient.ContextStatus
+	TimelineOptions       agentapi.SessionTimelineOptions
+	TimelineResult        agentapi.SessionTimeline
+	ProviderList          agentapi.ProviderList
+	RuntimeModelResult    rpcclient.ModelRuntime
+	ModelList             agentapi.ModelList
+	ModelListOptions      agentapi.ModelListOptions
+	SelectedModel         models.Option
+	SelectedModelID       string
+	SelectedModelOptions  agentapi.ModelSelectOptions
+	SelectModelErr        error
+	ProviderAPIKey        string
+	ProviderAPIKeyID      string
+	SetProviderAPIKeyErr  error
+	AutomationStoreValue  storage.AutomationStore
+	AutomationStoreOK     bool
+	AutomationStoreErr    error
+	EnqueuedMessage       rpcclient.EnqueueMessageOptions
+	QueueEntry            rpcclient.SessionQueueEntry
+	ExecutionState        rpcclient.SessionExecutionState
+	SetReasoningOptions   rpcclient.SetReasoningEffortOptions
+	ReasoningSettings     agentsession.ReasoningSettings
+	SessionEvents         []rpcclient.SessionEvent
+	InterruptedRun        rpcclient.SessionActiveRun
+	RunTransitioned       bool
+	EditedEntryID         string
+	EditedEntryContent    string
+	RemovedEntryID        string
+	PromotedEntryID       string
+	SteeredEntryID        string
+	ExecutionEnvironments []execution.EnvironmentDetails
 }
 
 func (s *AgentServiceStub) Respond(ctx context.Context, msg string, opts agent.RespondOptions) (string, error) {
@@ -314,6 +316,23 @@ func (s *AgentServiceStub) InterruptSessionRun(
 
 func (s *AgentServiceStub) SessionAPI() rpcclient.SessionAPI {
 	return s
+}
+
+func (s *AgentServiceStub) ListExecutionEnvironments(context.Context, string) ([]execution.EnvironmentDetails, error) {
+	return s.ExecutionEnvironments, s.Err
+}
+
+func (s *AgentServiceStub) ExplainExecutionEnvironment(
+	_ context.Context,
+	_ string,
+	id string,
+) (execution.EnvironmentDetails, error) {
+	for _, item := range s.ExecutionEnvironments {
+		if item.Status.ID == id {
+			return item, s.Err
+		}
+	}
+	return execution.EnvironmentDetails{}, s.Err
 }
 
 func (s *AgentServiceStub) ModelAPI() rpcclient.ModelAPI {
@@ -682,7 +701,11 @@ func (s *AgentServiceStub) RenameSession(_ context.Context, id string, title str
 	if iDValue3.Trim() != "" {
 		return s.RenamedSession, s.Err
 	}
-	return storage.Session{ID: id, Title: title, TitleSource: storage.SessionTitleSourceManual}, s.Err
+	return storage.Session{
+		ID:          id,
+		Title:       title,
+		TitleSource: storage.SessionTitleSourceManual,
+	}, s.Err
 }
 
 func (s *AgentServiceStub) Current(ctx context.Context) (storage.Session, error) {

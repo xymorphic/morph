@@ -439,6 +439,30 @@ func applyEnvOverrides(cfg *Config) {
 	if value := envValue70.Trim(); value != "" {
 		cfg.Exec.Deny = splitAndTrimCSV(value)
 	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_EXECUTION_BACKEND")); value != "" {
+		cfg.Execution.Backend = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_EXECUTION_DOCKER_SCOPE")); value != "" {
+		cfg.Execution.Docker.Scope = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_EXECUTION_DOCKER_ENDPOINT")); value != "" {
+		cfg.Execution.Docker.Endpoint = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_EXECUTION_DOCKER_IMAGE")); value != "" {
+		cfg.Execution.Docker.Image = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_EXECUTION_DOCKER_CONTRACT")); value != "" {
+		cfg.Execution.Docker.Contract = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_EXECUTION_DOCKER_WORKSPACE_MODE")); value != "" {
+		cfg.Execution.Docker.Workspace.Mode = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_EXECUTION_DOCKER_WORKSPACE_SOURCE")); value != "" {
+		cfg.Execution.Docker.Workspace.Source = value
+	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_EXECUTION_DOCKER_NETWORK")); value != "" {
+		cfg.Execution.Docker.Network = value
+	}
 	envValue71 := str.String(os.Getenv("MORPH_STORAGE_BACKEND"))
 	if value := envValue71.Trim(); value != "" {
 		cfg.Storage.Backend = value

@@ -147,20 +147,158 @@ func TestPolicy_ValidateRejectsInvalidConfiguration(t *testing.T) {
 		policy       Policy
 		errorMessage string
 	}{
-		{name: "default", policy: Policy{Default: "prompt"}, errorMessage: "permission default must be one of: allow, ask, deny"},
-		{name: "surface kind", policy: Policy{SurfaceKindDefaults: map[SurfaceKind]Decision{"remote": DecisionAsk}}, errorMessage: "permission surface kind default contains an invalid kind"},
-		{name: "surface kind decision", policy: Policy{SurfaceKindDefaults: map[SurfaceKind]Decision{SurfaceKindLocal: "prompt"}}, errorMessage: "permission surface kind default must be one of: allow, ask, deny"},
-		{name: "surface", policy: Policy{SurfaceDefaults: map[Surface]Decision{"": DecisionAsk}}, errorMessage: "permission surface default contains an invalid surface"},
-		{name: "surface decision", policy: Policy{SurfaceDefaults: map[Surface]Decision{SurfaceCLI: "prompt"}}, errorMessage: "permission surface default must be one of: allow, ask, deny"},
-		{name: "rule name", policy: Policy{Rules: []Rule{{Decision: DecisionAllow}}}, errorMessage: "permission rule name is required"},
-		{name: "rule decision", policy: Policy{Rules: []Rule{{Name: "rule", Decision: "prompt"}}}, errorMessage: "permission rule decision must be one of: allow, ask, deny"},
-		{name: "rule actor", policy: Policy{Rules: []Rule{{Name: "rule", Decision: DecisionAllow, ActorKinds: []ActorKind{"owner"}}}}, errorMessage: "permission rule contains an invalid actor"},
-		{name: "rule parent actor", policy: Policy{Rules: []Rule{{Name: "rule", Decision: DecisionAllow, ParentActorKinds: []ActorKind{"owner"}}}}, errorMessage: "permission rule contains an invalid parent actor"},
-		{name: "rule surface kind", policy: Policy{Rules: []Rule{{Name: "rule", Decision: DecisionAllow, SurfaceKinds: []SurfaceKind{"remote"}}}}, errorMessage: "permission rule contains an invalid surface kind"},
-		{name: "rule resource", policy: Policy{Rules: []Rule{{Name: "rule", Decision: DecisionAllow, Resources: []Resource{"database"}}}}, errorMessage: "permission rule contains an invalid resource"},
-		{name: "rule action", policy: Policy{Rules: []Rule{{Name: "rule", Decision: DecisionAllow, Actions: []Action{"download"}}}}, errorMessage: "permission rule contains an invalid action"},
-		{name: "rule effect", policy: Policy{Rules: []Rule{{Name: "rule", Decision: DecisionAllow, Effects: []Effect{"unknown"}}}}, errorMessage: "permission rule contains an invalid effect"},
-		{name: "duplicate rule", policy: Policy{Rules: []Rule{{Name: "rule", Decision: DecisionAllow}, {Name: " rule ", Decision: DecisionDeny}}}, errorMessage: "permission rule names must be unique"},
+		{
+			name: "default",
+			policy: Policy{
+				Default: "prompt",
+			},
+			errorMessage: "permission default must be one of: allow, ask, deny",
+		},
+		{
+			name: "surface kind",
+			policy: Policy{
+				SurfaceKindDefaults: map[SurfaceKind]Decision{"remote": DecisionAsk},
+			},
+			errorMessage: "permission surface kind default contains an invalid kind",
+		},
+		{
+			name: "surface kind decision",
+			policy: Policy{
+				SurfaceKindDefaults: map[SurfaceKind]Decision{SurfaceKindLocal: "prompt"},
+			},
+			errorMessage: "permission surface kind default must be one of: allow, ask, deny",
+		},
+		{
+			name: "surface",
+			policy: Policy{
+				SurfaceDefaults: map[Surface]Decision{"": DecisionAsk},
+			},
+			errorMessage: "permission surface default contains an invalid surface",
+		},
+		{
+			name: "surface decision",
+			policy: Policy{
+				SurfaceDefaults: map[Surface]Decision{SurfaceCLI: "prompt"},
+			},
+			errorMessage: "permission surface default must be one of: allow, ask, deny",
+		},
+		{
+			name: "rule name",
+			policy: Policy{
+				Rules: []Rule{
+					{
+						Decision: DecisionAllow,
+					},
+				},
+			},
+			errorMessage: "permission rule name is required",
+		},
+		{
+			name: "rule decision",
+			policy: Policy{
+				Rules: []Rule{
+					{
+						Name:     "rule",
+						Decision: "prompt",
+					},
+				},
+			},
+			errorMessage: "permission rule decision must be one of: allow, ask, deny",
+		},
+		{
+			name: "rule actor",
+			policy: Policy{
+				Rules: []Rule{
+					{
+						Name:       "rule",
+						Decision:   DecisionAllow,
+						ActorKinds: []ActorKind{"owner"},
+					},
+				},
+			},
+			errorMessage: "permission rule contains an invalid actor",
+		},
+		{
+			name: "rule parent actor",
+			policy: Policy{
+				Rules: []Rule{
+					{
+						Name:             "rule",
+						Decision:         DecisionAllow,
+						ParentActorKinds: []ActorKind{"owner"},
+					},
+				},
+			},
+			errorMessage: "permission rule contains an invalid parent actor",
+		},
+		{
+			name: "rule surface kind",
+			policy: Policy{
+				Rules: []Rule{
+					{
+						Name:         "rule",
+						Decision:     DecisionAllow,
+						SurfaceKinds: []SurfaceKind{"remote"},
+					},
+				},
+			},
+			errorMessage: "permission rule contains an invalid surface kind",
+		},
+		{
+			name: "rule resource",
+			policy: Policy{
+				Rules: []Rule{
+					{
+						Name:      "rule",
+						Decision:  DecisionAllow,
+						Resources: []Resource{"database"},
+					},
+				},
+			},
+			errorMessage: "permission rule contains an invalid resource",
+		},
+		{
+			name: "rule action",
+			policy: Policy{
+				Rules: []Rule{
+					{
+						Name:     "rule",
+						Decision: DecisionAllow,
+						Actions:  []Action{"download"},
+					},
+				},
+			},
+			errorMessage: "permission rule contains an invalid action",
+		},
+		{
+			name: "rule effect",
+			policy: Policy{
+				Rules: []Rule{
+					{
+						Name:     "rule",
+						Decision: DecisionAllow,
+						Effects:  []Effect{"unknown"},
+					},
+				},
+			},
+			errorMessage: "permission rule contains an invalid effect",
+		},
+		{
+			name: "duplicate rule",
+			policy: Policy{
+				Rules: []Rule{
+					{
+						Name:     "rule",
+						Decision: DecisionAllow,
+					},
+					{
+						Name:     " rule ",
+						Decision: DecisionDeny,
+					},
+				},
+			},
+			errorMessage: "permission rule names must be unique",
+		},
 	}
 
 	for _, test := range tests {
@@ -170,7 +308,7 @@ func TestPolicy_ValidateRejectsInvalidConfiguration(t *testing.T) {
 	}
 }
 
-func TestPolicy_EvaluateFullAccessBypassesPolicyApprovalAndOwnership(t *testing.T) {
+func TestPolicy_EvaluateFullAccessBypassesPolicyApprovalAndOwnershipButNotHardDenial(t *testing.T) {
 	policy := Policy{
 		Preset: PresetFullAccess,
 		Rules:  []Rule{{Name: "deny everything", Decision: DecisionDeny}},
@@ -193,9 +331,9 @@ func TestPolicy_EvaluateFullAccessBypassesPolicyApprovalAndOwnership(t *testing.
 
 	input.HardDenyReason = "blocked by hard safety policy"
 	evaluation = policy.Evaluate(input)
-	require.Equal(t, DecisionAllow, evaluation.Decision)
-	require.Equal(t, ReasonFullAccess, evaluation.ReasonCode)
-	require.Empty(t, evaluation.Reason)
+	require.Equal(t, DecisionDeny, evaluation.Decision)
+	require.Equal(t, ReasonHardDeny, evaluation.ReasonCode)
+	require.Equal(t, "blocked by hard safety policy", evaluation.Reason)
 }
 
 func TestPolicy_EvaluateUsesHardDenyThenRulePrecedence(t *testing.T) {
@@ -206,7 +344,12 @@ func TestPolicy_EvaluateUsesHardDenyThenRulePrecedence(t *testing.T) {
 	}}
 	input := EvaluationInput{
 		Authorization: AuthorizationContext{Actor: Actor{Kind: ActorLocalOwner}, Surface: SurfaceCLI, Profile: "work"},
-		Operation:     Operation{Tool: "config", Resource: ResourceConfiguration, Action: ActionUpdate, Effects: []Effect{EffectWrite}},
+		Operation: Operation{
+			Tool:     "config",
+			Resource: ResourceConfiguration,
+			Action:   ActionUpdate,
+			Effects:  []Effect{EffectWrite},
+		},
 	}
 
 	evaluation := policy.Evaluate(input)
@@ -236,7 +379,11 @@ func TestPolicy_EvaluateMatchesSpecificGatewayActorID(t *testing.T) {
 			Decision:   DecisionAllow,
 		}},
 	}
-	operation := Operation{Resource: ResourceMemory, Action: ActionSearch, Effects: []Effect{EffectRead}}
+	operation := Operation{
+		Resource: ResourceMemory,
+		Action:   ActionSearch,
+		Effects:  []Effect{EffectRead},
+	}
 
 	allowed := policy.Evaluate(EvaluationInput{
 		Authorization: AuthorizationContext{
@@ -263,8 +410,12 @@ func TestPolicy_EvaluateRequiresApprovalAfterAllowButPreservesDeny(t *testing.T)
 		{Name: "deny destructive", Effects: []Effect{EffectDestructive}, Decision: DecisionDeny},
 	}}
 	input := EvaluationInput{
-		Authorization:  AuthorizationContext{Actor: Actor{Kind: ActorLocalOwner}, Surface: SurfaceCLI},
-		Operation:      Operation{Resource: ResourceProcess, Action: ActionExecute, Effects: []Effect{EffectExecution}},
+		Authorization: AuthorizationContext{Actor: Actor{Kind: ActorLocalOwner}, Surface: SurfaceCLI},
+		Operation: Operation{
+			Resource: ResourceProcess,
+			Action:   ActionExecute,
+			Effects:  []Effect{EffectExecution},
+		},
 		ApprovalReason: "command policy requires approval",
 	}
 
@@ -406,7 +557,11 @@ func TestPolicy_EvaluateEnforcesOwnerRequirement(t *testing.T) {
 
 	evaluation = policy.Evaluate(EvaluationInput{
 		Authorization: AuthorizationContext{Actor: Actor{Kind: ActorLocalOwner}, Surface: SurfaceCLI},
-		Operation:     Operation{Resource: ResourceAutomation, Action: ActionCreate, OwnerRequired: true},
+		Operation: Operation{
+			Resource:      ResourceAutomation,
+			Action:        ActionCreate,
+			OwnerRequired: true,
+		},
 	})
 	require.Equal(t, DecisionAllow, evaluation.Decision)
 }
@@ -420,7 +575,12 @@ func TestPolicy_EvaluateUsesSpecificRuleWithinDecisionClass(t *testing.T) {
 
 	evaluation := policy.Evaluate(EvaluationInput{
 		Authorization: AuthorizationContext{Actor: Actor{Kind: ActorLocalOwner}, Surface: SurfaceCLI},
-		Operation:     Operation{Tool: "write_file", Resource: ResourceFile, Action: ActionUpdate, Effects: []Effect{EffectRead, EffectWrite}},
+		Operation: Operation{
+			Tool:     "write_file",
+			Resource: ResourceFile,
+			Action:   ActionUpdate,
+			Effects:  []Effect{EffectRead, EffectWrite},
+		},
 	})
 	require.Equal(t, "same specificity later", evaluation.Rule)
 }
@@ -441,21 +601,35 @@ func TestPolicy_EvaluateMatchesTargetAndFallsBackToDefaults(t *testing.T) {
 
 	evaluation := policy.Evaluate(EvaluationInput{
 		Authorization: authorization,
-		Operation:     Operation{Resource: ResourceFile, Action: ActionRead, Effects: []Effect{EffectRead}, Target: "workspace/main.go"},
+		Operation: Operation{
+			Resource: ResourceFile,
+			Action:   ActionRead,
+			Effects:  []Effect{EffectRead},
+			Target:   "workspace/main.go",
+		},
 	})
 	require.Equal(t, DecisionAllow, evaluation.Decision)
 	require.Equal(t, "workspace read", evaluation.Rule)
 
 	evaluation = policy.Evaluate(EvaluationInput{
 		Authorization: authorization,
-		Operation:     Operation{Resource: ResourceFile, Action: ActionRead, Effects: []Effect{EffectRead}, Target: "outside/main.go"},
+		Operation: Operation{
+			Resource: ResourceFile,
+			Action:   ActionRead,
+			Effects:  []Effect{EffectRead},
+			Target:   "outside/main.go",
+		},
 	})
 	require.Equal(t, DecisionAsk, evaluation.Decision)
 	require.Equal(t, ReasonSurfaceDefault, evaluation.ReasonCode)
 
 	evaluation = policy.Evaluate(EvaluationInput{
 		Authorization: AuthorizationContext{Actor: Actor{Kind: ActorGatewayUser}, Surface: SurfaceSlack},
-		Operation:     Operation{Resource: ResourceFile, Action: ActionRead, Effects: []Effect{EffectRead}},
+		Operation: Operation{
+			Resource: ResourceFile,
+			Action:   ActionRead,
+			Effects:  []Effect{EffectRead},
+		},
 	})
 	require.Equal(t, DecisionDeny, evaluation.Decision)
 	require.Equal(t, ReasonSurfaceKindDefault, evaluation.ReasonCode)
@@ -471,7 +645,11 @@ func TestPolicy_EvaluateAppliesGatewayDefaultsAndExactOverridesToExtensibleSurfa
 		SurfaceKind: SurfaceKindGateway,
 		Surface:     discord,
 	}
-	operation := Operation{Resource: ResourceFile, Action: ActionRead, Effects: []Effect{EffectRead}}
+	operation := Operation{
+		Resource: ResourceFile,
+		Action:   ActionRead,
+		Effects:  []Effect{EffectRead},
+	}
 
 	evaluation := policy.Evaluate(EvaluationInput{Authorization: authorization, Operation: operation})
 	require.Equal(t, DecisionAllow, evaluation.Decision)
@@ -515,7 +693,11 @@ func TestPolicy_EvaluateInvalidPolicyFailsSafe(t *testing.T) {
 
 	evaluation := policy.Evaluate(EvaluationInput{
 		Authorization: AuthorizationContext{Actor: Actor{Kind: ActorLocalOwner}, Surface: SurfaceCLI},
-		Operation:     Operation{Resource: ResourceFile, Action: ActionUpdate, Effects: []Effect{EffectWrite}},
+		Operation: Operation{
+			Resource: ResourceFile,
+			Action:   ActionUpdate,
+			Effects:  []Effect{EffectWrite},
+		},
 	})
 	require.Equal(t, DecisionDeny, evaluation.Decision)
 	require.Equal(t, ReasonPolicyDefault, evaluation.ReasonCode)
@@ -536,7 +718,11 @@ func TestPolicy_EvaluateDoesNotMutateConfiguredRules(t *testing.T) {
 			Surface: SurfaceCLI,
 			Profile: "work",
 		},
-		Operation: Operation{Tool: "read_file", Resource: ResourceFile, Action: ActionRead},
+		Operation: Operation{
+			Tool:     "read_file",
+			Resource: ResourceFile,
+			Action:   ActionRead,
+		},
 	})
 
 	require.Equal(t, DecisionAllow, evaluation.Decision)
@@ -561,20 +747,87 @@ func TestPolicyHelpers_HandleNonMatchesAndUnknownDecision(t *testing.T) {
 	base := AuthorizationContext{
 		Actor: Actor{Kind: ActorLocalOwner}, SurfaceKind: SurfaceKindLocal, Surface: SurfaceCLI, Profile: "work",
 	}
-	operation := Operation{Tool: "write_file", Resource: ResourceFile, Action: ActionUpdate, Effects: []Effect{EffectWrite}}
+	operation := Operation{
+		Tool:     "write_file",
+		Resource: ResourceFile,
+		Action:   ActionUpdate,
+		Effects:  []Effect{EffectWrite},
+	}
 	require.True(t, rule.matches(base, operation))
 
 	variations := []struct {
 		authorization AuthorizationContext
 		operation     Operation
 	}{
-		{authorization: AuthorizationContext{Actor: Actor{Kind: ActorLocalOwner}, SurfaceKind: SurfaceKindLocal, Surface: SurfaceCLI, Profile: "other"}, operation: operation},
-		{authorization: AuthorizationContext{Actor: Actor{Kind: ActorGatewayUser}, SurfaceKind: SurfaceKindLocal, Surface: SurfaceCLI, Profile: "work"}, operation: operation},
-		{authorization: AuthorizationContext{Actor: Actor{Kind: ActorLocalOwner}, SurfaceKind: SurfaceKindGateway, Surface: SurfaceSlack, Profile: "work"}, operation: operation},
-		{authorization: base, operation: Operation{Tool: "patch", Resource: ResourceFile, Action: ActionUpdate, Effects: []Effect{EffectWrite}}},
-		{authorization: base, operation: Operation{Tool: "write_file", Resource: ResourceMemory, Action: ActionUpdate, Effects: []Effect{EffectWrite}}},
-		{authorization: base, operation: Operation{Tool: "write_file", Resource: ResourceFile, Action: ActionRead, Effects: []Effect{EffectWrite}}},
-		{authorization: base, operation: Operation{Tool: "write_file", Resource: ResourceFile, Action: ActionUpdate, Effects: []Effect{EffectRead}}},
+		{
+			authorization: AuthorizationContext{
+				Actor: Actor{
+					Kind: ActorLocalOwner,
+				},
+				SurfaceKind: SurfaceKindLocal,
+				Surface:     SurfaceCLI,
+				Profile:     "other",
+			},
+			operation: operation,
+		},
+		{
+			authorization: AuthorizationContext{
+				Actor: Actor{
+					Kind: ActorGatewayUser,
+				},
+				SurfaceKind: SurfaceKindLocal,
+				Surface:     SurfaceCLI,
+				Profile:     "work",
+			},
+			operation: operation,
+		},
+		{
+			authorization: AuthorizationContext{
+				Actor: Actor{
+					Kind: ActorLocalOwner,
+				},
+				SurfaceKind: SurfaceKindGateway,
+				Surface:     SurfaceSlack,
+				Profile:     "work",
+			},
+			operation: operation,
+		},
+		{
+			authorization: base,
+			operation: Operation{
+				Tool:     "patch",
+				Resource: ResourceFile,
+				Action:   ActionUpdate,
+				Effects:  []Effect{EffectWrite},
+			},
+		},
+		{
+			authorization: base,
+			operation: Operation{
+				Tool:     "write_file",
+				Resource: ResourceMemory,
+				Action:   ActionUpdate,
+				Effects:  []Effect{EffectWrite},
+			},
+		},
+		{
+			authorization: base,
+			operation: Operation{
+				Tool:     "write_file",
+				Resource: ResourceFile,
+				Action:   ActionRead,
+				Effects:  []Effect{EffectWrite},
+			},
+		},
+		{
+			authorization: base,
+			operation: Operation{
+				Tool:     "write_file",
+				Resource: ResourceFile,
+				Action:   ActionUpdate,
+				Effects:  []Effect{EffectRead},
+			},
+		},
 	}
 	for _, variation := range variations {
 		require.False(t, rule.matches(variation.authorization, variation.operation))

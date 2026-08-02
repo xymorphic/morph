@@ -3,6 +3,9 @@ package environment
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/wandxy/morph/pkg/logutils"
 	"github.com/wandxy/morph/pkg/str"
@@ -14,6 +17,9 @@ import (
 	"github.com/wandxy/morph/internal/environment/budget"
 	"github.com/wandxy/morph/internal/environment/planstore"
 	envtypes "github.com/wandxy/morph/internal/environment/types"
+	"github.com/wandxy/morph/internal/execution"
+	executiondocker "github.com/wandxy/morph/internal/execution/docker"
+	executionlocal "github.com/wandxy/morph/internal/execution/local"
 	"github.com/wandxy/morph/internal/guardrails"
 	"github.com/wandxy/morph/internal/instructions"
 	"github.com/wandxy/morph/internal/memory"
@@ -22,7 +28,9 @@ import (
 	models "github.com/wandxy/morph/internal/model"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/personality"
+	"github.com/wandxy/morph/internal/profile"
 	webprovider "github.com/wandxy/morph/internal/providers/web"
+	storage "github.com/wandxy/morph/internal/state/core"
 	statemanager "github.com/wandxy/morph/internal/state/manager"
 	"github.com/wandxy/morph/internal/tools"
 	automationtool "github.com/wandxy/morph/internal/tools/automation"
@@ -312,6 +320,9 @@ func (e *environment) prepareTools() error {
 	if e.runtime == nil {
 		e.runtime = NewRuntime(e.fileRoots(), e.commandPolicy(), e.stateMgr)
 	}
+	if err := e.prepareExecution(); err != nil {
+		return err
+	}
 	e.runtime.commandShell = e.commandShell()
 	e.runtime.memory = e.memory
 
@@ -354,7 +365,8 @@ func (e *environment) prepareTools() error {
 	webProvider, err := webprovider.NewProvider(e.cfg)
 
 	switch {
-	case errors.Is(err, webprovider.ErrProviderNotConfigured), errors.Is(err, webprovider.ErrProviderCredential):
+	case errors.Is(err, webprovider.ErrProviderNotConfigured),
+		errors.Is(err, webprovider.ErrProviderCredential):
 	case err != nil:
 		return err
 	default:
@@ -410,6 +422,275 @@ func (e *environment) prepareTools() error {
 	}
 
 	return nil
+}
+
+func (e *environment) prepareExecution() error {
+	if e == nil || e.cfg == nil || e.runtime == nil {
+		return errors.New("execution configuration is required")
+	}
+	if e.runtime.execution != nil {
+		return nil
+	}
+	activeProfile := profile.Active()
+	profileName := activeProfile.Name
+	if profileName == "" {
+		profileName = profile.DefaultName
+	}
+	securityConfiguration := any(struct {
+		Backend string
+		Command guardrails.CommandPolicy
+	}{e.cfg.Execution.Backend, e.commandPolicy()})
+	if e.cfg.Execution.Backend == config.ExecutionBackendDocker {
+		securityConfiguration = struct {
+			Backend string
+			Docker  config.DockerExecutionConfig
+			Command guardrails.CommandPolicy
+		}{e.cfg.Execution.Backend, e.cfg.Execution.Docker, e.commandPolicy()}
+	}
+	base := execution.ExposureInput{
+		Backend:                 execution.BackendLocal,
+		Scope:                   execution.ScopeSession,
+		WorkspaceMode:           execution.WorkspaceReadWrite,
+		Network:                 execution.NetworkBridge,
+		SecurityGeneration:      getExecutionSecurityGeneration(securityConfiguration),
+		Limits:                  getExecutionLimits(e.cfg.Execution.Docker.Limits),
+		EnvironmentIdleExpiry:   e.cfg.Execution.Docker.EnvironmentIdleExpiry,
+		SharedDisabledRetention: e.cfg.Execution.Docker.SharedDisabledRetention,
+	}
+	managerKey := strings.Join(
+		[]string{
+			profileName,
+			base.SecurityGeneration,
+			string(base.Backend),
+			strings.Join(e.runtime.filePolicy.Roots, "\x00"),
+		},
+		"\x00",
+	)
+	serviceFactory := func() (execution.Service, error) {
+		return executionlocal.New(e.runtime.filePolicy, e.runtime.processMgr), nil
+	}
+	if e.cfg.Execution.Backend == config.ExecutionBackendDocker {
+		contract, contractErr := executiondocker.LoadImageContract(e.cfg.Execution.Docker.Contract)
+		if contractErr != nil {
+			return contractErr
+		}
+		mounts, mountErr := getExecutionMounts(e.cfg.Execution.Docker)
+		if mountErr != nil {
+			return mountErr
+		}
+		secretReferences := make(map[string]string, len(e.cfg.Execution.Docker.Secrets))
+		resolverReferences := make(
+			[]executiondocker.SecretReference,
+			len(e.cfg.Execution.Docker.Secrets),
+		)
+		for index, secret := range e.cfg.Execution.Docker.Secrets {
+			secretReferences[secret.Name] = secret.Description
+			resolverReferences[index] = executiondocker.SecretReference{
+				Name: secret.Name,
+				Env:  secret.Env,
+			}
+		}
+		secretResolver, resolverErr := executiondocker.NewSecretResolver(resolverReferences)
+		if resolverErr != nil {
+			return resolverErr
+		}
+		base.Backend = execution.BackendDocker
+		base.Scope = execution.Scope(e.cfg.Execution.Docker.Scope)
+		base.WorkspaceMode = execution.WorkspaceMode(e.cfg.Execution.Docker.Workspace.Mode)
+		base.Mounts = mounts
+		base.Network = execution.NetworkMode(e.cfg.Execution.Docker.Network)
+		e.runtime.executionSecrets = secretReferences
+		base.ImageDigest = e.cfg.Execution.Docker.Image
+		base.ImageContractDigest = contract.Digest()
+		base.PolicyHash = base.SecurityGeneration
+		e.runtime.executionTarget = execution.CommandTarget{
+			GOOS:        contract.GOOS,
+			Shell:       contract.Shell,
+			PATH:        contract.PATH,
+			Executables: contract.Executables,
+		}
+		identityKey, keyErr := execution.LoadOrCreateIdentityKey(datadir.ExecutionIdentityKeyPath())
+		if keyErr != nil {
+			return keyErr
+		}
+		managerKey = strings.Join(
+			[]string{profileName, base.SecurityGeneration, string(base.Backend)},
+			"\x00",
+		)
+		serviceFactory = func() (execution.Service, error) {
+			daemonIncarnation, incarnationErr := execution.NewIncarnation()
+			if incarnationErr != nil {
+				return nil, incarnationErr
+			}
+			return executiondocker.NewBackend(executiondocker.BackendOptions{
+				Endpoint:            e.cfg.Execution.Docker.Endpoint,
+				Image:               e.cfg.Execution.Docker.Image,
+				Contract:            contract,
+				DaemonIncarnation:   daemonIncarnation,
+				SecretResolver:      secretResolver,
+				ProcessIdentityKey:  identityKey,
+				MaximumEnvironments: e.cfg.Execution.Docker.MaximumEnvironments,
+				MaximumVolumes:      e.cfg.Execution.Docker.MaximumVolumes,
+				ReservedFreeBytes:   e.cfg.Execution.Docker.ReservedFreeBytes,
+				ConfiguredScope:     execution.Scope(e.cfg.Execution.Docker.Scope),
+				SharedRetention:     e.cfg.Execution.Docker.SharedDisabledRetention,
+				SharedDisabledMarker: filepath.Join(
+					activeProfile.HomeDir,
+					"execution",
+					"shared-disabled-at",
+				),
+				SessionExists: func(ctx context.Context, sessionID string) (bool, error) {
+					archived := false
+					_, exists, getErr := e.stateMgr.Get(
+						ctx,
+						sessionID,
+						storage.SessionGetOptions{Archived: &archived},
+					)
+					return exists, getErr
+				},
+				RecordLifecycle: func(sessionID string, event string, payload any) {
+					session := e.NewTraceSession(sessionID)
+					session.Record(event, payload)
+					session.Close()
+				},
+			})
+		}
+	}
+	service, err := execution.AcquireManager(managerKey, serviceFactory)
+	if err != nil {
+		return err
+	}
+	e.runtime.execution = service
+	e.runtime.executionBase = base
+	e.runtime.profile = profileName
+	return nil
+}
+
+func (e *environment) Close() error {
+	if e == nil || e.runtime == nil || e.runtime.execution == nil {
+		return nil
+	}
+	return e.runtime.execution.Close(context.Background())
+}
+
+func (e *environment) CloseSession(
+	ctx context.Context,
+	sessionID string,
+	removeWorkspace bool,
+) error {
+	if e == nil || e.runtime == nil || e.runtime.execution == nil {
+		return nil
+	}
+	return e.runtime.execution.CloseSession(ctx, e.runtime.profile, sessionID, removeWorkspace)
+}
+
+func (e *environment) CloseExecutionOwner(ctx context.Context) error {
+	if e == nil || e.runtime == nil || e.runtime.execution == nil {
+		return nil
+	}
+	owner, err := e.runtime.getExecutionOwner(ctx)
+	if err != nil {
+		return err
+	}
+	return e.runtime.execution.CloseOwner(ctx, owner)
+}
+
+func (e *environment) ListExecutionEnvironments(
+	ctx context.Context,
+) ([]execution.EnvironmentDetails, error) {
+	if e == nil || e.runtime == nil {
+		return nil, errors.New("execution runtime is required")
+	}
+	return e.runtime.ListExecutionEnvironments(ctx)
+}
+
+func getExecutionLimits(limits config.ExecutionLimitsConfig) execution.Limits {
+	return execution.Limits{
+		MemoryBytes:       limits.MemoryBytes,
+		CPUMilli:          limits.CPUMilli,
+		PIDs:              limits.PIDs,
+		OpenFiles:         limits.OpenFiles,
+		TemporaryBytes:    limits.TemporaryBytes,
+		OutputBytes:       limits.OutputBytes,
+		ControlInputBytes: limits.ControlInputBytes,
+		Runtime:           limits.Runtime,
+		StopGrace:         limits.StopGrace,
+	}
+}
+
+func getExecutionMounts(cfg config.DockerExecutionConfig) ([]execution.Mount, error) {
+	mounts := make([]execution.Mount, 0, len(cfg.Mounts)+1)
+	if cfg.Workspace.Mode != config.ExecutionWorkspaceNone {
+		source, err := filepath.EvalSymlinks(filepath.Clean(cfg.Workspace.Source))
+		if err != nil {
+			return nil, err
+		}
+		mounts = append(mounts, execution.Mount{
+			Name:           "workspace",
+			SourceIdentity: source,
+			Target:         "/workspace",
+			Mode:           execution.MountMode(cfg.Workspace.Mode),
+			Purpose:        "primary workspace",
+		})
+	}
+	for _, configured := range cfg.Mounts {
+		source, err := getConfiguredMountIdentity(configured.Source, configured.Create)
+		if err != nil {
+			return nil, err
+		}
+		mounts = append(mounts, execution.Mount{
+			Name:           configured.Name,
+			SourceIdentity: source,
+			Target:         configured.Target(),
+			Mode:           execution.MountMode(configured.Mode),
+			Create:         configured.Create,
+			Purpose:        configured.Purpose,
+		})
+	}
+	for left := 0; left < len(mounts); left++ {
+		for right := left + 1; right < len(mounts); right++ {
+			leftSource := filepath.Clean(mounts[left].SourceIdentity)
+			rightSource := filepath.Clean(mounts[right].SourceIdentity)
+			if leftSource == rightSource ||
+				strings.HasPrefix(leftSource, rightSource+string(filepath.Separator)) ||
+				strings.HasPrefix(rightSource, leftSource+string(filepath.Separator)) {
+				return nil, errors.New("execution mount sources must not overlap")
+			}
+		}
+	}
+	return mounts, nil
+}
+
+func getConfiguredMountIdentity(source string, create bool) (string, error) {
+	cleaned := filepath.Clean(source)
+	canonical, err := filepath.EvalSymlinks(cleaned)
+	if err == nil || !create || !os.IsNotExist(err) {
+		return canonical, err
+	}
+
+	ancestor := cleaned
+	missing := make([]string, 0)
+	for {
+		if _, statErr := os.Lstat(ancestor); statErr == nil {
+			break
+		} else if !os.IsNotExist(statErr) {
+			return "", statErr
+		}
+		parent := filepath.Dir(ancestor)
+		if parent == ancestor {
+			return "", err
+		}
+		missing = append(missing, filepath.Base(ancestor))
+		ancestor = parent
+	}
+	resolvedAncestor, err := filepath.EvalSymlinks(ancestor)
+	if err != nil {
+		return "", err
+	}
+	for index := len(missing) - 1; index >= 0; index-- {
+		resolvedAncestor = filepath.Join(resolvedAncestor, missing[index])
+	}
+	return filepath.Clean(resolvedAncestor), nil
 }
 
 func (e *environment) memorySearchDefinition() (tools.Definition, bool, error) {
@@ -498,7 +779,12 @@ func (e *environment) prepareInstructions() {
 	e.captureLoadedUnsafeEvidence(workspaceRules.UnsafeEvidence)
 
 	if e.cfg != nil && e.cfg.Session.Instruct != "" {
-		e.setInstruction(instructions.Instruction{Name: configInstructInstructionName, Value: e.cfg.Session.Instruct})
+		e.setInstruction(
+			instructions.Instruction{
+				Name:  configInstructInstructionName,
+				Value: e.cfg.Session.Instruct,
+			},
+		)
 	}
 }
 

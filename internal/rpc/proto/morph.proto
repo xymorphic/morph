@@ -27,6 +27,8 @@ service SessionService {
   rpc SteerQueuedMessage(SteerQueuedSessionMessageRequest) returns (SteerQueuedSessionMessageResponse);
   rpc InterruptRun(InterruptSessionRunRequest) returns (InterruptSessionRunResponse);
   rpc SetReasoningEffort(SetSessionReasoningEffortRequest) returns (SetSessionReasoningEffortResponse);
+  rpc ListExecutionEnvironments(ListExecutionEnvironmentsRequest) returns (ListExecutionEnvironmentsResponse);
+  rpc ExplainExecutionEnvironment(ExplainExecutionEnvironmentRequest) returns (ExplainExecutionEnvironmentResponse);
 }
 
 service ModelService {
@@ -137,6 +139,61 @@ message ArchiveSessionRequest {
 
 message ArchiveSessionResponse {
   string id = 1;
+}
+
+message ExecutionMount {
+  string name = 1;
+  string target = 2;
+  string mode = 3;
+  string purpose = 4;
+}
+
+message ExecutionLimits {
+  int64 memory_bytes = 1;
+  int64 cpu_milli = 2;
+  int64 pids = 3;
+  int64 open_files = 4;
+  int64 temporary_bytes = 5;
+  int64 output_bytes = 6;
+  int64 runtime_millis = 7;
+}
+
+message ExecutionEnvironment {
+  string id = 1;
+  string backend = 2;
+  string scope = 3;
+  string state = 4;
+  string workspace_mode = 5;
+  string network = 6;
+  string image_digest = 7;
+  string security_generation = 8;
+  string daemon_incarnation = 9;
+  string container_incarnation = 10;
+  int32 participant_count = 11;
+  int32 process_count = 12;
+  string failure_code = 13;
+  repeated ExecutionMount mounts = 14;
+  repeated string secret_references = 15;
+  ExecutionLimits limits = 16;
+  string policy_hash = 17;
+  string image_contract_digest = 18;
+}
+
+message ListExecutionEnvironmentsRequest {
+  string session_id = 1;
+}
+
+message ListExecutionEnvironmentsResponse {
+  repeated ExecutionEnvironment environments = 1;
+}
+
+message ExplainExecutionEnvironmentRequest {
+  string session_id = 1;
+  string environment_id = 2;
+}
+
+message ExplainExecutionEnvironmentResponse {
+  ExecutionEnvironment environment = 1;
 }
 
 message UnarchiveSessionRequest {

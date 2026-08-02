@@ -195,6 +195,18 @@ Current RPC surface:
 
 The generated Go stubs live under [internal/rpc/proto](./internal/rpc/proto), and the service implementation lives in [internal/rpc/service.go](./internal/rpc/service.go).
 
+## Command execution isolation
+
+Morph keeps host execution as the compatibility default. Set `execution.backend: docker` to run command, process, and
+filesystem tools through the same container-backed filesystem. Docker defaults to a private persistent workspace per
+session and no network. Host mounts, bridge network access, shared profile scope, and named secret references are
+separate permission-bearing capabilities.
+
+The sandbox image must be pinned by digest and carry Morph's trusted keyless signature; install `cosign` on the daemon
+host so startup and `morph doctor` can verify it. Use `morph doctor` to validate the configured execution posture and
+`morph sandbox list` / `morph sandbox explain <id>` to inspect daemon-owned environments. A writable host workspace can
+modify files that later execute on the host; container isolation does not make that safe.
+
 ## Development
 
 ```bash

@@ -11,6 +11,7 @@ import (
 	commandplan "github.com/wandxy/morph/internal/command"
 	processenv "github.com/wandxy/morph/internal/environment/process"
 	envtypes "github.com/wandxy/morph/internal/environment/types"
+	"github.com/wandxy/morph/internal/execution"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/tools"
 	"github.com/wandxy/morph/internal/tools/common"
@@ -27,6 +28,7 @@ type input struct {
 	Args         []string                     `json:"args"`
 	Cwd          string                       `json:"cwd"`
 	Env          []common.EnvironmentVariable `json:"env"`
+	Secrets      []string                     `json:"secrets"`
 	Label        string                       `json:"label"`
 	OutputBytes  *int                         `json:"output_buffer_bytes"`
 	ProcessID    string                       `json:"process_id"`
@@ -47,11 +49,15 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 		Permission: permissions.Operation{
 			Resource: permissions.ResourceProcess,
 			Action:   permissions.ActionManage,
-			Effects:  []permissions.Effect{permissions.EffectRead, permissions.EffectWrite, permissions.EffectExecution},
+			Effects: []permissions.Effect{
+				permissions.EffectRead,
+				permissions.EffectWrite,
+				permissions.EffectExecution,
+			},
 		},
 		PreparePermission: preparePermission(runtime),
 		ResolvePermission: resolvePermission(runtime),
-		InputSchema: common.ObjectSchema(map[string]any{
+		InputSchema: common.ObjectSchema(common.AddExecutionSecretsSchema(map[string]any{
 			"action": map[string]any{
 				"type":        "string",
 				"description": "Process action to perform.",
@@ -78,7 +84,9 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 			"output_buffer_bytes": common.IntegerSchema(
 				"Optional maximum bytes to retain per stdout/stderr buffer for action=start.",
 			),
-			"process_id": common.StringSchema("Tracked process identifier or label. Required for status, read, and stop."),
+			"process_id": common.StringSchema(
+				"Tracked process identifier or label. Required for status, read, and stop.",
+			),
 			"stdout_cursor": common.IntegerSchema(
 				"Optional stdout cursor from a previous read for incremental reads on action=read.",
 			),
@@ -91,49 +99,54 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 			"stderr_bytes": common.IntegerSchema(
 				"Optional maximum stderr bytes to return from stderr_cursor, or from the beginning when no cursor is provided, for action=read.",
 			),
-		}, "action"),
-		Handler: tools.HandlerFunc(func(ctx context.Context, call tools.Call) (tools.Result, error) {
-			var req input
-			if result := common.DecodeInput(call, &req); result.Error != "" {
-				return result, nil
-			}
-			if runtime == nil {
-				return common.ToolError("tool_error", "process manager is not configured"), nil
-			}
-			actionValue := str.String(req.Action)
-			action := actionValue.Normalized()
-			if action == "" {
-				return common.ToolError("invalid_input", "action is required"), nil
-			}
-			if err := validateActionFields(action, req); err != nil {
-				return common.ToolError("invalid_input", err.Error()), nil
-			}
+		}, runtime, "Configured secret references to expose to the started process as MORPH_SECRET_<NAME> variables."), "action"),
+		Handler: tools.HandlerFunc(
+			func(ctx context.Context, call tools.Call) (tools.Result, error) {
+				var req input
+				if result := common.DecodeInput(call, &req); result.Error != "" {
+					return result, nil
+				}
+				if runtime == nil {
+					return common.ToolError("tool_error", "process manager is not configured"), nil
+				}
+				actionValue := str.String(req.Action)
+				action := actionValue.Normalized()
+				if action == "" {
+					return common.ToolError("invalid_input", "action is required"), nil
+				}
+				if err := validateActionFields(action, req); err != nil {
+					return common.ToolError("invalid_input", err.Error()), nil
+				}
 
-			logEvent := processLog.Info().
-				Str("tool", "process").
-				Str("phase", "start").
-				Str("action", action)
+				logEvent := processLog.Info().
+					Str("tool", "process").
+					Str("phase", "start").
+					Str("action", action)
 
-			switch action {
-			case "start":
-				return handleStart(ctx, runtime, action, req, call, logEvent), nil
+				switch action {
+				case "start":
+					return handleStart(ctx, runtime, action, req, call, logEvent), nil
 
-			case "status":
-				return handleStatus(ctx, runtime, action, req, logEvent), nil
+				case "status":
+					return handleStatus(ctx, runtime, action, req, call, logEvent), nil
 
-			case "read":
-				return Handead(ctx, runtime, action, req, logEvent), nil
+				case "read":
+					return handleRead(ctx, runtime, action, req, call, logEvent), nil
 
-			case "stop":
-				return handleStop(ctx, runtime, action, req, logEvent), nil
+				case "stop":
+					return handleStop(ctx, runtime, action, req, call, logEvent), nil
 
-			case "list":
-				return handleList(ctx, runtime, action, logEvent), nil
+				case "list":
+					return handleList(ctx, runtime, action, call, logEvent), nil
 
-			default:
-				return common.ToolError("invalid_input", fmt.Sprintf("unsupported action %q", action)), nil
-			}
-		}),
+				default:
+					return common.ToolError(
+						"invalid_input",
+						fmt.Sprintf("unsupported action %q", action),
+					), nil
+				}
+			},
+		),
 	}
 }
 
@@ -160,21 +173,35 @@ func preparePermission(runtime envtypes.Runtime) tools.PermissionPreparer {
 	return func(ctx context.Context, call tools.Call) (tools.PermissionPreparation, error) {
 		var req input
 		if err := json.Unmarshal([]byte(call.Input), &req); err != nil {
-			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError("invalid_input", "invalid tool input")
+			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(
+				"invalid_input",
+				"invalid tool input",
+			)
 		}
 		action := str.String(req.Action).Normalized()
 		if action == "" {
-			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError("invalid_input", "action is required")
+			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(
+				"invalid_input",
+				"action is required",
+			)
 		}
 		if err := validateActionFields(action, req); err != nil {
-			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError("invalid_input", err.Error())
+			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(
+				"invalid_input",
+				err.Error(),
+			)
 		}
 
+		var inputs []permissions.EvaluationInput
+		var operation execution.ProcessOperation
 		switch action {
 		case "start":
 			environment, err := common.EnvironmentVariablesToMap(req.Env)
 			if err != nil {
-				return tools.PermissionPreparation{}, tools.NewPermissionResolutionError("invalid_input", err.Error())
+				return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(
+					"invalid_input",
+					err.Error(),
+				)
 			}
 			plan, err := common.AnalyzeCommand(
 				ctx,
@@ -186,29 +213,41 @@ func preparePermission(runtime envtypes.Runtime) tools.PermissionPreparer {
 				environment,
 			)
 			if err != nil {
-				return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(common.CommandErrorCode(err), err.Error())
+				return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(
+					common.CommandErrorCode(err),
+					err.Error(),
+				)
 			}
-			return tools.PermissionPreparation{
-				Inputs: common.CommandPermissionInputs(
-					ctx,
-					runtime,
-					plan,
-					permissions.ActionStart,
-					[]permissions.Effect{permissions.EffectExecution, permissions.EffectWrite},
-				),
-				Prepared: plan,
-			}, nil
+			inputs = common.CommandPermissionInputs(
+				ctx,
+				runtime,
+				plan,
+				permissions.ActionStart,
+				[]permissions.Effect{permissions.EffectExecution, permissions.EffectWrite},
+			)
+			operation = execution.ProcessOperation{
+				Action:            execution.ProcessStart,
+				Plan:              &plan,
+				Label:             str.String(req.Label).Trim(),
+				OutputBufferBytes: getOptionalInt(req.OutputBytes),
+			}
 		case "status", "read":
-			return tools.PermissionPreparation{Inputs: []permissions.EvaluationInput{{
+			inputs = []permissions.EvaluationInput{{
 				Operation: permissions.Operation{
 					Resource: permissions.ResourceProcess,
 					Action:   permissions.ActionRead,
 					Effects:  []permissions.Effect{permissions.EffectRead},
 					Target:   str.String(req.ProcessID).Trim(),
 				},
-			}}}, nil
+			}}
+			operation = execution.ProcessOperation{
+				Action:       execution.ProcessAction(action),
+				ProcessID:    str.String(req.ProcessID).Trim(),
+				StdoutCursor: req.StdoutCursor,
+				StderrCursor: req.StderrCursor,
+			}
 		case "stop":
-			return tools.PermissionPreparation{Inputs: []permissions.EvaluationInput{{
+			inputs = []permissions.EvaluationInput{{
 				Operation: permissions.Operation{
 					Resource: permissions.ResourceProcess,
 					Action:   permissions.ActionStop,
@@ -219,21 +258,42 @@ func preparePermission(runtime envtypes.Runtime) tools.PermissionPreparer {
 					},
 					Target: str.String(req.ProcessID).Trim(),
 				},
-			}}}, nil
+			}}
+			operation = execution.ProcessOperation{
+				Action:    execution.ProcessStop,
+				ProcessID: str.String(req.ProcessID).Trim(),
+			}
 		case "list":
-			return tools.PermissionPreparation{Inputs: []permissions.EvaluationInput{{
+			inputs = []permissions.EvaluationInput{{
 				Operation: permissions.Operation{
 					Resource: permissions.ResourceProcess,
 					Action:   permissions.ActionList,
 					Effects:  []permissions.Effect{permissions.EffectRead},
 				},
-			}}}, nil
+			}}
+			operation = execution.ProcessOperation{Action: execution.ProcessList}
 		default:
 			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(
 				"invalid_input",
 				fmt.Sprintf("unsupported action %q", action),
 			)
 		}
+		spec, err := common.PrepareExecutionSpec(ctx, runtime, execution.Operation{
+			Kind:             execution.OperationProcess,
+			SecretReferences: req.Secrets,
+			Process:          &operation,
+		})
+		if err != nil {
+			return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(
+				"execution_unavailable",
+				err.Error(),
+			)
+		}
+		inputs = append(inputs, common.ExecutionPermissionInputs(spec)...)
+		return tools.PermissionPreparation{
+			Inputs:   inputs,
+			Prepared: spec,
+		}, nil
 	}
 }
 
@@ -256,7 +316,7 @@ func handleStart(
 		Bool("label_provided", labelValue.Trim() != "").
 		Bool("output_buffer_limit", req.OutputBytes != nil).
 		Msg("process tool start requested")
-	plan, err := getStartPlan(ctx, runtime, call, req)
+	plan, spec, err := getStartPlan(ctx, runtime, call, req)
 	if err != nil {
 		return common.ToolError(common.CommandErrorCode(err), err.Error())
 	}
@@ -278,15 +338,16 @@ func handleStart(
 		return common.FileError(err)
 	}
 
-	outputBufferBytes, err := resolveOutputBufferLimit(req.OutputBytes, "output_buffer_bytes")
+	_, err = resolveOutputBufferLimit(req.OutputBytes, "output_buffer_bytes")
 	if err != nil {
 		return common.ToolError("invalid_input", err.Error())
 	}
-	labelValue2 := str.String(req.Label)
-	info, err := runtime.StartProcess(ctx, sessionID, processenv.StartRequest{
-		Plan:              plan,
-		Label:             labelValue2.Trim(),
-		OutputBufferBytes: outputBufferBytes,
+	service, serviceErr := common.ExecutionService(runtime)
+	if serviceErr != nil {
+		return common.ToolError("tool_error", serviceErr.Error())
+	}
+	info, err := common.ObserveExecution(ctx, spec, func() (processenv.Info, error) {
+		return service.StartProcess(ctx, spec)
 	})
 	if err != nil {
 		logProcessError(action, "start_failed")
@@ -303,21 +364,53 @@ func getStartPlan(
 	runtime envtypes.Runtime,
 	call tools.Call,
 	req input,
-) (commandplan.Plan, error) {
+) (commandplan.Plan, execution.Spec, error) {
 	environment, err := common.EnvironmentVariablesToMap(req.Env)
 	if err != nil {
-		return commandplan.Plan{}, err
+		return commandplan.Plan{}, execution.Spec{}, err
 	}
 	if prepared, ok := tools.GetPreparedCall(ctx, call); ok {
-		if plan, planOK := prepared.(commandplan.Plan); planOK {
-			return plan, nil
+		if spec, specOK := prepared.(execution.Spec); specOK {
+			operation := spec.Operation().Process
+			if operation != nil && operation.Plan != nil {
+				return operation.Plan.Clone(), spec, nil
+			}
 		}
-		return commandplan.Plan{}, fmt.Errorf("prepared command plan is invalid")
+		return commandplan.Plan{}, execution.Spec{}, fmt.Errorf("prepared command plan is invalid")
 	}
-	return common.AnalyzeCommand(ctx, runtime, req.Mode, req.Command, req.Args, req.Cwd, environment)
+	plan, err := common.AnalyzeCommand(
+		ctx,
+		runtime,
+		req.Mode,
+		req.Command,
+		req.Args,
+		req.Cwd,
+		environment,
+	)
+	if err != nil {
+		return commandplan.Plan{}, execution.Spec{}, err
+	}
+	spec, err := common.PrepareExecutionSpec(ctx, runtime, execution.Operation{
+		Kind:             execution.OperationProcess,
+		SecretReferences: req.Secrets,
+		Process: &execution.ProcessOperation{
+			Action:            execution.ProcessStart,
+			Plan:              &plan,
+			Label:             str.String(req.Label).Trim(),
+			OutputBufferBytes: getOptionalInt(req.OutputBytes),
+		},
+	})
+	return plan, spec, err
 }
 
-func handleStatus(ctx context.Context, runtime envtypes.Runtime, action string, req input, logEvent anyLogEvent) tools.Result {
+func handleStatus(
+	ctx context.Context,
+	runtime envtypes.Runtime,
+	action string,
+	req input,
+	call tools.Call,
+	logEvent anyLogEvent,
+) tools.Result {
 	sessionID := normalizeSessionID(ctx)
 	processIDValue := str.String(req.ProcessID)
 	logEvent.
@@ -330,7 +423,17 @@ func handleStatus(ctx context.Context, runtime envtypes.Runtime, action string, 
 		return common.ToolError("invalid_input", "process_id is required for status")
 	}
 
-	info, err := runtime.GetProcess(sessionID, processID)
+	spec, err := loadProcessSpec(ctx, runtime, call)
+	if err != nil {
+		return common.ToolError("tool_error", err.Error())
+	}
+	service, serviceErr := common.ExecutionService(runtime)
+	if serviceErr != nil {
+		return common.ToolError("tool_error", serviceErr.Error())
+	}
+	info, err := common.ObserveExecution(ctx, spec, func() (processenv.Info, error) {
+		return service.GetProcess(ctx, spec)
+	})
 	if err != nil {
 		logProcessError(action, "status_failed")
 		return common.ToolError("tool_error", err.Error())
@@ -341,7 +444,14 @@ func handleStatus(ctx context.Context, runtime envtypes.Runtime, action string, 
 	return encodeProcessOutput(map[string]any{"process": info})
 }
 
-func Handead(ctx context.Context, runtime envtypes.Runtime, action string, req input, logEvent anyLogEvent) tools.Result {
+func handleRead(
+	ctx context.Context,
+	runtime envtypes.Runtime,
+	action string,
+	req input,
+	call tools.Call,
+	logEvent anyLogEvent,
+) tools.Result {
 	sessionID := normalizeSessionID(ctx)
 	processIDValue3 := str.String(req.ProcessID)
 	logEvent.
@@ -379,29 +489,41 @@ func Handead(ctx context.Context, runtime envtypes.Runtime, action string, req i
 	stdoutCursor = defaultCursor(stdoutCursor)
 	stderrCursor = defaultCursor(stderrCursor)
 
-	info, err := runtime.GetProcess(sessionID, processID)
+	spec, err := loadProcessSpec(ctx, runtime, call)
 	if err != nil {
-		logProcessError(action, "read_failed")
 		return common.ToolError("tool_error", err.Error())
 	}
-
-	output, err := runtime.ReadProcess(sessionID, processenv.ReadRequest{
-		ProcessID:    processID,
-		StdoutCursor: stdoutCursor,
-		StderrCursor: stderrCursor,
+	service, serviceErr := common.ExecutionService(runtime)
+	if serviceErr != nil {
+		return common.ToolError("tool_error", serviceErr.Error())
+	}
+	info, err := common.ObserveExecution(ctx, spec, func() (processenv.Info, error) {
+		return service.GetProcess(ctx, spec)
 	})
+	var output processenv.Output
+	if err == nil {
+		output, err = common.ObserveExecution(ctx, spec, func() (processenv.Output, error) {
+			return service.ReadProcess(ctx, spec, processenv.ReadRequest{
+				ProcessID:    processID,
+				StdoutCursor: stdoutCursor,
+				StderrCursor: stderrCursor,
+			})
+		})
+	}
 	if err != nil {
 		logProcessError(action, "read_failed")
 		return common.ToolError("tool_error", err.Error())
 	}
 
-	if stdout, bytesRead, limited := limitOutput(output.Stdout, stdoutLimit); limited && !output.StdoutCursorExpired {
+	if stdout, bytesRead, limited := limitOutput(output.Stdout, stdoutLimit); limited &&
+		!output.StdoutCursorExpired {
 		output.Stdout = stdout
 		output.NextStdoutCursor = *stdoutCursor + bytesRead
 	} else {
 		output.Stdout = stdout
 	}
-	if stderr, bytesRead, limited := limitOutput(output.Stderr, stderrLimit); limited && !output.StderrCursorExpired {
+	if stderr, bytesRead, limited := limitOutput(output.Stderr, stderrLimit); limited &&
+		!output.StderrCursorExpired {
 		output.Stderr = stderr
 		output.NextStderrCursor = *stderrCursor + bytesRead
 	} else {
@@ -421,6 +543,7 @@ func handleStop(
 	runtime envtypes.Runtime,
 	action string,
 	req input,
+	call tools.Call,
 	logEvent anyLogEvent,
 ) tools.Result {
 	sessionID := normalizeSessionID(ctx)
@@ -435,7 +558,17 @@ func handleStop(
 		return common.ToolError("invalid_input", "process_id is required for stop")
 	}
 
-	info, err := runtime.StopProcess(ctx, sessionID, processID)
+	spec, err := loadProcessSpec(ctx, runtime, call)
+	if err != nil {
+		return common.ToolError("tool_error", err.Error())
+	}
+	service, serviceErr := common.ExecutionService(runtime)
+	if serviceErr != nil {
+		return common.ToolError("tool_error", serviceErr.Error())
+	}
+	info, err := common.ObserveExecution(ctx, spec, func() (processenv.Info, error) {
+		return service.StopProcess(ctx, spec)
+	})
 	if err != nil {
 		logProcessError(action, "stop_failed")
 		return common.ToolError("tool_error", err.Error())
@@ -446,11 +579,30 @@ func handleStop(
 	return encodeProcessOutput(map[string]any{"process": info})
 }
 
-func handleList(ctx context.Context, runtime envtypes.Runtime, action string, logEvent anyLogEvent) tools.Result {
+func handleList(
+	ctx context.Context,
+	runtime envtypes.Runtime,
+	action string,
+	call tools.Call,
+	logEvent anyLogEvent,
+) tools.Result {
 	sessionID := normalizeSessionID(ctx)
 	logEvent.Str("session_id", sessionID).Msg("process tool list requested")
 
-	processes := runtime.ListProcesses(sessionID)
+	spec, err := loadProcessSpec(ctx, runtime, call)
+	if err != nil {
+		return common.ToolError("tool_error", err.Error())
+	}
+	service, serviceErr := common.ExecutionService(runtime)
+	if serviceErr != nil {
+		return common.ToolError("tool_error", serviceErr.Error())
+	}
+	processes, err := common.ObserveExecution(ctx, spec, func() ([]processenv.Info, error) {
+		return service.ListProcesses(ctx, spec)
+	})
+	if err != nil {
+		return common.ToolError("tool_error", err.Error())
+	}
 
 	processLog.Info().
 		Str("tool", "process").
@@ -460,6 +612,21 @@ func handleList(ctx context.Context, runtime envtypes.Runtime, action string, lo
 		Msg("process tool list returned")
 
 	return encodeProcessOutput(map[string]any{"processes": processes})
+}
+
+func loadProcessSpec(
+	ctx context.Context,
+	runtime envtypes.Runtime,
+	call tools.Call,
+) (execution.Spec, error) {
+	return common.RequireExecutionSpec(ctx, call, preparePermission(runtime))
+}
+
+func getOptionalInt(value *int) int {
+	if value == nil {
+		return 0
+	}
+	return *value
 }
 
 type anyLogEvent interface {
@@ -478,7 +645,11 @@ func logProcessError(action, errorKind string) {
 		Msg("process tool failed")
 }
 
-func logProcessComplete(action, status, processID string, stdoutBytes, stderrBytes int, includeOutput bool) {
+func logProcessComplete(
+	action, status, processID string,
+	stdoutBytes, stderrBytes int,
+	includeOutput bool,
+) {
 	event := processLog.Info().
 		Str("tool", "process").
 		Str("phase", "complete").
@@ -503,6 +674,12 @@ func encodeProcessOutput(value any) tools.Result {
 }
 
 func validateActionFields(action string, req input) error {
+	if action != "start" && len(req.Secrets) > 0 {
+		return fmt.Errorf(
+			"invalid process %s request: secrets are only valid for action=start",
+			action,
+		)
+	}
 	if action == "read" {
 		return nil
 	}

@@ -98,6 +98,13 @@ const (
 	EvtSessionQueueInterrupted                    = "session.queue.interrupted"
 	EvtSessionQueueFailed                         = "session.queue.failed"
 	EvtSessionQueueCancelled                      = "session.queue.cancelled"
+	EvtExecutionStarted                           = "execution.started"
+	EvtExecutionCompleted                         = "execution.completed"
+	EvtExecutionFailed                            = "execution.failed"
+	EvtExecutionEnvironmentAcquiring              = "execution.environment.acquiring"
+	EvtExecutionEnvironmentReady                  = "execution.environment.ready"
+	EvtExecutionEnvironmentRecreating             = "execution.environment.recreating"
+	EvtExecutionEnvironmentRecreated              = "execution.environment.recreated"
 )
 
 var episodicMemoryTraceEventTypes = []string{
@@ -223,6 +230,13 @@ var allTraceEventTypes = []string{
 	EvtSessionQueueInterrupted,
 	EvtSessionQueueFailed,
 	EvtSessionQueueCancelled,
+	EvtExecutionStarted,
+	EvtExecutionCompleted,
+	EvtExecutionFailed,
+	EvtExecutionEnvironmentAcquiring,
+	EvtExecutionEnvironmentReady,
+	EvtExecutionEnvironmentRecreating,
+	EvtExecutionEnvironmentRecreated,
 }
 
 // AllTraceEventTypes returns every known trace event type.

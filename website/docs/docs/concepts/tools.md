@@ -143,6 +143,16 @@ Tools are plain Go packages: a definition (name, description, input schema, requ
 into the environment's tool registry alongside the built-ins. New tools automatically participate in capability gating,
 guardrails, and trace streaming. For the registry contract and conventions, see [Tools Runtime](../development/tools-runtime).
 
+## Command execution backends
+
+`run_command`, every `process` action, and the read/write/patch/list/search file tools share one execution backend. Local
+mode preserves host behavior. Docker mode binds the authorized command or prepared path to an immutable exposure:
+workspace, mounts, network, selected secret names, image digest, limits, scope, and security generation.
+
+Session scope uses a persistent private workspace with disposable foreground and managed background containers. Shared
+scope deliberately exposes one profile workspace, container, installed state, and ambient process namespace across
+sessions. Permissions still apply inside either scope. Docker containment does not authorize a command's intent.
+
 ## Where To Go Next
 
 - [Tools Runtime](../development/tools-runtime): the registry, schemas, and how to add a tool.

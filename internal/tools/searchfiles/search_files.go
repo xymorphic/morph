@@ -1,29 +1,19 @@
 package searchfiles
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strconv"
 	"strings"
 
-	"github.com/wandxy/morph/pkg/logutils"
 	"github.com/wandxy/morph/pkg/str"
 
 	envtypes "github.com/wandxy/morph/internal/environment/types"
-	"github.com/wandxy/morph/internal/guardrails"
+	"github.com/wandxy/morph/internal/execution"
 	"github.com/wandxy/morph/internal/permissions"
 	"github.com/wandxy/morph/internal/tools"
 	"github.com/wandxy/morph/internal/tools/common"
 )
-
-var log = logutils.Module("tool.searchfiles")
 
 type contentMatch struct {
 	Path   string `json:"path"`
@@ -31,12 +21,6 @@ type contentMatch struct {
 	Column int    `json:"column"`
 	Text   string `json:"text"`
 }
-
-var (
-	lookPath       = common.LookPath
-	commandContext = common.CommandContext
-	walkDir        = common.WalkDir
-)
 
 // Definition returns the model-visible tool definition.
 func Definition(runtime envtypes.Runtime) tools.Definition {
@@ -67,108 +51,123 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 			Action:   permissions.ActionSearch,
 			Effects:  []permissions.Effect{permissions.EffectRead},
 		},
-		ResolvePermission: func(_ context.Context, call tools.Call) ([]permissions.EvaluationInput, error) {
+		PreparePermission: func(
+			ctx context.Context,
+			call tools.Call,
+		) (tools.PermissionPreparation, error) {
 			var req input
 			if err := json.Unmarshal([]byte(call.Input), &req); err != nil {
-				return nil, tools.NewPermissionResolutionError("invalid_input", "invalid tool input")
+				return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(
+					"invalid_input",
+					"invalid tool input",
+				)
 			}
 			if str.String(req.Pattern).Trim() == "" {
-				return nil, tools.NewPermissionResolutionError("invalid_input", "pattern is required")
+				return tools.PermissionPreparation{}, tools.NewPermissionResolutionError(
+					"invalid_input",
+					"pattern is required",
+				)
 			}
 			target, targetScope := common.ResolveFilesystemPermissionTarget(
 				common.FilesystemPolicyFromRuntime(runtime),
 				req.Path,
 			)
-			return []permissions.EvaluationInput{{Operation: permissions.Operation{
+			operation := permissions.Operation{
 				Resource:    permissions.ResourceFile,
 				Action:      permissions.ActionSearch,
 				Effects:     []permissions.Effect{permissions.EffectRead},
 				Target:      target,
 				TargetScope: targetScope,
-			}}}, nil
+			}
+			preparation, err := common.PrepareFilesystemExecution(
+				ctx,
+				runtime,
+				operation,
+				req.Path,
+				execution.FilesystemOperation{
+					Action:        execution.FilesystemSearch,
+					Query:         req.Pattern,
+					IncludeHidden: req.IncludeHidden,
+					CaseSensitive: req.CaseSensitive,
+					Recursive:     true,
+				},
+			)
+			if err != nil {
+				return tools.PermissionPreparation{}, common.NewFilePermissionResolutionError(err)
+			}
+			return preparation, nil
+		},
+		ResolvePermission: func(
+			ctx context.Context,
+			call tools.Call,
+		) ([]permissions.EvaluationInput, error) {
+			preparation, err := Definition(runtime).PreparePermission(ctx, call)
+			return preparation.Inputs, err
 		},
 		InputSchema: common.ObjectSchema(map[string]any{
-			"pattern":        common.StringSchema("Text or pattern to search for within files."),
-			"path":           common.StringSchema("Absolute path or path relative to the configured workspace root to search within. Defaults to the workspace root when omitted."),
-			"case_sensitive": common.BooleanSchema("When true, match text using case-sensitive search."),
-			"include_hidden": common.BooleanSchema("When true, include hidden files and directories in the search."),
-			"max_results":    common.IntegerSchema("Maximum number of matches to return. Values outside the supported range are clamped."),
+			"pattern": common.StringSchema("Text or pattern to search for within files."),
+			"path": common.StringSchema(
+				"Absolute path or path relative to the configured workspace root to search within. Defaults to the workspace root when omitted.",
+			),
+			"case_sensitive": common.BooleanSchema(
+				"When true, match text using case-sensitive search.",
+			),
+			"include_hidden": common.BooleanSchema(
+				"When true, include hidden files and directories in the search.",
+			),
+			"max_results": common.IntegerSchema(
+				"Maximum number of matches to return. Values outside the supported range are clamped.",
+			),
 		}, "pattern"),
-		Handler: tools.HandlerFunc(func(ctx context.Context, call tools.Call) (tools.Result, error) {
-			var req input
-			if result := common.DecodeInput(call, &req); result.Error != "" {
-				return result, nil
-			}
-			patternValue := str.String(req.Pattern)
-			if patternValue.Trim() == "" {
-				return common.ToolError("invalid_input", "pattern is required"), nil
-			}
+		Handler: tools.HandlerFunc(
+			func(ctx context.Context, call tools.Call) (tools.Result, error) {
+				var req input
+				if result := common.DecodeInput(call, &req); result.Error != "" {
+					return result, nil
+				}
+				patternValue := str.String(req.Pattern)
+				if patternValue.Trim() == "" {
+					return common.ToolError("invalid_input", "pattern is required"), nil
+				}
 
-			resolved, err := common.ResolveFilesystemPathForOperation(
-				ctx,
-				common.FilesystemPolicyFromRuntime(runtime),
-				req.Path,
-				permissions.ActionSearch,
-			)
-			if err != nil {
-				return common.FileError(err), nil
-			}
-
-			limit := req.MaxResults
-			if limit <= 0 || limit > common.MaxSearchResults {
-				limit = common.MaxSearchResults
-			}
-			patternValue2 := str.String(req.Pattern)
-			log.Info().
-				Str("tool", "search_files").
-				Str("phase", "start").
-				Str("path", common.NormalizedDisplayPath(req.Path)).
-				Int("pattern_chars", len([]rune(patternValue2.Trim()))).
-				Bool("case_sensitive", req.CaseSensitive).
-				Bool("include_hidden", req.IncludeHidden).
-				Int("max_results", limit).
-				Msg("search files tool started")
-
-			log.Debug().
-				Str("tool", "search_files").
-				Str("phase", "execute").
-				Msg("search files execution started")
-
-			matches, err := searchWithFallback(
-				ctx,
-				resolved,
-				req.Pattern,
-				req.CaseSensitive,
-				req.IncludeHidden,
-				limit,
-			)
-			if err != nil {
-				log.Warn().
-					Err(err).
-					Str("tool", "search_files").
-					Str("phase", "error").
-					Msg("search files failed")
-				return common.FileError(err), nil
-			}
-
-			out := make([]match, 0, len(matches))
-			for _, item := range matches {
-				out = append(out, match(item))
-			}
-
-			log.Info().
-				Str("tool", "search_files").
-				Str("phase", "complete").
-				Int("match_count", len(out)).
-				Msg("search files tool completed")
-
-			return common.EncodeOutput(map[string]any{
-				"root":    resolved.Root,
-				"path":    common.NormalizedDisplayPath(resolved.Relative),
-				"pattern": req.Pattern,
-				"matches": out,
-			})
-		}),
+				limit := req.MaxResults
+				if limit <= 0 || limit > common.MaxSearchResults {
+					limit = common.MaxSearchResults
+				}
+				spec, specErr := common.RequireExecutionSpec(
+					ctx,
+					call,
+					Definition(runtime).PreparePermission,
+				)
+				if specErr != nil {
+					return common.FileError(specErr), nil
+				}
+				service, serviceErr := common.ExecutionService(runtime)
+				if serviceErr != nil {
+					return common.ToolError("tool_error", serviceErr.Error()), nil
+				}
+				found, searchErr := common.ObserveExecution(
+					ctx,
+					spec,
+					func() ([]execution.SearchMatch, error) {
+						return service.SearchFiles(ctx, spec, limit)
+					},
+				)
+				if searchErr != nil {
+					return common.FileError(searchErr), nil
+				}
+				out := make([]match, 0, len(found))
+				for _, item := range found {
+					out = append(out, match(item))
+				}
+				return common.EncodeOutput(map[string]any{
+					"root":    spec.Operation().Filesystem.Path.ContainerPath(),
+					"path":    common.NormalizedDisplayPath(req.Path),
+					"pattern": req.Pattern,
+					"matches": out,
+				})
+			},
+		),
 	}
 }
 
@@ -185,184 +184,4 @@ func projectSemanticContent(_ tools.Call, result tools.Result) string {
 		lines = append(lines, fmt.Sprintf("%s:%d: %s", match.Path, match.Line, match.Text))
 	}
 	return strings.Join(lines, "\n")
-}
-
-func searchWithFallback(
-	ctx context.Context,
-	resolved guardrails.ResolvedPath,
-	pattern string,
-	caseSensitive bool,
-	includeHidden bool,
-	limit int,
-) ([]contentMatch, error) {
-	if _, err := lookPath("rg"); err == nil {
-		if matches, searchErr := searchWithRipgrep(
-			ctx,
-			resolved,
-			pattern,
-			caseSensitive,
-			includeHidden,
-			limit,
-		); searchErr == nil {
-			return matches, nil
-		}
-	}
-
-	return searchWithGo(resolved, pattern, caseSensitive, includeHidden, limit)
-}
-
-func searchWithRipgrep(
-	ctx context.Context,
-	resolved guardrails.ResolvedPath,
-	pattern string,
-	caseSensitive bool,
-	includeHidden bool,
-	limit int,
-) ([]contentMatch, error) {
-	displayRoot := getSearchDisplayRoot(resolved)
-	args := []string{"--vimgrep", "--no-heading", "--color", "never", "--max-count", strconv.Itoa(limit)}
-	if includeHidden {
-		args = append(args, "--hidden")
-	}
-	if !caseSensitive {
-		args = append(args, "-i")
-	}
-	args = append(args, pattern, resolved.Absolute)
-
-	cmd := commandContext(ctx, "rg", args...)
-	output, err := cmd.Output()
-	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
-			return nil, nil
-		}
-
-		return nil, err
-	}
-	outputValue := str.String(string(output))
-	lines := strings.Split(outputValue.Trim(), "\n")
-	matches := make([]contentMatch, 0, len(lines))
-
-	for _, line := range lines {
-		lineValue := str.String(line)
-		if lineValue.Trim() == "" {
-			continue
-		}
-
-		parts := strings.SplitN(line, ":", 4)
-		if len(parts) != 4 {
-			continue
-		}
-
-		rel, _ := filepath.Rel(displayRoot, parts[0])
-		lineNo, _ := strconv.Atoi(parts[1])
-		column, _ := strconv.Atoi(parts[2])
-
-		matches = append(matches, contentMatch{
-			Path:   filepath.ToSlash(rel),
-			Line:   lineNo,
-			Column: column,
-			Text:   parts[3],
-		})
-
-		if len(matches) >= limit {
-			break
-		}
-	}
-
-	return matches, nil
-}
-
-func searchWithGo(
-	resolved guardrails.ResolvedPath,
-	pattern string,
-	caseSensitive bool,
-	includeHidden bool,
-	limit int,
-) ([]contentMatch, error) {
-	matches := make([]contentMatch, 0, limit)
-	displayRoot := getSearchDisplayRoot(resolved)
-	matchPattern := pattern
-	if !caseSensitive {
-		matchPattern = strings.ToLower(pattern)
-	}
-
-	err := walkDir(resolved.Absolute, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if d.IsDir() {
-			if path != resolved.Absolute {
-				rel, _ := filepath.Rel(displayRoot, path)
-				if !includeHidden && common.HiddenPath(rel) {
-					return filepath.SkipDir
-				}
-			}
-
-			return nil
-		}
-
-		rel, _ := filepath.Rel(displayRoot, path)
-
-		if !includeHidden && common.HiddenPath(rel) {
-			return nil
-		}
-
-		content, readErr := guardrails.ReadTextFile(path, common.MaxReadBytes)
-		if readErr != nil {
-			return nil
-		}
-
-		scanner := bufio.NewScanner(bytes.NewReader(content))
-		buffer := make([]byte, 0, 64*1024)
-		scanner.Buffer(buffer, common.MaxReadBytes)
-		lineNo := 0
-
-		for scanner.Scan() {
-			lineNo++
-			text := scanner.Text()
-			haystack := text
-			if !caseSensitive {
-				haystack = strings.ToLower(text)
-			}
-
-			index := strings.Index(haystack, matchPattern)
-			if index < 0 {
-				continue
-			}
-
-			matches = append(matches, contentMatch{
-				Path:   filepath.ToSlash(rel),
-				Line:   lineNo,
-				Column: index + 1,
-				Text:   text,
-			})
-
-			if len(matches) >= limit {
-				return errors.New("result limit reached")
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil && err.Error() != "result limit reached" {
-		return nil, err
-	}
-
-	return matches, nil
-}
-
-func getSearchDisplayRoot(resolved guardrails.ResolvedPath) string {
-	if resolved.Root != "" {
-		return resolved.Root
-	}
-
-	info, err := os.Stat(resolved.Absolute)
-	if err == nil && !info.IsDir() {
-		return filepath.Dir(resolved.Absolute)
-	}
-
-	return resolved.Absolute
 }

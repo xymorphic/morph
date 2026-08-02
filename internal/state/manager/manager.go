@@ -22,9 +22,14 @@ type Manager struct {
 	archiveRetention  time.Duration
 	now               func() time.Time
 	workerOnce        sync.Once
+	cleanupMu         sync.Mutex
+	sessionCleanup    func(context.Context, string, bool) error
+	pendingCleanup    map[string]struct{}
 }
 
 var generateSessionID = storage.NewSessionID
+
+var ErrSessionInboxUnsupported = errors.New("session inbox is not supported")
 
 // NewManager returns a state manager backed by the supplied store.
 func NewManager(store storage.Store, defaultIdleExpiry, archiveRetention time.Duration) (*Manager, error) {
@@ -48,7 +53,48 @@ func NewManager(store storage.Store, defaultIdleExpiry, archiveRetention time.Du
 		defaultIdleExpiry: defaultIdleExpiry,
 		archiveRetention:  archiveRetention,
 		now:               func() time.Time { return time.Now().UTC() },
+		pendingCleanup:    map[string]struct{}{},
 	}, nil
+}
+
+func (m *Manager) SetSessionCleanup(cleanup func(context.Context, string, bool) error) error {
+	if m == nil {
+		return errors.New("state manager is required")
+	}
+	m.cleanupMu.Lock()
+	m.sessionCleanup = cleanup
+	pending := make([]string, 0, len(m.pendingCleanup))
+	for sessionID := range m.pendingCleanup {
+		pending = append(pending, sessionID)
+	}
+	m.cleanupMu.Unlock()
+
+	var joined error
+	for _, sessionID := range pending {
+		if err := m.cleanupSession(context.Background(), sessionID, true); err != nil {
+			joined = errors.Join(joined, err)
+		}
+	}
+	return joined
+}
+
+func (m *Manager) cleanupSession(ctx context.Context, sessionID string, removeWorkspace bool) error {
+	m.cleanupMu.Lock()
+	cleanup := m.sessionCleanup
+	if cleanup == nil {
+		m.pendingCleanup[sessionID] = struct{}{}
+		m.cleanupMu.Unlock()
+		return nil
+	}
+	m.cleanupMu.Unlock()
+
+	if err := cleanup(context.WithoutCancel(ctx), sessionID, removeWorkspace); err != nil {
+		return err
+	}
+	m.cleanupMu.Lock()
+	delete(m.pendingCleanup, sessionID)
+	m.cleanupMu.Unlock()
+	return nil
 }
 
 func (m *Manager) Close() error {
@@ -74,7 +120,7 @@ func (m *Manager) inbox() (agentsession.InboxStore, error) {
 	}
 	store, ok := m.sessions().(agentsession.InboxStore)
 	if !ok {
-		return nil, errors.New("session inbox is not supported")
+		return nil, ErrSessionInboxUnsupported
 	}
 	return store, nil
 }
@@ -487,11 +533,25 @@ func (m *Manager) runMaintenance(ctx context.Context) error {
 	}
 
 	now := m.now().UTC()
+	archived := true
+	sessions, err := m.sessions().List(ctx, storage.SessionListOptions{Archived: &archived})
+	if err != nil {
+		return err
+	}
+	expired := make([]string, 0)
+	for _, session := range sessions {
+		if !session.ExpiresAt.IsZero() && !session.ExpiresAt.After(now) {
+			expired = append(expired, session.ID)
+		}
+	}
 	if err := m.sessions().DeleteExpiredArchives(ctx, now); err != nil {
 		return err
 	}
-
-	return nil
+	var joined error
+	for _, sessionID := range expired {
+		joined = errors.Join(joined, m.cleanupSession(ctx, sessionID, true))
+	}
+	return joined
 }
 
 func (m *Manager) Start(ctx context.Context) error {
@@ -963,7 +1023,10 @@ func (m *Manager) DeleteSession(ctx context.Context, id string) error {
 		}
 	}
 
-	return m.sessions().Delete(ctx, id)
+	if err := m.sessions().Delete(ctx, id); err != nil {
+		return err
+	}
+	return m.cleanupSession(ctx, id, true)
 }
 
 func (m *Manager) ArchiveSession(ctx context.Context, id string) error {

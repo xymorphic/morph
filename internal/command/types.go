@@ -76,18 +76,21 @@ type Plan struct {
 	environment       []string
 	pathOverridden    bool
 	nextPipeline      int
+	lookPath          func(string) (string, error)
 }
 
 type Request struct {
-	Mode          Mode
-	Command       string
-	Args          []string
-	CWD           string
-	WorkspaceRoot string
-	Environment   map[string]string
-	IdentityKey   []byte
-	ShellPath     string
-	GOOS          string
+	Mode             Mode
+	Command          string
+	Args             []string
+	CWD              string
+	WorkspaceRoot    string
+	Environment      map[string]string
+	IdentityKey      []byte
+	ShellPath        string
+	GOOS             string
+	LookPath         func(string) (string, error)
+	CleanEnvironment bool
 }
 
 type Target struct {
@@ -107,6 +110,39 @@ type Target struct {
 
 func (p Plan) Digest() string {
 	return p.digest
+}
+
+func (p Plan) Clone() Plan {
+	clone := p
+	clone.Invocations = slices.Clone(p.Invocations)
+	for index := range clone.Invocations {
+		clone.Invocations[index].Arguments = slices.Clone(p.Invocations[index].Arguments)
+	}
+	clone.Redirects = slices.Clone(p.Redirects)
+	clone.DynamicReasons = slices.Clone(p.DynamicReasons)
+	clone.environment = slices.Clone(p.environment)
+	return clone
+}
+
+func (p Plan) ExecutionCommand() (string, []string, string, []string, error) {
+	switch p.Mode {
+	case ModeDirect:
+		if len(p.Invocations) == 0 || strings.TrimSpace(p.Invocations[0].Executable) == "" {
+			return "", nil, "", nil, errors.New("direct command plan has no executable")
+		}
+		return p.Invocations[0].Executable, slices.Clone(
+				p.Invocations[0].Arguments,
+			), p.CWD, slices.Clone(
+				p.environment,
+			), nil
+	case ModePOSIXShell:
+		if p.ShellPath == "" {
+			return "", nil, "", nil, errors.New("POSIX shell is unavailable")
+		}
+		return p.ShellPath, []string{"-c", p.source}, p.CWD, slices.Clone(p.environment), nil
+	default:
+		return "", nil, "", nil, errors.New("command execution mode is invalid")
+	}
 }
 
 func (p Plan) Target(invocation Invocation) Target {

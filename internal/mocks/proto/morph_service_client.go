@@ -12,70 +12,74 @@ import (
 
 // MorphServiceClientStub is a test stub for morph service client.
 type MorphServiceClientStub struct {
-	Err                error
-	RecvErr            error
-	EnqueueMessageReq  *morphpb.EnqueueSessionMessageRequest
-	EnqueueMessageResp *morphpb.EnqueueSessionMessageResponse
-	StateReq           *morphpb.GetSessionStateRequest
-	StateResp          *morphpb.GetSessionStateResponse
-	SetReasoningReq    *morphpb.SetSessionReasoningEffortRequest
-	SetReasoningResp   *morphpb.SetSessionReasoningEffortResponse
-	ObserveReq         *morphpb.ObserveSessionRequest
-	ObserveEvents      []*morphpb.ObserveSessionResponse
-	EditQueuedReq      *morphpb.EditQueuedSessionMessageRequest
-	EditQueuedResp     *morphpb.EditQueuedSessionMessageResponse
-	RemoveQueuedReq    *morphpb.RemoveQueuedSessionMessageRequest
-	RemoveQueuedResp   *morphpb.RemoveQueuedSessionMessageResponse
-	PromoteQueuedReq   *morphpb.PromoteQueuedSessionMessageRequest
-	PromoteQueuedResp  *morphpb.PromoteQueuedSessionMessageResponse
-	SteerQueuedReq     *morphpb.SteerQueuedSessionMessageRequest
-	SteerQueuedResp    *morphpb.SteerQueuedSessionMessageResponse
-	InterruptRunReq    *morphpb.InterruptSessionRunRequest
-	InterruptRunResp   *morphpb.InterruptSessionRunResponse
-	CreateResp         *morphpb.CreateSessionResponse
-	CreateReq          *morphpb.CreateSessionRequest
-	ListResp           *morphpb.ListSessionsResponse
-	ListReq            *morphpb.ListSessionsRequest
-	UseReq             *morphpb.UseSessionRequest
-	ArchiveReq         *morphpb.ArchiveSessionRequest
-	UnarchiveReq       *morphpb.UnarchiveSessionRequest
-	UnarchiveResp      *morphpb.UnarchiveSessionResponse
-	RenameReq          *morphpb.RenameSessionRequest
-	RenameResp         *morphpb.RenameSessionResponse
-	CurrentResp        *morphpb.CurrentSessionResponse
-	CompactResp        *morphpb.CompactSessionResponse
-	CompactReq         *morphpb.CompactSessionRequest
-	RepairResp         *morphpb.RepairSessionResponse
-	RepairReq          *morphpb.RepairSessionRequest
-	StatusResp         *morphpb.GetSessionStatusResponse
-	StatusReq          *morphpb.GetSessionStatusRequest
-	TimelineResp       *morphpb.GetSessionTimelineResponse
-	TimelineReq        *morphpb.GetSessionTimelineRequest
-	ProvidersResp      *morphpb.ListProvidersResponse
-	ProvidersReq       *morphpb.ListProvidersRequest
-	RuntimeModelResp   *morphpb.RuntimeModelResponse
-	RuntimeModelReq    *morphpb.RuntimeModelRequest
-	ModelsResp         *morphpb.ListModelsResponse
-	ModelsReq          *morphpb.ListModelsRequest
-	SelectReq          *morphpb.SelectModelRequest
-	SelectResp         *morphpb.SelectModelResponse
-	APIKeyReq          *morphpb.SetProviderAPIKeyRequest
-	APIKeyResp         *morphpb.SetProviderAPIKeyResponse
-	GatewayStatusReq   *morphpb.GetGatewayStatusRequest
-	GatewayStatusResp  *morphpb.GetGatewayStatusResponse
-	GatewayStartReq    *morphpb.StartGatewayRequest
-	GatewayStartResp   *morphpb.StartGatewayResponse
-	GatewayStopReq     *morphpb.StopGatewayRequest
-	GatewayStopResp    *morphpb.StopGatewayResponse
-	GatewayRestartReq  *morphpb.RestartGatewayRequest
-	GatewayRestartResp *morphpb.RestartGatewayResponse
-	PairingsReq        *morphpb.ListGatewayPairingsRequest
-	PairingsResp       *morphpb.ListGatewayPairingsResponse
-	ApproveReq         *morphpb.ApproveGatewayPairingRequest
-	ApproveResp        *morphpb.ApproveGatewayPairingResponse
-	RevokeReq          *morphpb.RevokeGatewayPairingRequest
-	ClearReq           *morphpb.ClearPendingGatewayPairingsRequest
-	OnListModels       func()
+	Err                  error
+	RecvErr              error
+	EnqueueMessageReq    *morphpb.EnqueueSessionMessageRequest
+	EnqueueMessageResp   *morphpb.EnqueueSessionMessageResponse
+	StateReq             *morphpb.GetSessionStateRequest
+	StateResp            *morphpb.GetSessionStateResponse
+	SetReasoningReq      *morphpb.SetSessionReasoningEffortRequest
+	SetReasoningResp     *morphpb.SetSessionReasoningEffortResponse
+	ObserveReq           *morphpb.ObserveSessionRequest
+	ObserveEvents        []*morphpb.ObserveSessionResponse
+	EditQueuedReq        *morphpb.EditQueuedSessionMessageRequest
+	EditQueuedResp       *morphpb.EditQueuedSessionMessageResponse
+	RemoveQueuedReq      *morphpb.RemoveQueuedSessionMessageRequest
+	RemoveQueuedResp     *morphpb.RemoveQueuedSessionMessageResponse
+	PromoteQueuedReq     *morphpb.PromoteQueuedSessionMessageRequest
+	PromoteQueuedResp    *morphpb.PromoteQueuedSessionMessageResponse
+	SteerQueuedReq       *morphpb.SteerQueuedSessionMessageRequest
+	SteerQueuedResp      *morphpb.SteerQueuedSessionMessageResponse
+	InterruptRunReq      *morphpb.InterruptSessionRunRequest
+	InterruptRunResp     *morphpb.InterruptSessionRunResponse
+	CreateResp           *morphpb.CreateSessionResponse
+	CreateReq            *morphpb.CreateSessionRequest
+	ListResp             *morphpb.ListSessionsResponse
+	ListReq              *morphpb.ListSessionsRequest
+	UseReq               *morphpb.UseSessionRequest
+	ArchiveReq           *morphpb.ArchiveSessionRequest
+	UnarchiveReq         *morphpb.UnarchiveSessionRequest
+	UnarchiveResp        *morphpb.UnarchiveSessionResponse
+	RenameReq            *morphpb.RenameSessionRequest
+	RenameResp           *morphpb.RenameSessionResponse
+	CurrentResp          *morphpb.CurrentSessionResponse
+	CompactResp          *morphpb.CompactSessionResponse
+	CompactReq           *morphpb.CompactSessionRequest
+	RepairResp           *morphpb.RepairSessionResponse
+	RepairReq            *morphpb.RepairSessionRequest
+	StatusResp           *morphpb.GetSessionStatusResponse
+	StatusReq            *morphpb.GetSessionStatusRequest
+	TimelineResp         *morphpb.GetSessionTimelineResponse
+	TimelineReq          *morphpb.GetSessionTimelineRequest
+	ExecutionListReq     *morphpb.ListExecutionEnvironmentsRequest
+	ExecutionListResp    *morphpb.ListExecutionEnvironmentsResponse
+	ExecutionExplainReq  *morphpb.ExplainExecutionEnvironmentRequest
+	ExecutionExplainResp *morphpb.ExplainExecutionEnvironmentResponse
+	ProvidersResp        *morphpb.ListProvidersResponse
+	ProvidersReq         *morphpb.ListProvidersRequest
+	RuntimeModelResp     *morphpb.RuntimeModelResponse
+	RuntimeModelReq      *morphpb.RuntimeModelRequest
+	ModelsResp           *morphpb.ListModelsResponse
+	ModelsReq            *morphpb.ListModelsRequest
+	SelectReq            *morphpb.SelectModelRequest
+	SelectResp           *morphpb.SelectModelResponse
+	APIKeyReq            *morphpb.SetProviderAPIKeyRequest
+	APIKeyResp           *morphpb.SetProviderAPIKeyResponse
+	GatewayStatusReq     *morphpb.GetGatewayStatusRequest
+	GatewayStatusResp    *morphpb.GetGatewayStatusResponse
+	GatewayStartReq      *morphpb.StartGatewayRequest
+	GatewayStartResp     *morphpb.StartGatewayResponse
+	GatewayStopReq       *morphpb.StopGatewayRequest
+	GatewayStopResp      *morphpb.StopGatewayResponse
+	GatewayRestartReq    *morphpb.RestartGatewayRequest
+	GatewayRestartResp   *morphpb.RestartGatewayResponse
+	PairingsReq          *morphpb.ListGatewayPairingsRequest
+	PairingsResp         *morphpb.ListGatewayPairingsResponse
+	ApproveReq           *morphpb.ApproveGatewayPairingRequest
+	ApproveResp          *morphpb.ApproveGatewayPairingResponse
+	RevokeReq            *morphpb.RevokeGatewayPairingRequest
+	ClearReq             *morphpb.ClearPendingGatewayPairingsRequest
+	OnListModels         func()
 }
 
 func (s *MorphServiceClientStub) Create(_ context.Context, req *morphpb.CreateSessionRequest, _ ...grpc.CallOption) (*morphpb.CreateSessionResponse, error) {
@@ -130,6 +134,24 @@ func (s *MorphServiceClientStub) Status(_ context.Context, req *morphpb.GetSessi
 func (s *MorphServiceClientStub) Timeline(_ context.Context, req *morphpb.GetSessionTimelineRequest, _ ...grpc.CallOption) (*morphpb.GetSessionTimelineResponse, error) {
 	s.TimelineReq = req
 	return s.TimelineResp, s.Err
+}
+
+func (s *MorphServiceClientStub) ListExecutionEnvironments(
+	_ context.Context,
+	req *morphpb.ListExecutionEnvironmentsRequest,
+	_ ...grpc.CallOption,
+) (*morphpb.ListExecutionEnvironmentsResponse, error) {
+	s.ExecutionListReq = req
+	return s.ExecutionListResp, s.Err
+}
+
+func (s *MorphServiceClientStub) ExplainExecutionEnvironment(
+	_ context.Context,
+	req *morphpb.ExplainExecutionEnvironmentRequest,
+	_ ...grpc.CallOption,
+) (*morphpb.ExplainExecutionEnvironmentResponse, error) {
+	s.ExecutionExplainReq = req
+	return s.ExecutionExplainResp, s.Err
 }
 
 func (s *MorphServiceClientStub) EnqueueMessage(

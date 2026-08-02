@@ -5,9 +5,9 @@ import (
 
 	"github.com/wandxy/morph/internal/browser"
 	planstore "github.com/wandxy/morph/internal/environment/planstore"
-	"github.com/wandxy/morph/internal/environment/process"
 	sesmsg "github.com/wandxy/morph/internal/environment/sessionmessages"
 	sessrc "github.com/wandxy/morph/internal/environment/sessionsearch"
+	"github.com/wandxy/morph/internal/execution"
 	"github.com/wandxy/morph/internal/guardrails"
 	"github.com/wandxy/morph/internal/memory"
 	"github.com/wandxy/morph/internal/memory/episodic"
@@ -17,34 +17,45 @@ import (
 
 // Runtime exposes environment services needed by tool implementations.
 type Runtime interface {
+	execution.Runtime
+
 	// Policy management
 	FilePolicy() guardrails.FilesystemPolicy
 	CommandPolicy() guardrails.CommandPolicy
 	CommandShell() string
 	CommandIdentityKey() []byte
-
-	// Process management
-	StartProcess(ctx context.Context, sessionID string, req process.StartRequest) (process.Info, error)
-	GetProcess(sessionID string, processID string) (process.Info, error)
-	ReadProcess(sessionID string, req process.ReadRequest) (process.Output, error)
-	StopProcess(ctx context.Context, sessionID string, processID string) (process.Info, error)
-	ListProcesses(sessionID string) []process.Info
+	GetExecutionSecretCatalog() []execution.SecretCatalogEntry
 
 	// Session management
-	SearchSession(ctx context.Context, req sessrc.SessionSearchRequest) ([]sessrc.SessionSearchResult, error)
+	SearchSession(
+		ctx context.Context,
+		req sessrc.SessionSearchRequest,
+	) ([]sessrc.SessionSearchResult, error)
 	AutomationService(ctx context.Context) (AutomationService, bool, error)
 	BrowserService(ctx context.Context) (BrowserService, bool, error)
 
 	// Memory management
-	GetSessionMessages(ctx context.Context, req sesmsg.SessionMessagesRequest) (sesmsg.SessionMessagesResponse, error)
+	GetSessionMessages(
+		ctx context.Context,
+		req sesmsg.SessionMessagesRequest,
+	) (sesmsg.SessionMessagesResponse, error)
 	SupportsMemorySearch(ctx context.Context) (bool, error)
 	SearchMemory(ctx context.Context, query memory.SearchQuery) (memory.SearchResult, error)
 	SupportsMemoryExtraction(ctx context.Context) (bool, error)
 	ExtractEpisodes(ctx context.Context, req episodic.Request) (episodic.Result, error)
 	SupportsMemoryWrite(ctx context.Context) (bool, error)
-	RecordSemanticMemory(ctx context.Context, record memory.SemanticRecord) (memory.MemoryItem, error)
-	RecordProceduralMemory(ctx context.Context, record memory.ProceduralRecord) (memory.MemoryItem, error)
-	PromoteMemoryCandidate(ctx context.Context, req memory.PromotionRequest) (memory.LifecycleResult, error)
+	RecordSemanticMemory(
+		ctx context.Context,
+		record memory.SemanticRecord,
+	) (memory.MemoryItem, error)
+	RecordProceduralMemory(
+		ctx context.Context,
+		record memory.ProceduralRecord,
+	) (memory.MemoryItem, error)
+	PromoteMemoryCandidate(
+		ctx context.Context,
+		req memory.PromotionRequest,
+	) (memory.LifecycleResult, error)
 	UpdateMemory(ctx context.Context, req memory.UpdateRequest) (memory.UpdateResult, error)
 	DeleteMemory(ctx context.Context, req memory.DeleteRequest) error
 
@@ -57,7 +68,11 @@ type Runtime interface {
 }
 
 type BrowserService interface {
-	ResolvePermissionInputs(context.Context, browser.Action, browser.ActionRequest) ([]permissions.EvaluationInput, error)
+	ResolvePermissionInputs(
+		context.Context,
+		browser.Action,
+		browser.ActionRequest,
+	) ([]permissions.EvaluationInput, error)
 	Status() browser.Status
 	Start(context.Context, browser.StartRequest) (browser.Session, error)
 	Stop(context.Context, string) (browser.Session, error)

@@ -69,20 +69,40 @@ func AnalyzeCommand(
 	}
 	shell := ""
 	var identityKey []byte
+	goos := ""
+	var lookPath func(string) (string, error)
+	cleanEnvironment := false
 	if runtime != nil {
 		shell = runtime.CommandShell()
 		identityKey = runtime.CommandIdentityKey()
 	}
+	if runtime != nil {
+		if target, targetOK := runtime.ExecutionCommandTarget(); targetOK {
+			goos = target.GOOS
+			shell = target.Shell
+			lookPath = target.Resolve
+			cleanEnvironment = true
+			if environment == nil {
+				environment = map[string]string{}
+			} else {
+				environment = cloneStringMap(environment)
+			}
+			environment["PATH"] = strings.Join(target.PATH, ":")
+		}
+	}
 
 	return commandplan.Analyze(ctx, commandplan.Request{
-		Mode:          mode,
-		Command:       command,
-		Args:          slices.Clone(arguments),
-		CWD:           cwd,
-		WorkspaceRoot: workspaceRoot,
-		Environment:   cloneStringMap(environment),
-		IdentityKey:   identityKey,
-		ShellPath:     shell,
+		Mode:             mode,
+		Command:          command,
+		Args:             slices.Clone(arguments),
+		CWD:              cwd,
+		WorkspaceRoot:    workspaceRoot,
+		Environment:      cloneStringMap(environment),
+		IdentityKey:      identityKey,
+		ShellPath:        shell,
+		GOOS:             goos,
+		LookPath:         lookPath,
+		CleanEnvironment: cleanEnvironment,
 	})
 }
 
@@ -229,12 +249,12 @@ func CheckCommandPlan(
 	action permissions.Action,
 	effects []permissions.Effect,
 ) (string, string) {
-	if permissions.HasFullAccess(ctx) {
-		return "", ""
-	}
 	for _, input := range CommandPermissionInputs(ctx, runtime, plan, action, effects) {
 		if input.HardDenyReason != "" {
 			return "command_denied", input.HardDenyReason
+		}
+		if permissions.HasFullAccess(ctx) {
+			continue
 		}
 		if input.ApprovalReason != "" && !permissions.IsOperationAuthorized(ctx, input.Operation) {
 			return "approval_required", input.ApprovalReason

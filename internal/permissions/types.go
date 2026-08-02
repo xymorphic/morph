@@ -98,6 +98,7 @@ const (
 	EffectExternalSystem    Effect = "external_system"
 	EffectPrivilegeChanging Effect = "privilege_changing"
 	EffectIndirectExecution Effect = "indirect_execution"
+	EffectSharedState       Effect = "shared_state"
 )
 
 type Decision string
@@ -367,7 +368,8 @@ func isValidEffect(value Effect) bool {
 		EffectCredentialBearing,
 		EffectExternalSystem,
 		EffectPrivilegeChanging,
-		EffectIndirectExecution},
+		EffectIndirectExecution,
+		EffectSharedState},
 		value)
 }
 

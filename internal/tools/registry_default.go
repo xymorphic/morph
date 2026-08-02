@@ -244,17 +244,16 @@ func (r *DefaultRegistry) Invoke(ctx context.Context, call Call) (Result, error)
 		return Result{Error: Error{Code: "tool_not_registered", Message: "tool is not registered"}.String()}, nil
 	}
 	ctx = permissions.WithDecisionObserver(ctx, r.recordPermissionDecision)
+	ctx = permissions.WithPreset(ctx, r.permissions.Preset(ctx))
+	if r.permissions.Preset(ctx) == permissions.PresetFullAccess {
+		ctx = permissions.WithFullAccess(ctx)
+	}
 	var result Result
 	var blocked bool
 	ctx, result, blocked = r.checkPermissions(ctx, def, call)
 	if blocked {
 		return result, nil
 	}
-	ctx = permissions.WithPreset(ctx, r.permissions.Preset(ctx))
-	if r.permissions.Preset(ctx) == permissions.PresetFullAccess {
-		ctx = permissions.WithFullAccess(ctx)
-	}
-
 	result, err := def.Handler.Invoke(ctx, call)
 	if err != nil {
 		result.Error = Error{Code: "tool_invocation_failed", Message: err.Error()}.String()

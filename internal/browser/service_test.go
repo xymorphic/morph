@@ -300,7 +300,7 @@ func TestService_StrictRemotePolicyBlocksBeforeBackendStart(t *testing.T) {
 	require.NoError(t, service.Close(context.Background()))
 }
 
-func TestService_FullAccessCanUseExplicitRemoteEndpoint(t *testing.T) {
+func TestService_FullAccessCannotBypassBlockedRemoteEndpoint(t *testing.T) {
 	cfg := testBrowserConfig(t)
 	cfg.Profiles = []config.BrowserProfileConfig{{
 		Name: "remote", Mode: config.BrowserProfileRemoteCDP, CDPEndpoint: "http://127.0.0.1:9222",
@@ -315,22 +315,15 @@ func TestService_FullAccessCanUseExplicitRemoteEndpoint(t *testing.T) {
 	require.NoError(t, err)
 	ctx := permissions.WithPreset(testBrowserContext("owner", "session"), permissions.PresetFullAccess)
 
-	session, err := service.Start(ctx, StartRequest{})
-	require.NoError(t, err)
-	require.Equal(t, SessionReady, session.State)
+	_, err = service.Start(ctx, StartRequest{})
+	decision, ok := permissions.GetDecisionError(err)
+	require.True(t, ok)
+	require.Equal(t, permissions.ReasonHardDeny, decision.Evaluation.ReasonCode)
 	require.Equal(t, []Profile{{
 		Name: "remote", Mode: config.BrowserProfileRemoteCDP, Default: true, Available: true,
 		Warning: unmanagedEgressWarning + " " + wholeBrowserWarning,
 	}}, service.Status().Profiles)
-	require.NotEqual(t, cfg.Profiles[0].CDPEndpoint, backend.options.CDPEndpoint)
-	require.Contains(t, backend.options.CDPEndpoint, "127.0.0.1:")
-	require.False(t, service.sessions[session.ID].remoteRelay.getPolicy().Strict)
-	normal := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
-		Actor:   permissions.Actor{Kind: permissions.ActorLocalOwner, ID: "owner"},
-		Surface: permissions.SurfaceTUI, Profile: "default", SessionID: "session", RunID: "next-run",
-	})
-	require.NoError(t, service.Touch(normal, session.ID))
-	require.True(t, service.sessions[session.ID].remoteRelay.getPolicy().Strict)
+	require.Zero(t, backend.starts)
 	require.NoError(t, service.Close(context.Background()))
 }
 
@@ -417,7 +410,7 @@ func TestService_CloseDuringStartupLeavesSessionStoppedAndClosesLateBackend(t *t
 	require.NoError(t, backend.session.closeCtxErr)
 }
 
-func TestService_ExistingSessionProfileStartsWithFullAccess(t *testing.T) {
+func TestService_ExistingSessionProfileCannotBypassBlockedEndpointWithFullAccess(t *testing.T) {
 	cfg := testBrowserConfig(t)
 	cfg.Profiles = []config.BrowserProfileConfig{{
 		Name: "personal", Mode: config.BrowserProfileExistingSession, CDPEndpoint: "http://127.0.0.1:9222",
@@ -436,10 +429,11 @@ func TestService_ExistingSessionProfileStartsWithFullAccess(t *testing.T) {
 		Warning: unmanagedEgressWarning + " " + existingSessionWarning + " " + wholeBrowserWarning,
 	}}, service.Status().Profiles)
 	ctx := permissions.WithPreset(testBrowserContext("owner", "session"), permissions.PresetFullAccess)
-	session, err := service.Start(ctx, StartRequest{})
-	require.NoError(t, err)
-	require.Equal(t, unmanagedEgressWarning+" "+existingSessionWarning+" "+wholeBrowserWarning, session.Warning)
-	require.Equal(t, 1, backend.starts)
+	_, err = service.Start(ctx, StartRequest{})
+	decision, ok := permissions.GetDecisionError(err)
+	require.True(t, ok)
+	require.Equal(t, permissions.ReasonHardDeny, decision.Evaluation.ReasonCode)
+	require.Zero(t, backend.starts)
 	require.Empty(t, backend.options.Executable)
 	require.Empty(t, backend.options.DataDir)
 	require.NoError(t, service.Close(context.Background()))
@@ -641,7 +635,7 @@ func waitForPendingBrowserApproval(
 	return request
 }
 
-func TestService_AuthorizeAppliesNetworkHardDenyUnlessFullAccess(t *testing.T) {
+func TestService_AuthorizeAppliesNetworkHardDenyIncludingFullAccess(t *testing.T) {
 	cfg := testBrowserConfig(t)
 	policy := permissions.Policy{
 		Default: permissions.DecisionAllow,
@@ -655,7 +649,11 @@ func TestService_AuthorizeAppliesNetworkHardDenyUnlessFullAccess(t *testing.T) {
 		"http://127.0.0.1/private", "GET", permissions.NetworkRequestNavigation,
 	)
 	require.NoError(t, err)
-	request := permissions.BrowserRequest{Profile: "default", Action: "navigate", Network: &target}
+	request := permissions.BrowserRequest{
+		Profile: "default",
+		Action:  "navigate",
+		Network: &target,
+	}
 
 	err = service.Authorize(testBrowserContext("owner", "session"), request)
 	decision, ok := permissions.GetDecisionError(err)
@@ -663,7 +661,10 @@ func TestService_AuthorizeAppliesNetworkHardDenyUnlessFullAccess(t *testing.T) {
 	require.Equal(t, permissions.ReasonHardDeny, decision.Evaluation.ReasonCode)
 	fullAccess := permissions.WithFullAccess(testBrowserContext("owner", "session"))
 	fullAccess = permissions.WithPreset(fullAccess, permissions.PresetFullAccess)
-	require.NoError(t, service.Authorize(fullAccess, request))
+	err = service.Authorize(fullAccess, request)
+	decision, ok = permissions.GetDecisionError(err)
+	require.True(t, ok)
+	require.Equal(t, permissions.ReasonHardDeny, decision.Evaluation.ReasonCode)
 	restricted := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
 		Actor:   permissions.Actor{Kind: permissions.ActorLocalOwner, ID: "owner"},
 		Surface: permissions.SurfaceTUI, Profile: "default", SessionID: "session",

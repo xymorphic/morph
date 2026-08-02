@@ -227,11 +227,35 @@ func TestChromiumSession_SetRootTargetContextRejectsUnavailableTarget(t *testing
 func TestGetAttachmentTarget_SelectsOnlyEligiblePage(t *testing.T) {
 	infos := []*target.Info{
 		nil,
-		{TargetID: "worker", Type: "worker", BrowserContextID: "context-1"},
-		{TargetID: "subtype", Type: "page", Subtype: "prerender", BrowserContextID: "context-1"},
-		{TargetID: "other", Type: "page", URL: "https://example.com", BrowserContextID: "context-2"},
-		{TargetID: "selected", Type: "page", URL: "https://example.com", BrowserContextID: "context-1"},
-		{TargetID: "blank", Type: "page", URL: "about:blank", BrowserContextID: "context-1"},
+		{
+			TargetID:         "worker",
+			Type:             "worker",
+			BrowserContextID: "context-1",
+		},
+		{
+			TargetID:         "subtype",
+			Type:             "page",
+			Subtype:          "prerender",
+			BrowserContextID: "context-1",
+		},
+		{
+			TargetID:         "other",
+			Type:             "page",
+			URL:              "https://example.com",
+			BrowserContextID: "context-2",
+		},
+		{
+			TargetID:         "selected",
+			Type:             "page",
+			URL:              "https://example.com",
+			BrowserContextID: "context-1",
+		},
+		{
+			TargetID:         "blank",
+			Type:             "page",
+			URL:              "about:blank",
+			BrowserContextID: "context-1",
+		},
 	}
 
 	require.Equal(
@@ -241,8 +265,16 @@ func TestGetAttachmentTarget_SelectsOnlyEligiblePage(t *testing.T) {
 	require.Empty(t, getAttachmentTarget(infos, config.BrowserAttachmentContext, "missing"))
 	require.Equal(t, target.ID("blank"), getAttachmentTarget(infos, config.BrowserAttachmentBrowser, ""))
 	require.Equal(t, target.ID("a"), getAttachmentTarget([]*target.Info{
-		{TargetID: "z", Type: "page", URL: "https://example.com/z"},
-		{TargetID: "a", Type: "page", URL: "https://example.com/a"},
+		{
+			TargetID: "z",
+			Type:     "page",
+			URL:      "https://example.com/z",
+		},
+		{
+			TargetID: "a",
+			Type:     "page",
+			URL:      "https://example.com/a",
+		},
 	}, config.BrowserAttachmentBrowser, ""))
 }
 
@@ -560,10 +592,10 @@ func TestChromiumBackend_PreservesNativeTransportAPIsWithoutDirectUDP(t *testing
 	}
 	udp, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1")})
 	require.NoError(t, err)
-	defer udp.Close()
+	defer func() { _ = udp.Close() }()
 	tcp, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	defer tcp.Close()
+	defer func() { _ = tcp.Close() }()
 	udpPort := udp.LocalAddr().(*net.UDPAddr).Port
 	tcpPort := tcp.Addr().(*net.TCPAddr).Port
 
@@ -1607,6 +1639,28 @@ func TestChromiumSession_NetworkAuthorizersAreScopedToTabs(t *testing.T) {
 	require.EqualError(t, session.consumeNetworkError("tab-1"), "first tab failed")
 	require.Nil(t, session.consumeNetworkError("tab-1"))
 	require.EqualError(t, session.consumeNetworkError("tab-2"), "second tab failed")
+}
+
+func TestChromiumSession_OpeningAuthorizationRemainsBoundUntilRestored(t *testing.T) {
+	session := &chromiumSession{
+		networkAuthorizers: make(map[string]networkAuthorization),
+		openingTabIDs:      make(map[string]struct{}),
+		networkErrors:      make(map[string]error),
+	}
+	restore := session.SetNetworkAuthorizer("", func(context.Context, permissions.NetworkTarget) error {
+		return errors.New("opening")
+	})
+
+	session.mu.Lock()
+	session.openingTabIDs["tab-1"] = struct{}{}
+	session.setTabNetworkAuthorizationFromOpeningLocked("tab-1")
+	delete(session.openingTabIDs, "tab-1")
+	session.mu.Unlock()
+
+	require.EqualError(t, authorizeNetworkRequest(session, "tab-1"), "opening")
+	restore()
+	_, ok := session.getNetworkAuthorization("tab-1")
+	require.False(t, ok)
 }
 
 func TestChromiumSession_RelatedTargetAuthorizationRequiresUnambiguousOwnership(t *testing.T) {

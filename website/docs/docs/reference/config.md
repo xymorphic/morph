@@ -210,6 +210,31 @@ Set at least `executable` or `resolvedPath`. Use `resolvedPath` to match an exac
 `arguments` with `argumentPrefix`.
 See [Safety and Guardrails](../concepts/safety-and-guardrails).
 
+## `execution`
+
+| Key | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `execution.backend` | string | `local` | `local` or `docker` |
+| `execution.docker.scope` | string | `session` | `session` or explicit profile-wide `shared` |
+| `execution.docker.endpoint` | string | `/var/run/docker.sock` | Local Unix socket or named pipe only |
+| `execution.docker.image` | string | empty | Required digest-pinned image in Docker mode |
+| `execution.docker.contract` | path | empty | Static image target contract |
+| `execution.docker.workspace.mode` | string | `none` | `none`, `ro`, or `rw` |
+| `execution.docker.workspace.source` | path | empty | Required for `ro`/`rw` |
+| `execution.docker.mounts` | list | `[]` | Trusted named host grants mounted below `/mnt/<name>` |
+| `execution.docker.network` | string | `none` | `none` or unrestricted `bridge` |
+| `execution.docker.secrets` | list | `[]` | Logical name, model-visible description, and source environment variable |
+| `execution.docker.environmentIdleExpiry` | duration | `30m` | Idle live-environment expiry |
+| `execution.docker.sharedDisabledRetention` | duration | `168h` | Retention for a disabled shared workspace |
+| `execution.docker.maximumEnvironments` | integer | `32` | Maximum live logical environments per profile |
+| `execution.docker.maximumVolumes` | integer | `128` | Maximum Morph execution volumes per profile |
+| `execution.docker.reservedFreeBytes` | bytes | `2147483648` | Refuse new workspace volumes below this free-space reserve |
+
+Docker limits cover memory, CPU milli-units, PIDs, open files, temporary bytes, output bytes, control input bytes,
+runtime, and stop grace. Tool schemas expose configured secret names and descriptions, but not source environment names,
+availability, or values. Secret values never enter configuration fingerprints; a tool call selects configured logical
+names and receives values only after authorization.
+
 ## `permissions`
 
 Concept and decision model: [Permissions](../concepts/permissions). Operator guidance: [Security](../operations/security#permission-policy-across-surfaces).

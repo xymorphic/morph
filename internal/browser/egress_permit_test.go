@@ -189,7 +189,8 @@ func TestTransportPermitLedger_BoundsConcurrentConnectLeases(t *testing.T) {
 func TestTransportPermitLedger_RejectsInvalidInputsAndInactiveAuthority(t *testing.T) {
 	now := time.Date(2026, 7, 23, 1, 0, 0, 0, time.UTC)
 	ledger := newTestTransportPermitLedger(t, func() time.Time { return now })
-	_, err := ledger.beginGeneration(nil)
+	var nilContext context.Context
+	_, err := ledger.beginGeneration(nilContext)
 	require.EqualError(t, err, "transport permit generation context is required")
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -205,10 +206,18 @@ func TestTransportPermitLedger_RejectsInvalidInputsAndInactiveAuthority(t *testi
 		input transportPermitInput
 		err   string
 	}{
-		{name: "invalid target", input: transportPermitInput{
-			Target:    permissions.NetworkTarget{Scheme: "ftp", Host: "example.com", Method: "GET"},
-			Addresses: []netip.Addr{address},
-		}, err: "permission network scheme must be one of: http, https, ws, wss"},
+		{
+			name: "invalid target",
+			input: transportPermitInput{
+				Target: permissions.NetworkTarget{
+					Scheme: "ftp",
+					Host:   "example.com",
+					Method: "GET",
+				},
+				Addresses: []netip.Addr{address},
+			},
+			err: "permission network scheme must be one of: http, https, ws, wss",
+		},
 		{name: "missing addresses", input: transportPermitInput{Target: target}, err: "transport permit addresses are required"},
 		{name: "invalid address", input: transportPermitInput{
 			Target: target, Addresses: []netip.Addr{{}},
@@ -394,7 +403,11 @@ func TestTransportPermitLedger_PendingIntentWaitsForDecisionAndHonorsCancellatio
 	require.Empty(t, ledger.pending)
 	require.NoError(t, ledger.revokeGeneration(generation))
 
-	invalid := permissions.NetworkTarget{Scheme: "ftp", Host: "socket.example", Method: "GET"}
+	invalid := permissions.NetworkTarget{
+		Scheme: "ftp",
+		Host:   "socket.example",
+		Method: "GET",
+	}
 	ledger.beginPending(invalid)()
 	_, err = ledger.waitForPending(context.Background(), invalid)
 	require.EqualError(t, err, "permission network scheme must be one of: http, https, ws, wss")
@@ -429,7 +442,7 @@ func TestTransportPermitLease_RejectsInvalidAttachmentAndIsIdempotent(t *testing
 	lease.Release()
 	require.EqualError(t, lease.Attach(right), "transport permit lease is released")
 
-	lease, err = ledger.acquire(target)
+	_, err = ledger.acquire(target)
 	requirePermitFailure(t, err, transportPermitExhausted)
 }
 

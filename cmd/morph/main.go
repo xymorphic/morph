@@ -20,6 +20,7 @@ import (
 	permissionscmd "github.com/wandxy/morph/cmd/permissions"
 	profilecmd "github.com/wandxy/morph/cmd/profile"
 	providercmd "github.com/wandxy/morph/cmd/provider"
+	sandboxcmd "github.com/wandxy/morph/cmd/sandbox"
 	sessioncmd "github.com/wandxy/morph/cmd/session"
 	tracecmd "github.com/wandxy/morph/cmd/trace"
 	tuicmd "github.com/wandxy/morph/cmd/tui"
@@ -134,6 +135,7 @@ func newCommand() *cli.Command {
 			profilecmd.NewCommand(),
 			providercmd.NewCommand(os.Stdin, rootOutput),
 			permissionscmd.NewCommand(),
+			sandboxcmd.NewCommand(),
 			sessioncmd.NewCommand(),
 			tracecmd.NewCommand(),
 			daemoncmd.NewCommand(),

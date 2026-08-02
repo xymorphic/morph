@@ -135,7 +135,7 @@ func addCall(
 		}
 	}
 	if !pathResolutionUncertain {
-		resolved, err := lookPath(invocation.Executable)
+		resolved, err := plan.lookPath(invocation.Executable)
 		if err == nil && filepath.IsAbs(resolved) {
 			invocation.ResolvedPath = filepath.Clean(resolved)
 		}
@@ -401,7 +401,8 @@ func hasPathEnvironmentMutation(arguments []string) bool {
 			arguments[index+1] == "PATH" {
 			return true
 		}
-		if strings.TrimPrefix(argument, "--unset=") == "PATH" && strings.HasPrefix(argument, "--unset=") {
+		if strings.TrimPrefix(argument, "--unset=") == "PATH" &&
+			strings.HasPrefix(argument, "--unset=") {
 			return true
 		}
 	}
@@ -543,9 +544,13 @@ func isStatefulShellBuiltin(executable string) bool {
 }
 
 func addRedirect(plan *Plan, redirect *syntax.Redirect) {
-	if redirect.Op == syntax.Hdoc || redirect.Op == syntax.DashHdoc || redirect.Op == syntax.WordHdoc ||
-		redirect.Op == syntax.DplIn || redirect.Op == syntax.DplOut {
-		if redirect.Op == syntax.Hdoc || redirect.Op == syntax.DashHdoc || redirect.Op == syntax.WordHdoc {
+	if redirect.Op == syntax.Hdoc ||
+		redirect.Op == syntax.DashHdoc ||
+		redirect.Op == syntax.WordHdoc ||
+		redirect.Op == syntax.DplIn ||
+		redirect.Op == syntax.DplOut {
+		if redirect.Op == syntax.Hdoc || redirect.Op == syntax.DashHdoc ||
+			redirect.Op == syntax.WordHdoc {
 			addDynamicReason(plan, ReasonIndirectExecution)
 		}
 		return

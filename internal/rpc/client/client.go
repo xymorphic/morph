@@ -15,6 +15,7 @@ import (
 	"github.com/wandxy/morph/internal/automation"
 	"github.com/wandxy/morph/internal/browser"
 	"github.com/wandxy/morph/internal/config"
+	"github.com/wandxy/morph/internal/execution"
 	models "github.com/wandxy/morph/internal/model"
 	"github.com/wandxy/morph/internal/permissions"
 	morphpb "github.com/wandxy/morph/internal/rpc/proto"
@@ -212,6 +213,8 @@ type SessionAPI interface {
 	Repair(context.Context, RepairSessionOptions) (RepairSessionResult, error)
 	Status(context.Context, string) (ContextStatus, error)
 	Timeline(context.Context, SessionTimelineOptions) (SessionTimeline, error)
+	ListExecutionEnvironments(context.Context, string) ([]execution.EnvironmentDetails, error)
+	ExplainExecutionEnvironment(context.Context, string, string) (execution.EnvironmentDetails, error)
 }
 
 type ModelAPI interface {
