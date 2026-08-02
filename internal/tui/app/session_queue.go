@@ -213,6 +213,9 @@ func (m *model) applySessionExecutionState(msg sessionExecutionStateLoadedMsg) t
 	if previousActiveRunID != "" && previousActiveRunID != nextActiveRunID {
 		m.finalizeObservedRunResponse(previousActiveRunID)
 	}
+	if !m.responding && previousActiveRunID != nextActiveRunID {
+		m.clearInterruptConfirmation()
+	}
 	m.sessionExecutionState = msg.State
 	var reasoningStateCmd tea.Cmd
 	switch {
@@ -428,6 +431,10 @@ func (m *model) applySessionQueueEvent(msg sessionQueueEventMsg) tea.Cmd {
 		}
 	}
 	if event.Run != nil {
+		if !m.responding && (event.Run.Status != agentsession.RunStatusRunning ||
+			m.getActiveSessionRunID() != event.Run.ID) {
+			m.clearInterruptConfirmation()
+		}
 		if event.Run.Status == agentsession.RunStatusRunning {
 			previousActiveRunID := m.getActiveSessionRunID()
 			run := *event.Run

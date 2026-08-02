@@ -110,7 +110,7 @@ func TestModel_ViewShowsCancelHintDuringActiveResponse(t *testing.T) {
 
 	content := stripANSI(runModel.View().Content)
 
-	require.Contains(t, content, "esc to stop")
+	require.Contains(t, content, "esc twice to stop")
 	require.NotContains(t, content, "enter to send")
 }
 
@@ -5121,9 +5121,19 @@ func TestModel_UpdateEnterStartsThinkingResponse(t *testing.T) {
 	require.NotNil(t, runModel.responseCancel)
 }
 
-func TestModel_UpdateEscapeCancelsActiveResponse(t *testing.T) {
+func TestModel_UpdateEscapeRequiresSecondPressToInterruptActiveResponse(t *testing.T) {
+	originalCurrentTime := currentTime
+	t.Cleanup(func() {
+		currentTime = originalCurrentTime
+	})
+	now := time.Date(2026, 8, 3, 9, 0, 0, 0, time.UTC)
+	currentTime = func() time.Time {
+		return now
+	}
+
 	responseCtx, cancel := context.WithCancel(context.Background())
-	runModel := newModelWithClientContext(responseCtx, &fakeTUIChatClient{})
+	client := &sessionQueueTUIClient{}
+	runModel := newModelWithClientContext(responseCtx, client)
 	runModel.responding = true
 	runModel.responseID = 4
 	runModel.responseCancel = cancel
@@ -5138,6 +5148,34 @@ func TestModel_UpdateEscapeCancelsActiveResponse(t *testing.T) {
 		startedAt: time.Now().Add(-time.Second),
 	}}
 
+	updated, firstCmd := runModel.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEsc}))
+
+	require.NotNil(t, firstCmd)
+	runModel = updated.(model)
+	require.True(t, runModel.responding)
+	require.Equal(t, "Press Esc again to interrupt", runModel.status.Text())
+	require.Contains(
+		t,
+		stripANSI(runModel.renderBottomStatusPanel()),
+		"Press Esc again to interrupt",
+	)
+	require.NoError(t, responseCtx.Err())
+	require.Zero(t, client.interrupts)
+	toolCell, ok := runModel.messages[0].(toolTranscriptCell)
+	require.True(t, ok)
+	require.Empty(t, toolCell.terminalStatus)
+	_ = runModel.applySessionExecutionState(sessionExecutionStateLoadedMsg{
+		State: rpcclient.SessionExecutionState{
+			SessionID: defaultSessionID,
+			ActiveRun: &rpcclient.SessionActiveRun{
+				ID:     "run_active",
+				Status: agentsession.RunStatusRunning,
+			},
+		},
+	})
+	require.False(t, runModel.interruptAt.IsZero())
+	require.Equal(t, "Press Esc again to interrupt", runModel.status.Text())
+
 	updated, cmd := runModel.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEsc}))
 
 	require.NotNil(t, cmd)
@@ -5150,12 +5188,123 @@ func TestModel_UpdateEscapeCancelsActiveResponse(t *testing.T) {
 	require.Nil(t, runModel.events)
 	require.Equal(t, "interrupt requested", runModel.status.Text())
 	require.ErrorIs(t, responseCtx.Err(), context.Canceled)
-	toolCell, ok := runModel.messages[0].(toolTranscriptCell)
+	toolCell, ok = runModel.messages[0].(toolTranscriptCell)
 	require.True(t, ok)
 	require.Equal(t, toolTranscriptTerminalStatusInterrupted, toolCell.terminalStatus)
 	require.False(t, toolCell.completedAt.IsZero())
 	require.Contains(t, toolCell.PlainText(), "status: interrupted")
 	require.Contains(t, stripANSI(renderTranscriptCells(runModel.messages)), "Interrupted Automation")
+	batch, batchOK := cmd().(tea.BatchMsg)
+	require.True(t, batchOK)
+	require.NotEmpty(t, batch)
+	require.IsType(t, sessionInterruptCompletedMsg{}, batch[0]())
+	require.Equal(t, 1, client.interrupts)
+}
+
+func TestModel_UpdateEscapeRequiresSecondPressToInterruptObservedRun(t *testing.T) {
+	originalCurrentTime := currentTime
+	t.Cleanup(func() {
+		currentTime = originalCurrentTime
+	})
+	currentTime = func() time.Time {
+		return time.Date(2026, 8, 3, 9, 0, 0, 0, time.UTC)
+	}
+
+	client := &sessionQueueTUIClient{}
+	runModel := newModelWithClient(client)
+	runModel.sessionExecutionState.ActiveRun = &rpcclient.SessionActiveRun{
+		ID:     "run_queued",
+		Status: agentsession.RunStatusRunning,
+	}
+
+	updated, firstCmd := runModel.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEsc}))
+
+	require.NotNil(t, firstCmd)
+	runModel = updated.(model)
+	require.Equal(t, "Press Esc again to interrupt", runModel.status.Text())
+	require.Zero(t, client.interrupts)
+
+	updated, cmd := runModel.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEsc}))
+
+	require.NotNil(t, cmd)
+	runModel = updated.(model)
+	require.Equal(t, "interrupt requested", runModel.status.Text())
+	batch, ok := cmd().(tea.BatchMsg)
+	require.True(t, ok)
+	require.NotEmpty(t, batch)
+	require.IsType(t, sessionInterruptCompletedMsg{}, batch[0]())
+	require.Equal(t, 1, client.interrupts)
+}
+
+func TestModel_UpdateEscapeStartsNewConfirmationAfterWindow(t *testing.T) {
+	originalCurrentTime := currentTime
+	t.Cleanup(func() {
+		currentTime = originalCurrentTime
+	})
+	now := time.Date(2026, 8, 3, 9, 0, 0, 0, time.UTC)
+	currentTime = func() time.Time {
+		return now
+	}
+
+	responseCtx, cancel := context.WithCancel(context.Background())
+	client := &sessionQueueTUIClient{}
+	runModel := newModelWithClientContext(responseCtx, client)
+	runModel.responding = true
+	runModel.responseID = 4
+	runModel.responseCancel = cancel
+
+	updated, firstCmd := runModel.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEsc}))
+	require.NotNil(t, firstCmd)
+	runModel = updated.(model)
+
+	now = now.Add(interruptConfirmationWindow + time.Second)
+	updated, secondCmd := runModel.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEsc}))
+
+	require.NotNil(t, secondCmd)
+	runModel = updated.(model)
+	require.True(t, runModel.responding)
+	require.Equal(t, now, runModel.interruptAt)
+	require.Equal(t, "Press Esc again to interrupt", runModel.status.Text())
+	require.NoError(t, responseCtx.Err())
+	require.Zero(t, client.interrupts)
+}
+
+func TestModel_UpdateClearsExpiredEscapeConfirmation(t *testing.T) {
+	startedAt := time.Date(2026, 8, 3, 9, 0, 0, 0, time.UTC)
+	runModel := newModel()
+	runModel.responding = true
+	runModel.responseID = 4
+	runModel.interruptAt = startedAt
+	runModel.interruptResponseID = 4
+	runModel.status.SetTransient("Press Esc again to interrupt", startedAt)
+
+	updated, cmd := runModel.Update(interruptConfirmationExpiredMsg{startedAt: startedAt})
+
+	require.Nil(t, cmd)
+	runModel = updated.(model)
+	require.True(t, runModel.interruptAt.IsZero())
+	require.True(t, runModel.responding)
+	require.Equal(t, defaultStatus, runModel.status.Text())
+}
+
+func TestModel_UpdateIgnoresStaleEscapeConfirmationTimeout(t *testing.T) {
+	activeAt := time.Date(2026, 8, 3, 9, 0, 1, 0, time.UTC)
+	runModel := newModel()
+	runModel.responding = true
+	runModel.responseID = 4
+	runModel.interruptAt = activeAt
+	runModel.interruptResponseID = 4
+	runModel.status.SetTransient("Press Esc again to interrupt", activeAt)
+
+	updated, cmd := runModel.Update(interruptConfirmationExpiredMsg{
+		startedAt: time.Date(2026, 8, 3, 9, 0, 0, 0, time.UTC),
+	})
+
+	require.Nil(t, cmd)
+	runModel = updated.(model)
+	require.Equal(t, activeAt, runModel.interruptAt)
+	require.True(t, runModel.responding)
+	require.Equal(t, "Press Esc again to interrupt", runModel.status.Text())
 }
 
 func TestModel_UpdateEscapeIgnoresStaleCancelledCompletion(t *testing.T) {
@@ -5164,6 +5313,10 @@ func TestModel_UpdateEscapeIgnoresStaleCancelledCompletion(t *testing.T) {
 	runModel.responseID = 4
 	runModel.responseCancel = func() {}
 	runModel.events = make(chan tea.Msg)
+
+	updated, firstCmd := runModel.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEsc}))
+	require.NotNil(t, firstCmd)
+	runModel = updated.(model)
 
 	updated, cmd := runModel.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEsc}))
 	require.NotNil(t, cmd)

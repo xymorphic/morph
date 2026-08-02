@@ -284,6 +284,10 @@ func (resetResponseStateAction) apply(state *tuiState) {
 		return
 	}
 
+	state.status.Expire(state.interruptAt)
+	state.interruptAt = time.Time{}
+	state.interruptResponseID = 0
+	state.interruptRunID = ""
 	state.responding = false
 	state.responseTranscriptFollow = false
 	state.responseTranscriptScrolled = false

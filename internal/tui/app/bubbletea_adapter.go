@@ -42,6 +42,8 @@ func (m model) handleLifecycleMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		return next, cmd, true
 	case exitConfirmationExpiredMsg:
 		return m.expireExitConfirmation(msg), nil, true
+	case interruptConfirmationExpiredMsg:
+		return m.expireInterruptConfirmation(msg), nil, true
 	case statusExpiredMsg:
 		expireStatus(&m.status, msg)
 		return m, nil, true
@@ -517,8 +519,8 @@ func (m model) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd, bool)
 		next, cmd := m.handleAppEvent(copyTranscriptEvent{})
 		return next, cmd, true
 	case "esc":
-		cmd := m.cancelActiveResponse()
-		return m, cmd, true
+		next, cmd := m.confirmInterrupt()
+		return next, cmd, true
 	case "ctrl+p":
 		next, cmd := m.handleAppEvent(showPreviousPromptEvent{})
 		return next, cmd, true

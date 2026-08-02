@@ -10,12 +10,13 @@ import (
 )
 
 const (
-	defaultSessionID       = storage.DefaultSessionID
-	defaultSessionTitle    = tuistatus.DefaultSessionTitle
-	defaultStatus          = tuistatus.DefaultText
-	statusReadySuffix      = tuistatus.ReadySuffix
-	statusCancelSuffix     = "esc to stop · ctrl+c to quit"
-	exitConfirmationWindow = tuistatus.ExitConfirmationWindow
+	defaultSessionID            = storage.DefaultSessionID
+	defaultSessionTitle         = tuistatus.DefaultSessionTitle
+	defaultStatus               = tuistatus.DefaultText
+	statusReadySuffix           = tuistatus.ReadySuffix
+	statusCancelSuffix          = "esc twice to stop · ctrl+c to quit"
+	exitConfirmationWindow      = tuistatus.ExitConfirmationWindow
+	interruptConfirmationWindow = exitConfirmationWindow
 )
 
 var currentTime = time.Now
@@ -25,6 +26,10 @@ type statusExpiredMsg struct {
 }
 
 type exitConfirmationExpiredMsg struct {
+	startedAt time.Time
+}
+
+type interruptConfirmationExpiredMsg struct {
 	startedAt time.Time
 }
 
@@ -119,5 +124,63 @@ func (m model) expireExitConfirmation(msg exitConfirmationExpiredMsg) tea.Model 
 	m.exitAt = time.Time{}
 	expireStatus(&m.status, statusExpiredMsg(msg))
 
+	return m
+}
+
+func (m model) confirmInterrupt() (tea.Model, tea.Cmd) {
+	if !m.isTranscriptResponseActive() {
+		m.clearInterruptConfirmation()
+		return m, nil
+	}
+
+	now := currentTime()
+	if m.isInterruptConfirmed(now) {
+		m.clearInterruptConfirmation()
+		return m, m.cancelActiveResponse()
+	}
+
+	m.interruptAt = now
+	m.interruptResponseID = 0
+	if m.responding {
+		m.interruptResponseID = m.responseID
+	}
+	m.interruptRunID = m.getActiveSessionRunID()
+	m.status.SetTransient("Press Esc again to interrupt", now)
+
+	return m, tea.Tick(interruptConfirmationWindow, func(time.Time) tea.Msg {
+		return interruptConfirmationExpiredMsg{startedAt: now}
+	})
+}
+
+func (m model) isInterruptConfirmed(now time.Time) bool {
+	if m.interruptAt.IsZero() {
+		return false
+	}
+	elapsed := now.Sub(m.interruptAt)
+	if elapsed < 0 || elapsed > interruptConfirmationWindow {
+		return false
+	}
+	if m.responding && m.interruptResponseID != 0 && m.interruptResponseID == m.responseID {
+		return true
+	}
+	return m.interruptRunID != "" && m.interruptRunID == m.getActiveSessionRunID()
+}
+
+func (m *model) clearInterruptConfirmation() {
+	startedAt := m.interruptAt
+	m.interruptAt = time.Time{}
+	m.interruptResponseID = 0
+	m.interruptRunID = ""
+	if !startedAt.IsZero() {
+		m.status.Expire(startedAt)
+	}
+}
+
+func (m model) expireInterruptConfirmation(msg interruptConfirmationExpiredMsg) tea.Model {
+	if m.interruptAt.IsZero() || !m.interruptAt.Equal(msg.startedAt) {
+		return m
+	}
+
+	m.clearInterruptConfirmation()
 	return m
 }

@@ -49,7 +49,7 @@ func (lipglossBottomStatusPanelRenderer) Render(panel bottomStatusPanel) string 
 
 	left := joinBottomStatusPanelRenderedSegments(segments, panel.ContentWidth)
 	right := renderBottomStatusMutedCell(panel.Context)
-	if panel.ExitConfirmation {
+	if panel.ExitConfirmation || panel.InterruptConfirmation {
 		left = renderBottomStatusMutedCell(panel.Status)
 		right = ""
 	} else if right != "" && lipgloss.Width(left)+lipgloss.Width(right)+3 > panel.ContentWidth {

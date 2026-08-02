@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -822,6 +823,77 @@ func TestSessionQueueTUI_StateReloadAcceptsRestartedProgressSequence(t *testing.
 	require.Equal(t, int64(1), runModel.sessionProgressSequences["run_after_restart"])
 	require.Equal(t, 1, runModel.responseRunningToolCount)
 	require.Contains(t, stripANSI(runModel.transcript.GetContent()), "web_search")
+}
+
+func TestSessionQueueTUI_StateReloadClearsInterruptConfirmationForSuccessorRun(t *testing.T) {
+	startedAt := time.Date(2026, 8, 3, 9, 0, 0, 0, time.UTC)
+	runModel := newModelWithClient(&sessionQueueTUIClient{})
+	runModel.sessionExecutionState = rpcclient.SessionExecutionState{
+		SessionID: defaultSessionID,
+		ActiveRun: &rpcclient.SessionActiveRun{
+			ID:     "run_previous",
+			Status: agentsession.RunStatusRunning,
+		},
+	}
+	runModel.interruptAt = startedAt
+	runModel.interruptRunID = "run_previous"
+	runModel.status.SetTransient("Press Esc again to interrupt", startedAt)
+
+	_ = runModel.applySessionExecutionState(sessionExecutionStateLoadedMsg{
+		State: rpcclient.SessionExecutionState{
+			SessionID: defaultSessionID,
+			ActiveRun: &rpcclient.SessionActiveRun{
+				ID:     "run_successor",
+				Status: agentsession.RunStatusRunning,
+			},
+		},
+	})
+	t.Cleanup(func() {
+		if runModel.sessionObserverCancel != nil {
+			runModel.sessionObserverCancel()
+		}
+	})
+
+	require.True(t, runModel.interruptAt.IsZero())
+	require.Empty(t, runModel.interruptRunID)
+	require.Equal(t, defaultStatus, runModel.status.Text())
+}
+
+func TestSessionQueueTUI_TerminalRunEventClearsInterruptConfirmation(t *testing.T) {
+	startedAt := time.Date(2026, 8, 3, 9, 0, 0, 0, time.UTC)
+	runModel := newModelWithClient(&sessionQueueTUIClient{})
+	runModel.sessionObserverSessionID = defaultSessionID
+	runModel.sessionObserverID = 1
+	runModel.sessionObserverEvents = make(chan tea.Msg)
+	runModel.sessionExecutionState = rpcclient.SessionExecutionState{
+		SessionID: defaultSessionID,
+		Cursor:    1,
+		ActiveRun: &rpcclient.SessionActiveRun{
+			ID:     "run_active",
+			Status: agentsession.RunStatusRunning,
+		},
+	}
+	runModel.interruptAt = startedAt
+	runModel.interruptRunID = "run_active"
+	runModel.status.SetTransient("Press Esc again to interrupt", startedAt)
+
+	cmd := runModel.applySessionQueueEvent(sessionQueueEventMsg{
+		SessionID:  defaultSessionID,
+		ObserverID: 1,
+		Event: rpcclient.SessionEvent{
+			Cursor: 2,
+			Run: &rpcclient.SessionActiveRun{
+				ID:     "run_active",
+				Status: agentsession.RunStatusCompleted,
+			},
+		},
+	})
+
+	require.NotNil(t, cmd)
+	require.True(t, runModel.interruptAt.IsZero())
+	require.Empty(t, runModel.interruptRunID)
+	require.Nil(t, runModel.sessionExecutionState.ActiveRun)
+	require.Equal(t, defaultStatus, runModel.status.Text())
 }
 
 func TestSessionQueueTUI_DelayedStateDoesNotReplayAppliedProgress(t *testing.T) {

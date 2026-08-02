@@ -380,14 +380,14 @@ The runner can therefore continue with the next follow-up after the interrupted 
 This differs from observer cancellation:
 
 
-| Action                                     | Active run                                   | Pending queue                             | Observer                         |
-| ------------------------------------------ | -------------------------------------------- | ----------------------------------------- | -------------------------------- |
-| Cancel `Observe` context                   | Continues                                    | Preserved                                 | Detached                         |
-| Close or reconnect TUI                     | Continues                                    | Preserved                                 | Replaced                         |
-| Press Escape during an active TUI response | Requests run interruption                    | Preserved                                 | Current response state resets    |
-| Run `/interrupt`                           | Explicitly requests run interruption         | Preserved                                 | May remain attached or rehydrate |
-| Daemon shutdown                            | Run becomes cancelled if it settles          | Pending entries remain in durable storage | Ends                             |
-| Restart reconciliation                     | Old run becomes `daemon_restart` interrupted | Pending follow-ups remain                 | Rehydrates                       |
+| Action                                            | Active run                                   | Pending queue                             | Observer                         |
+| ------------------------------------------------- | -------------------------------------------- | ----------------------------------------- | -------------------------------- |
+| Cancel `Observe` context                          | Continues                                    | Preserved                                 | Detached                         |
+| Close or reconnect TUI                            | Continues                                    | Preserved                                 | Replaced                         |
+| Press Escape twice during an active TUI response | Requests run interruption                    | Preserved                                 | Current response state resets    |
+| Run `/interrupt`                                  | Explicitly requests run interruption         | Preserved                                 | May remain attached or rehydrate |
+| Daemon shutdown                                   | Run becomes cancelled if it settles          | Pending entries remain in durable storage | Ends                             |
+| Restart reconciliation                            | Old run becomes `daemon_restart` interrupted | Pending follow-ups remain                 | Rehydrates                       |
 
 
 The system intentionally does not retry an interrupted or abandoned active entry automatically. Its tools may have

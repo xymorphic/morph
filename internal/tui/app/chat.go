@@ -306,6 +306,7 @@ func (m *model) startResponse(prompt string, followTranscript bool) tea.Cmd {
 		return nil
 	}
 
+	m.clearInterruptConfirmation()
 	m.cancelResponseAndDrainEvents()
 	responseCtx := m.chatCtx
 	if responseCtx == nil {

@@ -121,6 +121,9 @@ type tuiState struct {
 	chatsRenaming              bool
 	chatsRenameSessionID       string
 	exitAt                     time.Time
+	interruptAt                time.Time
+	interruptResponseID        int
+	interruptRunID             string
 	allowShell                 bool
 	selection                  transcriptSelection
 	transcriptWindow           transcriptWindowState
