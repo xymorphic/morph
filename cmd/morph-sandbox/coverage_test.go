@@ -117,6 +117,38 @@ func TestRun_DispatchesCommands(t *testing.T) {
 	require.True(t, executed)
 }
 
+func TestFreeSpace_ReportsAvailableBytes(t *testing.T) {
+	restoreSandboxGlobals(t)
+
+	var output bytes.Buffer
+	sandboxOutput = &output
+	getSandboxFreeBytes = func(path string) (int64, error) {
+		require.Equal(t, "/workspace", path)
+		return 4096, nil
+	}
+
+	require.NoError(t, run([]string{"free-space", "/workspace"}))
+	require.Equal(t, "4096\n", output.String())
+	require.EqualError(t, run([]string{"free-space"}), "free-space requires path")
+
+	getSandboxFreeBytes = func(string) (int64, error) {
+		return 0, errors.New("stat failed")
+	}
+	require.EqualError(t, run([]string{"free-space", "/workspace"}), "stat failed")
+
+	getSandboxFreeBytes = func(string) (int64, error) {
+		return 4096, nil
+	}
+	sandboxOutput = errorWriter{}
+	require.EqualError(t, run([]string{"free-space", "/workspace"}), "write failed")
+
+	available, err := sandboxFreeBytes(t.TempDir())
+	require.NoError(t, err)
+	require.Positive(t, available)
+	_, err = sandboxFreeBytes(filepath.Join(t.TempDir(), "missing"))
+	require.Error(t, err)
+}
+
 func TestRunControlled(t *testing.T) {
 	restoreSandboxGlobals(t)
 	require.EqualError(t, runControlled(nil), "controlled command requires a limit and command")
@@ -990,6 +1022,7 @@ func restoreSandboxGlobals(t *testing.T) {
 	originalReadFile := readSupervisorFile
 	originalRename := renameSupervisorFile
 	originalStart := startSandboxCommand
+	originalGetFreeBytes := getSandboxFreeBytes
 	t.Cleanup(func() {
 		sandboxInput = originalInput
 		sandboxOutput = originalOutput
@@ -1017,5 +1050,6 @@ func restoreSandboxGlobals(t *testing.T) {
 		readSupervisorFile = originalReadFile
 		renameSupervisorFile = originalRename
 		startSandboxCommand = originalStart
+		getSandboxFreeBytes = originalGetFreeBytes
 	})
 }

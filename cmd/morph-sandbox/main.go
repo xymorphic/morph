@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -81,6 +82,7 @@ var (
 	openSupervisorOutput             = os.OpenFile
 	readSupervisorFile               = os.ReadFile
 	renameSupervisorFile             = os.Rename
+	getSandboxFreeBytes              = sandboxFreeBytes
 )
 
 func main() {
@@ -107,6 +109,8 @@ func run(args []string) error {
 		return searchFiles(args[1:])
 	case "fs-patch":
 		return patchFiles(args[1:])
+	case "free-space":
+		return freeSpace(args[1:])
 	case "supervisor-start":
 		return supervisorStart()
 	case "supervisor-launch":
@@ -122,6 +126,30 @@ func run(args []string) error {
 	default:
 		return execCommand(args, os.Environ())
 	}
+}
+
+func freeSpace(args []string) error {
+	if len(args) != 1 {
+		return errors.New("free-space requires path")
+	}
+	available, err := getSandboxFreeBytes(args[0])
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(sandboxOutput, available)
+	return err
+}
+
+func sandboxFreeBytes(path string) (int64, error) {
+	var status syscall.Statfs_t
+	if err := syscall.Statfs(path, &status); err != nil {
+		return 0, err
+	}
+	available := uint64(status.Bavail) * uint64(status.Bsize)
+	if available > math.MaxInt64 {
+		return math.MaxInt64, nil
+	}
+	return int64(available), nil
 }
 
 func sleepForever() error {

@@ -212,7 +212,8 @@ func buildExecutionGroup(ctx context.Context, cfg *config.Config) Group {
 					"sandbox image contract is unavailable: "+contractErr.Error(),
 				),
 			)
-		} else if inspect.Os != contract.GOOS ||
+		} else if contract.Version != executiondocker.SandboxRuntimeCompatibility ||
+			inspect.Os != contract.GOOS ||
 			!contract.SupportsArchitecture(inspect.Architecture) ||
 			inspect.Config == nil ||
 			inspect.Config.User != contract.User ||

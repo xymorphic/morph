@@ -515,6 +515,7 @@ func newIntegrationBackendWithResolver(
 		AllowTestImageTag:   true,
 		MaximumEnvironments: 20,
 		MaximumVolumes:      20,
+		ReservedFreeBytes:   1,
 		ConfiguredScope:     execution.ScopeSession,
 		SessionExists: func(context.Context, string) (bool, error) {
 			return true, nil

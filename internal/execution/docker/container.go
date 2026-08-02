@@ -104,6 +104,9 @@ func NewBackend(options BackendOptions) (*Backend, error) {
 	if err != nil {
 		return nil, err
 	}
+	if contract.Version != SandboxRuntimeCompatibility {
+		return nil, errors.New("sandbox image runtime compatibility is unsupported")
+	}
 	if options.DaemonIncarnation == "" {
 		return nil, errors.New("docker daemon incarnation is required")
 	}

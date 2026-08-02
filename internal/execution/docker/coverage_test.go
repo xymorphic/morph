@@ -32,7 +32,6 @@ type fakeDockerServer struct {
 	failure          string
 	failureMethod    string
 	driverStatus     [][]string
-	dockerRoot       string
 	imageOS          string
 	imageArch        string
 	imageUser        string
@@ -66,11 +65,10 @@ func newFakeDockerServer(t *testing.T) *fakeDockerServer {
 	listener, err := net.Listen("unix", socket)
 	require.NoError(t, err)
 	server := &fakeDockerServer{
-		listener:   listener,
-		dockerRoot: t.TempDir(),
-		imageOS:    "linux",
-		imageArch:  "amd64",
-		imageUser:  "65532:65532",
+		listener:  listener,
+		imageOS:   "linux",
+		imageArch: "amd64",
+		imageUser: "65532:65532",
 		imageEntry: []string{
 			"/usr/local/bin/morph-sandbox",
 		},
@@ -117,7 +115,6 @@ func (s *fakeDockerServer) handle(writer http.ResponseWriter, request *http.Requ
 	failure := s.failure
 	failureMethod := s.failureMethod
 	driverStatus := s.driverStatus
-	dockerRoot := s.dockerRoot
 	imageOS := s.imageOS
 	imageArch := s.imageArch
 	imageUser := s.imageUser
@@ -267,8 +264,7 @@ func (s *fakeDockerServer) handle(writer http.ResponseWriter, request *http.Requ
 		writer.WriteHeader(http.StatusNoContent)
 	case strings.HasSuffix(request.URL.Path, "/info"):
 		writeDockerJSON(writer, map[string]any{
-			"DriverStatus":  driverStatus,
-			"DockerRootDir": dockerRoot,
+			"DriverStatus": driverStatus,
 		})
 	case strings.Contains(request.URL.Path, "/images/") &&
 		strings.HasSuffix(request.URL.Path, "/json"):
@@ -499,13 +495,14 @@ func TestDockerAPIErrorHandling(t *testing.T) {
 	require.NoError(t, backend.checkVolumeAdmission(context.Background(), owner.Profile))
 
 	server.driverStatus = nil
-	server.dockerRoot = "relative"
-	err = backend.checkVolumeAdmission(context.Background(), owner.Profile)
-	require.EqualError(t, err, "docker free-space reserve cannot be verified for the engine storage")
-	server.dockerRoot = filepath.Join(t.TempDir(), "missing")
+	server.setFailure("/containers/create")
 	err = backend.checkVolumeAdmission(context.Background(), owner.Profile)
 	require.ErrorContains(t, err, "docker free-space reserve cannot be verified")
-	server.dockerRoot = t.TempDir()
+	server.clearFailure()
+	server.attachOutput = "1024\n"
+	backend.reservedFreeBytes = 2 * 1024
+	err = backend.checkVolumeAdmission(context.Background(), owner.Profile)
+	require.EqualError(t, err, "docker execution reserved free-space threshold reached")
 	backend.reservedFreeBytes = 1
 	require.NoError(t, backend.checkVolumeAdmission(context.Background(), owner.Profile))
 
@@ -566,6 +563,25 @@ func TestDockerAPIErrorHandling(t *testing.T) {
 	server.removeStatus = http.StatusInternalServerError
 	_, err = cleanupBackend.Acquire(context.Background(), spec)
 	require.ErrorContains(t, err, "docker status failure")
+}
+
+func TestFetchEngineFreeBytes_UsesSandboxProbe(t *testing.T) {
+	server := newFakeDockerServer(t)
+	backend := newFakeBackend(server.client)
+	server.attachOutput = "8388608\n"
+
+	available, err := backend.fetchEngineFreeBytes(context.Background(), "default")
+	require.NoError(t, err)
+	require.Equal(t, int64(8388608), available)
+
+	server.attachOutput = "invalid"
+	_, err = backend.fetchEngineFreeBytes(context.Background(), "default")
+	require.EqualError(t, err, "sandbox free-space probe returned an invalid value")
+
+	server.attachOutput = ""
+	server.waitStatus = 1
+	_, err = backend.fetchEngineFreeBytes(context.Background(), "default")
+	require.EqualError(t, err, "sandbox free-space probe exited with status 1")
 }
 
 func TestIncarnationFailures(t *testing.T) {
@@ -673,7 +689,7 @@ func TestWorkspaceAndSharedEnvironmentVariants(t *testing.T) {
 	backend.reservedFreeBytes = 0
 	server.driverStatus = nil
 	backend.reservedFreeBytes = 1 << 62
-	server.dockerRoot = t.TempDir()
+	server.attachOutput = "1\n"
 	err = backend.checkVolumeAdmission(context.Background(), "default")
 	require.EqualError(t, err, "docker execution reserved free-space threshold reached")
 	backend.reservedFreeBytes = 0
@@ -1280,6 +1296,15 @@ func TestBuildContainerOptions_ValidatesInputsAndMappings(t *testing.T) {
 	})
 	require.Error(t, err)
 
+	unsupportedContract := testContract()
+	unsupportedContract.Version = "unsupported"
+	_, err = NewBackend(BackendOptions{
+		Image:             "image",
+		Contract:          unsupportedContract,
+		AllowTestImageTag: true,
+	})
+	require.EqualError(t, err, "sandbox image runtime compatibility is unsupported")
+
 	filesystemSpec := dockerTestFilesystemSpec(
 		t,
 		dockerTestExposure(t, nil),
@@ -1427,6 +1452,15 @@ func TestImageContractAndSignatureValidation(t *testing.T) {
 	contract, err := LoadImageContract(validPath)
 	require.NoError(t, err)
 	require.Equal(t, "linux", contract.GOOS)
+	require.Equal(t, SandboxRuntimeCompatibility, contract.Version)
+
+	manifestRaw, err := os.ReadFile("../../../containers/sandbox/manifest.json")
+	require.NoError(t, err)
+	var manifest struct {
+		RuntimeCompatibility string `json:"runtime_compatibility"`
+	}
+	require.NoError(t, json.Unmarshal(manifestRaw, &manifest))
+	require.Equal(t, SandboxRuntimeCompatibility, manifest.RuntimeCompatibility)
 
 	digest := strings.Repeat("a", 64)
 	validReference := SandboxRepository + "@sha256:" + digest

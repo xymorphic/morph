@@ -150,7 +150,7 @@ func testDockerExposure() execution.ExposureInput {
 
 func testContract() execution.ImageContract {
 	return execution.ImageContract{
-		Version:      "1",
+		Version:      SandboxRuntimeCompatibility,
 		GOOS:         "linux",
 		Architecture: "amd64",
 		User:         "65532:65532",

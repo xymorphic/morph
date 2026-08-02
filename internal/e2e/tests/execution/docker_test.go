@@ -34,6 +34,7 @@ func TestDockerExecution_PrivateWorkspacePersistsAndIsolatesSessions(t *testing.
 		DaemonIncarnation:  incarnation,
 		ProcessIdentityKey: key,
 		AllowTestImageTag:  true,
+		ReservedFreeBytes:  1,
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, backend.Close(context.Background())) })
