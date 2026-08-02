@@ -14,16 +14,16 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: containers/sandbox/Dockerfile
@@ -38,7 +38,7 @@ jobs:
           DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           jq --arg digest "${DIGEST}" --arg release "${GITHUB_REF_NAME}" '.digest=$digest | .release=$release' containers/sandbox/manifest.json > sandbox-manifest.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sandbox-manifest
           path: sandbox-manifest.json
