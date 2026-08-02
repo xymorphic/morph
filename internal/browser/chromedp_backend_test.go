@@ -361,8 +361,10 @@ func TestPrepareInitialBrowserContext_SelectsConfiguredBrowserContext(t *testing
 	)
 	allocatorCtx, cancelAllocator := chromedp.NewExecAllocator(context.Background(), allocatorOptions...)
 	t.Cleanup(cancelAllocator)
-	browserCtx, cancelBrowser := chromedp.NewContext(allocatorCtx)
-	t.Cleanup(cancelBrowser)
+	browserCtx, _ := chromedp.NewContext(allocatorCtx)
+	t.Cleanup(func() {
+		require.NoError(t, chromedp.Cancel(browserCtx))
+	})
 	require.NoError(t, chromedp.Run(browserCtx))
 	chromiumCtx := chromedp.FromContext(browserCtx)
 	require.NotNil(t, chromiumCtx)
@@ -1101,8 +1103,10 @@ func TestChromedpFork_AdoptsPausedWorkerTargetSession(t *testing.T) {
 	)
 	allocatorCtx, cancelAllocator := chromedp.NewExecAllocator(context.Background(), allocatorOptions...)
 	defer cancelAllocator()
-	browserCtx, cancelBrowser := chromedp.NewContext(allocatorCtx)
-	defer cancelBrowser()
+	browserCtx, _ := chromedp.NewContext(allocatorCtx)
+	defer func() {
+		require.NoError(t, chromedp.Cancel(browserCtx))
+	}()
 	require.NoError(t, chromedp.Run(browserCtx))
 
 	attached := make(chan *target.EventAttachedToTarget, 1)
