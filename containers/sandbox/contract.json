@@ -11,6 +11,7 @@
     "git": "/usr/bin/git",
     "mkdir": "/bin/mkdir",
     "morph-sandbox": "/usr/local/bin/morph-sandbox",
+    "pwd": "/bin/pwd",
     "printf": "/usr/bin/printf",
     "rg": "/usr/bin/rg",
     "sh": "/bin/sh",

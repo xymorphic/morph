@@ -11,17 +11,20 @@ import (
 type transcriptCellFactory struct{}
 
 type toolTranscriptCellInput struct {
-	ID           string
-	Name         string
-	Detail       string
-	PlanState    *trace.PlanToolState
-	ProcessState *trace.ProcessToolState
-	StartedAt    time.Time
-	CompletedAt  time.Time
-	Completed    bool
-	Failed       bool
-	Failure      string
-	Artifact     *browserArtifact
+	ID                   string
+	Name                 string
+	Detail               string
+	PlanState            *trace.PlanToolState
+	ProcessState         *trace.ProcessToolState
+	StartedAt            time.Time
+	CompletedAt          time.Time
+	Completed            bool
+	Failed               bool
+	Failure              string
+	Artifact             *browserArtifact
+	Mode                 string
+	ExecutionDuration    time.Duration
+	ApprovalWaitDuration time.Duration
 }
 
 var defaultTranscriptCellFactory = transcriptCellFactory{}
@@ -80,6 +83,12 @@ func (transcriptCellFactory) Tool(input toolTranscriptCellInput) transcriptCell 
 		input.Completed,
 	)
 	toolCell, ok := cell.(toolTranscriptCell)
+	if ok {
+		toolCell.mode = input.Mode
+		toolCell.executionDuration = input.ExecutionDuration
+		toolCell.approvalWaitDuration = input.ApprovalWaitDuration
+		cell = toolCell
+	}
 	if ok && input.Artifact != nil {
 		toolCell.artifact = *input.Artifact
 		toolCell.hasArtifact = true
@@ -164,19 +173,22 @@ func (factory transcriptCellFactory) FromTUIMessage(msg any) transcriptCell {
 			PlanState:    value.PlanState,
 			ProcessState: value.ProcessState,
 			StartedAt:    value.StartedAt,
+			Mode:         value.Mode,
 		})
 	case toolInvocationCompletedMsg:
 		return factory.Tool(toolTranscriptCellInput{
-			ID:           value.ID,
-			Name:         value.Name,
-			Detail:       value.Detail,
-			PlanState:    value.PlanState,
-			ProcessState: value.ProcessState,
-			CompletedAt:  value.CompletedAt,
-			Completed:    !value.Failed,
-			Failed:       value.Failed,
-			Failure:      value.Failure,
-			Artifact:     value.Artifact,
+			ID:                   value.ID,
+			Name:                 value.Name,
+			Detail:               value.Detail,
+			PlanState:            value.PlanState,
+			ProcessState:         value.ProcessState,
+			CompletedAt:          value.CompletedAt,
+			Completed:            !value.Failed,
+			Failed:               value.Failed,
+			Failure:              value.Failure,
+			Artifact:             value.Artifact,
+			ExecutionDuration:    value.ExecutionDuration,
+			ApprovalWaitDuration: value.ApprovalWaitDuration,
 		})
 	case safetyEventMsg:
 		return factory.Safety(value)
@@ -217,18 +229,22 @@ func (factory transcriptCellFactory) FromTimelineMessage(
 		planState := mergePlanToolDisplayState(toolCall.planState, getToolOutputDisplayState(name, content))
 		processState := mergeProcessToolDisplayState(toolCall.processState, getToolOutputProcessDisplayState(name, content))
 		failed := trace.ToolInvocationFailed(content)
+		executionDuration, approvalWaitDuration := getRunToolDurations(name, content)
 		return factory.Tool(toolTranscriptCellInput{
-			ID:           message.ToolCallID,
-			Name:         name,
-			Detail:       toolCall.detail,
-			PlanState:    planState,
-			ProcessState: processState,
-			StartedAt:    toolCall.startedAt,
-			CompletedAt:  message.CreatedAt,
-			Completed:    !failed,
-			Failed:       failed,
-			Failure:      getToolFailureDisplayDetail(name, content),
-			Artifact:     getBrowserArtifact(name, content),
+			ID:                   message.ToolCallID,
+			Name:                 name,
+			Detail:               toolCall.detail,
+			PlanState:            planState,
+			ProcessState:         processState,
+			StartedAt:            toolCall.startedAt,
+			Mode:                 toolCall.mode,
+			CompletedAt:          message.CreatedAt,
+			Completed:            !failed,
+			Failed:               failed,
+			Failure:              getToolFailureDisplayDetail(name, content),
+			Artifact:             getBrowserArtifact(name, content),
+			ExecutionDuration:    executionDuration,
+			ApprovalWaitDuration: approvalWaitDuration,
 		})
 	default:
 		roleValue := str.String(string(message.Role))

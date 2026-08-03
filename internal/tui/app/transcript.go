@@ -490,6 +490,15 @@ func mergeToolTranscriptCells(existing toolTranscriptCell, completed toolTranscr
 	if completed.artifactStatus != "" {
 		merged.artifactStatus = completed.artifactStatus
 	}
+	if completed.mode != "" {
+		merged.mode = completed.mode
+	}
+	if completed.executionDuration > 0 {
+		merged.executionDuration = completed.executionDuration
+	}
+	if completed.approvalWaitDuration > 0 {
+		merged.approvalWaitDuration = completed.approvalWaitDuration
+	}
 
 	return merged
 }

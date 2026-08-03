@@ -11,6 +11,11 @@ import (
 	"github.com/xymorphic/morph/internal/tools"
 )
 
+const (
+	dockerCommandApprovalReason    = "Execution exposure: this action runs a process inside the configured Docker sandbox."
+	dockerGenerationApprovalReason = "Execution exposure: this operation uses the configured Docker sandbox image and security generation."
+)
+
 func PrepareExecutionSpec(
 	ctx context.Context,
 	runtime envtypes.Runtime,
@@ -105,12 +110,15 @@ func ExecutionPermissionInputs(spec execution.Spec) []permissions.EvaluationInpu
 		return nil
 	}
 	inputs := make([]permissions.EvaluationInput, 0, len(exposure.Mounts())+4)
-	inputs = append(inputs, permissions.EvaluationInput{Operation: permissions.Operation{
-		Resource: permissions.ResourceProcess,
-		Action:   permissions.ActionExecute,
-		Effects:  []permissions.Effect{permissions.EffectExecution},
-		Target:   "execution-generation:" + exposure.SecurityGeneration() + ":" + exposure.ImageDigest(),
-	}})
+	inputs = append(inputs, permissions.EvaluationInput{
+		Operation: permissions.Operation{
+			Resource: permissions.ResourceProcess,
+			Action:   permissions.ActionExecute,
+			Effects:  []permissions.Effect{permissions.EffectExecution},
+			Target:   "execution-generation:" + exposure.SecurityGeneration() + ":" + exposure.ImageDigest(),
+		},
+		ApprovalReason: dockerGenerationApprovalReason,
+	})
 	for _, mount := range exposure.Mounts() {
 		effects := []permissions.Effect{permissions.EffectRead}
 		action := permissions.ActionRead

@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"time"
 
 	"github.com/xymorphic/morph/internal/agent/runcontext"
 )
@@ -13,6 +14,7 @@ type TraceRecorder interface {
 
 type sessionIDContextKey struct{}
 type traceRecorderContextKey struct{}
+type approvalWaitDurationContextKey struct{}
 
 // WithSessionID describes the active session id on ctx.
 func WithSessionID(ctx context.Context, sessionID string) context.Context {
@@ -70,4 +72,24 @@ func TraceRecorderFromContext(ctx context.Context) TraceRecorder {
 
 	recorder, _ := ctx.Value(traceRecorderContextKey{}).(TraceRecorder)
 	return recorder
+}
+
+func withApprovalWaitDuration(ctx context.Context, duration time.Duration) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if duration <= 0 {
+		return ctx
+	}
+
+	return context.WithValue(ctx, approvalWaitDurationContextKey{}, duration)
+}
+
+func ApprovalWaitDurationFromContext(ctx context.Context) time.Duration {
+	if ctx == nil {
+		return 0
+	}
+
+	duration, _ := ctx.Value(approvalWaitDurationContextKey{}).(time.Duration)
+	return max(duration, 0)
 }

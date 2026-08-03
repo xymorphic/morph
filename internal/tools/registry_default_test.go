@@ -1109,7 +1109,7 @@ func TestDefaultRegistry_InvokePropagatesApprovalReason(t *testing.T) {
 		approvalReason string
 		want           string
 	}{
-		{name: "policy reason", want: "policy requires confirmation"},
+		{name: "policy reason", want: "Permission policy: policy requires confirmation"},
 		{
 			name:           "resolver reason",
 			approvalReason: "command requires confirmation",
@@ -1156,6 +1156,44 @@ func TestDefaultRegistry_InvokePropagatesApprovalReason(t *testing.T) {
 			require.Equal(t, test.want, approver.input.ApprovalReason)
 		})
 	}
+}
+
+func TestDefaultRegistry_InvokeReportsApprovalWaitToHandler(t *testing.T) {
+	approver := &batchApprovalRecorder{
+		prepare: func() {
+			time.Sleep(10 * time.Millisecond)
+		},
+	}
+	registry := newTestDefaultRegistry(RegistryOptions{
+		PermissionPolicy: permissions.Policy{Rules: []permissions.Rule{{
+			Name:      "ask command",
+			Resources: []permissions.Resource{permissions.ResourceProcess},
+			Decision:  permissions.DecisionAsk,
+		}}},
+		ApprovalService: approver,
+	})
+	var approvalWait time.Duration
+	require.NoError(t, registry.Register(Definition{
+		Name: "run_command",
+		Permission: permissions.Operation{
+			Resource: permissions.ResourceProcess,
+			Action:   permissions.ActionExecute,
+		},
+		Handler: HandlerFunc(func(ctx context.Context, _ Call) (Result, error) {
+			approvalWait = ApprovalWaitDurationFromContext(ctx)
+			return Result{Output: "executed"}, nil
+		}),
+	}))
+	ctx := permissions.WithContext(context.Background(), permissions.AuthorizationContext{
+		Actor:   permissions.Actor{Kind: permissions.ActorLocalOwner},
+		Surface: permissions.SurfaceTUI,
+	})
+
+	result, err := registry.Invoke(ctx, Call{Name: "run_command"})
+
+	require.NoError(t, err)
+	require.Equal(t, "executed", result.Output)
+	require.GreaterOrEqual(t, approvalWait, 10*time.Millisecond)
 }
 
 func TestDefaultRegistry_InvokePropagatesPresetAuthorization(t *testing.T) {

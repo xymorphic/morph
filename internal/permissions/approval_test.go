@@ -115,7 +115,8 @@ func TestApprovalService_AuthorizeBatchBindsOperationOrder(t *testing.T) {
 	}, request.Effects)
 	require.Equal(t, "browser · approve 2 operations", request.Summary)
 	require.Contains(t, request.Reason, "Personal browser attachment exposes signed-in sessions.")
-	require.Contains(t, request.Reason, "GET https://example.com:443/news")
+	require.NotContains(t, request.Reason, "Approve all")
+	require.Contains(t, request.Operations, "browser · read network GET https://example.com:443/news")
 	require.NotContains(t, request.Reason, "secret")
 	require.NotContains(t, request.Reason, network.QueryHash)
 	_, err = service.Resolve(context.Background(), request.ID, true, permissions.GrantSession)
@@ -180,6 +181,59 @@ func TestApprovalService_SingleCommandApprovalSummaryUsesExecutableBasename(t *t
 	request := waitForPendingApproval(t, store)
 	require.Equal(t, "run_command · execute process tool", request.Summary)
 	require.NotContains(t, request.Summary, "/private/secret")
+	_, err := service.Resolve(context.Background(), request.ID, true, permissions.GrantOnce)
+	require.NoError(t, err)
+	require.NoError(t, <-result)
+}
+
+func TestApprovalService_SingleCommandApprovalSummaryShowsStandardSandboxPath(t *testing.T) {
+	service, store := newApprovalService(t, permissions.ApprovalOptions{RequestTTL: time.Second})
+	ctx := approvalContext(context.Background(), "session-a")
+	target := commandplan.Target{
+		Mode:         commandplan.ModeDirect,
+		Executable:   "pwd",
+		ResolvedPath: "/bin/pwd",
+		PlanDigest:   "plan",
+		Complete:     true,
+	}
+	result := make(chan error, 1)
+	go func() {
+		result <- service.Authorize(ctx, permissions.EvaluationInput{Operation: permissions.Operation{
+			Tool:     "run_command",
+			Resource: permissions.ResourceProcess,
+			Action:   permissions.ActionExecute,
+			Effects:  []permissions.Effect{permissions.EffectExecution},
+			Command:  &target,
+		}})
+	}()
+
+	request := waitForPendingApproval(t, store)
+	require.Equal(t, "run_command · execute process /bin/pwd", request.Summary)
+	_, err := service.Resolve(context.Background(), request.ID, true, permissions.GrantOnce)
+	require.NoError(t, err)
+	require.NoError(t, <-result)
+}
+
+func TestApprovalService_ExecutionGenerationSummaryIdentifiesSandboxImage(t *testing.T) {
+	service, store := newApprovalService(t, permissions.ApprovalOptions{RequestTTL: time.Second})
+	ctx := approvalContext(context.Background(), "session-a")
+	result := make(chan error, 1)
+	go func() {
+		result <- service.Authorize(ctx, permissions.EvaluationInput{Operation: permissions.Operation{
+			Tool:     "run_command",
+			Resource: permissions.ResourceProcess,
+			Action:   permissions.ActionExecute,
+			Effects:  []permissions.Effect{permissions.EffectExecution},
+			Target:   "execution-generation:generation-1:ghcr.io/xymorphic/morph-sandbox@sha256:1234567890abcdef",
+		}})
+	}()
+
+	request := waitForPendingApproval(t, store)
+	require.Equal(
+		t,
+		"run_command · execute process Docker sandbox sha256:1234567890ab…",
+		request.Summary,
+	)
 	_, err := service.Resolve(context.Background(), request.ID, true, permissions.GrantOnce)
 	require.NoError(t, err)
 	require.NoError(t, <-result)

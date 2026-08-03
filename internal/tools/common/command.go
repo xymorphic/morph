@@ -9,6 +9,7 @@ import (
 
 	commandplan "github.com/xymorphic/morph/internal/command"
 	envtypes "github.com/xymorphic/morph/internal/environment/types"
+	"github.com/xymorphic/morph/internal/execution"
 	"github.com/xymorphic/morph/internal/guardrails"
 	"github.com/xymorphic/morph/internal/permissions"
 )
@@ -72,6 +73,8 @@ func AnalyzeCommand(
 	goos := ""
 	var lookPath func(string) (string, error)
 	cleanEnvironment := false
+	trustedPATH := false
+	preserveLookPathError := false
 	if runtime != nil {
 		shell = runtime.CommandShell()
 		identityKey = runtime.CommandIdentityKey()
@@ -82,6 +85,8 @@ func AnalyzeCommand(
 			shell = target.Shell
 			lookPath = target.Resolve
 			cleanEnvironment = true
+			trustedPATH = true
+			preserveLookPathError = true
 			if environment == nil {
 				environment = map[string]string{}
 			} else {
@@ -92,17 +97,19 @@ func AnalyzeCommand(
 	}
 
 	return commandplan.Analyze(ctx, commandplan.Request{
-		Mode:             mode,
-		Command:          command,
-		Args:             slices.Clone(arguments),
-		CWD:              cwd,
-		WorkspaceRoot:    workspaceRoot,
-		Environment:      cloneStringMap(environment),
-		IdentityKey:      identityKey,
-		ShellPath:        shell,
-		GOOS:             goos,
-		LookPath:         lookPath,
-		CleanEnvironment: cleanEnvironment,
+		Mode:                  mode,
+		Command:               command,
+		Args:                  slices.Clone(arguments),
+		CWD:                   cwd,
+		WorkspaceRoot:         workspaceRoot,
+		Environment:           cloneStringMap(environment),
+		IdentityKey:           identityKey,
+		ShellPath:             shell,
+		GOOS:                  goos,
+		LookPath:              lookPath,
+		CleanEnvironment:      cleanEnvironment,
+		TrustedPATH:           trustedPATH,
+		PreserveLookPathError: preserveLookPathError,
 	})
 }
 
@@ -110,21 +117,27 @@ func CommandPermissionInputs(
 	ctx context.Context,
 	runtime envtypes.Runtime,
 	plan commandplan.Plan,
+	exposure execution.Exposure,
 	action permissions.Action,
 	effects []permissions.Effect,
 ) []permissions.EvaluationInput {
 	inputs := make([]permissions.EvaluationInput, 0, len(plan.Invocations)+len(plan.Redirects)+2)
-	cwdTarget, cwdScope := ResolveFilesystemPermissionTarget(FilesystemPolicyFromRuntime(runtime), plan.CWD)
-	if cwdScope == permissions.TargetScopeWorkspace {
-		cwdTarget = plan.CWDIdentity
+	if exposure.Backend() != execution.BackendDocker {
+		cwdTarget, cwdScope := ResolveFilesystemPermissionTarget(
+			FilesystemPolicyFromRuntime(runtime),
+			plan.CWD,
+		)
+		if cwdScope == permissions.TargetScopeWorkspace {
+			cwdTarget = plan.CWDIdentity
+		}
+		inputs = append(inputs, permissions.EvaluationInput{Operation: permissions.Operation{
+			Resource:    permissions.ResourceFile,
+			Action:      permissions.ActionRead,
+			Effects:     []permissions.Effect{permissions.EffectRead},
+			Target:      cwdTarget,
+			TargetScope: cwdScope,
+		}})
 	}
-	inputs = append(inputs, permissions.EvaluationInput{Operation: permissions.Operation{
-		Resource:    permissions.ResourceFile,
-		Action:      permissions.ActionRead,
-		Effects:     []permissions.Effect{permissions.EffectRead},
-		Target:      cwdTarget,
-		TargetScope: cwdScope,
-	}})
 	for _, invocation := range plan.Invocations {
 		invocationEffects := slices.Clone(effects)
 		invocationEffects = append(invocationEffects, getMorphAuthCommandEffects(invocation)...)
@@ -134,12 +147,16 @@ func CommandPermissionInputs(
 			invocationEffects = append(invocationEffects, permissions.EffectIndirectExecution)
 		}
 		target := plan.Target(invocation)
-		inputs = append(inputs, permissions.EvaluationInput{Operation: permissions.Operation{
+		input := permissions.EvaluationInput{Operation: permissions.Operation{
 			Resource: permissions.ResourceProcess,
 			Action:   action,
 			Effects:  invocationEffects,
 			Command:  &target,
-		}})
+		}}
+		if exposure.Backend() == execution.BackendDocker {
+			input.ApprovalReason = dockerCommandApprovalReason
+		}
+		inputs = append(inputs, input)
 	}
 
 	for _, redirect := range plan.Redirects {
@@ -246,10 +263,11 @@ func CheckCommandPlan(
 	ctx context.Context,
 	runtime envtypes.Runtime,
 	plan commandplan.Plan,
+	exposure execution.Exposure,
 	action permissions.Action,
 	effects []permissions.Effect,
 ) (string, string) {
-	for _, input := range CommandPermissionInputs(ctx, runtime, plan, action, effects) {
+	for _, input := range CommandPermissionInputs(ctx, runtime, plan, exposure, action, effects) {
 		if input.HardDenyReason != "" {
 			return "command_denied", input.HardDenyReason
 		}
@@ -294,11 +312,25 @@ func applyCommandGuardrail(
 		if plan.DebuggerAttach {
 			return
 		}
-		inputs[index].ApprovalReason = evaluation.Reason
+		reason := "Command guardrail: " + evaluation.Reason
 		if evaluation.Rule != "" {
-			inputs[index].ApprovalReason = "Command matches approval rule: " + evaluation.Rule
+			reason = "Command guardrail: matched approval rule " + evaluation.Rule
 		}
+		inputs[index].ApprovalReason = appendApprovalReason(inputs[index].ApprovalReason, reason)
 	}
+}
+
+func appendApprovalReason(current string, reason string) string {
+	current = strings.TrimSpace(current)
+	reason = strings.TrimSpace(reason)
+	if current == "" {
+		return reason
+	}
+	if reason == "" || strings.Contains(current, reason) {
+		return current
+	}
+
+	return current + "\n" + reason
 }
 
 func isInteractiveCommandApproval(ctx context.Context) bool {

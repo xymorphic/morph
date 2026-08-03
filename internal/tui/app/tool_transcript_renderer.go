@@ -232,10 +232,7 @@ func renderRunTranscriptGroup(group toolTranscriptGroup, ctx transcriptRenderCon
 		count = 1
 	}
 
-	noun := "shell command"
-	if count != 1 {
-		noun = "shell commands"
-	}
+	noun := getRunTranscriptNoun(group.details, count)
 	verb := "Running"
 	suffix := "…"
 	outcome := group.outcome()
@@ -287,12 +284,54 @@ func renderRunTranscriptGroup(group toolTranscriptGroup, ctx transcriptRenderCon
 }
 
 func renderToolTranscriptDuration(detail toolTranscriptDetail, now time.Time) string {
+	if detail.completed && detail.executionDuration > 0 {
+		parts := make([]string, 0, 2)
+		if detail.approvalWaitDuration >= 100*time.Millisecond {
+			parts = append(parts, "approval "+formatToolPhaseDuration(detail.approvalWaitDuration))
+		}
+		parts = append(parts, "ran "+formatToolPhaseDuration(detail.executionDuration))
+		return " (" + strings.Join(parts, " · ") + ")"
+	}
+
 	duration := getToolTranscriptDuration(detail, now)
 	if duration <= 0 {
 		return ""
 	}
 
 	return " (" + formatToolTranscriptDuration(duration) + ")"
+}
+
+func getRunTranscriptNoun(details []toolTranscriptDetail, count int) string {
+	hasDirect := false
+	hasShell := false
+	for _, detail := range details {
+		switch detail.mode {
+		case "direct":
+			hasDirect = true
+		case "posix_shell":
+			hasShell = true
+		}
+	}
+
+	noun := "shell command"
+	if hasDirect && !hasShell {
+		noun = "command"
+	} else if hasDirect && hasShell {
+		noun = "command"
+	}
+	if count != 1 {
+		noun += "s"
+	}
+	return noun
+}
+
+func formatToolPhaseDuration(duration time.Duration) string {
+	if duration < time.Second {
+		milliseconds := max(duration.Round(time.Millisecond).Milliseconds(), 1)
+		return fmt.Sprintf("%dms", milliseconds)
+	}
+
+	return formatToolTranscriptDuration(duration.Round(time.Second))
 }
 
 func getToolTranscriptDuration(detail toolTranscriptDetail, now time.Time) time.Duration {

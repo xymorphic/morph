@@ -35,21 +35,24 @@ type toolInvocationStartedMsg struct {
 	ID           string
 	Name         string
 	Detail       string
+	Mode         string
 	PlanState    *trace.PlanToolState
 	ProcessState *trace.ProcessToolState
 	StartedAt    time.Time
 }
 
 type toolInvocationCompletedMsg struct {
-	ID           string
-	Name         string
-	Detail       string
-	Failure      string
-	Failed       bool
-	PlanState    *trace.PlanToolState
-	ProcessState *trace.ProcessToolState
-	CompletedAt  time.Time
-	Artifact     *browserArtifact
+	ID                   string
+	Name                 string
+	Detail               string
+	Failure              string
+	Failed               bool
+	PlanState            *trace.PlanToolState
+	ProcessState         *trace.ProcessToolState
+	CompletedAt          time.Time
+	Artifact             *browserArtifact
+	ExecutionDuration    time.Duration
+	ApprovalWaitDuration time.Duration
 }
 
 type safetyEventMsg struct {
@@ -260,6 +263,7 @@ func toolCallPayloadToTUIMessage(payload any) (any, bool) {
 			return nil, false
 		}
 
+		msg.Mode = getRunToolMode(toolPayload.Name, toolPayload.Input)
 		return msg, true
 	}
 }
@@ -292,6 +296,10 @@ func toolMessagePayloadToTUIMessage(payload any) (any, bool) {
 
 		msg.Failure = getToolFailureDisplayDetail(toolPayload.Name, toolPayload.Content)
 		msg.Artifact = getBrowserArtifact(toolPayload.Name, toolPayload.Content)
+		msg.ExecutionDuration, msg.ApprovalWaitDuration = getRunToolDurations(
+			toolPayload.Name,
+			toolPayload.Content,
+		)
 		return msg, true
 	}
 }

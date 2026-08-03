@@ -68,13 +68,14 @@ var (
 )
 
 type runCommandPayload struct {
-	ExitCode         int     `json:"exit_code"`
-	Stdout           string  `json:"stdout"`
-	Stderr           string  `json:"stderr"`
-	TimedOut         bool    `json:"timed_out"`
-	TimeoutSeconds   int     `json:"timeout_seconds"`
-	ElapsedSeconds   float64 `json:"elapsed_seconds"`
-	RemainingSeconds float64 `json:"remaining_seconds"`
+	ExitCode            int     `json:"exit_code"`
+	Stdout              string  `json:"stdout"`
+	Stderr              string  `json:"stderr"`
+	TimedOut            bool    `json:"timed_out"`
+	TimeoutSeconds      int     `json:"timeout_seconds"`
+	ElapsedSeconds      float64 `json:"elapsed_seconds"`
+	ApprovalWaitSeconds float64 `json:"approval_wait_seconds"`
+	RemainingSeconds    float64 `json:"remaining_seconds"`
 }
 
 func TestRunCommand_ToolRunsCommand(t *testing.T) {
@@ -718,7 +719,7 @@ func TestRunCommand_HandlerAppliesCommandPolicy(t *testing.T) {
 			policy:  askGitPushPolicy,
 			command: "git",
 			args:    []string{"push"},
-			message: "Command matches approval rule: command-selector:",
+			message: "Command guardrail: matched approval rule command-selector:",
 		},
 		{
 			name:    "built-in approval",
@@ -773,9 +774,10 @@ func TestRunCommand_HandlerReturnsCancellationAfterStart(t *testing.T) {
 }
 
 func TestBuildRunCommandOutput_ClampsNegativeRemainingTime(t *testing.T) {
-	output := buildRunCommandOutput(0, "", "", false, 1, 2)
+	output := buildRunCommandOutput(0, "", "", false, 1, 2, 3)
 
 	require.Equal(t, 0.0, output["remaining_seconds"])
+	require.Equal(t, 3.0, output["approval_wait_seconds"])
 }
 
 func TestBuildCommand_UsesDirectExecutionWhenArgsAreProvided(t *testing.T) {

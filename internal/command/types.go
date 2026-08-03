@@ -60,37 +60,40 @@ type Redirect struct {
 }
 
 type Plan struct {
-	Mode              Mode
-	ShellPath         string
-	CWD               string
-	CWDIdentity       string
-	EnvironmentDigest string
-	Invocations       []Invocation
-	Redirects         []Redirect
-	Complete          bool
-	DynamicReasons    []DynamicReason
-	HasPipeline       bool
-	DebuggerAttach    bool
-	digest            string
-	source            string
-	environment       []string
-	pathOverridden    bool
-	nextPipeline      int
-	lookPath          func(string) (string, error)
+	Mode                  Mode
+	ShellPath             string
+	CWD                   string
+	CWDIdentity           string
+	EnvironmentDigest     string
+	Invocations           []Invocation
+	Redirects             []Redirect
+	Complete              bool
+	DynamicReasons        []DynamicReason
+	HasPipeline           bool
+	DebuggerAttach        bool
+	digest                string
+	source                string
+	environment           []string
+	pathOverridden        bool
+	preserveLookPathError bool
+	nextPipeline          int
+	lookPath              func(string) (string, error)
 }
 
 type Request struct {
-	Mode             Mode
-	Command          string
-	Args             []string
-	CWD              string
-	WorkspaceRoot    string
-	Environment      map[string]string
-	IdentityKey      []byte
-	ShellPath        string
-	GOOS             string
-	LookPath         func(string) (string, error)
-	CleanEnvironment bool
+	Mode                  Mode
+	Command               string
+	Args                  []string
+	CWD                   string
+	WorkspaceRoot         string
+	Environment           map[string]string
+	IdentityKey           []byte
+	ShellPath             string
+	GOOS                  string
+	LookPath              func(string) (string, error)
+	CleanEnvironment      bool
+	TrustedPATH           bool
+	PreserveLookPathError bool
 }
 
 type Target struct {

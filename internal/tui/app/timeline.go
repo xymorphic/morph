@@ -542,6 +542,7 @@ func timelineMessageToTranscriptCell(message morphmsg.Message, toolCalls map[str
 
 type timelineToolCallDetail struct {
 	detail       string
+	mode         string
 	planState    *trace.PlanToolState
 	processState *trace.ProcessToolState
 	startedAt    time.Time
@@ -562,6 +563,7 @@ func getTimelineToolCallDetails(messages []agentapi.SessionTimelineMessage) map[
 			)
 			details[id] = timelineToolCallDetail{
 				detail:       startedMsg.Detail,
+				mode:         startedMsg.Mode,
 				planState:    startedMsg.PlanState,
 				processState: startedMsg.ProcessState,
 				startedAt:    startedMsg.StartedAt,

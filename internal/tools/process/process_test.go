@@ -211,7 +211,7 @@ func TestProcess_ResolvePermissionPreservesCommandConstraints(t *testing.T) {
 		}}}, wantHardDeny: true},
 		{name: "ask", policy: guardrails.CommandPolicy{AskCommands: []commandplan.Selector{{
 			Executable: "git", ArgumentPrefix: []string{"push"},
-		}}}, wantApprovalReason: "Command matches approval rule: command-selector:"},
+		}}}, wantApprovalReason: "Command guardrail: matched approval rule command-selector:"},
 	}
 
 	for _, test := range tests {

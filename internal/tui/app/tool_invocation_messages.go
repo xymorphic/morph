@@ -97,7 +97,7 @@ func toolInvocationStartedMsgFromModelToolCall(
 	toolCall models.ToolCall,
 	startedAt time.Time,
 ) (toolInvocationStartedMsg, bool) {
-	return newToolInvocationStartedMsgWithState(
+	msg, ok := newToolInvocationStartedMsgWithState(
 		toolCall.ID,
 		toolCall.Name,
 		getToolInputDisplayDetail(toolCall.Name, toolCall.Input),
@@ -105,13 +105,18 @@ func toolInvocationStartedMsgFromModelToolCall(
 		getToolInputProcessDisplayState(toolCall.Name, toolCall.Input),
 		startedAt,
 	)
+	if !ok {
+		return toolInvocationStartedMsg{}, false
+	}
+	msg.Mode = getRunToolMode(toolCall.Name, toolCall.Input)
+	return msg, true
 }
 
 func toolInvocationStartedMsgFromMessageToolCall(
 	toolCall morphmsg.ToolCall,
 	startedAt time.Time,
 ) (toolInvocationStartedMsg, bool) {
-	return newToolInvocationStartedMsgWithState(
+	msg, ok := newToolInvocationStartedMsgWithState(
 		toolCall.ID,
 		toolCall.Name,
 		getToolInputDisplayDetail(toolCall.Name, toolCall.Input),
@@ -119,6 +124,11 @@ func toolInvocationStartedMsgFromMessageToolCall(
 		getToolInputProcessDisplayState(toolCall.Name, toolCall.Input),
 		startedAt,
 	)
+	if !ok {
+		return toolInvocationStartedMsg{}, false
+	}
+	msg.Mode = getRunToolMode(toolCall.Name, toolCall.Input)
+	return msg, true
 }
 
 func toolInvocationCompletedMsgFromMessage(
@@ -139,5 +149,9 @@ func toolInvocationCompletedMsgFromMessage(
 	}
 	msg.Failure = getToolFailureDisplayDetail(message.Name, message.Content)
 	msg.Artifact = getBrowserArtifact(message.Name, message.Content)
+	msg.ExecutionDuration, msg.ApprovalWaitDuration = getRunToolDurations(
+		message.Name,
+		message.Content,
+	)
 	return msg, true
 }

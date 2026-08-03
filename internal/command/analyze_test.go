@@ -125,6 +125,18 @@ func TestAnalyze_DirectRejectsInvalidConstruction(t *testing.T) {
 	}
 }
 
+func TestAnalyze_DirectPreservesConfiguredLookupError(t *testing.T) {
+	_, err := Analyze(context.Background(), Request{
+		Command:               "missing",
+		PreserveLookPathError: true,
+		LookPath: func(string) (string, error) {
+			return "", errors.New("command executable is absent from the sandbox contract")
+		},
+	})
+
+	require.EqualError(t, err, "command executable is absent from the sandbox contract")
+}
+
 func TestAnalyze_PropagatesDependencyFailures(t *testing.T) {
 	setGetWorkingDirectory(t, func() (string, error) {
 		return "", errors.New("unavailable")
@@ -1109,6 +1121,29 @@ func TestGetEnvironment_ValidatesOverridesAndWindowsKeys(t *testing.T) {
 		}
 	}
 	require.Equal(t, 1, pathEntries)
+}
+
+func TestGetEnvironment_TrustedPATHDoesNotMakePlanIncomplete(t *testing.T) {
+	for _, mode := range []Mode{ModeDirect, ModePOSIXShell} {
+		t.Run(string(mode), func(t *testing.T) {
+			plan, err := Analyze(context.Background(), Request{
+				Mode:             mode,
+				Command:          "pwd",
+				Environment:      map[string]string{"PATH": "/usr/bin:/bin"},
+				CleanEnvironment: true,
+				TrustedPATH:      true,
+				ShellPath:        "/bin/sh",
+				LookPath: func(string) (string, error) {
+					return "/bin/pwd", nil
+				},
+			})
+
+			require.NoError(t, err)
+			require.True(t, plan.Complete)
+			require.Empty(t, plan.DynamicReasons)
+			require.Equal(t, "/bin/pwd", plan.Invocations[0].ResolvedPath)
+		})
+	}
 }
 
 func TestGetEnvironment_IgnoresMalformedInheritedEntry(t *testing.T) {

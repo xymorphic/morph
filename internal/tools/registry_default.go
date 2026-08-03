@@ -8,6 +8,7 @@ import (
 	"slices"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/xymorphic/morph/internal/command"
 	"github.com/xymorphic/morph/internal/permissions"
@@ -320,6 +321,7 @@ func (r *DefaultRegistry) checkPermissions(
 	var selected *permissions.DecisionError
 	var firstAsk *permissions.DecisionError
 	var preparedBatch permissions.BatchApproval
+	var approvalWait time.Duration
 	authorized := make([]permissions.Operation, 0, len(inputs))
 	askInputs := make([]permissions.EvaluationInput, 0, len(inputs))
 	askedFingerprints := make(map[string]struct{}, len(inputs))
@@ -341,8 +343,9 @@ func (r *DefaultRegistry) checkPermissions(
 				firstAsk = decisionErr
 			}
 			approvalReason := str.String(input.ApprovalReason).Trim()
-			if approvalReason == "" {
-				approvalReason = evaluation.Reason
+			policyReason := str.String(evaluation.Reason).Trim()
+			if approvalReason == "" && policyReason != "" {
+				approvalReason = "Permission policy: " + policyReason
 			}
 			input.ApprovalReason = approvalReason
 			askInputs = append(askInputs, input)
@@ -360,6 +363,7 @@ func (r *DefaultRegistry) checkPermissions(
 		if approvals == nil {
 			selected = firstAsk
 		} else {
+			approvalStartedAt := time.Now()
 			var approvalErr error
 			batchApprovals, supportsAtomicApproval := approvals.(permissions.OperationBatchApprover)
 			if supportsAtomicApproval {
@@ -374,6 +378,7 @@ func (r *DefaultRegistry) checkPermissions(
 			} else {
 				approvalErr = errors.New("approval service does not support atomic operation batches")
 			}
+			approvalWait = time.Since(approvalStartedAt)
 			if approvalErr != nil {
 				if decisionErr, ok := permissions.GetDecisionError(approvalErr); ok {
 					selected = decisionErr
@@ -420,7 +425,8 @@ func (r *DefaultRegistry) checkPermissions(
 		}
 	}
 	if selected == nil {
-		return permissions.WithAuthorizedOperations(ctx, authorized), Result{}, false
+		ctx = permissions.WithAuthorizedOperations(ctx, authorized)
+		return withApprovalWaitDuration(ctx, approvalWait), Result{}, false
 	}
 
 	return ctx, Result{Error: Error{Code: selected.Code, Message: selected.Error()}.String()}, true

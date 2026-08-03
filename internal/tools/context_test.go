@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -92,6 +93,16 @@ func TestTraceRecorderFromContext_ReturnsNilForNilOrMissingRecorder(t *testing.T
 	var nilContext context.Context
 	require.Nil(t, TraceRecorderFromContext(nilContext))
 	require.Nil(t, TraceRecorderFromContext(context.Background()))
+}
+
+func TestApprovalWaitDurationFromContext_ReturnsStoredPositiveDuration(t *testing.T) {
+	duration := 250 * time.Millisecond
+	ctx := withApprovalWaitDuration(context.Background(), duration)
+
+	require.Equal(t, duration, ApprovalWaitDurationFromContext(ctx))
+	require.Zero(t, ApprovalWaitDurationFromContext(withApprovalWaitDuration(context.Background(), 0)))
+	var nilContext context.Context
+	require.Zero(t, ApprovalWaitDurationFromContext(nilContext))
 }
 
 type traceRecorderStub struct{}

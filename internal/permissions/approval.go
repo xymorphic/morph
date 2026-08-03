@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	commandplan "github.com/xymorphic/morph/internal/command"
 	"github.com/xymorphic/morph/pkg/nanoid"
 )
 
@@ -929,11 +930,14 @@ func (s *ApprovalService) incrementMetric(update func(*ApprovalMetrics)) {
 
 func getApprovalSummary(operation Operation) string {
 	summary := fmt.Sprintf("%s · %s %s", operation.Tool, operation.Action, operation.Resource)
+	if imageDigest, ok := getExecutionGenerationImageDigest(operation.Target); ok {
+		return summary + " Docker sandbox " + imageDigest
+	}
 	if operation.Network != nil {
 		summary += " " + getSafeNetworkApprovalTarget(*operation.Network)
 	}
 	if operation.Command != nil {
-		summary += " " + filepath.Base(operation.Command.Executable)
+		summary += " " + getSafeCommandApprovalExecutable(*operation.Command)
 	}
 
 	return summary
@@ -952,18 +956,48 @@ func getBatchTool(operations []Operation) string {
 func getBatchApprovalReason(inputs []EvaluationInput, operations []Operation) string {
 	explicitReasons := make([]string, 0, len(inputs))
 	for _, input := range inputs {
-		reason := strings.TrimSpace(input.ApprovalReason)
-		if reason != "" && !slices.Contains(explicitReasons, reason) {
-			explicitReasons = append(explicitReasons, reason)
+		for reason := range strings.Lines(input.ApprovalReason) {
+			reason = strings.TrimSpace(reason)
+			if reason != "" && !slices.Contains(explicitReasons, reason) {
+				explicitReasons = append(explicitReasons, reason)
+			}
 		}
 	}
 	slices.Sort(explicitReasons)
-	descriptions := getPresentedApprovalOperationSummaries(operations)
-	details := fmt.Sprintf("Approve all %d operations: %s", len(operations), strings.Join(descriptions, "; "))
-	if len(explicitReasons) == 0 {
-		return details
+	if len(explicitReasons) > 0 {
+		return strings.Join(explicitReasons, "\n")
 	}
-	return strings.Join(explicitReasons, "; ") + " " + details
+
+	descriptions := getPresentedApprovalOperationSummaries(operations)
+	return fmt.Sprintf("Approve all %d operations: %s", len(operations), strings.Join(descriptions, "; "))
+}
+
+func getSafeCommandApprovalExecutable(target commandplan.Target) string {
+	resolved := filepath.Clean(strings.TrimSpace(target.ResolvedPath))
+	for _, root := range []string{"/bin", "/usr/bin", "/usr/local/bin"} {
+		if resolved == root || strings.HasPrefix(resolved, root+string(filepath.Separator)) {
+			return resolved
+		}
+	}
+
+	return filepath.Base(target.Executable)
+}
+
+func getExecutionGenerationImageDigest(target string) (string, bool) {
+	const prefix = "execution-generation:"
+	if !strings.HasPrefix(target, prefix) {
+		return "", false
+	}
+
+	digestIndex := strings.LastIndex(target, "sha256:")
+	if digestIndex < 0 {
+		return "configured image", true
+	}
+	digest := strings.TrimSpace(target[digestIndex:])
+	if len(digest) > len("sha256:")+12 {
+		digest = digest[:len("sha256:")+12] + "…"
+	}
+	return digest, true
 }
 
 func getApprovalOperations(input EvaluationInput, operation Operation) []string {

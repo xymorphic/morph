@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/xymorphic/morph/internal/guardrails"
@@ -38,6 +39,48 @@ func getToolInputDisplayDetail(name string, input string) string {
 	}
 
 	return spec.inputDetail(fields)
+}
+
+func getRunToolMode(name string, input string) string {
+	if normalizeToolDisplayName(name) != "run_command" {
+		return ""
+	}
+
+	fields := getToolJSONFields(input)
+	mode := strings.TrimSpace(getMapString(fields, "mode"))
+	if mode == "" {
+		return "direct"
+	}
+	return mode
+}
+
+func getRunToolDurations(name string, output string) (time.Duration, time.Duration) {
+	if normalizeToolDisplayName(name) != "run_command" {
+		return 0, 0
+	}
+
+	fields := getToolJSONFields(output)
+	if nested, ok := fields["output"].(string); ok {
+		fields = getToolJSONFields(nested)
+	}
+	executionSeconds, _ := fields["elapsed_seconds"].(float64)
+	approvalSeconds, _ := fields["approval_wait_seconds"].(float64)
+	return durationFromSeconds(executionSeconds), durationFromSeconds(approvalSeconds)
+}
+
+func getToolJSONFields(value string) map[string]any {
+	var fields map[string]any
+	if json.Unmarshal([]byte(strings.TrimSpace(value)), &fields) != nil {
+		return nil
+	}
+	return fields
+}
+
+func durationFromSeconds(seconds float64) time.Duration {
+	if seconds <= 0 {
+		return 0
+	}
+	return time.Duration(seconds * float64(time.Second))
 }
 
 func getToolInputDisplayState(name string, input string) *trace.PlanToolState {

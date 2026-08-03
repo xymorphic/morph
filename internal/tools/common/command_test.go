@@ -5,10 +5,12 @@ import (
 	"errors"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	commandplan "github.com/xymorphic/morph/internal/command"
+	"github.com/xymorphic/morph/internal/execution"
 	"github.com/xymorphic/morph/internal/guardrails"
 	"github.com/xymorphic/morph/internal/permissions"
 	toolmocks "github.com/xymorphic/morph/internal/tools/mocks"
@@ -82,6 +84,48 @@ func TestAnalyzeCommand_UsesRuntimeExecutionContext(t *testing.T) {
 	require.Equal(t, commandplan.ModeDirect, withoutRuntime.Mode)
 }
 
+func TestAnalyzeCommand_UsesTrustedSandboxContract(t *testing.T) {
+	runtime := &toolmocks.Runtime{
+		FilePolicyValue:         guardrails.FilesystemPolicy{Roots: []string{t.TempDir()}},
+		CommandIdentityKeyValue: []byte("0123456789abcdef0123456789abcdef"),
+		ExecutionCommandTargetValue: execution.CommandTarget{
+			GOOS:  "linux",
+			Shell: "/bin/sh",
+			PATH:  []string{"/usr/bin", "/bin"},
+			Executables: map[string]string{
+				"pwd": "/bin/pwd",
+			},
+		},
+		ExecutionCommandTargetOK: true,
+	}
+
+	plan, err := AnalyzeCommand(
+		context.Background(),
+		runtime,
+		commandplan.ModeDirect,
+		"pwd",
+		nil,
+		"",
+		nil,
+	)
+
+	require.NoError(t, err)
+	require.True(t, plan.Complete)
+	require.Empty(t, plan.DynamicReasons)
+	require.Equal(t, "/bin/pwd", plan.Invocations[0].ResolvedPath)
+
+	_, err = AnalyzeCommand(
+		context.Background(),
+		runtime,
+		commandplan.ModeDirect,
+		"missing",
+		nil,
+		"",
+		nil,
+	)
+	require.EqualError(t, err, "command executable is absent from the sandbox contract")
+}
+
 func TestCommandPermissionInputs_ReusesIdentityAcrossWorkspaceDirectories(t *testing.T) {
 	root := t.TempDir()
 	runtime := &toolmocks.Runtime{
@@ -100,16 +144,105 @@ func TestCommandPermissionInputs_ReusesIdentityAcrossWorkspaceDirectories(t *tes
 	require.NoError(t, err)
 
 	leftInputs := CommandPermissionInputs(
-		context.Background(), runtime, left, permissions.ActionExecute,
+		context.Background(), runtime, left, execution.Exposure{}, permissions.ActionExecute,
 		[]permissions.Effect{permissions.EffectExecution},
 	)
 	rightInputs := CommandPermissionInputs(
-		context.Background(), runtime, right, permissions.ActionExecute,
+		context.Background(), runtime, right, execution.Exposure{}, permissions.ActionExecute,
 		[]permissions.Effect{permissions.EffectExecution},
 	)
 
 	require.Equal(t, leftInputs[0].Operation.Target, rightInputs[0].Operation.Target)
 	require.True(t, leftInputs[1].Operation.Command.Equal(*rightInputs[1].Operation.Command))
+}
+
+func TestCommandPermissionInputs_DockerUsesMountExposureInsteadOfContainerCWD(t *testing.T) {
+	plan, err := commandplan.Analyze(context.Background(), commandplan.Request{
+		Mode:        commandplan.ModeDirect,
+		Command:     "pwd",
+		CWD:         "/workspace",
+		IdentityKey: []byte("0123456789abcdef0123456789abcdef"),
+		LookPath: func(string) (string, error) {
+			return "/bin/pwd", nil
+		},
+	})
+	require.NoError(t, err)
+	exposure, err := execution.NewExposure(execution.ExposureInput{
+		Backend:               execution.BackendDocker,
+		Scope:                 execution.ScopeSession,
+		WorkspaceIdentity:     "default:session:default",
+		WorkspaceMode:         execution.WorkspaceNone,
+		Network:               execution.NetworkNone,
+		ImageDigest:           "sandbox@sha256:image",
+		ImageContractDigest:   "contract",
+		SecurityGeneration:    "generation",
+		EnvironmentIdleExpiry: time.Minute,
+	})
+	require.NoError(t, err)
+
+	runtime := &toolmocks.Runtime{
+		CommandPolicyValue: guardrails.CommandPolicy{
+			AskCommands: []commandplan.Selector{{Executable: "pwd"}},
+		},
+	}
+	inputs := CommandPermissionInputs(
+		context.Background(),
+		runtime,
+		plan,
+		exposure,
+		permissions.ActionExecute,
+		[]permissions.Effect{permissions.EffectExecution},
+	)
+
+	require.Len(t, inputs, 1)
+	require.Equal(t, permissions.ResourceProcess, inputs[0].Operation.Resource)
+	require.Equal(t, "/bin/pwd", inputs[0].Operation.Command.ResolvedPath)
+	require.Contains(t, inputs[0].ApprovalReason, dockerCommandApprovalReason)
+	require.Contains(t, inputs[0].ApprovalReason, "Command guardrail: matched approval rule command-selector:")
+}
+
+func TestExecutionPermissionInputs_IdentifiesDockerExecutionExposure(t *testing.T) {
+	exposure, err := execution.NewExposure(execution.ExposureInput{
+		Backend:               execution.BackendDocker,
+		Scope:                 execution.ScopeSession,
+		WorkspaceIdentity:     "default:session:default",
+		WorkspaceMode:         execution.WorkspaceNone,
+		Network:               execution.NetworkNone,
+		ImageDigest:           "sha256:image",
+		ImageContractDigest:   "contract",
+		SecurityGeneration:    "generation",
+		EnvironmentIdleExpiry: time.Minute,
+	})
+	require.NoError(t, err)
+	plan, err := commandplan.Analyze(context.Background(), commandplan.Request{
+		Mode:    commandplan.ModeDirect,
+		Command: "pwd",
+		LookPath: func(string) (string, error) {
+			return "/bin/pwd", nil
+		},
+	})
+	require.NoError(t, err)
+	spec, err := execution.NewSpec(execution.Owner{
+		Profile:            "default",
+		ActorKind:          "local_owner",
+		Surface:            "tui",
+		PublicSessionID:    "default",
+		EffectiveSessionID: "default",
+	}, exposure, execution.Operation{
+		Kind:    execution.OperationCommand,
+		Command: &plan,
+	})
+	require.NoError(t, err)
+
+	inputs := ExecutionPermissionInputs(spec)
+
+	require.NotEmpty(t, inputs)
+	require.Equal(t, dockerGenerationApprovalReason, inputs[0].ApprovalReason)
+	require.Equal(
+		t,
+		"execution-generation:generation:sha256:image",
+		inputs[0].Operation.Target,
+	)
 }
 
 func TestCommandPermissionInputs_DoesNotAuthorizeNullDeviceRedirection(t *testing.T) {
@@ -124,7 +257,7 @@ func TestCommandPermissionInputs_DoesNotAuthorizeNullDeviceRedirection(t *testin
 	require.NoError(t, err)
 
 	inputs := CommandPermissionInputs(
-		context.Background(), runtime, plan, permissions.ActionExecute,
+		context.Background(), runtime, plan, execution.Exposure{}, permissions.ActionExecute,
 		[]permissions.Effect{permissions.EffectExecution},
 	)
 
@@ -195,6 +328,7 @@ func TestCommandPermissionInputs_DescribesInvocationsRedirectsAndDebuggerAccess(
 		context.Background(),
 		runtime,
 		plan,
+		execution.Exposure{},
 		permissions.ActionExecute,
 		[]permissions.Effect{permissions.EffectExecution},
 	)
@@ -254,6 +388,7 @@ func TestCheckCommandPlan_AppliesGuardrailsAndAuthorizedApproval(t *testing.T) {
 		context.Background(),
 		runtime,
 		plan,
+		execution.Exposure{},
 		permissions.ActionExecute,
 		[]permissions.Effect{permissions.EffectExecution},
 	)
@@ -274,16 +409,18 @@ func TestCheckCommandPlan_AppliesGuardrailsAndAuthorizedApproval(t *testing.T) {
 		ctx,
 		runtime,
 		plan,
+		execution.Exposure{},
 		permissions.ActionExecute,
 		[]permissions.Effect{permissions.EffectExecution},
 	)
 	require.Equal(t, "approval_required", code)
-	require.Contains(t, message, "Command matches approval rule")
+	require.Contains(t, message, "Command guardrail: matched approval rule")
 
 	inputs := CommandPermissionInputs(
 		ctx,
 		runtime,
 		plan,
+		execution.Exposure{},
 		permissions.ActionExecute,
 		[]permissions.Effect{permissions.EffectExecution},
 	)
@@ -292,6 +429,7 @@ func TestCheckCommandPlan_AppliesGuardrailsAndAuthorizedApproval(t *testing.T) {
 		ctx,
 		runtime,
 		plan,
+		execution.Exposure{},
 		permissions.ActionExecute,
 		[]permissions.Effect{permissions.EffectExecution},
 	)
@@ -302,6 +440,7 @@ func TestCheckCommandPlan_AppliesGuardrailsAndAuthorizedApproval(t *testing.T) {
 		permissions.WithFullAccess(context.Background()),
 		runtime,
 		plan,
+		execution.Exposure{},
 		permissions.ActionExecute,
 		[]permissions.Effect{permissions.EffectExecution},
 	)

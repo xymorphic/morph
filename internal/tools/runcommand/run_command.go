@@ -35,6 +35,7 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 		Name: "run_command",
 		Description: common.JoinStrings(
 			"Run a short-lived, non-interactive command.",
+			"Direct mode launches the executable itself; use posix_shell only for shell syntax.",
 			"Default timeout 30s, max 120s.",
 			"Kills the process (main/child/background) on timeout.",
 		),
@@ -53,11 +54,11 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 		InputSchema: common.ObjectSchema(common.AddExecutionSecretsSchema(map[string]any{
 			"mode": map[string]any{
 				"type":        "string",
-				"description": "Execution mode. Defaults to direct.",
+				"description": "Execution mode. Defaults to direct. Direct launches the executable itself; invoking sh -c is still indirect shell execution.",
 				"enum":        []string{"direct", "posix_shell"},
 			},
 			"command": common.StringSchema(
-				"Executable name in direct mode or POSIX shell source in posix_shell mode.",
+				"Executable name in direct mode or POSIX shell source in posix_shell mode. Do not wrap commands with sh -c to imitate direct execution.",
 			),
 			"args": map[string]any{
 				"type":        "array",
@@ -95,6 +96,7 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 					ctx,
 					runtime,
 					plan,
+					spec.Exposure(),
 					permissions.ActionExecute,
 					[]permissions.Effect{permissions.EffectExecution},
 				); code != "" {
@@ -184,6 +186,7 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 					result.TimedOut,
 					timeout,
 					time.Since(startedAt).Seconds(),
+					tools.ApprovalWaitDurationFromContext(ctx).Seconds(),
 				))
 			},
 		),
@@ -228,13 +231,6 @@ func preparePermission(runtime envtypes.Runtime) tools.PermissionPreparer {
 				err.Error(),
 			)
 		}
-		inputs := common.CommandPermissionInputs(
-			ctx,
-			runtime,
-			plan,
-			permissions.ActionExecute,
-			[]permissions.Effect{permissions.EffectExecution},
-		)
 		spec, specErr := common.PrepareExecutionSpec(ctx, runtime, execution.Operation{
 			Kind:             execution.OperationCommand,
 			SecretReferences: req.Secrets,
@@ -246,6 +242,14 @@ func preparePermission(runtime envtypes.Runtime) tools.PermissionPreparer {
 				specErr.Error(),
 			)
 		}
+		inputs := common.CommandPermissionInputs(
+			ctx,
+			runtime,
+			plan,
+			spec.Exposure(),
+			permissions.ActionExecute,
+			[]permissions.Effect{permissions.EffectExecution},
+		)
 		inputs = append(inputs, common.ExecutionPermissionInputs(spec)...)
 		return tools.PermissionPreparation{
 			Inputs:   inputs,
@@ -296,6 +300,7 @@ func buildRunCommandOutput(
 	timedOut bool,
 	timeoutSeconds int,
 	elapsedSeconds float64,
+	approvalWaitSeconds float64,
 ) map[string]any {
 	remainingSeconds := 0.0
 	if !timedOut {
@@ -306,12 +311,13 @@ func buildRunCommandOutput(
 	}
 
 	return map[string]any{
-		"exit_code":         exitCode,
-		"stdout":            stdout,
-		"stderr":            stderr,
-		"timed_out":         timedOut,
-		"timeout_seconds":   timeoutSeconds,
-		"elapsed_seconds":   elapsedSeconds,
-		"remaining_seconds": remainingSeconds,
+		"exit_code":             exitCode,
+		"stdout":                stdout,
+		"stderr":                stderr,
+		"timed_out":             timedOut,
+		"timeout_seconds":       timeoutSeconds,
+		"elapsed_seconds":       elapsedSeconds,
+		"approval_wait_seconds": approvalWaitSeconds,
+		"remaining_seconds":     remainingSeconds,
 	}
 }

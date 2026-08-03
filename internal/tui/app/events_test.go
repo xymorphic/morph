@@ -340,7 +340,22 @@ func TestToolCallPayloadToTUIMessage_ExtractsRunCommandDetail(t *testing.T) {
 		ID:     "call_1",
 		Name:   "run_command",
 		Detail: `sleep 10 && echo "Done" [timeout 8s]`,
+		Mode:   "direct",
 	}, msg)
+}
+
+func TestToolMessagePayloadToTUIMessage_ExtractsRunCommandDurations(t *testing.T) {
+	msg, ok := toolMessagePayloadToTUIMessage(morphmsg.Message{
+		Role:       morphmsg.RoleTool,
+		Name:       "run_command",
+		ToolCallID: "call_1",
+		Content:    `{"output":"{\"elapsed_seconds\":0.25,\"approval_wait_seconds\":18}"}`,
+	})
+
+	require.True(t, ok)
+	completed := msg.(toolInvocationCompletedMsg)
+	require.Equal(t, 250*time.Millisecond, completed.ExecutionDuration)
+	require.Equal(t, 18*time.Second, completed.ApprovalWaitDuration)
 }
 
 func TestToolCallPayloadToTUIMessage_ExtractsWebSearchDetail(t *testing.T) {

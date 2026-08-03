@@ -2123,6 +2123,39 @@ func TestRenderTranscriptCells_RendersCompletedRunCommandsWithPastTense(t *testi
 	require.Contains(t, rendered, "\x1b[")
 }
 
+func TestRenderTranscriptCells_DistinguishesDirectAndShellExecution(t *testing.T) {
+	direct := defaultTranscriptCellFactory.Tool(toolTranscriptCellInput{
+		ID:   "call_direct",
+		Name: "run_command",
+		Mode: "direct",
+	})
+	shell := defaultTranscriptCellFactory.Tool(toolTranscriptCellInput{
+		ID:   "call_shell",
+		Name: "run_command",
+		Mode: "posix_shell",
+	})
+
+	require.Contains(t, stripANSI(renderTranscriptCells([]transcriptCell{direct})), "Running 1 command")
+	require.Contains(t, stripANSI(renderTranscriptCells([]transcriptCell{shell})), "Running 1 shell command")
+}
+
+func TestRenderTranscriptCells_SeparatesApprovalWaitFromExecutionDuration(t *testing.T) {
+	cell := defaultTranscriptCellFactory.Tool(toolTranscriptCellInput{
+		ID:                   "call_1",
+		Name:                 "run_command",
+		Detail:               "pwd",
+		Mode:                 "direct",
+		Completed:            true,
+		ExecutionDuration:    250 * time.Millisecond,
+		ApprovalWaitDuration: 18 * time.Second,
+	})
+
+	plain := stripANSI(renderTranscriptCells([]transcriptCell{cell}))
+
+	require.Contains(t, plain, "● Ran 1 command")
+	require.Contains(t, plain, "└ $ pwd (approval 18s · ran 250ms)")
+}
+
 func TestRenderTranscriptCells_NormalizesLegacyRunCommandTimeouts(t *testing.T) {
 	startedAt := time.Date(2026, 5, 19, 12, 0, 0, 0, time.UTC)
 	originalCurrentTime := currentTime
@@ -2420,7 +2453,7 @@ func TestSessionTimelineToTranscriptCells_UsesPersistedToolCallInputForToolDetai
 		)),
 	}, transcriptCellPlainTexts(cells))
 	plain := stripANSI(renderTranscriptCells(cells))
-	require.Contains(t, plain, "● Ran 1 shell command")
+	require.Contains(t, plain, "● Ran 1 command")
 	require.Contains(t, plain, "└ $ sleep 10 (1s)")
 	require.NotContains(t, plain, "[timeout 30s]")
 	require.NotContains(t, plain, "run_command")
@@ -2468,8 +2501,8 @@ func TestSessionTimelineToTranscriptCells_RendersHydratedRunCommandLikeLiveTrace
 
 	hydratedPlain := stripANSI(renderTranscriptCells(hydratedCells))
 	livePlain := stripANSI(renderTranscriptCells(liveCells))
-	require.Contains(t, hydratedPlain, "● Ran 1 shell command")
-	require.Contains(t, livePlain, "● Ran 1 shell command")
+	require.Contains(t, hydratedPlain, "● Ran 1 command")
+	require.Contains(t, livePlain, "● Ran 1 command")
 	require.NotContains(t, hydratedPlain, "[timeout 30s]")
 	require.NotContains(t, livePlain, "[timeout 30s]")
 	require.Contains(t, hydratedPlain, "└ $ sleep 10 (6s)")

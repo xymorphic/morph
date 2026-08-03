@@ -341,34 +341,40 @@ const (
 )
 
 type toolTranscriptCell struct {
-	id             string
-	action         string
-	detail         string
-	planState      *trace.PlanToolState
-	processState   *trace.ProcessToolState
-	startedAt      time.Time
-	completedAt    time.Time
-	completed      bool
-	terminalStatus toolTranscriptTerminalStatus
-	failure        string
-	artifact       browserArtifact
-	hasArtifact    bool
-	artifactStatus string
+	id                   string
+	action               string
+	detail               string
+	planState            *trace.PlanToolState
+	processState         *trace.ProcessToolState
+	startedAt            time.Time
+	completedAt          time.Time
+	completed            bool
+	terminalStatus       toolTranscriptTerminalStatus
+	failure              string
+	artifact             browserArtifact
+	hasArtifact          bool
+	artifactStatus       string
+	mode                 string
+	executionDuration    time.Duration
+	approvalWaitDuration time.Duration
 }
 
 type toolTranscriptDetail struct {
-	id             string
-	text           string
-	planState      *trace.PlanToolState
-	processState   *trace.ProcessToolState
-	startedAt      time.Time
-	completedAt    time.Time
-	completed      bool
-	terminalStatus toolTranscriptTerminalStatus
-	failure        string
-	artifact       browserArtifact
-	hasArtifact    bool
-	artifactStatus string
+	id                   string
+	text                 string
+	planState            *trace.PlanToolState
+	processState         *trace.ProcessToolState
+	startedAt            time.Time
+	completedAt          time.Time
+	completed            bool
+	terminalStatus       toolTranscriptTerminalStatus
+	failure              string
+	artifact             browserArtifact
+	hasArtifact          bool
+	artifactStatus       string
+	mode                 string
+	executionDuration    time.Duration
+	approvalWaitDuration time.Duration
 }
 
 type toolTranscriptGroup struct {
@@ -504,18 +510,21 @@ func (group *toolTranscriptGroup) add(cell toolTranscriptCell) {
 	if detail != "" || cell.planState != nil || cell.processState != nil {
 		idValue4 := str.String(cell.id)
 		group.details = append(group.details, toolTranscriptDetail{
-			id:             idValue4.Trim(),
-			text:           detail,
-			planState:      clonePlanToolDisplayState(cell.planState),
-			processState:   cloneProcessToolDisplayState(cell.processState),
-			startedAt:      cell.startedAt,
-			completedAt:    cell.completedAt,
-			completed:      cell.completed,
-			terminalStatus: cell.terminalStatus,
-			failure:        cell.failure,
-			artifact:       cell.artifact,
-			hasArtifact:    cell.hasArtifact,
-			artifactStatus: cell.artifactStatus,
+			id:                   idValue4.Trim(),
+			text:                 detail,
+			planState:            clonePlanToolDisplayState(cell.planState),
+			processState:         cloneProcessToolDisplayState(cell.processState),
+			startedAt:            cell.startedAt,
+			completedAt:          cell.completedAt,
+			completed:            cell.completed,
+			terminalStatus:       cell.terminalStatus,
+			failure:              cell.failure,
+			artifact:             cell.artifact,
+			hasArtifact:          cell.hasArtifact,
+			artifactStatus:       cell.artifactStatus,
+			mode:                 cell.mode,
+			executionDuration:    cell.executionDuration,
+			approvalWaitDuration: cell.approvalWaitDuration,
 		})
 	}
 }
@@ -556,6 +565,15 @@ func (group *toolTranscriptGroup) mergeToolTranscriptCell(id string, cell toolTr
 		}
 		if cell.artifactStatus != "" {
 			group.details[index].artifactStatus = cell.artifactStatus
+		}
+		if cell.mode != "" {
+			group.details[index].mode = cell.mode
+		}
+		if cell.executionDuration > 0 {
+			group.details[index].executionDuration = cell.executionDuration
+		}
+		if cell.approvalWaitDuration > 0 {
+			group.details[index].approvalWaitDuration = cell.approvalWaitDuration
 		}
 		return
 	}

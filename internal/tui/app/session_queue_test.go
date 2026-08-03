@@ -273,6 +273,13 @@ func TestSessionQueueTUI_EscapeInterruptsObservedQueuedRun(t *testing.T) {
 	}
 	runModel.thinkingComposerActive = true
 
+	updated, firstCmd := runModel.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+
+	require.NotNil(t, firstCmd)
+	runModel = updated.(model)
+	require.Equal(t, 0, client.interrupts)
+	require.Equal(t, "Press Esc again to interrupt", runModel.status.Text())
+
 	updated, cmd := runModel.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 
 	require.NotNil(t, cmd)

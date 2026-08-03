@@ -80,22 +80,24 @@ func Analyze(ctx context.Context, request Request) (Plan, error) {
 		goos,
 		identityKey,
 		request.CleanEnvironment,
+		request.TrustedPATH,
 	)
 	if err != nil {
 		return Plan{}, err
 	}
 
 	plan := Plan{
-		Mode:              mode,
-		CWD:               cwd,
-		CWDIdentity:       cwdIdentity,
-		EnvironmentDigest: environmentDigest,
-		Complete:          len(environmentReasons) == 0,
-		DynamicReasons:    environmentReasons,
-		source:            request.Command,
-		environment:       environment,
-		pathOverridden:    hasEnvironmentKey(request.Environment, "PATH", goos),
-		lookPath:          request.LookPath,
+		Mode:                  mode,
+		CWD:                   cwd,
+		CWDIdentity:           cwdIdentity,
+		EnvironmentDigest:     environmentDigest,
+		Complete:              len(environmentReasons) == 0,
+		DynamicReasons:        environmentReasons,
+		source:                request.Command,
+		environment:           environment,
+		pathOverridden:        hasEnvironmentKey(request.Environment, "PATH", goos) && !request.TrustedPATH,
+		preserveLookPathError: request.PreserveLookPathError,
+		lookPath:              request.LookPath,
 	}
 	if plan.lookPath == nil {
 		plan.lookPath = lookPath
@@ -167,6 +169,9 @@ func analyzeDirect(
 	}
 	resolved, err := plan.lookPath(lookup)
 	if err != nil {
+		if plan.preserveLookPathError {
+			return err
+		}
 		return errors.New("command executable was not found")
 	}
 	if !isAbsoluteCommandPath(resolved) {
@@ -279,7 +284,7 @@ func getEnvironment(
 	goos string,
 	identityKey []byte,
 ) ([]string, string, []DynamicReason, error) {
-	return getEnvironmentForRequest(overrides, mode, goos, identityKey, false)
+	return getEnvironmentForRequest(overrides, mode, goos, identityKey, false, false)
 }
 
 func getEnvironmentForRequest(
@@ -288,6 +293,7 @@ func getEnvironmentForRequest(
 	goos string,
 	identityKey []byte,
 	clean bool,
+	trustedPATH bool,
 ) ([]string, string, []DynamicReason, error) {
 	values := make(map[string]string)
 	names := make(map[string]string)
@@ -319,7 +325,7 @@ func getEnvironmentForRequest(
 		normalized := normalizeKey(key)
 		values[normalized] = value
 		names[normalized] = key
-		if normalized == normalizeKey("PATH") {
+		if normalized == normalizeKey("PATH") && !trustedPATH {
 			addReason(&reasons, ReasonEnvironment)
 		}
 	}

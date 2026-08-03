@@ -26,11 +26,13 @@ import (
 
 // Runtime exposes environment-backed services to tools.
 type Runtime struct {
-	FilePolicyValue         guardrails.FilesystemPolicy
-	CommandPolicyValue      guardrails.CommandPolicy
-	CommandShellValue       string
-	CommandIdentityKeyValue []byte
-	StartProcessFunc        func(
+	FilePolicyValue             guardrails.FilesystemPolicy
+	CommandPolicyValue          guardrails.CommandPolicy
+	CommandShellValue           string
+	CommandIdentityKeyValue     []byte
+	ExecutionCommandTargetValue execution.CommandTarget
+	ExecutionCommandTargetOK    bool
+	StartProcessFunc            func(
 		context.Context,
 		string,
 		processenv.StartRequest,
@@ -187,7 +189,7 @@ func (r *Runtime) PrepareExecutionPath(
 }
 
 func (r *Runtime) ExecutionCommandTarget() (execution.CommandTarget, bool) {
-	return execution.CommandTarget{}, false
+	return r.ExecutionCommandTargetValue, r.ExecutionCommandTargetOK
 }
 
 func (r *Runtime) GetExecutionSecretCatalog() []execution.SecretCatalogEntry {

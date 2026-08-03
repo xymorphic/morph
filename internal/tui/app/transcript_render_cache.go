@@ -47,19 +47,22 @@ type toolTranscriptGroupRenderIdentity struct {
 }
 
 type toolTranscriptDetailRenderIdentity struct {
-	ID             string
-	Text           string
-	PlanState      *trace.PlanToolState
-	ProcessState   *trace.ProcessToolState
-	StartedAt      time.Time
-	CompletedAt    time.Time
-	Completed      bool
-	TerminalStatus toolTranscriptTerminalStatus
-	Failure        string
-	Artifact       browserArtifact
-	ArtifactToken  string
-	HasArtifact    bool
-	ArtifactStatus string
+	ID                   string
+	Text                 string
+	PlanState            *trace.PlanToolState
+	ProcessState         *trace.ProcessToolState
+	StartedAt            time.Time
+	CompletedAt          time.Time
+	Completed            bool
+	TerminalStatus       toolTranscriptTerminalStatus
+	Failure              string
+	Artifact             browserArtifact
+	ArtifactToken        string
+	HasArtifact          bool
+	ArtifactStatus       string
+	Mode                 string
+	ExecutionDuration    time.Duration
+	ApprovalWaitDuration time.Duration
 }
 
 func newTranscriptRenderCache(capacity int) *transcriptRenderCache {
@@ -152,19 +155,22 @@ func getToolTranscriptGroupRenderIdentity(group toolTranscriptGroup) ([sha256.Si
 	details := make([]toolTranscriptDetailRenderIdentity, len(group.details))
 	for index, detail := range group.details {
 		details[index] = toolTranscriptDetailRenderIdentity{
-			ID:             detail.id,
-			Text:           detail.text,
-			PlanState:      detail.planState,
-			ProcessState:   detail.processState,
-			StartedAt:      detail.startedAt,
-			CompletedAt:    detail.completedAt,
-			Completed:      detail.completed,
-			TerminalStatus: detail.terminalStatus,
-			Failure:        detail.failure,
-			Artifact:       detail.artifact,
-			ArtifactToken:  detail.artifact.Token,
-			HasArtifact:    detail.hasArtifact,
-			ArtifactStatus: detail.artifactStatus,
+			ID:                   detail.id,
+			Text:                 detail.text,
+			PlanState:            detail.planState,
+			ProcessState:         detail.processState,
+			StartedAt:            detail.startedAt,
+			CompletedAt:          detail.completedAt,
+			Completed:            detail.completed,
+			TerminalStatus:       detail.terminalStatus,
+			Failure:              detail.failure,
+			Artifact:             detail.artifact,
+			ArtifactToken:        detail.artifact.Token,
+			HasArtifact:          detail.hasArtifact,
+			ArtifactStatus:       detail.artifactStatus,
+			Mode:                 detail.mode,
+			ExecutionDuration:    detail.executionDuration,
+			ApprovalWaitDuration: detail.approvalWaitDuration,
 		}
 	}
 

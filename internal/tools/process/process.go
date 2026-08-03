@@ -65,10 +65,10 @@ func Definition(runtime envtypes.Runtime) tools.Definition {
 			},
 			"mode": map[string]any{
 				"type":        "string",
-				"description": "Execution mode for action=start. Defaults to direct.",
+				"description": "Execution mode for action=start. Defaults to direct. Direct launches the executable itself; invoking sh -c is still indirect shell execution.",
 				"enum":        []string{"direct", "posix_shell"},
 			},
-			"command": common.StringSchema("Command to start. Required for action=start."),
+			"command": common.StringSchema("Executable name in direct mode or POSIX shell source in posix_shell mode. Required for action=start."),
 			"args": map[string]any{
 				"type":        "array",
 				"description": "Arguments passed directly to the command for action=start.",
@@ -194,6 +194,7 @@ func preparePermission(runtime envtypes.Runtime) tools.PermissionPreparer {
 
 		var inputs []permissions.EvaluationInput
 		var operation execution.ProcessOperation
+		var plan commandplan.Plan
 		switch action {
 		case "start":
 			environment, err := common.EnvironmentVariablesToMap(req.Env)
@@ -203,7 +204,7 @@ func preparePermission(runtime envtypes.Runtime) tools.PermissionPreparer {
 					err.Error(),
 				)
 			}
-			plan, err := common.AnalyzeCommand(
+			plan, err = common.AnalyzeCommand(
 				ctx,
 				runtime,
 				req.Mode,
@@ -218,13 +219,6 @@ func preparePermission(runtime envtypes.Runtime) tools.PermissionPreparer {
 					err.Error(),
 				)
 			}
-			inputs = common.CommandPermissionInputs(
-				ctx,
-				runtime,
-				plan,
-				permissions.ActionStart,
-				[]permissions.Effect{permissions.EffectExecution, permissions.EffectWrite},
-			)
 			operation = execution.ProcessOperation{
 				Action:            execution.ProcessStart,
 				Plan:              &plan,
@@ -289,6 +283,16 @@ func preparePermission(runtime envtypes.Runtime) tools.PermissionPreparer {
 				err.Error(),
 			)
 		}
+		if action == "start" {
+			inputs = common.CommandPermissionInputs(
+				ctx,
+				runtime,
+				plan,
+				spec.Exposure(),
+				permissions.ActionStart,
+				[]permissions.Effect{permissions.EffectExecution, permissions.EffectWrite},
+			)
+		}
 		inputs = append(inputs, common.ExecutionPermissionInputs(spec)...)
 		return tools.PermissionPreparation{
 			Inputs:   inputs,
@@ -324,6 +328,7 @@ func handleStart(
 		ctx,
 		runtime,
 		plan,
+		spec.Exposure(),
 		permissions.ActionStart,
 		[]permissions.Effect{permissions.EffectExecution, permissions.EffectWrite},
 	); code != "" {
