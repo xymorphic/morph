@@ -15,6 +15,7 @@ import (
 
 	agentapi "github.com/xymorphic/morph/internal/agent"
 	browserdomain "github.com/xymorphic/morph/internal/browser"
+	"github.com/xymorphic/morph/internal/permissions"
 	"github.com/xymorphic/morph/internal/rpc/client"
 	storage "github.com/xymorphic/morph/internal/state/core"
 	"github.com/xymorphic/morph/internal/trace"
@@ -572,6 +573,45 @@ func TestModel_HydrateSessionTimelineRendersCurrentSessionInChrome(t *testing.T)
 	content := stripANSI(runModel.transcript.GetContent())
 	require.Contains(t, content, "session-current")
 	require.NotContains(t, content, "session  default")
+}
+
+func TestModel_HydratedPendingApprovalResolvesInPlace(t *testing.T) {
+	setActiveTestProfile(t, t.TempDir())
+	now := time.Date(2026, 8, 3, 13, 4, 10, 0, time.UTC)
+	runModel := newModel()
+	runModel.hydrateSessionTimeline(client.SessionTimeline{
+		SessionID: "session-current",
+		TraceEvents: []agentapi.SessionTimelineTraceEvent{{
+			Event: agentsession.TraceEvent{
+				Sequence:  1,
+				Type:      trace.EvtPermissionApprovalChanged,
+				Timestamp: now,
+				Payload: map[string]any{
+					"request_id":        "approval_1",
+					"status":            string(permissions.ApprovalPending),
+					"operation_summary": "run_command · approve 2 operations",
+					"expires_at":        now.Add(2 * time.Minute),
+				},
+			},
+		}},
+	})
+
+	runModel.applyTUIMessage(permissionApprovalMsg{
+		RequestID: "approval_1",
+		Status:    string(permissions.ApprovalApproved),
+		Scope:     string(permissions.GrantOnce),
+		Summary:   "run_command · approve 2 operations",
+		ExpiresAt: now.Add(2 * time.Minute),
+	})
+
+	require.Len(t, runModel.messages, 1)
+	require.Empty(t, runModel.pendingApprovalID)
+	rendered := stripANSI(defaultTranscriptRenderer.RenderCell(
+		runModel.messages[0],
+		transcriptRenderContext{Width: 100, Now: now.Add(3 * time.Minute)},
+	))
+	require.Contains(t, rendered, "Permission approved (once)")
+	require.NotContains(t, rendered, "Expires")
 }
 
 func TestModel_RefreshSessionTitleRendersCurrentSessionInChrome(t *testing.T) {
@@ -2300,6 +2340,45 @@ func TestSessionTimelineToTranscriptCells_SkipsMessageBackedTraceDuplicates(t *t
 		"Morph: hello back\nWorked for 1s",
 		transcriptCellPlainText(toolTranscriptTestCellWithTiming("", "read_file", "", now.Add(2*time.Second), time.Time{}, false)),
 	}, transcriptCellPlainTexts(cells))
+}
+
+func TestSessionTimelineToTranscriptCells_CollapsesPermissionApprovalLifecycle(t *testing.T) {
+	now := time.Date(2026, 8, 3, 13, 4, 10, 0, time.UTC)
+	cells := sessionTimelineToTranscriptCells(client.SessionTimeline{
+		TraceEvents: []agentapi.SessionTimelineTraceEvent{
+			{Event: agentsession.TraceEvent{
+				Sequence:  1,
+				Type:      trace.EvtPermissionApprovalChanged,
+				Timestamp: now,
+				Payload: map[string]any{
+					"request_id":        "approval_1",
+					"status":            string(permissions.ApprovalPending),
+					"operation_summary": "run_command · approve 2 operations",
+					"expires_at":        now.Add(2 * time.Minute),
+				},
+			}},
+			{Event: agentsession.TraceEvent{
+				Sequence:  2,
+				Type:      trace.EvtPermissionApprovalChanged,
+				Timestamp: now.Add(45 * time.Second),
+				Payload: map[string]any{
+					"request_id":        "approval_1",
+					"status":            string(permissions.ApprovalApproved),
+					"scope":             string(permissions.GrantOnce),
+					"operation_summary": "run_command · approve 2 operations",
+					"expires_at":        now.Add(2 * time.Minute),
+				},
+			}},
+		},
+	})
+
+	require.Len(t, cells, 1)
+	rendered := stripANSI(defaultTranscriptRenderer.RenderCell(
+		cells[0],
+		transcriptRenderContext{Width: 100, Now: now.Add(3 * time.Minute)},
+	))
+	require.Contains(t, rendered, "Permission approved (once)")
+	require.NotContains(t, rendered, "Expires")
 }
 
 func TestSessionTimelineToTranscriptCells_InterleavesMessagesAndTraceEventsByTime(t *testing.T) {

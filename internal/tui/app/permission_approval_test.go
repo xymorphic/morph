@@ -403,6 +403,40 @@ func TestModel_PermissionApprovalQueuesIndependentRequests(t *testing.T) {
 	require.False(t, runModel.isCommandViewVisible())
 }
 
+func TestModel_PermissionApprovalDoesNotRegressAfterResolution(t *testing.T) {
+	now := time.Date(2026, 8, 3, 13, 4, 10, 0, time.UTC)
+	runModel := newModel()
+	runModel.applyTUIMessage(permissionApprovalMsg{
+		RequestID: "approval_1",
+		Status:    string(permissions.ApprovalPending),
+		Summary:   "run_command · approve 2 operations",
+		ExpiresAt: now.Add(2 * time.Minute),
+	})
+	runModel.applyTUIMessage(permissionApprovalMsg{
+		RequestID: "approval_1",
+		Status:    string(permissions.ApprovalApproved),
+		Scope:     string(permissions.GrantOnce),
+		Summary:   "run_command · approve 2 operations",
+		ExpiresAt: now.Add(2 * time.Minute),
+	})
+
+	runModel.applyTUIMessage(permissionApprovalMsg{
+		RequestID: "approval_1",
+		Status:    string(permissions.ApprovalPending),
+		Summary:   "run_command · approve 2 operations",
+		ExpiresAt: now.Add(2 * time.Minute),
+	})
+
+	require.Empty(t, runModel.pendingApprovalID)
+	require.Len(t, runModel.messages, 1)
+	rendered := stripANSI(defaultTranscriptRenderer.RenderCell(
+		runModel.messages[0],
+		transcriptRenderContext{Width: 100, Now: now.Add(3 * time.Minute)},
+	))
+	require.Contains(t, rendered, "Permission approved (once)")
+	require.NotContains(t, rendered, "Expires")
+}
+
 func TestTraceEventToTUIMessage_DecodesPermissionApprovalLifecycle(t *testing.T) {
 	message, ok := traceEventToTUIMessage(trace.Event{
 		Type: trace.EvtPermissionApprovalChanged,

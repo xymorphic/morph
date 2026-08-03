@@ -310,6 +310,14 @@ func (m *model) hasUnansweredUserMessage(text string) bool {
 }
 
 func (m *model) updatePermissionApproval(message permissionApprovalMsg) {
+	if index, existing, ok := m.getPermissionApproval(message.RequestID); ok {
+		if isTerminalPermissionApproval(existing.Status) &&
+			message.Status == string(permissions.ApprovalPending) {
+			return
+		}
+		message = mergePermissionApprovalMessage(existing, message)
+		m.approvalMessageIndices[message.RequestID] = index
+	}
 	cell := tuiMessageToTranscriptCell(message)
 	if cell == nil {
 		return
@@ -338,6 +346,65 @@ func (m *model) updatePermissionApproval(message permissionApprovalMsg) {
 	m.setCurrentPendingApproval()
 	m.refreshTranscriptContentAfterMessageUpdate()
 	m.resize()
+}
+
+func (m *model) getPermissionApproval(requestID string) (int, permissionApprovalMsg, bool) {
+	if index, ok := m.approvalMessageIndices[requestID]; ok && index >= 0 && index < len(m.messages) {
+		if cell, ok := m.messages[index].(permissionApprovalTranscriptCell); ok &&
+			cell.message.RequestID == requestID {
+			return index, cell.message, true
+		}
+	}
+	for index, transcriptMessage := range m.messages {
+		cell, ok := transcriptMessage.(permissionApprovalTranscriptCell)
+		if ok && cell.message.RequestID == requestID {
+			return index, cell.message, true
+		}
+	}
+
+	return 0, permissionApprovalMsg{}, false
+}
+
+func mergePermissionApprovalMessage(previous permissionApprovalMsg, current permissionApprovalMsg) permissionApprovalMsg {
+	if current.Summary == "" {
+		current.Summary = previous.Summary
+	}
+	if current.Reason == "" {
+		current.Reason = previous.Reason
+	}
+	if len(current.Effects) == 0 {
+		current.Effects = append([]string(nil), previous.Effects...)
+	}
+	if len(current.Operations) == 0 {
+		current.Operations = append([]string(nil), previous.Operations...)
+	}
+	if current.ExpiresAt.IsZero() {
+		current.ExpiresAt = previous.ExpiresAt
+	}
+
+	return current
+}
+
+func isTerminalPermissionApproval(status string) bool {
+	return status != "" && status != string(permissions.ApprovalPending)
+}
+
+func (m *model) rebuildPermissionApprovalState() {
+	m.approvalMessageIndices = make(map[string]int)
+	m.pendingApprovalMessages = make(map[string]permissionApprovalMsg)
+	m.pendingApprovalOrder = nil
+	for index, transcriptMessage := range m.messages {
+		cell, ok := transcriptMessage.(permissionApprovalTranscriptCell)
+		if !ok || cell.message.RequestID == "" {
+			continue
+		}
+		m.approvalMessageIndices[cell.message.RequestID] = index
+		if cell.message.Status == string(permissions.ApprovalPending) {
+			m.pendingApprovalMessages[cell.message.RequestID] = cell.message
+			m.pendingApprovalOrder = append(m.pendingApprovalOrder, cell.message.RequestID)
+		}
+	}
+	m.setCurrentPendingApproval()
 }
 
 func (m *model) setCurrentPendingApproval() {

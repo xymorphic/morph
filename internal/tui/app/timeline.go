@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	agentapi "github.com/xymorphic/morph/internal/agent"
+	"github.com/xymorphic/morph/internal/permissions"
 	rpcclient "github.com/xymorphic/morph/internal/rpc/client"
 	storage "github.com/xymorphic/morph/internal/state/core"
 	"github.com/xymorphic/morph/internal/trace"
@@ -259,6 +260,7 @@ func (m *model) hydrateSessionTimeline(timeline rpcclient.SessionTimeline) tea.C
 		Title: getSessionTimelineDisplayName(timeline),
 	})
 	m.applyAction(setTranscriptCellsAction{Cells: cells})
+	m.rebuildPermissionApprovalState()
 	m.applyAction(setLiveTranscriptCellAction{})
 	m.showIntro = false
 	m.stream.Reset()
@@ -315,6 +317,7 @@ func (m *model) prependOlderSessionTimeline(
 	cells = append(cells, localSuffix...)
 	m.timelineBaseCells = len(baseCells)
 	m.applyAction(setTranscriptCellsAction{Cells: cells})
+	m.rebuildPermissionApprovalState()
 
 	addedLines := max(m.getTranscriptRenderedLineCount()-oldLineCount, 0)
 	m.renderTranscriptWindowAtAbsoluteLine(oldTop + addedLines)
@@ -478,6 +481,7 @@ func isMessageBackedTimelineEvent(msg any) bool {
 
 func sessionTimelineToTranscriptCells(timeline rpcclient.SessionTimeline) []transcriptCell {
 	entries := make([]transcriptTimelineEntry, 0, len(timeline.Messages)+len(timeline.TraceEvents))
+	approvalEntryIndices := make(map[string]int)
 	toolCalls := getTimelineToolCallDetails(timeline.Messages)
 	responseStartedAt := time.Time{}
 	for index, message := range timeline.Messages {
@@ -514,6 +518,19 @@ func sessionTimelineToTranscriptCells(timeline rpcclient.SessionTimeline) []tran
 				msg = reasoning
 			}
 
+			if approval, ok := msg.(permissionApprovalMsg); ok {
+				if entryIndex, exists := approvalEntryIndices[approval.RequestID]; exists {
+					previous := entries[entryIndex].cell.(permissionApprovalTranscriptCell).message
+					if isTerminalPermissionApproval(previous.Status) &&
+						approval.Status == string(permissions.ApprovalPending) {
+						continue
+					}
+					approval = mergePermissionApprovalMessage(previous, approval)
+					entries[entryIndex].cell = tuiMessageToTranscriptCell(approval)
+					continue
+				}
+				approvalEntryIndices[approval.RequestID] = len(entries)
+			}
 			if cell := tuiMessageToTranscriptCell(msg); cell != nil && !cell.IsEmpty() {
 				entries = append(entries, transcriptTimelineEntry{
 					at:    event.Event.Timestamp,
