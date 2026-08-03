@@ -11,6 +11,7 @@ RUN apk add --no-cache ca-certificates git patch ripgrep && \
     mkdir -p /workspace /home/morph /run/morph && \
     chown -R 65532:65532 /workspace /home/morph /run/morph /tmp
 COPY --from=builder --chmod=0555 /morph-sandbox /usr/local/bin/morph-sandbox
+COPY --chmod=0444 containers/sandbox/contract.json /usr/local/share/morph/contract.json
 USER 65532:65532
 WORKDIR /workspace
 ENTRYPOINT ["/usr/local/bin/morph-sandbox"]

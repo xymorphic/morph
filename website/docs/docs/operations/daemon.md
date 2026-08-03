@@ -135,7 +135,9 @@ The daemon watches the profile **`config.yaml`** directory for changes. When the
 
 Practical consequences:
 
-- `morph config set …` writes `config.yaml` and triggers reload automatically when the new config validates.
+- `morph config set …`, `morph config edit`, and `morph sandbox setup` write a validated `config.yaml` and trigger reload
+  automatically.
+- Guarded edit and sandbox setup write the file once after preflight, so the watcher does not observe intermediate states.
 - You normally **do not** restart manually after a valid config edit.
 - The profile **`.env` file is not watched**. After changing environment overrides, stop the daemon and start it again.
 

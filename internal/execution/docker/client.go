@@ -27,6 +27,11 @@ func NewClient(endpoint string) (*Client, error) {
 	return &Client{engine: engine}, nil
 }
 
+func CheckLocalEndpoint(endpoint string) error {
+	_, err := normalizeEndpoint(endpoint)
+	return err
+}
+
 func (c *Client) Ping(ctx context.Context) (client.PingResult, error) {
 	if c == nil || c.engine == nil {
 		return client.PingResult{}, errors.New("docker client is required")
@@ -50,12 +55,13 @@ func (c *Client) Close() error {
 
 func normalizeEndpoint(endpoint string) (string, error) {
 	endpoint = strings.TrimSpace(endpoint)
+	lower := strings.ToLower(endpoint)
 	switch {
-	case strings.HasPrefix(strings.ToLower(endpoint), "npipe://"):
+	case strings.HasPrefix(lower, "npipe:////./pipe/") && len(endpoint) > len("npipe:////./pipe/"):
 		return endpoint, nil
-	case strings.HasPrefix(strings.ToLower(endpoint), `\\.\pipe\`):
-		return "npipe:////./pipe/" + strings.TrimPrefix(endpoint, `\\.\pipe\`), nil
-	case strings.HasPrefix(strings.ToLower(endpoint), `//./pipe/`):
+	case strings.HasPrefix(lower, `\\.\pipe\`) && len(endpoint) > len(`\\.\pipe\`):
+		return "npipe:////./pipe/" + endpoint[len(`\\.\pipe\`):], nil
+	case strings.HasPrefix(lower, `//./pipe/`) && len(endpoint) > len(`//./pipe/`):
 		return "npipe://" + endpoint, nil
 	case strings.HasPrefix(endpoint, "unix://"):
 		path := strings.TrimPrefix(endpoint, "unix://")

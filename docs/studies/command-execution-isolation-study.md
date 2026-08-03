@@ -19,6 +19,7 @@ This guide explains:
 - how foreground cancellation and background process handles work;
 - how direct commands, shell commands, working directories, and approval time are represented;
 - how mounts, network access, and secret references affect permissions;
+- how setup establishes image trust and manages profile-local contracts;
 - how daemon, security, and container generations prevent stale reuse;
 - how to build, test, configure, inspect, and troubleshoot the system.
 
@@ -151,7 +152,7 @@ execution:
     endpoint: /var/run/docker.sock
     image: ghcr.io/xymorphic/morph-sandbox@sha256:<64-hex-digest>
     imageVerification: signature
-    contract: /absolute/path/to/morph/containers/sandbox/contract.json
+    contract: sandbox/contracts/active/<image-digest>-<contract-digest>.json
     workspace:
       mode: none
       source: ""
@@ -189,6 +190,17 @@ The defaults are intentionally conservative:
 The configuration implementation lives in
 [`internal/config/execution.go`](../../internal/config/execution.go). Environment overrides exist for the backend, scope,
 endpoint, image, contract, workspace mode/source, and network mode.
+
+The `contract` value normally points to the profile-local active contract created by `morph sandbox setup`. The path is
+stored relative to the profile when possible and resolves to:
+
+```text
+<profile>/sandbox/contracts/active/<image-digest>-<contract-digest>.json
+```
+
+Do not copy the repository contract into configuration manually for the normal production path. Setup first verifies the
+selected image, extracts the contract embedded at `/usr/local/share/morph/contract.json`, preserves the release original,
+and activates a separate content-addressed copy for that profile.
 
 ### 6.1 Local mode
 
@@ -267,7 +279,7 @@ sequenceDiagram
         E->>E: Build secret-reference resolver
         E->>X: Load/create process identity key
         E->>D: Create daemon incarnation
-        E->>D: Verify signed pinned image
+        E->>D: Verify pinned image using configured trust mode
         E->>M: Acquire Docker service lease
     end
     M-->>E: execution.Service
@@ -290,6 +302,10 @@ Contract version compatibility is strict: the current runtime accepts version `1
 updating Morph's `SandboxRuntimeCompatibility` makes Docker backend startup fail closed with an unsupported-runtime
 error. Contract content changes within a supported version change the contract and exposure digests. A corresponding
 new image digest changes the configured security generation as well.
+
+Setup performs the same trust and compatibility work before it changes the profile. Runtime startup repeats the relevant
+checks rather than trusting setup as a permanent assertion. This matters if Docker state or profile artifacts are changed
+after setup completes.
 
 ## 8. The immutable preparation boundary
 
@@ -597,6 +613,8 @@ local backend when Docker cannot satisfy the contract.
 
 ## 14. Image contract and supply-chain check
 
+### 14.1 What the contract proves
+
 The sandbox image contains a static `morph-sandbox` helper plus a small executable set. The contract records:
 
 - Linux platform and supported architectures;
@@ -648,7 +666,139 @@ architectures, expected runtime compatibility, signature issuer, and signing wor
 and verifying Morph; it does not contain the image. The local `morph-sandbox:test` tag is accepted only by the explicit
 Docker test lane.
 
-### Host platform note
+### 14.2 Guided setup and the trust boundary
+
+`morph sandbox setup` is the supported path from an unconfigured profile to a usable execution backend. With no complete
+flag set it prompts for missing choices; with complete flags it performs the same work without prompts.
+
+When setup is rerun, guided choices prefer the profile's configured backend and image over first-run defaults. Omitted
+verification, endpoint, scope, workspace, network, mount, and secret options retain their configured values. If the
+immutable image is unchanged, setup validates and preserves the configured active contract, including a compatible
+user-managed contract; selecting a different image activates that image's embedded release contract instead.
+
+```mermaid
+sequenceDiagram
+    participant U as User or automation
+    participant S as sandbox setup
+    participant D as Docker Engine
+    participant C as cosign
+    participant P as Profile files
+    participant R as Running daemon
+
+    U->>S: Select backend, release/image, and trust mode
+    S->>D: Check local endpoint and Linux containers
+    S->>D: Resolve release/tag to repository@sha256:digest
+    alt signature mode
+        S->>C: Verify immutable digest and trusted workflow identity
+        C-->>S: Publisher-authenticated
+    else digest mode
+        S->>U: Show immutable digest for explicit acceptance
+        U-->>S: Accept operator-owned trust decision
+    end
+    S->>D: Pull and inspect trusted immutable image
+    S->>D: Extract /usr/local/share/morph/contract.json
+    S->>S: Validate structure, version, platform, user, entrypoint, helper, and paths
+    S->>P: Stage preserved release and active contract copies
+    S->>P: Atomically write validated config.yaml once
+    opt daemon is running
+        P-->>R: Existing config watcher observes one complete change
+        R-->>S: New runtime generation is visible
+    end
+    S-->>U: Trust, provenance, changes, and daemon application state
+```
+
+The order is security-relevant: setup verifies or explicitly accepts the image before using its embedded contract as
+evidence. A malicious, untrusted image cannot define the shell, helper, or executable identities that Morph will later
+authorize merely because it contains a well-formed JSON file.
+
+The modes answer different questions:
+
+- `signature`: “Was this immutable image published through the trusted Morph release workflow?” It requires the user's
+  existing `cosign` executable on `PATH`; Morph does not install or download Cosign.
+- `digest`: “Did the operator explicitly choose these exact immutable bytes?” It does not authenticate the publisher.
+
+An official release is only a convenient mutable selector. Setup always resolves it to an immutable digest before
+writing configuration. In non-interactive digest mode, a digest resolved from `--release` additionally requires
+`--accept-digest`; an already immutable `--image repository@sha256:...` is itself the explicit selection.
+
+### 14.3 Contract storage and provenance
+
+Setup stores two independent artifacts beneath the selected profile:
+
+```text
+sandbox/contracts/
+├── releases/<image-digest>-<original-contract-digest>.json
+└── active/<image-digest>-<active-contract-digest>.json
+```
+
+The release file is the preserved contract extracted from the trusted image. The active file is the runtime-selected
+copy. Both filenames bind their contents by digest, and loading rejects symlinks, non-regular files, and a digest that no
+longer matches the filename.
+
+This separation makes provenance honest:
+
+| Image trust | Active contract | Reported meaning |
+| --- | --- | --- |
+| Signature verified | Same digest as preserved release | Trusted image, release-provided contract. |
+| Signature verified | Different digest | Trusted image, user-managed contract. |
+| Digest accepted | Same digest as preserved release | Operator-trusted image, image-provided contract. |
+| Digest accepted | Different digest | Operator-trusted image, user-managed contract. |
+
+Changing a contract does not erase how the image was trusted, and a valid image signature does not make a later local
+contract edit release-authored. Contract and image digests both participate in execution security identity, so a changed
+active contract cannot silently reuse old approvals or environments.
+
+### 14.4 Contract lifecycle commands
+
+The contract command group keeps customization profile-local and image-backed:
+
+```bash
+morph sandbox contract show
+morph sandbox contract validate
+morph sandbox contract validate ./candidate.json
+morph sandbox contract create \
+  --path /usr/local/bin --path /usr/bin --path /bin \
+  --output ./candidate.json
+morph sandbox contract import --from ./candidate.json
+morph sandbox contract edit
+morph sandbox contract reset --yes
+```
+
+- `show` prints the active contract, digests, validation state, and release/custom provenance.
+- `validate` checks the active contract or a candidate. `--structural-only` is diagnostic and cannot activate anything.
+- `create` derives facts available from the configured immutable image, then requires confirmation of policy-bearing
+  paths and executable declarations that inspection alone cannot make safe. Use `--activate` to select the candidate.
+- `import` and `edit` require full structural and trusted image-backed validation before activation.
+- `reset` creates a fresh active copy of the preserved release contract; it never edits the preserved original.
+
+Activating a candidate creates another content-addressed active file and atomically changes the configuration pointer.
+The prior file is not overwritten in place. This supports rollback and prevents a reader from observing partially written
+contract JSON.
+
+### 14.5 Guarded profile editing and live application
+
+`morph config edit` is the general-purpose counterpart for profile YAML. Contract editing and config editing both:
+
+1. snapshot the current regular file and reject symlink targets;
+2. open a temporary candidate using `--editor`, then `VISUAL`, then `EDITOR`, then the platform default;
+3. validate the complete candidate before replacement;
+4. compare the active file with the original snapshot to detect a concurrent edit;
+5. atomically replace the active file only when it is still unchanged.
+
+Invalid candidates and editor failures leave the active file untouched. An unchanged edit performs no replacement. On a
+successful setup, Morph similarly prepares every Docker, image, contract, and config check first, then writes
+`config.yaml` at most once.
+
+Atomic activation is platform-specific beneath this shared contract: Unix uses a same-filesystem rename, while Windows
+uses `MoveFileEx` with replace-existing and write-through flags. The caller sees the same validate-before-replace and
+concurrent-change behavior on both platforms.
+
+There is no special “restart a daemon” setup API. A running daemon's existing config watcher sees the atomic YAML change,
+reloads its services in place, and publishes a new runtime `started_at` generation. Setup waits for that generation when
+possible and otherwise reports that the config will apply on the next daemon start. If live observation fails after file
+activation, setup retains a recovery snapshot and reports the rollback path.
+
+### 14.6 Host platform note
 
 The sandbox image itself is Linux-only. Morph can run on Windows and connect to a local Docker Desktop Linux Engine over
 `//./pipe/docker_engine`, while Unix hosts use an explicit local Unix socket. That does not add Windows-container
@@ -905,6 +1055,24 @@ across storage drivers without granting the daemon a host-path guess.
 
 ## 21. Inspection and diagnostics
 
+### Setup and contract state
+
+```bash
+morph sandbox setup
+morph sandbox contract show
+morph sandbox contract validate
+morph config edit
+```
+
+Setup reports its stages separately: endpoint compatibility, release/image resolution, immutable digest, signature or
+digest trust result, pull, embedded-contract extraction, contract compatibility, proposed config, activation, and daemon
+observation. `--json` provides the same distinctions for automation, but mutation commands require flags that prohibit
+interactive prompts. In particular, JSON setup requires `--non-interactive --yes`.
+
+Setup/doctor and `contract show` answer complementary questions: which image is selected, how that image was trusted,
+which contract is active, and whether it still matches the preserved release contract. That is more precise than
+treating “signed image” as a claim about every later profile-local contract edit.
+
 ### Doctor
 
 ```bash
@@ -965,8 +1133,8 @@ Raw secret values are excluded.
 
 ## 22. Hands-on lab: verify the implementation
 
-This lab has two tracks. The first uses Morph's explicit test image path and does not require a production image. The
-second configures a real daemon with a digest-pinned image and selects its provenance policy.
+The lab progresses from the repository test image and live-Docker lane to supported profile setup, contract lifecycle,
+and runtime behavior. Use a disposable profile for configuration experiments.
 
 ### 22.1 Prerequisites
 
@@ -990,8 +1158,10 @@ From the repository root:
 make build-sandbox
 ```
 
-This creates `morph-sandbox:test` for local testing. It is not accepted by normal production configuration because it is
-not digest-pinned and signature-verified.
+This creates the mutable local tag `morph-sandbox:test` for the explicit test lane. A profile must never store that tag
+directly. To exercise setup with this build, first push it to a test registry so it has a repository digest; a purely
+local tag has no registry digest and cannot become runtime configuration. A locally built image normally uses the
+operator-owned `digest` trust mode rather than claiming a release signature.
 
 Inspect the important image fields:
 
@@ -1023,99 +1193,132 @@ docker image rm morph-sandbox:test
 
 The test backend cleans its containers and networks. Do not run a broad Docker prune.
 
-### 22.4 Configure a production image
+### 22.4 Configure a production image with setup
 
-Obtain the digest from a successful tagged `Sandbox image` workflow run. The downloaded artifact is configuration
-metadata, so first turn it into the immutable image reference:
-
-```bash
-release_tag=vX.Y.Z # replace with the published tag
-run_id="$(
-  gh run list \
-    --workflow sandbox-image.yml \
-    --branch "$release_tag" \
-    --limit 1 \
-    --json databaseId \
-    --jq '.[0].databaseId'
-)"
-
-gh run watch "$run_id" --exit-status
-
-morph_release_dir="$(mktemp -d)"
-gh run download "$run_id" \
-  -n sandbox-manifest \
-  -D "$morph_release_dir"
-
-manifest_path="$morph_release_dir/sandbox-manifest.json"
-jq . "$manifest_path"
-image_ref="$(jq -r '.repository + "@" + .digest' "$manifest_path")"
-printf '%s\n' "$image_ref"
-```
-
-The result must look like:
-
-```text
-ghcr.io/xymorphic/morph-sandbox@sha256:<64-hex-digest>
-```
-
-The `@` matters. `ghcr.io/xymorphic/morph-sandbox:sha256-...` is a tag-like reference and is not the published image
-digest. If the GHCR package is private, log in with a token that has `read:packages` before pulling:
+For the guided path, run:
 
 ```bash
-printf '%s' "$CR_PAT" | docker login ghcr.io -u <github-user> --password-stdin
-docker pull "$image_ref"
+morph sandbox setup
 ```
 
-For a public package, only the `docker pull` command is needed. Morph currently expects the pinned image to be locally
-available; `morph doctor` verifies and inspects it but does not silently replace the configured digest with a tag or pull
-an unavailable image.
+Choose Docker, an official release, and signature verification. Setup checks for a user-installed `cosign` executable
+before it resolves and pulls the image. It previews the immutable image reference and conservative defaults before
+activation.
 
-Configure that exact digest reference, not the mutable release tag:
-
-```yaml
-execution:
-  backend: docker
-  docker:
-    scope: session
-    endpoint: /var/run/docker.sock
-    image: ghcr.io/xymorphic/morph-sandbox@sha256:<digest>
-    imageVerification: signature
-    contract: /absolute/path/to/morph/containers/sandbox/contract.json
-    workspace:
-      mode: none
-      source: ""
-    network: none
-```
-
-Run:
+The equivalent explicit command is:
 
 ```bash
+morph sandbox setup \
+  --backend docker \
+  --release vX.Y.Z \
+  --verification signature \
+  --yes
+```
+
+For automation, disable all prompts and request structured output:
+
+```bash
+morph sandbox --json setup \
+  --backend docker \
+  --release vX.Y.Z \
+  --verification signature \
+  --non-interactive \
+  --yes
+```
+
+Setup resolves `vX.Y.Z` to `ghcr.io/xymorphic/morph-sandbox@sha256:<digest>`, verifies the signature, pulls the image,
+extracts and validates its embedded contract, writes the profile-local release and active copies, validates the complete
+proposed profile, and atomically updates `config.yaml` once.
+
+If you independently trust the exact bytes but do not require publisher authentication, use digest mode:
+
+```bash
+morph sandbox setup \
+  --backend docker \
+  --release vX.Y.Z \
+  --verification digest \
+  --accept-digest \
+  --non-interactive \
+  --yes
+```
+
+`--accept-digest` is required here because `--release` began as a mutable tag. For a custom image that is already written
+as `repository@sha256:<digest>`, select it with `--image` and omit `--accept-digest`:
+
+```bash
+morph sandbox setup \
+  --backend docker \
+  --image registry.example/sandbox@sha256:<64-hex-digest> \
+  --verification digest \
+  --non-interactive \
+  --yes
+```
+
+After success, inspect the independent trust and contract facts:
+
+```bash
+morph sandbox contract show
+morph sandbox contract validate
 morph doctor
 ```
 
-With `imageVerification: signature`, do not continue until the image, contract, signature, Engine API, and required
-resource controls pass. A rootful Docker warning is a trust disclosure, not proof that the runtime is broken.
+If a daemon is running, setup waits for the config watcher to expose a newer runtime generation. It does not kill and
+restart the daemon process. If there is no running daemon, the summary says the change will apply on the next start.
+A rootful Docker warning is a trust disclosure, not proof that the runtime is broken.
 
-To use a compatible image whose digest you trust without Xymorphic publisher verification, change only:
-
-```yaml
-execution:
-  docker:
-    imageVerification: digest
-```
-
-Restart the daemon and rerun `morph doctor`. The signature check becomes a warning that Morph is trusting the configured
-digest. Image presence, digest pinning, supported contract version, platform, architecture, user, and entrypoint remain
-mandatory. The configured digest is now the operator's trust anchor: it proves exact content identity, not authorship.
-
-When finished with the downloaded metadata:
+To switch back without deleting the inactive Docker configuration:
 
 ```bash
-rm "$manifest_path"
-rmdir "$morph_release_dir"
+morph sandbox setup --backend local --yes
 ```
 
-### 22.5 Observe private workspace persistence
+### 22.5 Exercise contract creation, customization, and reset
+
+First inspect the active and preserved digests:
+
+```bash
+morph sandbox contract show
+```
+
+Create a candidate from the selected trusted immutable image. The command derives inspectable image facts and asks you to
+confirm the policy-bearing fields:
+
+```bash
+morph sandbox contract create \
+  --path /usr/local/bin --path /usr/bin --path /bin \
+  --output ./sandbox-contract.json
+morph sandbox contract validate ./sandbox-contract.json
+```
+
+The explicit path list narrows Alpine's advertised default `PATH` to directories that actually exist in the sandbox.
+If a custom image advertises only existing directories, those overrides may be unnecessary.
+
+Import and activate it only after full image-backed validation:
+
+```bash
+morph sandbox contract import --from ./sandbox-contract.json
+morph sandbox contract show
+```
+
+The second `show` should report `user-managed` if the active digest differs from the preserved release digest. Restore a
+fresh active copy of the original without changing the preserved file:
+
+```bash
+morph sandbox contract reset --yes
+```
+
+For an editor-based exercise:
+
+```bash
+morph sandbox contract edit
+morph config edit
+```
+
+Save an intentionally invalid candidate, such as an unsupported contract version or malformed YAML. Morph should explain
+the validation failure and leave the active file unchanged. In a non-interactive test use `--no-retry` so failure exits
+instead of offering to reopen the candidate.
+
+### 22.6 Observe private workspace persistence
 
 In session A, ask Morph to use `run_command` or `write_file` to create:
 
@@ -1135,7 +1338,7 @@ morph sandbox list --session <session-a>
 morph sandbox explain --session <session-a> <environment-id>
 ```
 
-### 22.6 Verify filesystem parity
+### 22.7 Verify filesystem parity
 
 In one session:
 
@@ -1146,10 +1349,11 @@ In one session:
 
 All four operations should observe one backend filesystem.
 
-### 22.7 Verify a read-only host workspace
+### 22.8 Verify a read-only host workspace
 
-Create a disposable test directory outside protected paths, then configure it as the primary `ro` workspace. Restart
-the daemon after validating configuration.
+Create a disposable test directory outside protected paths, then rerun setup with `--workspace-mode ro` and
+`--workspace-source <absolute-path>`. If the daemon is already running, its watcher applies the validated config change
+in place.
 
 Expected behavior:
 
@@ -1160,15 +1364,15 @@ Expected behavior:
 
 Return to `workspace.mode: none` after the experiment if host visibility is not needed.
 
-### 22.8 Verify network denial
+### 22.9 Verify network denial
 
 With `network: none`, ask Morph to run a sandbox-contract program that needs outbound access, such as a `git ls-remote`
 against an HTTPS repository. The operation should fail to connect.
 
-Change to `network: bridge`, restart, and repeat only in a controlled test profile. Morph should present network and
+Rerun setup with `--network bridge` and repeat only in a controlled test profile. Morph should present network and
 external-system exposure for authorization. Bridge mode is broad outbound access, not destination filtering.
 
-### 22.9 Verify a background process
+### 22.10 Verify a background process
 
 Ask the `process` tool to:
 
@@ -1181,7 +1385,7 @@ Ask the `process` tool to:
 
 Restart the daemon and retry the old opaque ID. It should be classified as stale rather than controlling a new process.
 
-### 22.10 Verify secret redaction
+### 22.11 Verify secret redaction
 
 Use a dedicated non-sensitive lab value:
 
@@ -1205,7 +1409,7 @@ redaction.
 Delete any workspace file containing the lab value manually. Redaction does not clean command-created workspace
 residue.
 
-### 22.11 Observe shared scope carefully
+### 22.12 Observe shared scope carefully
 
 Use a disposable profile and set:
 
@@ -1231,13 +1435,21 @@ This demonstrates the difference between persistent workspace state and replacea
 | --- | --- | --- |
 | `execution backend is not configured` | Runtime or test double does not expose `execution.Runtime`. | Environment construction and tool runtime wiring. |
 | Docker endpoint rejected | TCP, SSH, context, relative socket, or unsupported endpoint. | Use an explicit local Unix socket or named pipe. |
+| Setup reports unsafe Docker socket permissions | The local socket grants broader daemon control than the supported trust posture. | Fix socket ownership/mode; setup will not weaken the check. |
 | Image must be pinned | Mutable tag supplied in production config. | Use `repository@sha256:<digest>`. |
 | `manifest unknown` while pulling | Digest was written as a tag, commonly `:sha256-...`, or the digest is from the cosign signature object. | Build `repository@digest` from `sandbox-manifest.json`; do not use the `.sig` artifact digest. |
-| Pinned image unavailable / `No such image` | The exact digest is configured but not present in the selected Docker Engine, or private GHCR authentication is missing. | Log in if needed, then run `docker pull repository@sha256:<digest>` against the same Engine endpoint. |
+| Setup cannot resolve or pull the image | Release does not exist, registry access failed, or private GHCR authentication is missing. | Authenticate the selected Engine/registry and retry setup; no profile mutation has occurred. |
 | `cosign is required` | Production signature verifier unavailable. | Install `cosign` on daemon host. |
+| Signature verification failed | The immutable image has no trusted signature or its workflow identity/issuer does not match. | Do not activate it as signature-verified; choose the correct release or make a deliberate digest-mode decision. |
+| `--accept-digest is required` | Non-interactive digest mode resolved a mutable `--release` tag. | Inspect the displayed immutable digest, then repeat with `--accept-digest` if it is the intended trust anchor. |
 | Signature verification is disabled | `imageVerification: digest` explicitly delegates image provenance to the configured digest. | Confirm the digest through a trusted channel or return to `signature`. |
 | Image contract mismatch | Wrong platform, user, entrypoint, or stale contract. | Inspect image and compare contract digest and fields. |
 | Unsupported sandbox runtime compatibility | Contract version differs from Morph's supported runtime version. | Use the matching image/contract or update Morph and rebuild the image together. |
+| Stored contract digest mismatch | Active or preserved contract bytes no longer match the content-addressed filename. | Do not edit stored artifacts in place; import/edit a validated candidate or reset from the preserved release contract. |
+| Contract path is a symlink or non-regular file | Profile artifact was replaced with an unsafe filesystem object. | Restore a regular profile-local contract through setup or reset. |
+| Contract mutation rejects `--structural-only` | Structural validation cannot prove compatibility with the selected runtime image. | Use full image-backed validation for create/import/edit/reset; reserve `--structural-only` for non-mutating diagnosis. |
+| Config or contract changed while editor was open | The guarded compare-and-swap detected a concurrent writer. | Reopen the latest file and reapply the intended change instead of overwriting it. |
+| Setup activated files but did not observe daemon application | The watcher did not publish a newer runtime generation before timeout or rejected application. | Read the reported recovery path, inspect daemon logs/status, and restore the snapshot if necessary. |
 | Command executable absent from contract | Direct command name or absolute path is not enumerated, even if a binary happens to exist in the image. | Use a declared executable or deliberately update the image contract and image. |
 | Docker working directory outside configured mounts | Absolute `cwd` is neither `/workspace`, `/mnt/<grant>`, nor a configured canonical host source. | Omit `cwd`, use a container-visible mounted path, or configure an explicit mount. |
 | Mount source protected | Source enters system, credential, Morph-state, or Docker-control path. | Select a dedicated non-sensitive directory. |
@@ -1267,6 +1479,11 @@ This demonstrates the difference between persistent workspace state and replacea
 | Output | Cross-chunk exact-value redaction, truncation, and byte accounting. |
 | Local backend | Filesystem search recursion, regex, and hidden-file behavior. |
 | Sandbox helper | Patch allowlisting and OS process start identity. |
+| Setup orchestration | Prompt-free JSON rules, local/Docker flag separation, idempotence, timeout validation, and daemon-generation observation. |
+| Contract store | Release/active separation, provenance, reset, immutable image requirement, symlink rejection, and filename/content digest checks. |
+| Contract commands | Show/import/reset lifecycle, full activation validation, structural-only mutation rejection, and non-prompting automation rules. |
+| Guarded file editing | Candidate validation, unchanged edits, concurrent-change rejection, symlink defense, atomic replacement, and Windows path parsing. |
+| Config editing | Complete config validation, invalid-candidate preservation, no-op behavior, and compare-and-swap conflict handling. |
 | Live Docker | Private workspace persistence, cross-session isolation, command execution. |
 
 Run the ordinary suite with the repository's required SQLite settings:
@@ -1310,6 +1527,13 @@ Linux Docker Engine. The live provider-backed test lane is intentionally not par
 | Volume and free-space admission | [`internal/execution/docker/resources.go`](../../internal/execution/docker/resources.go) |
 | Sandbox helper/image | [`cmd/morph-sandbox`](../../cmd/morph-sandbox), [`containers/sandbox`](../../containers/sandbox) |
 | Sandbox publishing and signing | [`.github/workflows/sandbox-image.yml`](../../.github/workflows/sandbox-image.yml) |
+| Guided backend setup | [`cmd/sandbox/setup.go`](../../cmd/sandbox/setup.go) |
+| Contract management CLI | [`cmd/sandbox/contract.go`](../../cmd/sandbox/contract.go) |
+| Profile-local contract store and provenance | [`internal/execution/contract_store.go`](../../internal/execution/contract_store.go) |
+| Guarded atomic editing | [`internal/fileedit`](../../internal/fileedit) |
+| General config editing | [`cmd/morph/configcmd/config.go`](../../cmd/morph/configcmd/config.go) |
+| Atomic config updates | [`internal/config/set_config.go`](../../internal/config/set_config.go) |
+| Daemon runtime-generation metadata | [`internal/runtime/runtime.go`](../../internal/runtime/runtime.go) |
 | General and Docker CI | [`.github/workflows/tests.yml`](../../.github/workflows/tests.yml) |
 | Diagnostics | [`internal/diagnostics/readiness/execution.go`](../../internal/diagnostics/readiness/execution.go) |
 | Operator CLI | [`cmd/sandbox/sandbox.go`](../../cmd/sandbox/sandbox.go) |
@@ -1333,6 +1557,13 @@ Linux Docker Engine. The live provider-backed test lane is intentionally not par
 13. Docker command identity comes from the versioned sandbox contract, never the daemon host PATH.
 14. Container-only working directories do not invent host-file permissions; configured host mounts remain explicit.
 15. New workspace volumes are admitted against Docker-visible free space, not the Morph host filesystem view.
+16. Image trust and contract provenance are independent facts; one never implies the other.
+17. Runtime configuration always uses an immutable image digest and a validated content-addressed active contract.
+18. Setup verifies trust before extracting an embedded contract and validates every artifact before one atomic config write.
+19. Preserved release contracts are never edited; customization creates a separate profile-local active artifact.
+20. Contract activation requires image-backed validation; structural-only validation is diagnostic, not authority.
+21. Guarded edits validate candidates, reject concurrent changes, and leave active files untouched on failure.
+22. Setup relies on the existing config watcher and observes a new runtime generation; it does not restart the daemon process.
 
 If these invariants are clear, the rest of the system becomes much easier to reason about: Morph first decides what may
 happen, then constrains where and with which ambient capabilities it can happen, and finally preserves enough identity

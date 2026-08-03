@@ -390,6 +390,10 @@ func TestClientLifecycleAndEndpointNormalization(t *testing.T) {
 			input: "tcp://localhost:2375",
 			err:   "docker endpoint must be a local Unix socket or named pipe",
 		},
+		{
+			input: "npipe://remote/pipe/docker_engine",
+			err:   "docker endpoint must be a local Unix socket or named pipe",
+		},
 	}
 	for _, test := range tests {
 		normalized, err := normalizeEndpoint(test.input)
@@ -1453,6 +1457,11 @@ func TestImageContractAndSignatureValidation(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "linux", contract.GOOS)
 	require.Equal(t, SandboxRuntimeCompatibility, contract.Version)
+	require.NoError(t, CheckImageContractCompatibility(contract))
+	unsupported := contract
+	unsupported.Version = "2"
+	err = CheckImageContractCompatibility(unsupported)
+	require.EqualError(t, err, `sandbox contract runtime compatibility "2" is unsupported; expected "1"`)
 
 	manifestRaw, err := os.ReadFile("../../../containers/sandbox/manifest.json")
 	require.NoError(t, err)
@@ -1465,6 +1474,7 @@ func TestImageContractAndSignatureValidation(t *testing.T) {
 	digest := strings.Repeat("a", 64)
 	validReference := SandboxRepository + "@sha256:" + digest
 	require.NoError(t, ValidateImageReference(validReference))
+	require.EqualError(t, CheckImageContract(context.Background(), nil, validReference, contract), "docker client is required")
 	for _, reference := range []string{
 		"image:tag",
 		"@sha256:" + digest,

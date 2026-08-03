@@ -37,7 +37,13 @@ jobs:
       - env:
           DIGEST: ${{ steps.build.outputs.digest }}
         run: |
-          jq --arg digest "${DIGEST}" --arg release "${GITHUB_REF_NAME}" '.digest=$digest | .release=$release' containers/sandbox/manifest.json > sandbox-manifest.json
+          CONTRACT_DIGEST="sha256:$(sha256sum containers/sandbox/contract.json | cut -d ' ' -f 1)"
+          jq \
+            --arg digest "${DIGEST}" \
+            --arg release "${GITHUB_REF_NAME}" \
+            --arg contract_digest "${CONTRACT_DIGEST}" \
+            '.digest=$digest | .release=$release | .contract_digest=$contract_digest' \
+            containers/sandbox/manifest.json > sandbox-manifest.json
       - uses: actions/upload-artifact@v7
         with:
           name: sandbox-manifest

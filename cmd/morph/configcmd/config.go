@@ -1,6 +1,7 @@
 package configcmd
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -11,12 +12,25 @@ import (
 
 	morphcli "github.com/xymorphic/morph/internal/cli"
 	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/fileedit"
 	"github.com/xymorphic/morph/pkg/str"
 )
 
+var runEditor = fileedit.RunEditor
+
 func NewCommand(output io.Writer) *cli.Command {
+	return NewCommandWithIO(os.Stdin, output)
+}
+
+func NewCommandWithIO(input io.Reader, output io.Writer) *cli.Command {
+	if input == nil {
+		input = strings.NewReader("")
+	}
 	if output == nil {
 		output = io.Discard
+	}
+	if _, ok := input.(*bufio.Reader); !ok {
+		input = bufio.NewReader(input)
 	}
 
 	return &cli.Command{
@@ -25,8 +39,85 @@ func NewCommand(output io.Writer) *cli.Command {
 		Commands: []*cli.Command{
 			newGetCommand(output),
 			newSetCommand(output),
+			newEditCommand(input, output),
 		},
 	}
+}
+
+func newEditCommand(input io.Reader, output io.Writer) *cli.Command {
+	return &cli.Command{
+		Name:  "edit",
+		Usage: "Edit and validate the selected profile config",
+		Flags: []cli.Flag{
+			morphcli.ProfileFlag(),
+			&cli.StringFlag{Name: "editor", Usage: "Editor command; defaults to VISUAL, EDITOR, or the platform editor"},
+			&cli.BoolFlag{Name: "no-retry", Usage: "Do not offer to reopen an invalid candidate"},
+		},
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			inputs, err := resolveKnownConfigInputs(cmd)
+			if err != nil {
+				return err
+			}
+			if err := config.PreloadEnvFile(inputs.EnvPath); err != nil {
+				return err
+			}
+
+			defaultData, err := config.NewProfileConfig().ToYAML()
+			if err != nil {
+				return err
+			}
+			result, err := fileedit.EditFile(ctx, fileedit.EditOptions{
+				Path:        inputs.ConfigPath,
+				DefaultData: defaultData,
+				Editor:      cmd.String("editor"),
+				RunEditor:   runEditor,
+				Validate: func(candidatePath string) error {
+					_, loadErr := config.LoadStrict(inputs.EnvPath, candidatePath)
+					return loadErr
+				},
+				Retry: func(validationErr error, candidatePath string) bool {
+					if cmd.Bool("no-retry") {
+						return false
+					}
+					return promptRetryEdit(input, output, validationErr, candidatePath)
+				},
+			})
+			if err != nil {
+				if result.CandidatePath != "" {
+					return fmt.Errorf("%w; candidate preserved at %s", err, result.CandidatePath)
+				}
+				return err
+			}
+			if !result.Changed {
+				_, err = fmt.Fprintln(output, "Configuration unchanged")
+				return err
+			}
+			_, err = fmt.Fprintf(output, "Updated %s\n", inputs.ConfigPath)
+			return err
+		},
+	}
+}
+
+func promptRetryEdit(input io.Reader, output io.Writer, validationErr error, candidatePath string) bool {
+	if _, err := fmt.Fprintf(
+		output,
+		"Validation failed: %v\nCandidate: %s\nReopen candidate? [y/N] ",
+		validationErr,
+		candidatePath,
+	); err != nil {
+		return false
+	}
+
+	reader, ok := input.(*bufio.Reader)
+	if !ok {
+		reader = bufio.NewReader(input)
+	}
+	answer, err := reader.ReadString('\n')
+	if err != nil && len(answer) == 0 {
+		return false
+	}
+	answer = strings.TrimSpace(strings.ToLower(answer))
+	return answer == "y" || answer == "yes"
 }
 
 func newGetCommand(output io.Writer) *cli.Command {

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xymorphic/morph/internal/fileedit"
 	"github.com/xymorphic/morph/pkg/str"
 	"gopkg.in/yaml.v3"
 )
@@ -82,11 +83,20 @@ func SetConfigValue(envPath string, configPath string, path string, value string
 
 // SetConfigValues updates config values.
 func SetConfigValues(envPath string, configPath string, updates []ConfigUpdate) ([]string, error) {
-	return setConfigValues(envPath, configPath, updates, (*Config).Validate)
+	return setConfigValues(envPath, configPath, updates, (*Config).Validate, nil)
 }
 
 func SetConfigValuesRelaxed(envPath string, configPath string, updates []ConfigUpdate) ([]string, error) {
-	return setConfigValues(envPath, configPath, updates, (*Config).ValidateRelaxed)
+	return setConfigValues(envPath, configPath, updates, (*Config).ValidateRelaxed, nil)
+}
+
+func SetConfigValuesRelaxedIfUnchanged(
+	envPath string,
+	configPath string,
+	updates []ConfigUpdate,
+	snapshot fileedit.Snapshot,
+) ([]string, error) {
+	return setConfigValues(envPath, configPath, updates, (*Config).ValidateRelaxed, &snapshot)
 }
 
 func setConfigValues(
@@ -94,6 +104,7 @@ func setConfigValues(
 	configPath string,
 	updates []ConfigUpdate,
 	validate func(*Config) error,
+	expected *fileedit.Snapshot,
 ) ([]string, error) {
 	configPathValue := str.String(configPath)
 	configPath = configPathValue.Trim()
@@ -104,7 +115,23 @@ func setConfigValues(
 		return nil, fmt.Errorf("config path and value are required")
 	}
 
-	node, err := loadConfigYAMLNode(configPath)
+	defaultData, err := NewDefaultConfig().ToYAML()
+	if err != nil {
+		return nil, err
+	}
+	var snapshot fileedit.Snapshot
+	if expected != nil {
+		if filepath.Clean(expected.Path) != filepath.Clean(configPath) {
+			return nil, errors.New("config snapshot path does not match config path")
+		}
+		snapshot = *expected
+	} else {
+		snapshot, err = fileedit.ReadSnapshot(configPath, defaultData)
+		if err != nil {
+			return nil, fmt.Errorf("read config file: %w", err)
+		}
+	}
+	node, err := loadConfigYAMLNodeData(snapshot.Data)
 	if err != nil {
 		return nil, err
 	}
@@ -133,29 +160,14 @@ func setConfigValues(
 	if err := validateConfigYAML(envPath, configPath, data, validate); err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Dir(configPath), 0o700); err != nil {
-		return nil, fmt.Errorf("create config dir: %w", err)
-	}
-	if err := os.WriteFile(configPath, data, 0o600); err != nil {
-		return nil, fmt.Errorf("write config file: %w", err)
+	if _, err := fileedit.ReplaceIfUnchanged(snapshot, data); err != nil {
+		return nil, err
 	}
 
 	return updatedPaths, nil
 }
 
-func loadConfigYAMLNode(configPath string) (*yaml.Node, error) {
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("read config file: %w", err)
-		}
-
-		data, err = NewDefaultConfig().ToYAML()
-		if err != nil {
-			return nil, err
-		}
-	}
-
+func loadConfigYAMLNodeData(data []byte) (*yaml.Node, error) {
 	var node yaml.Node
 	if err := yaml.Unmarshal(data, &node); err != nil {
 		return nil, fmt.Errorf("parse config file: %w", err)

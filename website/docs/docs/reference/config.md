@@ -219,7 +219,7 @@ See [Safety and Guardrails](../concepts/safety-and-guardrails).
 | `execution.docker.endpoint` | string | `/var/run/docker.sock` | Local Unix socket or named pipe only |
 | `execution.docker.image` | string | empty | Required digest-pinned image in Docker mode |
 | `execution.docker.imageVerification` | string | `signature` | `signature` verifies Morph release provenance; `digest` trusts the configured digest |
-| `execution.docker.contract` | path | empty | Static image target contract |
+| `execution.docker.contract` | path | empty | Active profile-local image contract; setup preserves release and customized copies by digest |
 | `execution.docker.workspace.mode` | string | `none` | `none`, `ro`, or `rw` |
 | `execution.docker.workspace.source` | path | empty | Required for `ro`/`rw` |
 | `execution.docker.mounts` | list | `[]` | Trusted named host grants mounted below `/mnt/<name>` |
@@ -235,6 +235,10 @@ Docker limits cover memory, CPU milli-units, PIDs, open files, temporary bytes, 
 runtime, and stop grace. Tool schemas expose configured secret names and descriptions, but not source environment names,
 availability, or values. Secret values never enter configuration fingerprints; a tool call selects configured logical
 names and receives values only after authorization.
+
+`morph sandbox setup` is the supported way to initialize these keys. It records only an immutable image reference and
+keeps image trust separate from contract provenance. An image can remain signature-verified while a modified active
+contract is correctly reported as user-managed.
 
 ## `permissions`
 

@@ -1,6 +1,7 @@
 package sandbox
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -37,10 +38,24 @@ type sandboxClient interface {
 }
 
 func NewCommand() *cli.Command {
+	return NewCommandWithIO(os.Stdin, output)
+}
+
+func NewCommandWithIO(input io.Reader, commandOutput io.Writer) *cli.Command {
+	if input == nil {
+		input = os.Stdin
+	}
+	if commandOutput == nil {
+		commandOutput = io.Discard
+	}
+	if _, ok := input.(*bufio.Reader); !ok {
+		input = bufio.NewReader(input)
+	}
 	return &cli.Command{
 		Name:  "sandbox",
-		Usage: "Inspect command execution environments",
+		Usage: "Set up and inspect command execution environments",
 		Flags: []cli.Flag{
+			morphcli.ProfileFlag(),
 			&cli.StringFlag{
 				Name:  "session",
 				Value: storage.DefaultSessionID,
@@ -52,23 +67,29 @@ func NewCommand() *cli.Command {
 			},
 		},
 		Commands: []*cli.Command{
+			newSetupCommand(input, commandOutput),
+			newContractCommand(input, commandOutput),
 			{
-				Name:   "list",
-				Usage:  "List execution environments",
-				Action: listEnvironments,
+				Name:  "list",
+				Usage: "List execution environments",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					return listEnvironmentsTo(ctx, cmd, commandOutput)
+				},
 			},
 			{
 				Name:      "explain",
 				Usage:     "Explain an execution environment",
 				ArgsUsage: "<environment-id>",
-				Action:    explainEnvironment,
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					return explainEnvironmentTo(ctx, cmd, commandOutput)
+				},
 			},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error { return cli.ShowSubcommandHelp(cmd) },
 	}
 }
 
-func listEnvironments(ctx context.Context, cmd *cli.Command) error {
+func listEnvironmentsTo(ctx context.Context, cmd *cli.Command, writer io.Writer) error {
 	api, closeClient, err := getAPI(ctx, cmd)
 	if err != nil {
 		return err
@@ -80,12 +101,12 @@ func listEnvironments(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if cmd.Bool("json") {
-		return writeJSON(items)
+		return writeJSONTo(writer, items)
 	}
 
 	for _, item := range items {
 		if _, err := fmt.Fprintf(
-			output,
+			writer,
 			"%s\t%s\t%s\t%s\n",
 			item.Status.ID,
 			item.Status.Backend,
@@ -99,7 +120,7 @@ func listEnvironments(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func explainEnvironment(ctx context.Context, cmd *cli.Command) error {
+func explainEnvironmentTo(ctx context.Context, cmd *cli.Command, writer io.Writer) error {
 	id := cmd.Args().First()
 	if id == "" {
 		return errors.New("execution environment id is required")
@@ -116,10 +137,10 @@ func explainEnvironment(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if cmd.Bool("json") {
-		return writeJSON(details)
+		return writeJSONTo(writer, details)
 	}
 
-	return writeDetails(details)
+	return writeDetailsTo(writer, details)
 }
 
 func getAPI(ctx context.Context, cmd *cli.Command) (rpcclient.SessionAPI, func(), error) {
@@ -145,9 +166,13 @@ func getAPI(ctx context.Context, cmd *cli.Command) (rpcclient.SessionAPI, func()
 }
 
 func writeDetails(details execution.EnvironmentDetails) error {
+	return writeDetailsTo(output, details)
+}
+
+func writeDetailsTo(writer io.Writer, details execution.EnvironmentDetails) error {
 	status := details.Status
 	_, err := fmt.Fprintf(
-		output,
+		writer,
 		"id: %s\nbackend: %s\nscope: %s\nstate: %s\nworkspace: %s\nnetwork: %s\nimage: %s\nsecurity generation: %s\n",
 		status.ID,
 		status.Backend,
@@ -162,7 +187,11 @@ func writeDetails(details execution.EnvironmentDetails) error {
 }
 
 func writeJSON(value any) error {
-	encoder := json.NewEncoder(output)
+	return writeJSONTo(output, value)
+}
+
+func writeJSONTo(writer io.Writer, value any) error {
+	encoder := json.NewEncoder(writer)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(value)
 }

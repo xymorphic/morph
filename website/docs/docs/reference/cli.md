@@ -206,8 +206,11 @@ If retrieval fails, check these conditions:
 | --- | --- |
 | `config get` | `morph config get <path>…` |
 | `config set` | `morph config set <path> <value>` or `morph config set path=value …` |
+| `config edit` | `morph config edit [--editor COMMAND]` |
 
-Paths use dot notation (`session.maxIterations`). See [Config Reference](./config).
+`config edit` opens a temporary candidate, validates the complete configuration, detects concurrent changes, and
+atomically replaces `config.yaml` only when the candidate is valid. Paths used by `get` and `set` use dot notation
+(`session.maxIterations`). See [Config Reference](./config).
 
 ### `daemon`: run the daemon
 
@@ -301,6 +304,35 @@ Profile subcommands do **not** take `--profile`; they manage which profile is ac
 
 See [Profiles](../concepts/profiles) and [Profiles and Config](../getting-started/profiles-and-config).
 
+### `sandbox`: command execution environments
+
+| Subcommand | Usage | Notes |
+| --- | --- | --- |
+| `sandbox setup` | `morph sandbox setup [--backend local\|docker]` | Guided setup or complete non-interactive flags |
+| `sandbox contract show` | `morph sandbox contract show [--json]` | Contract content, digest, and provenance |
+| `sandbox contract create` | `morph sandbox contract create [flags]` | Derive, confirm, and validate a candidate from the configured image |
+| `sandbox contract import` | `morph sandbox contract import --from FILE` | Validate and activate a profile-local copy |
+| `sandbox contract edit` | `morph sandbox contract edit` | Guarded editor with structural and image-backed validation |
+| `sandbox contract validate` | `morph sandbox contract validate [FILE]` | Validate active or candidate contract |
+| `sandbox contract reset` | `morph sandbox contract reset --yes` | Restore the preserved release contract |
+| `sandbox list` | `morph sandbox list` | List runtime execution environments over RPC |
+| `sandbox explain` | `morph sandbox explain ID` | Explain one runtime environment over RPC |
+
+Official release setup defaults to signature verification and requires a user-installed `cosign` executable. Morph
+does not download Cosign. Digest mode accepts an operator-trusted immutable digest and still validates the image and
+contract, but it does not authenticate the publisher.
+
+`sandbox contract create` displays the image-derived contract and asks you to confirm the policy-bearing paths before
+writing it. Automation must pass `--non-interactive --yes`. JSON setup similarly requires `--non-interactive --yes`,
+JSON contract editing requires `--no-retry`, and JSON reset requires `--yes`, so machine-readable output never contains
+interactive prompts.
+
+```bash
+morph sandbox setup --backend docker --release v1.2.3 --verification signature --yes
+morph sandbox setup --backend docker --release v1.2.3 --verification digest --accept-digest --yes
+morph sandbox setup --backend local --yes
+```
+
 Provider configuration flags:
 
 | Flag | Description |
@@ -355,7 +387,7 @@ Prints version and commit hash.
 | *(default)* | TUI |
 | `auth` | RPC identities, sessions, tokens, authorizations, audits, and mTLS |
 | `automation` | Scheduled agent jobs, runs, delivery |
-| `config` | Get/set profile config |
+| `config` | Get, set, or safely edit profile config |
 | `daemon` | Run daemon or check status |
 | `db` | SQLite reset |
 | `doctor` | Readiness diagnostics |
@@ -363,6 +395,7 @@ Prints version and commit hash.
 | `permissions` | Approval requests, grants, and preset |
 | `profile` | Profile create, select, inspect |
 | `provider` | Provider configuration and credentials |
+| `sandbox` | Set up and inspect command execution environments |
 | `session` | Session CRUD and maintenance |
 | `trace` | Trace viewer |
 | `version` | Version info |

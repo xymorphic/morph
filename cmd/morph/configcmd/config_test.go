@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,6 +14,7 @@ import (
 
 	morphcli "github.com/xymorphic/morph/internal/cli"
 	"github.com/xymorphic/morph/internal/config"
+	"github.com/xymorphic/morph/internal/fileedit"
 	"github.com/xymorphic/morph/internal/profile"
 )
 
@@ -221,14 +223,134 @@ func TestCommand_RequiresPathAndValue(t *testing.T) {
 	require.EqualError(t, err, "config path and value are required")
 }
 
+func TestCommand_EditUpdatesValidatedProfileConfig(t *testing.T) {
+	clearSetConfigEnv(t, "MORPH_CONFIG", "MORPH_ENV_FILE", "MORPH_PROFILE")
+	resetSetConfigProfileState(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	configPath := writeCommandProfileConfig(t, home, "work")
+	setConfigEditorRunner(t, func(_ context.Context, _ fileedit.Editor, candidate string) error {
+		data, err := os.ReadFile(candidate)
+		if err != nil {
+			return err
+		}
+		updated := strings.Replace(string(data), "pii: false", "pii: true", 1)
+		return os.WriteFile(candidate, []byte(updated), 0o600)
+	})
+
+	var output bytes.Buffer
+	cmd := newTestRootCommandWithIO(strings.NewReader(""), &output)
+	err := cmd.Run(context.Background(), []string{
+		"morph", "config", "edit", "--profile", "work", "--editor", os.Args[0],
+	})
+
+	require.NoError(t, err)
+	cfg, loadErr := config.Load("", configPath)
+	require.NoError(t, loadErr)
+	require.NotNil(t, cfg.Safety.PII)
+	require.True(t, *cfg.Safety.PII)
+	require.Equal(t, "Updated "+configPath+"\n", output.String())
+}
+
+func TestCommand_EditPreservesActiveConfigWhenCandidateIsInvalid(t *testing.T) {
+	clearSetConfigEnv(t, "MORPH_CONFIG", "MORPH_ENV_FILE", "MORPH_PROFILE")
+	resetSetConfigProfileState(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	configPath := writeCommandProfileConfig(t, home, "work")
+	original, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	setConfigEditorRunner(t, func(_ context.Context, _ fileedit.Editor, candidate string) error {
+		return os.WriteFile(candidate, []byte(": invalid"), 0o600)
+	})
+
+	var output bytes.Buffer
+	cmd := newTestRootCommandWithIO(strings.NewReader("n\n"), &output)
+	err = cmd.Run(context.Background(), []string{
+		"morph", "config", "edit", "--profile", "work", "--editor", os.Args[0],
+	})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "candidate preserved at")
+	require.Contains(t, output.String(), "Validation failed:")
+	actual, readErr := os.ReadFile(configPath)
+	require.NoError(t, readErr)
+	require.Equal(t, original, actual)
+	candidatePath := strings.TrimPrefix(err.Error()[strings.LastIndex(err.Error(), "; candidate preserved at "):], "; candidate preserved at ")
+	t.Cleanup(func() { _ = os.Remove(candidatePath) })
+}
+
+func TestCommand_EditRejectsConcurrentActiveConfigChange(t *testing.T) {
+	clearSetConfigEnv(t, "MORPH_CONFIG", "MORPH_ENV_FILE", "MORPH_PROFILE")
+	resetSetConfigProfileState(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	configPath := writeCommandProfileConfig(t, home, "work")
+	setConfigEditorRunner(t, func(_ context.Context, _ fileedit.Editor, candidate string) error {
+		current, err := os.ReadFile(candidate)
+		if err != nil {
+			return err
+		}
+		updated := strings.Replace(string(current), "pii: false", "pii: true", 1)
+		if err := os.WriteFile(candidate, []byte(updated), 0o600); err != nil {
+			return err
+		}
+		return os.WriteFile(configPath, []byte(strings.Replace(string(current), "name: test-agent", "name: concurrent", 1)), 0o600)
+	})
+
+	err := newTestRootCommandWithIO(strings.NewReader(""), &bytes.Buffer{}).Run(context.Background(), []string{
+		"morph", "config", "edit", "--profile", "work", "--editor", os.Args[0], "--no-retry",
+	})
+
+	require.ErrorContains(t, err, "changed while it was being edited")
+	cfg, loadErr := config.Load("", configPath)
+	require.NoError(t, loadErr)
+	require.Equal(t, "concurrent", cfg.Name)
+	require.NotNil(t, cfg.Safety.PII)
+	require.False(t, *cfg.Safety.PII)
+}
+
+func TestCommand_EditReportsUnchangedConfigWithoutReplacement(t *testing.T) {
+	clearSetConfigEnv(t, "MORPH_CONFIG", "MORPH_ENV_FILE", "MORPH_PROFILE")
+	resetSetConfigProfileState(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	configPath := writeCommandProfileConfig(t, home, "work")
+	before, err := os.Stat(configPath)
+	require.NoError(t, err)
+	setConfigEditorRunner(t, func(context.Context, fileedit.Editor, string) error { return nil })
+	var output bytes.Buffer
+
+	err = newTestRootCommandWithIO(strings.NewReader(""), &output).Run(context.Background(), []string{
+		"morph", "config", "edit", "--profile", "work", "--editor", os.Args[0],
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, "Configuration unchanged\n", output.String())
+	after, statErr := os.Stat(configPath)
+	require.NoError(t, statErr)
+	require.True(t, before.ModTime().Equal(after.ModTime()))
+}
+
 func newTestRootCommand(output io.Writer) *cli.Command {
+	return newTestRootCommandWithIO(strings.NewReader(""), output)
+}
+
+func newTestRootCommandWithIO(input io.Reader, output io.Writer) *cli.Command {
 	envFile := ".env"
 	configFile := "config.yaml"
 	return &cli.Command{
 		Name:     "morph",
 		Flags:    morphcli.RootFlags(&envFile, &configFile),
-		Commands: []*cli.Command{NewCommand(output)},
+		Commands: []*cli.Command{NewCommandWithIO(input, output)},
 	}
+}
+
+func setConfigEditorRunner(t *testing.T, runner func(context.Context, fileedit.Editor, string) error) {
+	t.Helper()
+	original := runEditor
+	runEditor = runner
+	t.Cleanup(func() { runEditor = original })
 }
 
 func clearSetConfigEnv(t *testing.T, keys ...string) {

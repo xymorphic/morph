@@ -166,6 +166,36 @@ morph doctor
 
 ### Opt in to Docker execution
 
+Use the setup command for the normal path:
+
+```bash
+# Signature mode authenticates an official release with your installed cosign executable.
+morph sandbox setup \
+  --backend docker \
+  --release v1.2.3 \
+  --verification signature \
+  --yes
+
+# Digest mode makes the resolved immutable digest an explicit operator trust decision.
+morph sandbox setup \
+  --backend docker \
+  --release v1.2.3 \
+  --verification digest \
+  --accept-digest \
+  --yes
+```
+
+Without complete flags, `morph sandbox setup` prompts for the missing choices and previews security-sensitive settings.
+It checks the Linux Docker engine, resolves the release to a digest, verifies the selected trust mode, extracts the
+contract embedded in the image, validates it, and writes `config.yaml` once. Signature mode expects `cosign` on
+`PATH`; Morph never installs it.
+
+On later runs, guided prompts default to the profile's configured backend and image. Omitted Docker options retain their
+configured values, and an unchanged image keeps its validated active contract rather than replacing a user-managed
+contract with setup defaults. Selecting a different image activates the matching embedded release contract.
+
+The equivalent manual configuration is:
+
 ```yaml
 execution:
   backend: docker
@@ -173,17 +203,34 @@ execution:
     scope: session
     image: ghcr.io/xymorphic/morph-sandbox@sha256:<release-digest>
     imageVerification: signature
-    contract: /path/to/containers/sandbox/contract.json
+    contract: sandbox/contracts/active/<image-and-contract-digests>.json
     workspace:
       mode: none
     network: none
 ```
 
 Use `ro` or `rw` plus an absolute `workspace.source` only when the container must see a host workspace. `rw`, shared
-scope, bridge network, additional mounts, and selected secret references all require separate authorization. Restart the
-daemon after changing execution security settings. `signature` is the default image-verification mode. Set
+scope, bridge network, additional mounts, and selected secret references all require separate authorization. The daemon
+watcher reloads a valid `config.yaml` change in place; no separate restart command is needed. `signature` is the default
+image-verification mode. Set
 `imageVerification: digest` only when you trust the configured digest through another channel; Morph then skips Cosign,
 continues enforcing the digest pin and image contract, and reports the missing publisher verification as a doctor warning.
+
+Inspect or customize the profile-local contract without changing the preserved release copy:
+
+```bash
+morph sandbox contract show
+morph sandbox contract create --output ./contract.json
+morph sandbox contract edit
+morph sandbox contract validate
+morph sandbox contract reset --yes
+```
+
+Contract creation inspects the trusted immutable image, then asks you to confirm the policy-bearing paths it cannot
+infer as a security decision. In automation, acknowledge those fields with `--non-interactive --yes`.
+
+For a general guarded YAML edit, run `morph config edit`. Morph edits a temporary file, validates it, detects concurrent
+changes, and replaces the profile config atomically only after validation succeeds.
 
 ## Where To Go Next
 

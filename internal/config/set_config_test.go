@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/xymorphic/morph/internal/fileedit"
 	"github.com/xymorphic/morph/internal/profile"
 )
 
@@ -199,6 +200,42 @@ search:
 	require.NoError(t, err)
 	require.Equal(t, "openrouter", cfg.Models.Main.Provider)
 	require.Equal(t, "openai/gpt-4o-mini", cfg.Models.Main.Name)
+}
+
+func TestSetConfigValuesRelaxedIfUnchanged_RejectsConcurrentConfigChange(t *testing.T) {
+	clearEnvKeys(t, "MORPH_CONFIG", "MORPH_ENV_FILE", "MORPH_PROFILE", "OPENROUTER_API_KEY")
+	resetSetConfigProfileState(t)
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(configPath, []byte(`
+name: original
+search:
+    vector:
+        enabled: false
+storage:
+    backend: memory
+`), 0o600))
+	snapshot, err := fileedit.ReadSnapshot(configPath, nil)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(configPath, []byte(`
+name: concurrent
+search:
+    vector:
+        enabled: false
+storage:
+    backend: memory
+`), 0o600))
+
+	_, err = SetConfigValuesRelaxedIfUnchanged(
+		"",
+		configPath,
+		[]ConfigUpdate{{Path: "name", Value: "requested"}},
+		snapshot,
+	)
+
+	require.EqualError(t, err, configPath+" changed while it was being edited")
+	cfg, loadErr := Load("", configPath)
+	require.NoError(t, loadErr)
+	require.Equal(t, "concurrent", cfg.Name)
 }
 
 func TestSetConfigValues_RewritesFlowMappingsAsBlockYAML(t *testing.T) {

@@ -4,6 +4,7 @@ package docker
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +18,29 @@ import (
 	processenv "github.com/xymorphic/morph/internal/environment/process"
 	"github.com/xymorphic/morph/internal/execution"
 )
+
+func TestImageContractManagement_Integration(t *testing.T) {
+	backend, image, releaseContract := newIntegrationBackend(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	raw, err := ExtractImageFile(ctx, backend.client, image, SandboxContractPath)
+	require.NoError(t, err)
+	var embedded execution.ImageContract
+	require.NoError(t, json.Unmarshal(raw, &embedded))
+	embedded, err = embedded.Normalize()
+	require.NoError(t, err)
+	require.Equal(t, releaseContract.Digest(), embedded.Digest())
+	require.NoError(t, CheckImageContractCompatibility(embedded))
+	require.NoError(t, checkImageMetadata(ctx, backend.client, image, embedded))
+	require.NoError(t, checkImageContractPaths(ctx, backend.client, image, embedded))
+
+	derived, err := InspectImageContract(ctx, backend.client, image)
+	require.NoError(t, err)
+	require.Equal(t, embedded.User, derived.User)
+	require.Equal(t, embedded.Helper, derived.Helper)
+	require.True(t, embedded.SupportsArchitecture(derived.Architecture))
+}
 
 func TestBackend_IntegrationLifecycle(t *testing.T) {
 	backend, image, contract := newIntegrationBackend(t)
