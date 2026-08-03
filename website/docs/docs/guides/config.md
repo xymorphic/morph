@@ -172,6 +172,7 @@ execution:
   docker:
     scope: session
     image: ghcr.io/xymorphic/morph-sandbox@sha256:<release-digest>
+    imageVerification: signature
     contract: /path/to/containers/sandbox/contract.json
     workspace:
       mode: none
@@ -180,7 +181,9 @@ execution:
 
 Use `ro` or `rw` plus an absolute `workspace.source` only when the container must see a host workspace. `rw`, shared
 scope, bridge network, additional mounts, and selected secret references all require separate authorization. Restart the
-daemon after changing execution security settings.
+daemon after changing execution security settings. `signature` is the default image-verification mode. Set
+`imageVerification: digest` only when you trust the configured digest through another channel; Morph then skips Cosign,
+continues enforcing the digest pin and image contract, and reports the missing publisher verification as a doctor warning.
 
 ## Where To Go Next
 

@@ -451,6 +451,9 @@ func applyEnvOverrides(cfg *Config) {
 	if value := strings.TrimSpace(os.Getenv("MORPH_EXECUTION_DOCKER_IMAGE")); value != "" {
 		cfg.Execution.Docker.Image = value
 	}
+	if value := strings.TrimSpace(os.Getenv("MORPH_EXECUTION_DOCKER_IMAGE_VERIFICATION")); value != "" {
+		cfg.Execution.Docker.ImageVerification = value
+	}
 	if value := strings.TrimSpace(os.Getenv("MORPH_EXECUTION_DOCKER_CONTRACT")); value != "" {
 		cfg.Execution.Docker.Contract = value
 	}

@@ -13,6 +13,8 @@ import (
 	executiondocker "github.com/xymorphic/morph/internal/execution/docker"
 )
 
+var verifyExecutionImageSignature = executiondocker.VerifyImageSignature
+
 func buildExecutionGroup(ctx context.Context, cfg *config.Config) Group {
 	if cfg == nil {
 		return Group{
@@ -241,19 +243,29 @@ func buildExecutionGroup(ctx context.Context, cfg *config.Config) Group {
 		}
 	}
 
-	signatureCtx, signatureCancel := context.WithTimeout(ctx, 30*time.Second)
-	defer signatureCancel()
-	if err := executiondocker.VerifyImageSignature(signatureCtx, docker.Image); err != nil {
-		checks = append(checks, check("image-signature", StatusFail, err.Error()))
-	} else {
-		checks = append(
-			checks,
-			check("image-signature", StatusPass, "sandbox image signature is trusted"),
-		)
-	}
+	checks = append(checks, buildImageVerificationCheck(ctx, docker))
 
 	return Group{
 		Name:   "execution",
 		Checks: checks,
 	}
+}
+
+func buildImageVerificationCheck(
+	ctx context.Context,
+	docker config.DockerExecutionConfig,
+) Check {
+	if docker.ImageVerification == config.ExecutionImageVerificationDigest {
+		return check(
+			"image-signature",
+			StatusWarn,
+			"signature verification is disabled; trusting the configured image digest",
+		)
+	}
+	signatureCtx, signatureCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer signatureCancel()
+	if err := verifyExecutionImageSignature(signatureCtx, docker.Image); err != nil {
+		return check("image-signature", StatusFail, err.Error())
+	}
+	return check("image-signature", StatusPass, "sandbox image signature is trusted")
 }

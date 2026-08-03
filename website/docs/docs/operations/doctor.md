@@ -382,8 +382,10 @@ restart. See [Daemon Operations: Config reload](./daemon#config-reload).
 ## Where To Go Next
 
 The **execution** group reports local mode as uncontained. For Docker it checks the local Engine, mandatory resource
-controls, pinned image, runtime contract, and trusted keyless signature. Install `cosign` on the daemon host; a missing
-verifier, untrusted workflow identity, contract mismatch, or unavailable image fails readiness. Use `morph sandbox list --session <id>` and
+controls, pinned image, runtime contract, and configured image-verification mode. The default `signature` mode requires
+`cosign`; a missing verifier or untrusted workflow identity fails readiness. Explicit `digest` mode skips publisher
+verification and produces a warning while retaining digest and contract checks. A contract mismatch or unavailable image
+fails either mode. Use `morph sandbox list --session <id>` and
 `morph sandbox explain --session <id> <environment-id>` for authenticated live daemon state without running a command.
 
 Pages that link here for readiness detail:

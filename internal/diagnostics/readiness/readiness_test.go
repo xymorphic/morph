@@ -42,6 +42,58 @@ func TestReport_HasFailuresAndSummary(t *testing.T) {
 	require.Equal(t, "readiness checks passed", report.Summary())
 }
 
+func TestBuildImageVerificationCheck_ReportsConfiguredTrustMode(t *testing.T) {
+	originalVerify := verifyExecutionImageSignature
+	t.Cleanup(func() {
+		verifyExecutionImageSignature = originalVerify
+	})
+	verifyCalls := 0
+	verifyExecutionImageSignature = func(context.Context, string) error {
+		verifyCalls++
+		return errors.New("signature should not be checked")
+	}
+	digestCheck := buildImageVerificationCheck(
+		context.Background(),
+		config.DockerExecutionConfig{
+			Image:             "example.com/image@sha256:digest",
+			ImageVerification: config.ExecutionImageVerificationDigest,
+		},
+	)
+	require.Equal(t, StatusWarn, digestCheck.Status)
+	require.Contains(t, digestCheck.Message, "trusting the configured image digest")
+	require.Zero(t, verifyCalls)
+
+	verifyExecutionImageSignature = func(context.Context, string) error {
+		verifyCalls++
+		return nil
+	}
+	signatureCheck := buildImageVerificationCheck(
+		context.Background(),
+		config.DockerExecutionConfig{
+			Image:             "example.com/image@sha256:digest",
+			ImageVerification: config.ExecutionImageVerificationSignature,
+		},
+	)
+	require.Equal(t, StatusPass, signatureCheck.Status)
+	require.Contains(t, signatureCheck.Message, "signature is trusted")
+	require.Equal(t, 1, verifyCalls)
+
+	verifyExecutionImageSignature = func(context.Context, string) error {
+		verifyCalls++
+		return errors.New("untrusted image")
+	}
+	failedCheck := buildImageVerificationCheck(
+		context.Background(),
+		config.DockerExecutionConfig{
+			Image:             "example.com/image@sha256:digest",
+			ImageVerification: config.ExecutionImageVerificationSignature,
+		},
+	)
+	require.Equal(t, StatusFail, failedCheck.Status)
+	require.Equal(t, "untrusted image", failedCheck.Message)
+	require.Equal(t, 2, verifyCalls)
+}
+
 func TestBuildPermissionGroup_ReportsUnsafeAndImpossiblePolicies(t *testing.T) {
 	fullAccess := readyConfig()
 	fullAccess.Permissions.Preset = permissions.PresetFullAccess

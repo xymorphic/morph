@@ -139,6 +139,23 @@ provider env vars below.
 No `MORPH_*` override exists for typed command selectors, `fs.noProfileAccess`, or
 `compaction.recentSessionTail`.
 
+## Docker execution
+
+| Variable | Config key |
+| --- | --- |
+| `MORPH_EXECUTION_BACKEND` | `execution.backend` |
+| `MORPH_EXECUTION_DOCKER_SCOPE` | `execution.docker.scope` |
+| `MORPH_EXECUTION_DOCKER_ENDPOINT` | `execution.docker.endpoint` |
+| `MORPH_EXECUTION_DOCKER_IMAGE` | `execution.docker.image` |
+| `MORPH_EXECUTION_DOCKER_IMAGE_VERIFICATION` | `execution.docker.imageVerification` |
+| `MORPH_EXECUTION_DOCKER_CONTRACT` | `execution.docker.contract` |
+| `MORPH_EXECUTION_DOCKER_WORKSPACE_MODE` | `execution.docker.workspace.mode` |
+| `MORPH_EXECUTION_DOCKER_WORKSPACE_SOURCE` | `execution.docker.workspace.source` |
+| `MORPH_EXECUTION_DOCKER_NETWORK` | `execution.docker.network` |
+
+Image verification accepts `signature` (default) or `digest`. Digest mode removes publisher authentication, not digest
+pinning or contract validation.
+
 ## Search and reranker
 
 | Variable | Config key |

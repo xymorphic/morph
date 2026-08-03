@@ -17,6 +17,13 @@ const (
 	SandboxRuntimeCompatibility = "1"
 )
 
+type ImageVerificationMode string
+
+const (
+	ImageVerificationSignature ImageVerificationMode = "signature"
+	ImageVerificationDigest    ImageVerificationMode = "digest"
+)
+
 var verifySandboxImageSignature = VerifyImageSignature
 
 func LoadImageContract(path string) (execution.ImageContract, error) {
@@ -46,6 +53,17 @@ func ValidateImageReference(reference string) error {
 		}
 	}
 	return nil
+}
+
+func normalizeImageVerificationMode(value ImageVerificationMode) (ImageVerificationMode, error) {
+	value = ImageVerificationMode(strings.TrimSpace(strings.ToLower(string(value))))
+	if value == "" {
+		return ImageVerificationSignature, nil
+	}
+	if value != ImageVerificationSignature && value != ImageVerificationDigest {
+		return "", errors.New("sandbox image verification must be signature or digest")
+	}
+	return value, nil
 }
 
 func VerifyImageSignature(ctx context.Context, reference string) error {
@@ -85,8 +103,10 @@ func (b *Backend) verifyImage(ctx context.Context) error {
 	if b.imageVerified {
 		return nil
 	}
-	if err := verifySandboxImageSignature(ctx, b.image); err != nil {
-		return err
+	if b.imageVerification != ImageVerificationDigest {
+		if err := verifySandboxImageSignature(ctx, b.image); err != nil {
+			return err
+		}
 	}
 	inspect, err := b.client.Engine().ImageInspect(ctx, b.image)
 	if err != nil {

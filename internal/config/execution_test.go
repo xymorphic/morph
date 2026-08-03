@@ -37,6 +37,52 @@ func TestNormalizeExecution_NormalizesSecretCatalogMetadata(t *testing.T) {
 	)
 }
 
+func TestNormalizeExecution_DefaultsAndNormalizesImageVerification(t *testing.T) {
+	cfg := Config{}
+
+	cfg.normalizeExecution()
+
+	require.Equal(
+		t,
+		ExecutionImageVerificationSignature,
+		cfg.Execution.Docker.ImageVerification,
+	)
+
+	cfg.Execution.Docker.ImageVerification = "  DIGEST  "
+	cfg.normalizeExecution()
+
+	require.Equal(
+		t,
+		ExecutionImageVerificationDigest,
+		cfg.Execution.Docker.ImageVerification,
+	)
+}
+
+func TestValidateExecution_RejectsUnknownImageVerification(t *testing.T) {
+	cfg := validDockerExecutionConfig()
+	cfg.Execution.Docker.ImageVerification = "checksum"
+
+	require.EqualError(
+		t,
+		cfg.validateExecution(),
+		"execution docker image verification must be signature or digest",
+	)
+}
+
+func TestValidateExecution_AcceptsSupportedImageVerification(t *testing.T) {
+	for _, mode := range []string{
+		ExecutionImageVerificationSignature,
+		ExecutionImageVerificationDigest,
+	} {
+		t.Run(mode, func(t *testing.T) {
+			cfg := validDockerExecutionConfig()
+			cfg.Execution.Docker.ImageVerification = mode
+
+			require.NoError(t, cfg.validateExecution())
+		})
+	}
+}
+
 func TestValidateExecution_RequiresSecretDescription(t *testing.T) {
 	cfg := Config{Execution: ExecutionConfig{
 		Backend: ExecutionBackendDocker,
@@ -47,7 +93,8 @@ func TestValidateExecution_RequiresSecretDescription(t *testing.T) {
 				"a",
 				64,
 			),
-			Contract: "/contract.json",
+			ImageVerification: ExecutionImageVerificationSignature,
+			Contract:          "/contract.json",
 			Workspace: ExecutionWorkspaceConfig{
 				Mode: ExecutionWorkspaceNone,
 			},
@@ -78,7 +125,8 @@ func TestValidateExecution_AllowsAnyConfiguredSecretEnvironmentSource(t *testing
 				"a",
 				64,
 			),
-			Contract: "/contract.json",
+			ImageVerification: ExecutionImageVerificationSignature,
+			Contract:          "/contract.json",
 			Workspace: ExecutionWorkspaceConfig{
 				Mode: ExecutionWorkspaceNone,
 			},
@@ -99,4 +147,21 @@ func TestValidateExecution_AllowsAnyConfiguredSecretEnvironmentSource(t *testing
 	}}
 
 	require.NoError(t, cfg.validateExecution())
+}
+
+func validDockerExecutionConfig() Config {
+	return Config{Execution: ExecutionConfig{
+		Backend: ExecutionBackendDocker,
+		Docker: DockerExecutionConfig{
+			Scope:             ExecutionScopeSession,
+			Endpoint:          "/var/run/docker.sock",
+			Image:             "example.com/morph-sandbox@sha256:" + strings.Repeat("a", 64),
+			ImageVerification: ExecutionImageVerificationSignature,
+			Contract:          "/contract.json",
+			Workspace: ExecutionWorkspaceConfig{
+				Mode: ExecutionWorkspaceNone,
+			},
+			Network: ExecutionNetworkNone,
+		},
+	}}
 }

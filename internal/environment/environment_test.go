@@ -25,6 +25,8 @@ import (
 	envsessionmessages "github.com/xymorphic/morph/internal/environment/sessionmessages"
 	envsessionsearch "github.com/xymorphic/morph/internal/environment/sessionsearch"
 	envtypes "github.com/xymorphic/morph/internal/environment/types"
+	"github.com/xymorphic/morph/internal/execution"
+	executiondocker "github.com/xymorphic/morph/internal/execution/docker"
 	"github.com/xymorphic/morph/internal/guardrails"
 	instruct "github.com/xymorphic/morph/internal/instructions"
 	"github.com/xymorphic/morph/internal/memory"
@@ -53,6 +55,14 @@ type blockingUnsafeEvidenceRecorder struct {
 	err error
 }
 
+type executionServiceStub struct {
+	execution.Service
+}
+
+func (executionServiceStub) Close(gctx.Context) error {
+	return nil
+}
+
 func (r *blockingUnsafeEvidenceRecorder) RecordUnsafeEvidence(
 	ctx gctx.Context,
 	_ guardrails.UnsafeEvidence,
@@ -74,6 +84,59 @@ func TestNewEnvironment_InitializesDependencies(t *testing.T) {
 	require.Same(t, baseCtx, h.ctx)
 	require.Same(t, cfg, h.cfg)
 	require.Empty(t, env.Instructions())
+}
+
+func TestEnvironment_PrepareForwardsDockerImageVerification(t *testing.T) {
+	originalFactory := newDockerExecutionService
+	t.Cleanup(func() {
+		newDockerExecutionService = originalFactory
+	})
+	var captured executiondocker.BackendOptions
+	newDockerExecutionService = func(
+		options executiondocker.BackendOptions,
+	) (execution.Service, error) {
+		captured = options
+		return executionServiceStub{}, nil
+	}
+
+	home := t.TempDir()
+	setProfileHome(t, home)
+	cfg := &config.Config{
+		Name: "Digest verification",
+		Execution: config.ExecutionConfig{
+			Backend: config.ExecutionBackendDocker,
+			Docker: config.DockerExecutionConfig{
+				Image: "example.com/sandbox@sha256:" + strings.Repeat(
+					"a",
+					64,
+				),
+				ImageVerification: config.ExecutionImageVerificationDigest,
+				Contract: filepath.Join(
+					"..",
+					"..",
+					"containers",
+					"sandbox",
+					"contract.json",
+				),
+			},
+		},
+		Trace: config.TraceConfig{
+			Disk: config.TraceDiskConfig{
+				Dir: t.TempDir(),
+			},
+		},
+	}
+	env := NewEnvironment(gctx.Background(), cfg)
+	env.SetStateManager(newTestStateManager(t))
+
+	require.NoError(t, env.Prepare())
+	require.Equal(
+		t,
+		executiondocker.ImageVerificationDigest,
+		captured.ImageVerification,
+	)
+	require.Equal(t, cfg.Execution.Docker.Image, captured.Image)
+	require.NoError(t, env.(*environment).Close())
 }
 
 func TestEnvironment_AllToolsExposePermissionMetadata(t *testing.T) {

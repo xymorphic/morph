@@ -218,6 +218,7 @@ See [Safety and Guardrails](../concepts/safety-and-guardrails).
 | `execution.docker.scope` | string | `session` | `session` or explicit profile-wide `shared` |
 | `execution.docker.endpoint` | string | `/var/run/docker.sock` | Local Unix socket or named pipe only |
 | `execution.docker.image` | string | empty | Required digest-pinned image in Docker mode |
+| `execution.docker.imageVerification` | string | `signature` | `signature` verifies Morph release provenance; `digest` trusts the configured digest |
 | `execution.docker.contract` | path | empty | Static image target contract |
 | `execution.docker.workspace.mode` | string | `none` | `none`, `ro`, or `rw` |
 | `execution.docker.workspace.source` | path | empty | Required for `ro`/`rw` |

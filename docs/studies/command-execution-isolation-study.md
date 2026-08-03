@@ -150,6 +150,7 @@ execution:
     scope: session
     endpoint: /var/run/docker.sock
     image: ghcr.io/xymorphic/morph-sandbox@sha256:<64-hex-digest>
+    imageVerification: signature
     contract: /absolute/path/to/morph/containers/sandbox/contract.json
     workspace:
       mode: none
@@ -619,12 +620,23 @@ An executable existing in the image is not enough by itself: direct execution re
 identity. Adding a program therefore requires rebuilding the image and updating the matching contract; changing the
 contract version additionally requires a compatible Morph runtime.
 
-Production startup requires:
+Production startup always requires:
 
 1. an image reference pinned by SHA-256 digest;
-2. `cosign` on the daemon host;
-3. a valid keyless signature from Morph's tagged sandbox-image workflow;
-4. image OS, architecture, user, and entrypoint matching the contract.
+2. image OS, architecture, user, and entrypoint matching the contract;
+3. the configured contract version matching Morph's runtime compatibility.
+
+The `imageVerification` setting selects who vouches for the pinned digest:
+
+| Mode | Verification |
+| --- | --- |
+| `signature` | Default. Requires `cosign` and a valid keyless signature from Morph's tagged sandbox-image workflow. |
+| `digest` | Skips publisher authentication and trusts the configured digest supplied by the operator. |
+
+Both modes keep the immutable `repository@sha256:<digest>` requirement and Docker's content-addressed manifest/layer
+checks. Digest mode does not mean an arbitrary mutable tag is accepted. It means Morph proves that Docker is using the
+exact operator-selected bytes and checks their image metadata against the contract, but cannot prove who published them.
+`morph doctor` reports this explicit trust transfer as a warning.
 
 The tagged CI workflow builds one multi-platform OCI image index for `linux/amd64` and `linux/arm64`, pushes the release
 tag, and signs the immutable index digest with GitHub Actions' OIDC identity. Cosign stores signature material as a
@@ -640,9 +652,9 @@ Docker test lane.
 
 The sandbox image itself is Linux-only. Morph can run on Windows and connect to a local Docker Desktop Linux Engine over
 `//./pipe/docker_engine`, while Unix hosts use an explicit local Unix socket. That does not add Windows-container
-support: readiness still requires the Engine and selected image platform to satisfy the Linux contract. `cosign` runs on
-the daemon host, so Windows installations must provide a Windows `cosign` executable on PATH just as Unix installations
-must provide their native executable.
+support: readiness still requires the Engine and selected image platform to satisfy the Linux contract. In `signature`
+mode, `cosign` runs on the daemon host, so Windows installations must provide a Windows `cosign` executable on PATH just
+as Unix installations must provide their native executable. Digest mode does not require the Cosign executable.
 
 ## 15. Mount safety
 
@@ -911,7 +923,7 @@ The execution readiness group reports:
 - seccomp and host LSM signals;
 - pinned image presence;
 - image contract compatibility;
-- keyless signature verification.
+- keyless signature verification or an explicit digest-only trust warning.
 
 ### Environment list
 
@@ -953,15 +965,16 @@ Raw secret values are excluded.
 
 ## 22. Hands-on lab: verify the implementation
 
-This lab has two tracks. The first uses Morph's explicit test image path and does not require a signed production image.
-The second configures a real daemon with a signed pinned image.
+This lab has two tracks. The first uses Morph's explicit test image path and does not require a production image. The
+second configures a real daemon with a digest-pinned image and selects its provenance policy.
 
 ### 22.1 Prerequisites
 
 - Docker Engine running with Linux containers.
 - Go and the repository toolchain installed.
 - CGO dependencies required by Morph's SQLite tests.
-- For production configuration: `cosign` and a signed Morph sandbox image digest.
+- For production signature verification: `cosign` and a signed Morph sandbox image digest.
+- For digest verification: a trusted compatible image digest; Cosign is not required.
 
 Confirm Docker is reachable:
 
@@ -1010,7 +1023,7 @@ docker image rm morph-sandbox:test
 
 The test backend cleans its containers and networks. Do not run a broad Docker prune.
 
-### 22.4 Configure a signed production image
+### 22.4 Configure a production image
 
 Obtain the digest from a successful tagged `Sandbox image` workflow run. The downloaded artifact is configuration
 metadata, so first turn it into the immutable image reference:
@@ -1066,6 +1079,7 @@ execution:
     scope: session
     endpoint: /var/run/docker.sock
     image: ghcr.io/xymorphic/morph-sandbox@sha256:<digest>
+    imageVerification: signature
     contract: /absolute/path/to/morph/containers/sandbox/contract.json
     workspace:
       mode: none
@@ -1079,8 +1093,20 @@ Run:
 morph doctor
 ```
 
-Do not continue until the image, contract, signature, Engine API, and required resource controls pass. A rootful Docker
-warning is a trust disclosure, not proof that the runtime is broken.
+With `imageVerification: signature`, do not continue until the image, contract, signature, Engine API, and required
+resource controls pass. A rootful Docker warning is a trust disclosure, not proof that the runtime is broken.
+
+To use a compatible image whose digest you trust without Xymorphic publisher verification, change only:
+
+```yaml
+execution:
+  docker:
+    imageVerification: digest
+```
+
+Restart the daemon and rerun `morph doctor`. The signature check becomes a warning that Morph is trusting the configured
+digest. Image presence, digest pinning, supported contract version, platform, architecture, user, and entrypoint remain
+mandatory. The configured digest is now the operator's trust anchor: it proves exact content identity, not authorship.
 
 When finished with the downloaded metadata:
 
@@ -1209,6 +1235,7 @@ This demonstrates the difference between persistent workspace state and replacea
 | `manifest unknown` while pulling | Digest was written as a tag, commonly `:sha256-...`, or the digest is from the cosign signature object. | Build `repository@digest` from `sandbox-manifest.json`; do not use the `.sig` artifact digest. |
 | Pinned image unavailable / `No such image` | The exact digest is configured but not present in the selected Docker Engine, or private GHCR authentication is missing. | Log in if needed, then run `docker pull repository@sha256:<digest>` against the same Engine endpoint. |
 | `cosign is required` | Production signature verifier unavailable. | Install `cosign` on daemon host. |
+| Signature verification is disabled | `imageVerification: digest` explicitly delegates image provenance to the configured digest. | Confirm the digest through a trusted channel or return to `signature`. |
 | Image contract mismatch | Wrong platform, user, entrypoint, or stale contract. | Inspect image and compare contract digest and fields. |
 | Unsupported sandbox runtime compatibility | Contract version differs from Morph's supported runtime version. | Use the matching image/contract or update Morph and rebuild the image together. |
 | Command executable absent from contract | Direct command name or absolute path is not enumerated, even if a binary happens to exist in the image. | Use a declared executable or deliberately update the image contract and image. |

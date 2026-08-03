@@ -560,6 +560,20 @@ func TestApplyEnvOverrides_IgnoresInvalidWebCacheTTL(t *testing.T) {
 	require.Equal(t, constants.DefaultWebCacheTTL, cfg.Web.CacheTTL)
 }
 
+func TestApplyEnvOverrides_SetsDockerImageVerification(t *testing.T) {
+	clearEnvKeys(t, "MORPH_EXECUTION_DOCKER_IMAGE_VERIFICATION")
+	t.Setenv("MORPH_EXECUTION_DOCKER_IMAGE_VERIFICATION", "digest")
+	cfg := &Config{}
+
+	applyEnvOverrides(cfg)
+
+	require.Equal(
+		t,
+		ExecutionImageVerificationDigest,
+		cfg.Execution.Docker.ImageVerification,
+	)
+}
+
 func TestApplyEnvOverrides_CoversRemainingBranches(t *testing.T) {
 	clearEnvKeys(t,
 		"MORPH_MODEL_CONTEXT_LENGTH", "MORPH_MODEL_MAX_RETRIES", "OPENAI_API_KEY", "OPENROUTER_API_KEY",

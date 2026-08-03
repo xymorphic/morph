@@ -202,8 +202,10 @@ filesystem tools through the same container-backed filesystem. Docker defaults t
 session and no network. Host mounts, bridge network access, shared profile scope, and named secret references are
 separate permission-bearing capabilities.
 
-The sandbox image must be pinned by digest and carry Morph's trusted keyless signature; install `cosign` on the daemon
-host so startup and `morph doctor` can verify it. Use `morph doctor` to validate the configured execution posture and
+The sandbox image must be pinned by digest. Image verification defaults to `signature`, which requires `cosign` on the
+daemon host and trusts only Morph's tagged release workflow. Set `execution.docker.imageVerification: digest` to trust
+the configured digest without checking its publisher; `morph doctor` reports this weaker provenance posture as a
+warning. Use `morph doctor` to validate the configured execution posture and
 `morph sandbox list` / `morph sandbox explain <id>` to inspect daemon-owned environments. A writable host workspace can
 modify files that later execute on the host; container isolation does not make that safe.
 

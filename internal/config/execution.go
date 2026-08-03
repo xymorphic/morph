@@ -12,15 +12,17 @@ import (
 )
 
 const (
-	ExecutionBackendLocal  = "local"
-	ExecutionBackendDocker = "docker"
-	ExecutionScopeSession  = "session"
-	ExecutionScopeShared   = "shared"
-	ExecutionWorkspaceNone = "none"
-	ExecutionWorkspaceRO   = "ro"
-	ExecutionWorkspaceRW   = "rw"
-	ExecutionNetworkNone   = "none"
-	ExecutionNetworkBridge = "bridge"
+	ExecutionBackendLocal               = "local"
+	ExecutionBackendDocker              = "docker"
+	ExecutionImageVerificationSignature = "signature"
+	ExecutionImageVerificationDigest    = "digest"
+	ExecutionScopeSession               = "session"
+	ExecutionScopeShared                = "shared"
+	ExecutionWorkspaceNone              = "none"
+	ExecutionWorkspaceRO                = "ro"
+	ExecutionWorkspaceRW                = "rw"
+	ExecutionNetworkNone                = "none"
+	ExecutionNetworkBridge              = "bridge"
 )
 
 var (
@@ -37,6 +39,7 @@ type DockerExecutionConfig struct {
 	Scope                   string                   `yaml:"scope"`
 	Endpoint                string                   `yaml:"endpoint"`
 	Image                   string                   `yaml:"image"`
+	ImageVerification       string                   `yaml:"imageVerification"`
 	Contract                string                   `yaml:"contract"`
 	Workspace               ExecutionWorkspaceConfig `yaml:"workspace"`
 	Mounts                  []ExecutionMountConfig   `yaml:"mounts"`
@@ -95,6 +98,7 @@ func defaultExecutionConfig() ExecutionConfig {
 		Docker: DockerExecutionConfig{
 			Scope:                   ExecutionScopeSession,
 			Endpoint:                endpoint,
+			ImageVerification:       ExecutionImageVerificationSignature,
 			Workspace:               ExecutionWorkspaceConfig{Mode: ExecutionWorkspaceNone},
 			Network:                 ExecutionNetworkNone,
 			EnvironmentIdleExpiry:   30 * time.Minute,
@@ -133,6 +137,10 @@ func (c *Config) normalizeExecution() {
 		docker.Endpoint = defaults.Docker.Endpoint
 	}
 	docker.Image = strings.TrimSpace(docker.Image)
+	docker.ImageVerification = strings.TrimSpace(strings.ToLower(docker.ImageVerification))
+	if docker.ImageVerification == "" {
+		docker.ImageVerification = defaults.Docker.ImageVerification
+	}
 	docker.Contract = strings.TrimSpace(docker.Contract)
 	docker.Workspace.Mode = strings.TrimSpace(strings.ToLower(docker.Workspace.Mode))
 	if docker.Workspace.Mode == "" {
@@ -232,6 +240,10 @@ func (c *Config) validateExecution() error {
 	}
 	if !imageDigestPattern.MatchString(docker.Image) {
 		return errors.New("execution docker image must be pinned by sha256 digest")
+	}
+	if docker.ImageVerification != ExecutionImageVerificationSignature &&
+		docker.ImageVerification != ExecutionImageVerificationDigest {
+		return errors.New("execution docker image verification must be signature or digest")
 	}
 	if docker.Contract == "" {
 		return errors.New("execution docker contract path is required")

@@ -27,6 +27,7 @@ import (
 type Backend struct {
 	client              *Client
 	image               string
+	imageVerification   ImageVerificationMode
 	contract            execution.ImageContract
 	daemonIncarnation   string
 	secretResolver      *SecretResolver
@@ -66,6 +67,7 @@ type Backend struct {
 type BackendOptions struct {
 	Endpoint             string
 	Image                string
+	ImageVerification    ImageVerificationMode
 	Contract             execution.ImageContract
 	DaemonIncarnation    string
 	SecretResolver       *SecretResolver
@@ -104,6 +106,10 @@ func NewBackend(options BackendOptions) (*Backend, error) {
 	if err != nil {
 		return nil, err
 	}
+	imageVerification, err := normalizeImageVerificationMode(options.ImageVerification)
+	if err != nil {
+		return nil, err
+	}
 	if contract.Version != SandboxRuntimeCompatibility {
 		return nil, errors.New("sandbox image runtime compatibility is unsupported")
 	}
@@ -125,6 +131,7 @@ func NewBackend(options BackendOptions) (*Backend, error) {
 	backend := &Backend{
 		client:              engine,
 		image:               options.Image,
+		imageVerification:   imageVerification,
 		contract:            contract,
 		daemonIncarnation:   options.DaemonIncarnation,
 		secretResolver:      options.SecretResolver,

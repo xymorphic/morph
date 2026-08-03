@@ -121,6 +121,12 @@ type environment struct {
 	unsafeEvidence guardrails.UnsafeEvidenceRecorder
 }
 
+var newDockerExecutionService = func(
+	options executiondocker.BackendOptions,
+) (execution.Service, error) {
+	return executiondocker.NewBackend(options)
+}
+
 // ToolRegistry resolves model-visible tool definitions and invokers.
 type ToolRegistry interface {
 	GetGroup(string) (tools.Group, bool)
@@ -513,6 +519,9 @@ func (e *environment) prepareExecution() error {
 		if keyErr != nil {
 			return keyErr
 		}
+		imageVerification := executiondocker.ImageVerificationMode(
+			e.cfg.Execution.Docker.ImageVerification,
+		)
 		managerKey = strings.Join(
 			[]string{profileName, base.SecurityGeneration, string(base.Backend)},
 			"\x00",
@@ -522,9 +531,10 @@ func (e *environment) prepareExecution() error {
 			if incarnationErr != nil {
 				return nil, incarnationErr
 			}
-			return executiondocker.NewBackend(executiondocker.BackendOptions{
+			return newDockerExecutionService(executiondocker.BackendOptions{
 				Endpoint:            e.cfg.Execution.Docker.Endpoint,
 				Image:               e.cfg.Execution.Docker.Image,
+				ImageVerification:   imageVerification,
 				Contract:            contract,
 				DaemonIncarnation:   daemonIncarnation,
 				SecretResolver:      secretResolver,

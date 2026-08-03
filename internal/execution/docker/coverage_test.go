@@ -1503,7 +1503,9 @@ func TestBackendImageVerification(t *testing.T) {
 		verifySandboxImageSignature = originalVerify
 	})
 	verifyErr := error(nil)
+	verifyCalls := 0
 	verifySandboxImageSignature = func(context.Context, string) error {
+		verifyCalls++
 		return verifyErr
 	}
 
@@ -1538,6 +1540,25 @@ func TestBackendImageVerification(t *testing.T) {
 	require.NoError(t, backend.verifyImage(context.Background()))
 	require.True(t, backend.imageVerified)
 	require.NoError(t, backend.verifyImage(context.Background()))
+	require.Equal(t, 7, verifyCalls)
+
+	backend.imageVerified = false
+	backend.imageVerification = ImageVerificationDigest
+	verifyErr = errors.New("signature should not be checked")
+	require.NoError(t, backend.verifyImage(context.Background()))
+	require.True(t, backend.imageVerified)
+	require.Equal(t, 7, verifyCalls)
+
+	backend.imageVerified = false
+	server.imageOS = "windows"
+	require.EqualError(
+		t,
+		backend.verifyImage(context.Background()),
+		"sandbox image platform does not match its contract",
+	)
+	require.Equal(t, 7, verifyCalls)
+	server.imageOS = "linux"
+
 	backend.allowTestImage = true
 	require.NoError(t, backend.verifyImage(context.Background()))
 }
@@ -2957,12 +2978,29 @@ func TestNewBackendValidationAndControlFrames(t *testing.T) {
 		return errors.New("signature failed")
 	}
 	_, err = NewBackend(BackendOptions{
+		Image:             "image",
+		ImageVerification: "checksum",
+		Contract:          testContract(),
+		AllowTestImageTag: true,
+	})
+	require.EqualError(t, err, "sandbox image verification must be signature or digest")
+	_, err = NewBackend(BackendOptions{
 		Endpoint:          server.listener.Addr().String(),
 		Image:             digestReference,
 		Contract:          testContract(),
 		DaemonIncarnation: "daemon",
 	})
 	require.EqualError(t, err, "signature failed")
+	digestBackend, err := NewBackend(BackendOptions{
+		Endpoint:          server.listener.Addr().String(),
+		Image:             digestReference,
+		ImageVerification: ImageVerificationDigest,
+		Contract:          testContract(),
+		DaemonIncarnation: "daemon",
+	})
+	require.NoError(t, err)
+	require.Equal(t, ImageVerificationDigest, digestBackend.imageVerification)
+	require.NoError(t, digestBackend.client.Close())
 	verifySandboxImageSignature = func(context.Context, string) error {
 		return nil
 	}
