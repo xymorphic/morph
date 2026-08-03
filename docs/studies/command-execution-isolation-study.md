@@ -17,6 +17,7 @@ This guide explains:
 - how local, session-scoped Docker, and shared Docker execution differ;
 - why filesystem tools must use the same backend view as shell commands;
 - how foreground cancellation and background process handles work;
+- how direct commands, shell commands, working directories, and approval time are represented;
 - how mounts, network access, and secret references affect permissions;
 - how daemon, security, and container generations prevent stale reuse;
 - how to build, test, configure, inspect, and troubleshoot the system.
@@ -67,6 +68,7 @@ There are two important promises in that model:
 | Security generation | Hash of security-relevant execution and command-policy configuration. |
 | Daemon incarnation | Random identity created for one daemon-owned Docker backend lifetime. |
 | Container incarnation | Random identity of one concrete persistent/shared or process container. |
+| Image contract | Versioned declaration of the sandbox platform, user, PATH, shell, executable identities, and fixed paths. |
 
 ## 4. The controls are deliberately separate
 
@@ -274,8 +276,19 @@ The manager registry shares one backend service between environment instances wi
 only after the final lease is released. This prevents duplicate daemon-owned resource managers for equivalent runtime
 configuration.
 
-For Docker, startup also builds a command target from the image contract. Command analysis resolves executables against
-that target rather than assuming the daemon host's `PATH`.
+For Docker, startup also builds a command target from the image contract. Its PATH and executable map are trusted
+sandbox facts, not hints from the daemon host or model input. Command analysis therefore:
+
+1. replaces any supplied PATH with the contract PATH;
+2. resolves a bare name such as `pwd` only through the contract executable map;
+3. accepts an absolute executable such as `/bin/pwd` only when that exact identity appears in the map;
+4. preserves the precise `command executable is absent from the sandbox contract` error when resolution fails.
+
+This prevents authorization from analyzing one host executable while Docker later runs another image executable.
+Contract version compatibility is strict: the current runtime accepts version `1`. Changing the contract version without
+updating Morph's `SandboxRuntimeCompatibility` makes Docker backend startup fail closed with an unsupported-runtime
+error. Contract content changes within a supported version change the contract and exposure digests. A corresponding
+new image digest changes the configured security generation as well.
 
 ## 8. The immutable preparation boundary
 
@@ -361,6 +374,18 @@ same preparation result.
 The entire batch must be allowed. A command cannot be approved while its writable host mount or bridge exposure is
 silently omitted.
 
+A container-only working directory is not presented as a host-file read. For example, `cwd: /workspace` with a private
+Docker volume contributes no separate host path operation; the Docker process operation and image/security-generation
+operation describe the exposure. A configured host bind is still represented by its canonical mount permission. This
+keeps an approval from claiming that `/workspace` is a host path when it exists only inside Docker.
+
+The approval transcript is a lifecycle view, not an append-only copy of every trace event. While a request is pending,
+its cell may show the remaining response time. Approval, denial, expiry, cancellation, or failure replaces that same
+request-ID cell with a terminal state, where the old response deadline is no longer displayed. Delayed pending poll
+results cannot move a terminal request backward, and timeline hydration collapses persisted pending and terminal events
+into the same current cell. This matters operationally because `Expires: expired` must mean an unanswered request really
+expired, not that an already-approved command retained an obsolete countdown.
+
 ## 10. Foreground command flow
 
 `run_command` supports direct command mode and POSIX shell mode. "Direct" describes how arguments are passed to the
@@ -394,6 +419,28 @@ sequenceDiagram
     D-->>T: Bounded, redacted CommandResult
     T-->>M: Tool output
 ```
+
+The modes are intentionally different:
+
+| Input | Analysis and execution |
+| --- | --- |
+| `mode: direct`, `command: pwd` | Resolve `pwd` to `/bin/pwd` from the contract and launch that executable directly. |
+| `mode: direct`, `command: /bin/pwd` | Accept only if `/bin/pwd` is an exact contract executable identity. |
+| `mode: posix_shell`, `command: pwd` | Launch the contract shell as `/bin/sh -c pwd`; this is indirect execution. |
+| `mode: direct`, `command: sh`, `args: ["-c", "pwd"]` | Still indirect execution because the invoked program is a shell. |
+
+The Docker working directory is mapped independently from executable resolution:
+
+- omitted `cwd` defaults to `/workspace`;
+- `/workspace` and descendants remain container paths;
+- `/mnt/<grant>` and descendants remain configured grant paths;
+- a canonical configured host source is translated to its fixed container mount target;
+- an absolute path outside all configured mounts is rejected before execution;
+- a relative path remains relative to the container's configured working-directory semantics.
+
+The TUI labels direct and shell commands distinctly. It also records permission-approval wait separately from actual
+execution duration, so a 45-second approval decision followed by a one-second `pwd` is displayed as a one-second command,
+not a 46-second command.
 
 ### Cancellation and timeout
 
@@ -561,6 +608,17 @@ The contract is in
 [`containers/sandbox/contract.json`](../../containers/sandbox/contract.json), and the image is built from
 [`containers/sandbox/Dockerfile`](../../containers/sandbox/Dockerfile).
 
+The current version `1` contract declares this PATH:
+
+```text
+/usr/local/bin:/usr/bin:/bin
+```
+
+Its named executable set includes `cat`, `find`, `git`, `mkdir`, `morph-sandbox`, `pwd`, `printf`, `rg`, `sh`, `sleep`.
+An executable existing in the image is not enough by itself: direct execution requires the corresponding contract
+identity. Adding a program therefore requires rebuilding the image and updating the matching contract; changing the
+contract version additionally requires a compatible Morph runtime.
+
 Production startup requires:
 
 1. an image reference pinned by SHA-256 digest;
@@ -568,8 +626,23 @@ Production startup requires:
 3. a valid keyless signature from Morph's tagged sandbox-image workflow;
 4. image OS, architecture, user, and entrypoint matching the contract.
 
-The CI workflow builds `linux/amd64` and `linux/arm64`, signs the resulting digest, and publishes a manifest artifact.
-The local `morph-sandbox:test` tag is accepted only by the explicit Docker test lane.
+The tagged CI workflow builds one multi-platform OCI image index for `linux/amd64` and `linux/arm64`, pushes the release
+tag, and signs the immutable index digest with GitHub Actions' OIDC identity. Cosign stores signature material as a
+separate OCI object, commonly visible in GHCR under a `sha256-<image-digest>.sig` tag. That signature object has its own
+digest; it is not a second digest for the sandbox image.
+
+The workflow also uploads `sandbox-manifest.json`. This small artifact identifies the repository, image digest, release,
+architectures, expected runtime compatibility, signature issuer, and signing workflow. It is metadata for configuring
+and verifying Morph; it does not contain the image. The local `morph-sandbox:test` tag is accepted only by the explicit
+Docker test lane.
+
+### Host platform note
+
+The sandbox image itself is Linux-only. Morph can run on Windows and connect to a local Docker Desktop Linux Engine over
+`//./pipe/docker_engine`, while Unix hosts use an explicit local Unix socket. That does not add Windows-container
+support: readiness still requires the Engine and selected image platform to satisfy the Linux contract. `cosign` runs on
+the daemon host, so Windows installations must provide a Windows `cosign` executable on PATH just as Unix installations
+must provide their native executable.
 
 ## 15. Mount safety
 
@@ -799,6 +872,25 @@ volumes follow longer ownership rules:
 Daemon shutdown stops tracked disposable process containers, removes shared containers and networks, and closes the
 Engine client. Persistent workspaces are not broadly deleted.
 
+### Disk admission and `reservedFreeBytes`
+
+Before creating a new Morph workspace volume, the backend checks both the per-profile volume count and the configured
+free-space reserve. `reservedFreeBytes` is the minimum Docker-storage capacity that must remain available; its default is
+2 GiB. It is an admission threshold, not space preallocated to Morph and not a quota assigned to each workspace.
+
+The check must observe the Docker Engine's storage filesystem. Looking at the Morph daemon host with `statfs` is wrong
+when Docker runs in a VM, Docker Desktop, or another storage namespace. Morph therefore uses this order:
+
+1. read `Data Space Available` from Docker Engine information when the storage driver reports it;
+2. otherwise create a short-lived, labeled, no-network storage-probe container from the pinned sandbox image;
+3. run `morph-sandbox free-space /workspace`, which performs `statfs` inside the Engine's filesystem view;
+4. parse the available-byte count and remove the probe container;
+5. reject volume creation if the value is below `reservedFreeBytes` or cannot be verified.
+
+The fallback probe is deliberately constrained: non-root contract user, read-only root filesystem, all capabilities
+dropped, no network, no restart policy, and no command supplied by the model. This makes disk-pressure admission work
+across storage drivers without granting the daemon a host-path guess.
+
 ## 21. Inspection and diagnostics
 
 ### Doctor
@@ -920,7 +1012,52 @@ The test backend cleans its containers and networks. Do not run a broad Docker p
 
 ### 22.4 Configure a signed production image
 
-Obtain the digest from a published sandbox-image release and configure the digest form, not a mutable tag:
+Obtain the digest from a successful tagged `Sandbox image` workflow run. The downloaded artifact is configuration
+metadata, so first turn it into the immutable image reference:
+
+```bash
+release_tag=vX.Y.Z # replace with the published tag
+run_id="$(
+  gh run list \
+    --workflow sandbox-image.yml \
+    --branch "$release_tag" \
+    --limit 1 \
+    --json databaseId \
+    --jq '.[0].databaseId'
+)"
+
+gh run watch "$run_id" --exit-status
+
+morph_release_dir="$(mktemp -d)"
+gh run download "$run_id" \
+  -n sandbox-manifest \
+  -D "$morph_release_dir"
+
+manifest_path="$morph_release_dir/sandbox-manifest.json"
+jq . "$manifest_path"
+image_ref="$(jq -r '.repository + "@" + .digest' "$manifest_path")"
+printf '%s\n' "$image_ref"
+```
+
+The result must look like:
+
+```text
+ghcr.io/xymorphic/morph-sandbox@sha256:<64-hex-digest>
+```
+
+The `@` matters. `ghcr.io/xymorphic/morph-sandbox:sha256-...` is a tag-like reference and is not the published image
+digest. If the GHCR package is private, log in with a token that has `read:packages` before pulling:
+
+```bash
+printf '%s' "$CR_PAT" | docker login ghcr.io -u <github-user> --password-stdin
+docker pull "$image_ref"
+```
+
+For a public package, only the `docker pull` command is needed. Morph currently expects the pinned image to be locally
+available; `morph doctor` verifies and inspects it but does not silently replace the configured digest with a tag or pull
+an unavailable image.
+
+Configure that exact digest reference, not the mutable release tag:
 
 ```yaml
 execution:
@@ -944,6 +1081,13 @@ morph doctor
 
 Do not continue until the image, contract, signature, Engine API, and required resource controls pass. A rootful Docker
 warning is a trust disclosure, not proof that the runtime is broken.
+
+When finished with the downloaded metadata:
+
+```bash
+rm "$manifest_path"
+rmdir "$morph_release_dir"
+```
 
 ### 22.5 Observe private workspace persistence
 
@@ -1062,15 +1206,21 @@ This demonstrates the difference between persistent workspace state and replacea
 | `execution backend is not configured` | Runtime or test double does not expose `execution.Runtime`. | Environment construction and tool runtime wiring. |
 | Docker endpoint rejected | TCP, SSH, context, relative socket, or unsupported endpoint. | Use an explicit local Unix socket or named pipe. |
 | Image must be pinned | Mutable tag supplied in production config. | Use `repository@sha256:<digest>`. |
+| `manifest unknown` while pulling | Digest was written as a tag, commonly `:sha256-...`, or the digest is from the cosign signature object. | Build `repository@digest` from `sandbox-manifest.json`; do not use the `.sig` artifact digest. |
+| Pinned image unavailable / `No such image` | The exact digest is configured but not present in the selected Docker Engine, or private GHCR authentication is missing. | Log in if needed, then run `docker pull repository@sha256:<digest>` against the same Engine endpoint. |
 | `cosign is required` | Production signature verifier unavailable. | Install `cosign` on daemon host. |
 | Image contract mismatch | Wrong platform, user, entrypoint, or stale contract. | Inspect image and compare contract digest and fields. |
+| Unsupported sandbox runtime compatibility | Contract version differs from Morph's supported runtime version. | Use the matching image/contract or update Morph and rebuild the image together. |
+| Command executable absent from contract | Direct command name or absolute path is not enumerated, even if a binary happens to exist in the image. | Use a declared executable or deliberately update the image contract and image. |
+| Docker working directory outside configured mounts | Absolute `cwd` is neither `/workspace`, `/mnt/<grant>`, nor a configured canonical host source. | Omit `cwd`, use a container-visible mounted path, or configure an explicit mount. |
 | Mount source protected | Source enters system, credential, Morph-state, or Docker-control path. | Select a dedicated non-sensitive directory. |
 | Mount source changed after authorization | Symlink or canonical path changed before create. | Stabilize the configured source and retry explicitly. |
 | Path does not map to a grant | Docker path is outside `/workspace` and configured `/mnt` roots. | Use a configured logical grant. |
 | Path is read-only | Write/patch requested through a `ro` mapping. | Change operation or explicitly reconfigure mount mode. |
 | Docker backend unavailable | Daemon stopped or socket inaccessible. | Run `docker info` and `morph doctor`; no local fallback occurs. |
 | Environment/volume limit reached | Profile resource admission bound reached. | Stop unused work; allow idle cleanup; inspect environments. |
-| Disk-pressure admission | Reserved free-space threshold would be violated. | Free Docker storage deliberately; do not broad-prune blindly. |
+| Disk-pressure admission | Creating a volume would leave less than `reservedFreeBytes`. | Free Docker storage deliberately or choose an intentional threshold; do not broad-prune blindly. |
+| Docker free-space reserve cannot be verified | Engine storage information is absent and the sandbox storage probe failed or returned invalid output. | Confirm the pinned image contains the matching `free-space` helper, then inspect Docker health and probe-container errors. |
 | `invalid_process_id` | Handle malformed or MAC invalid. | Use the exact returned ID or current label. |
 | `process_access_denied` | Another owner/session supplied a valid handle. | Control it from its owning session. |
 | `process_stale` | Daemon, security, or container incarnation changed. | Start a new process and use its new ID. |
@@ -1084,6 +1234,9 @@ This demonstrates the difference between persistent workspace state and replacea
 | Owner/process identity | Owner scoping, invalid MAC, stale generation/incarnation, and wrong-owner classification. |
 | Manager lifecycle | Shared service closes after its final lease. |
 | Container construction | Non-root, read-only rootfs, no capabilities, clean environment, limits, mounts, stdin lifecycle. |
+| Command target | Contract PATH, bare-name/absolute resolution, direct-versus-shell mode, CWD mapping, and precise lookup failures. |
+| Resource admission | Engine-reported capacity, in-engine free-space probe, reserve rejection, probe cleanup, and volume bounds. |
+| Approval lifecycle | Terminal-state monotonicity, hydrated request indexing, replay collapsing, and stale-expiry removal. |
 | Output | Cross-chunk exact-value redaction, truncation, and byte accounting. |
 | Local backend | Filesystem search recursion, regex, and hidden-file behavior. |
 | Sandbox helper | Patch allowlisting and OS process start identity. |
@@ -1103,6 +1256,10 @@ make build-sandbox
 make test-execution-docker
 ```
 
+CI mirrors this split in [`.github/workflows/tests.yml`](../../.github/workflows/tests.yml): the `General` job runs
+`make test`, while `Docker E2E` builds `morph-sandbox:test` and runs `make test-execution-docker` against the runner's
+Linux Docker Engine. The live provider-backed test lane is intentionally not part of this deterministic workflow.
+
 ## 25. Source map
 
 | Concern | Implementation |
@@ -1113,6 +1270,7 @@ make test-execution-docker
 | Owner and process handles | [`internal/execution/identity.go`](../../internal/execution/identity.go) |
 | Runtime/backend wiring | [`internal/environment/environment.go`](../../internal/environment/environment.go), [`runtime.go`](../../internal/environment/runtime.go) |
 | Permission integration | [`internal/tools/common/execution.go`](../../internal/tools/common/execution.go) |
+| Command analysis and Docker target | [`internal/tools/common/command.go`](../../internal/tools/common/command.go), [`internal/execution/runtime.go`](../../internal/execution/runtime.go) |
 | Local backend | [`internal/execution/local`](../../internal/execution/local) |
 | Docker acquisition and foreground execution | [`internal/execution/docker/container.go`](../../internal/execution/docker/container.go) |
 | Shared execution | [`internal/execution/docker/shared.go`](../../internal/execution/docker/shared.go) |
@@ -1122,9 +1280,13 @@ make test-execution-docker
 | Mount checks | [`internal/execution/docker/mounts.go`](../../internal/execution/docker/mounts.go) |
 | Secret resolution/redaction | [`internal/execution/docker/secrets.go`](../../internal/execution/docker/secrets.go), [`internal/guardrails/exact_value_stream.go`](../../internal/guardrails/exact_value_stream.go) |
 | Cleanup and reconciliation | [`internal/execution/docker/reconcile.go`](../../internal/execution/docker/reconcile.go) |
+| Volume and free-space admission | [`internal/execution/docker/resources.go`](../../internal/execution/docker/resources.go) |
 | Sandbox helper/image | [`cmd/morph-sandbox`](../../cmd/morph-sandbox), [`containers/sandbox`](../../containers/sandbox) |
+| Sandbox publishing and signing | [`.github/workflows/sandbox-image.yml`](../../.github/workflows/sandbox-image.yml) |
+| General and Docker CI | [`.github/workflows/tests.yml`](../../.github/workflows/tests.yml) |
 | Diagnostics | [`internal/diagnostics/readiness/execution.go`](../../internal/diagnostics/readiness/execution.go) |
 | Operator CLI | [`cmd/sandbox/sandbox.go`](../../cmd/sandbox/sandbox.go) |
+| TUI approval lifecycle | [`internal/tui/app/transcript.go`](../../internal/tui/app/transcript.go), [`timeline.go`](../../internal/tui/app/timeline.go) |
 | Live Docker test | [`internal/e2e/tests/execution/docker_test.go`](../../internal/e2e/tests/execution/docker_test.go) |
 
 ## 26. Core invariants to remember
@@ -1141,6 +1303,9 @@ make test-execution-docker
 10. Shared foreground cancellation recreates the container because an arbitrary exec tree cannot be safely isolated.
 11. Workspace identity survives same-scope generation/restart changes; process handles do not.
 12. Cleanup uses exact labels and ownership—never global Docker prune.
+13. Docker command identity comes from the versioned sandbox contract, never the daemon host PATH.
+14. Container-only working directories do not invent host-file permissions; configured host mounts remain explicit.
+15. New workspace volumes are admitted against Docker-visible free space, not the Morph host filesystem view.
 
 If these invariants are clear, the rest of the system becomes much easier to reason about: Morph first decides what may
 happen, then constrains where and with which ambient capabilities it can happen, and finally preserves enough identity
